@@ -44,10 +44,10 @@ export default function TicketSettingsDialog({
 	const settingsStore = useTicketSettingsStore();
 
 	const ticketSettingsSchema = z.object({
-		costPerTicket: z.number().positive({
+		blendedRatePerHour: z.number().positive({
 			message: t("ticketSettings.validation.costMustBePositive"),
 		}),
-		avgTimePerTicket: z.number().positive({
+		timeToTake: z.number().positive({
 			message: t("ticketSettings.validation.timeMustBePositive"),
 		}),
 		timeUnit: z.enum(["minutes"]),
@@ -65,8 +65,8 @@ export default function TicketSettingsDialog({
 	} = useForm<TicketSettingsForm>({
 		resolver: zodResolver(ticketSettingsSchema),
 		defaultValues: {
-			costPerTicket: settingsStore.costPerTicket,
-			avgTimePerTicket: settingsStore.avgTimePerTicket,
+			blendedRatePerHour: settingsStore.blendedRatePerHour,
+			timeToTake: settingsStore.timeToTake,
 			timeUnit: FORM_DEFAULTS.timeUnit,
 		},
 		mode: "onChange",
@@ -76,8 +76,8 @@ export default function TicketSettingsDialog({
 		if (!open) {
 			const timeout = setTimeout(() => {
 				reset({
-					costPerTicket: settingsStore.costPerTicket,
-					avgTimePerTicket: settingsStore.avgTimePerTicket,
+					blendedRatePerHour: settingsStore.blendedRatePerHour,
+					timeToTake: settingsStore.timeToTake,
 					timeUnit: FORM_DEFAULTS.timeUnit,
 				});
 			}, 300);
@@ -86,14 +86,14 @@ export default function TicketSettingsDialog({
 	}, [
 		open,
 		reset,
-		settingsStore.costPerTicket,
-		settingsStore.avgTimePerTicket,
+		settingsStore.blendedRatePerHour,
+		settingsStore.timeToTake,
 	]);
 
 	const onSubmit = (data: TicketSettingsForm) => {
 		settingsStore.setSettings({
-			costPerTicket: data.costPerTicket,
-			avgTimePerTicket: data.avgTimePerTicket,
+			blendedRatePerHour: data.blendedRatePerHour,
+			timeToTake: data.timeToTake,
 		});
 		onOpenChange(false);
 	};
@@ -118,8 +118,8 @@ export default function TicketSettingsDialog({
 					<div className="flex flex-col gap-4">
 						<p className="text-base">{t("ticketSettings.savingsSection")}</p>
 						<div className="grid gap-2">
-							<Label htmlFor="costPerTicket">
-								{t("ticketSettings.costPerTicket")}
+							<Label htmlFor="blendedRatePerHour">
+								{t("ticketSettings.blendedRatePerHour")}
 							</Label>
 							<div className="relative">
 								<span
@@ -129,29 +129,29 @@ export default function TicketSettingsDialog({
 									$
 								</span>
 								<Input
-									id="costPerTicket"
+									id="blendedRatePerHour"
 									type="number"
 									step="0.01"
 									min="0"
 									className="pl-7"
-									aria-invalid={!!errors.costPerTicket}
-									aria-describedby="costPerTicket-error costPerTicket-help"
-									{...register("costPerTicket", {
+									aria-invalid={!!errors.blendedRatePerHour}
+									aria-describedby="blendedRatePerHour-error blendedRatePerHour-help"
+									{...register("blendedRatePerHour", {
 										valueAsNumber: true,
 									})}
 								/>
 							</div>
-							{errors.costPerTicket && (
+							{errors.blendedRatePerHour && (
 								<p
-									id="costPerTicket-error"
+									id="blendedRatePerHour-error"
 									className="text-sm text-destructive"
 									role="alert"
 								>
-									{errors.costPerTicket.message}
+									{errors.blendedRatePerHour.message}
 								</p>
 							)}
 							<p
-								id="costPerTicket-help"
+								id="blendedRatePerHour-help"
 								className="text-sm text-muted-foreground"
 							>
 								{t("ticketSettings.costHelper")}
@@ -162,19 +162,19 @@ export default function TicketSettingsDialog({
 					<div className="flex flex-col gap-4">
 						<p className="text-base">{t("ticketSettings.timeSavedSection")}</p>
 						<div className="grid gap-2">
-							<Label htmlFor="avgTimePerTicket">
-								{t("ticketSettings.avgTimePerTicket")}
+							<Label htmlFor="timeToTake">
+								{t("ticketSettings.timeToTake")}
 							</Label>
 							<div className="flex gap-2.5">
 								<Input
-									id="avgTimePerTicket"
+									id="timeToTake"
 									type="number"
 									step="1"
 									min="0"
 									className="flex-1"
-									aria-invalid={!!errors.avgTimePerTicket}
-									aria-describedby="avgTimePerTicket-error avgTimePerTicket-help"
-									{...register("avgTimePerTicket", {
+									aria-invalid={!!errors.timeToTake}
+									aria-describedby="timeToTake-error timeToTake-help"
+									{...register("timeToTake", {
 										valueAsNumber: true,
 									})}
 								/>
@@ -188,7 +188,7 @@ export default function TicketSettingsDialog({
 								>
 									<SelectTrigger
 										className="w-[130px]"
-										aria-label={t("ticketSettings.avgTimePerTicket")}
+										aria-label={t("ticketSettings.timeToTake")}
 									>
 										<SelectValue />
 									</SelectTrigger>
@@ -199,17 +199,17 @@ export default function TicketSettingsDialog({
 									</SelectContent>
 								</Select>
 							</div>
-							{errors.avgTimePerTicket && (
+							{errors.timeToTake && (
 								<p
-									id="avgTimePerTicket-error"
+									id="timeToTake-error"
 									className="text-sm text-destructive"
 									role="alert"
 								>
-									{errors.avgTimePerTicket.message}
+									{errors.timeToTake.message}
 								</p>
 							)}
 							<p
-								id="avgTimePerTicket-help"
+								id="timeToTake-help"
 								className="text-sm text-muted-foreground"
 							>
 								{t("ticketSettings.timeHelper")}
@@ -217,6 +217,27 @@ export default function TicketSettingsDialog({
 						</div>
 					</div>
 				</form>
+
+				<Separator />
+
+				<div className="rounded-md bg-muted/50 px-4 py-3 space-y-3">
+					<div>
+						<p className="text-sm font-medium mb-1">Est. Money Saved</p>
+						<p className="text-xs text-muted-foreground">
+							${watch("blendedRatePerHour") || 0}/hr × {watch("timeToTake") || 0} min × # of tickets
+							{" "}= <span className="font-medium text-foreground">${((watch("blendedRatePerHour") || 0) * ((watch("timeToTake") || 0) / 60)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> per ticket
+						</p>
+					</div>
+					<div>
+						<p className="text-sm font-medium mb-1">Est. Time Saved</p>
+						<p className="text-xs text-muted-foreground">
+							{watch("timeToTake") || 0} min × # of tickets
+						</p>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						# of tickets is determined by your ticket data per cluster. These settings update the Est. Money Saved and Est. Time Saved metrics on the dashboard and cluster pages.
+					</p>
+				</div>
 
 				<DialogFooter>
 					<Button variant="outline" onClick={() => onOpenChange(false)}>

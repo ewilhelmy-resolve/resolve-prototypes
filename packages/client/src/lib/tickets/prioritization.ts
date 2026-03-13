@@ -29,14 +29,14 @@ export function deriveCTAState(cluster: ClusterListItem): CTAState {
 
 export function rankClusters(
 	clusters: ClusterListItem[],
-	costPerTicket: number,
-	avgTimePerTicket: number,
+	blendedRatePerHour: number,
+	timeToTake: number,
 ): RankedCluster[] {
 	return clusters
 		.map((cluster) => {
-			const estimatedMonthlyCost = cluster.needs_response_count * costPerTicket;
+			const estimatedMonthlyCost = cluster.needs_response_count * blendedRatePerHour;
 			const estimatedMonthlyHours =
-				(cluster.needs_response_count * avgTimePerTicket) / 60;
+				(cluster.needs_response_count * timeToTake) / 60;
 			const manualBurdenPercent =
 				cluster.ticket_count > 0
 					? (cluster.needs_response_count / cluster.ticket_count) * 100
@@ -135,8 +135,8 @@ export type RoiSortKey = "costImpact" | "mttr" | "timeTaken";
 
 export function rankClustersByRoi(
 	clusters: ClusterListItem[],
-	costPerTicket: number,
-	avgTimePerTicket: number,
+	blendedRatePerHour: number,
+	timeToTake: number,
 	sortKey: RoiSortKey = "costImpact",
 	sortDir: "asc" | "desc" = "desc",
 ): RoiRankedCluster[] {
@@ -145,8 +145,8 @@ export function rankClustersByRoi(
 			? `${cluster.name} - ${cluster.subcluster_name}`
 			: cluster.name;
 		const costImpact =
-			costPerTicket * (avgTimePerTicket / 60) * cluster.ticket_count;
-		const timeTaken = avgTimePerTicket * cluster.needs_response_count;
+			blendedRatePerHour * (timeToTake / 60) * cluster.ticket_count;
+		const timeTaken = timeToTake * cluster.needs_response_count;
 		const mttr = MOCK_MTTR_MINUTES[cluster.id] ?? 20;
 
 		return {
@@ -170,8 +170,8 @@ export function rankClustersByRoi(
 
 export function computeAggregateSavings(
 	clusters: ClusterListItem[],
-	costPerTicket: number,
-	avgTimePerTicket: number,
+	blendedRatePerHour: number,
+	timeToTake: number,
 ): AggregateSavings {
 	let totalNeedsResponse = 0;
 	let knowledgeFoundCount = 0;
@@ -185,8 +185,8 @@ export function computeAggregateSavings(
 
 	return {
 		totalNeedsResponse,
-		totalMonthlyCost: totalNeedsResponse * costPerTicket,
-		totalMonthlyHours: (totalNeedsResponse * avgTimePerTicket) / 60,
+		totalMonthlyCost: totalNeedsResponse * blendedRatePerHour,
+		totalMonthlyHours: (totalNeedsResponse * timeToTake) / 60,
 		knowledgeFoundCount,
 		totalCount: clusters.length,
 	};

@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
-import { ArrowLeft, BookX, Loader2 } from "lucide-react";
+import { ArrowLeft, BookX, Info, Loader2, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -11,6 +11,13 @@ import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar"
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import {
 	Tooltip,
 	TooltipContent,
@@ -22,9 +29,7 @@ import {
 	useClusterHasAction,
 } from "@/hooks/useClusters";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
-
-/** Default cost setting (matches TicketSettingsDialog default) */
-const COST_PER_TICKET = 30;
+import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
 /** Fire confetti animation for success/enriched banners (stops after 2 sec) */
 const fireConfetti = () => {
@@ -69,6 +74,11 @@ export default function ClusterDetailPage() {
 	const queryClient = useQueryClient();
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
 	const { data: hasAction } = useClusterHasAction(id);
+	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
+	const [rateOverride, setRateOverride] = useState<number | null>(null);
+	const [timeOverride, setTimeOverride] = useState<number | null>(null);
+	const effectiveRate = rateOverride ?? blendedRatePerHour;
+	const effectiveTime = timeOverride ?? timeToTake;
 	const bannerRef = useRef<HTMLDivElement>(null);
 	const [knowledgeAdded, setKnowledgeAdded] = useState(false);
 
@@ -101,7 +111,7 @@ export default function ClusterDetailPage() {
 		}));
 	};
 
-	const handleReviewComplete = (stats: ReviewStats) => {
+	const _handleReviewComplete = (stats: ReviewStats) => {
 		const { trusted, totalReviewed, confidenceImprovement } = stats;
 		if (confidenceImprovement > 0) {
 			showBanner(
@@ -124,7 +134,7 @@ export default function ClusterDetailPage() {
 		}
 	};
 
-	const handleAutoPopulateEnabled = () => {
+	const _handleAutoPopulateEnabled = () => {
 		showBanner("enriched", t("clusterDetail.banners.enrichedTickets"));
 	};
 
@@ -145,7 +155,7 @@ export default function ClusterDetailPage() {
 		);
 	};
 
-	const handleAutoRespondEnabled = (
+	const _handleAutoRespondEnabled = (
 		ticketGroupName: string,
 		automatedPercentage: number,
 	) => {
@@ -245,7 +255,7 @@ export default function ClusterDetailPage() {
 						</div>
 
 						{/* Stats */}
-						<StatGroup columns={5}>
+						<StatGroup columns={6}>
 							<StatCard
 								value={cluster.ticket_count.toLocaleString()}
 								label={t("clusterDetail.stats.totalTickets")}
@@ -257,8 +267,80 @@ export default function ClusterDetailPage() {
 								loading={false}
 							/>
 							<StatCard
-								value={`$${(cluster.ticket_count * COST_PER_TICKET).toLocaleString()}`}
-								label={t("clusterDetail.stats.estImpact")}
+								value={`$${(effectiveRate * (effectiveTime / 60) * cluster.ticket_count).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+								label={
+									<span className="flex items-center gap-1">
+										{t("clusterDetail.stats.estMoneySaved")}
+										<Popover>
+											<PopoverTrigger asChild>
+												<button className="inline-flex items-center" aria-label="Edit cost settings">
+													<Pencil className="size-3 text-muted-foreground hover:text-foreground transition-colors" />
+												</button>
+											</PopoverTrigger>
+											<PopoverContent side="bottom" align="start" className="w-[260px]">
+												<div className="flex flex-col gap-3">
+													<p className="text-xs text-muted-foreground">
+														Override settings for this cluster. Leave blank to use global defaults.
+													</p>
+													<div className="flex flex-col gap-1.5">
+														<Label className="text-xs">Blended rate ($/hr)</Label>
+														<Input
+															type="number"
+															step="0.01"
+															min="0"
+															placeholder={String(blendedRatePerHour)}
+															value={rateOverride ?? ""}
+															onChange={(e) => setRateOverride(e.target.value ? Number(e.target.value) : null)}
+															className="h-8 text-sm"
+														/>
+													</div>
+													<div className="flex flex-col gap-1.5">
+														<Label className="text-xs">Time to take (min)</Label>
+														<Input
+															type="number"
+															step="1"
+															min="0"
+															placeholder={String(timeToTake)}
+															value={timeOverride ?? ""}
+															onChange={(e) => setTimeOverride(e.target.value ? Number(e.target.value) : null)}
+															className="h-8 text-sm"
+														/>
+													</div>
+													{(rateOverride !== null || timeOverride !== null) && (
+														<Button
+															variant="ghost"
+															size="sm"
+															className="w-fit text-xs h-7"
+															onClick={() => { setRateOverride(null); setTimeOverride(null); }}
+														>
+															Reset to global defaults
+														</Button>
+													)}
+													<p className="text-[10px] text-muted-foreground">
+														${effectiveRate}/hr × {effectiveTime} min × {cluster.ticket_count.toLocaleString()} tickets
+													</p>
+												</div>
+											</PopoverContent>
+										</Popover>
+									</span>
+								}
+								loading={false}
+							/>
+							<StatCard
+								value={`${Math.floor((effectiveTime * cluster.ticket_count) / 60)}hr`}
+								label={
+									<span className="flex items-center gap-1">
+										{t("clusterDetail.stats.estTimeSaved")}
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Info className="size-3 text-muted-foreground" />
+											</TooltipTrigger>
+											<TooltipContent side="bottom" className="max-w-[220px] text-xs">
+												{effectiveTime} min × {cluster.ticket_count.toLocaleString()} tickets
+											</TooltipContent>
+										</Tooltip>
+									</span>
+								}
 								loading={false}
 							/>
 							<StatCard

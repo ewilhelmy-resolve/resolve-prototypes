@@ -1,4 +1,4 @@
-import { BookX, ZapOff } from "lucide-react";
+import { BookX } from "lucide-react";
 import { formatRelativeTime } from "./TicketGroupStat";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,8 +30,6 @@ interface PrioritizationRankedListProps {
 	activePreset: RoiSortKey | null;
 	/** Callback when column sort overrides the preset */
 	onPresetChange?: (key: RoiSortKey) => void;
-	/** Map of cluster ID → has linked action */
-	actionsMap?: Record<string, boolean>;
 }
 
 type SortColumn = "tickets" | "open" | RoiSortKey;
@@ -40,11 +38,10 @@ export function PrioritizationRankedList({
 	clusters,
 	activePreset,
 	onPresetChange,
-	actionsMap,
 }: PrioritizationRankedListProps) {
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
-	const { costPerTicket, avgTimePerTicket } = useTicketSettingsStore();
+	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 
 	const [sortCol, setSortCol] = useState<SortColumn>(activePreset ?? "costImpact");
 	const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -77,12 +74,12 @@ export function PrioritizationRankedList({
 		() =>
 			rankClustersByRoi(
 				clusters,
-				costPerTicket,
-				avgTimePerTicket,
+				blendedRatePerHour,
+				timeToTake,
 				roiSortKey,
 				sortDir,
 			),
-		[clusters, costPerTicket, avgTimePerTicket, roiSortKey, sortDir],
+		[clusters, blendedRatePerHour, timeToTake, roiSortKey, sortDir],
 	);
 
 	const sorted = useMemo(() => {
@@ -117,8 +114,7 @@ export function PrioritizationRankedList({
 
 	const gapIcons = (cluster: ClusterListItem) => {
 		const hasKnowledgeGap = cluster.kb_status === "GAP";
-		const hasAutomationGap = actionsMap?.[cluster.id] === false;
-		if (!hasKnowledgeGap && !hasAutomationGap) return null;
+		if (!hasKnowledgeGap) return null;
 		return (
 			<div className="flex items-center gap-1.5">
 				{hasKnowledgeGap && (
@@ -129,16 +125,6 @@ export function PrioritizationRankedList({
 							</span>
 						</TooltipTrigger>
 						<TooltipContent>Knowledge Gap</TooltipContent>
-					</Tooltip>
-				)}
-				{hasAutomationGap && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
-								<ZapOff className="h-3.5 w-3.5 text-blue-500" />
-							</span>
-						</TooltipTrigger>
-						<TooltipContent>Automation Gap</TooltipContent>
 					</Tooltip>
 				)}
 			</div>

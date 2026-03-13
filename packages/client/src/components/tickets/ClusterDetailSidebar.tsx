@@ -1,6 +1,5 @@
 import {
 	FileText,
-	Info,
 	Loader2,
 	Plus,
 	Upload,
@@ -208,26 +207,6 @@ export function ClusterDetailSidebar({
 						onButtonClick={() => setCreateSheetOpen(true)}
 						variant="warning"
 					/>
-				)}
-
-				{/* Automation gap indicator — links to workflow designer */}
-				{!hasAction && (
-					<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3">
-						<div className="flex items-center gap-2 text-sm text-gray-500">
-							<Info className="h-4 w-4" aria-hidden="true" />
-							<span>{t("gaps.noResolveAction")}</span>
-						</div>
-						<p className="mt-1 text-xs text-gray-400">
-							{t("gaps.automationComingSoon")}
-						</p>
-						<button
-							type="button"
-							onClick={() => navigate("/workflow-designer")}
-							className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
-						>
-							Go to Actions &rarr;
-						</button>
-					</div>
 				)}
 			</div>
 

@@ -1,4 +1,4 @@
-import { Filter, LayoutGrid, List, Search, X } from "lucide-react";
+import { BookX, Filter, LayoutGrid, List, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
-	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
+	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -101,7 +101,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const debouncedSearch = useDebounce(searchInput, 500);
 
 	// Ticket settings for ROI computation
-	const { costPerTicket, avgTimePerTicket } = useTicketSettingsStore();
+	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 
 	// Fetch active model to check training state
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
@@ -179,12 +179,12 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		if (clusters.length === 0) return [];
 		return rankClustersByRoi(
 			clusters,
-			costPerTicket,
-			avgTimePerTicket,
+			blendedRatePerHour,
+			timeToTake,
 			activePreset ?? "costImpact",
 			"desc",
 		);
-	}, [clusters, costPerTicket, avgTimePerTicket, activePreset]);
+	}, [clusters, blendedRatePerHour, timeToTake, activePreset]);
 
 	// ROI lookup for card view metrics
 	const roiMap = useMemo(() => {
@@ -319,13 +319,16 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
 								{GAP_FILTER_OPTIONS.map(({ key, i18nKey }) => (
-									<DropdownMenuCheckboxItem
+									<DropdownMenuItem
 										key={key}
-										checked={activeGapFilters.has(key)}
-										onCheckedChange={() => toggleGapFilter(key)}
+										onClick={() => toggleGapFilter(key)}
+										className={activeGapFilters.has(key) ? "bg-accent" : ""}
 									>
+										<span className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-100">
+											<BookX className="h-3 w-3 text-yellow-600" />
+										</span>
 										{t(i18nKey)}
-									</DropdownMenuCheckboxItem>
+									</DropdownMenuItem>
 								))}
 							</DropdownMenuContent>
 						</DropdownMenu>
@@ -455,7 +458,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 								clusters={clusters}
 								activePreset={activePreset}
 								onPresetChange={(key) => setActiveSort(key)}
-								actionsMap={actionsMap}
 							/>
 						)}
 					</>

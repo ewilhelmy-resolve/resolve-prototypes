@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAutopilotSettings } from "@/hooks/api/useAutopilotSettings";
+import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 import type { PeriodFilter } from "@/types/cluster";
 
 interface ClustersPageHeaderProps {
@@ -49,12 +50,10 @@ export function ClustersPageHeader({
 }: ClustersPageHeaderProps) {
 	const { t } = useTranslation("tickets");
 	const { data: settings } = useAutopilotSettings();
+	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 
-	const costPerTicket = settings?.cost_per_ticket ?? 30;
-	const avgTimePerTicket = settings?.avg_time_per_ticket_minutes ?? 15;
-
-	const moneySaved = automatedTickets * costPerTicket;
-	const timeSavedMins = automatedTickets * avgTimePerTicket;
+	const moneySaved = blendedRatePerHour * (timeToTake / 60) * totalTickets;
+	const timeSavedMins = timeToTake * totalTickets;
 	const timeSavedHrs = Math.floor(timeSavedMins / 60);
 
 	const periodLabels: Record<PeriodFilter, string> = {
@@ -137,12 +136,12 @@ export function ClustersPageHeader({
 					/>
 					<StatCard
 						value={formatMoneySaved(moneySaved)}
-						label={t("header.stats.moneySaved")}
+						label={t("header.stats.moneyImpact")}
 						loading={showSkeletons}
 					/>
 					<StatCard
 						value={`${timeSavedHrs}hr`}
-						label={t("header.stats.timeSaved")}
+						label={t("header.stats.timeImpact")}
 						loading={showSkeletons}
 					/>
 					<StatCard

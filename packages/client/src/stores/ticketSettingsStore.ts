@@ -2,14 +2,14 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 interface TicketSettingsState {
-	costPerTicket: number;
-	avgTimePerTicket: number;
+	blendedRatePerHour: number;
+	timeToTake: number;
 
-	setCostPerTicket: (cost: number) => void;
-	setAvgTimePerTicket: (time: number) => void;
+	setBlendedRatePerHour: (rate: number) => void;
+	setTimeToTake: (time: number) => void;
 	setSettings: (settings: {
-		costPerTicket: number;
-		avgTimePerTicket: number;
+		blendedRatePerHour: number;
+		timeToTake: number;
 	}) => void;
 }
 
@@ -17,15 +17,15 @@ export const useTicketSettingsStore = create<TicketSettingsState>()(
 	devtools(
 		persist(
 			(set) => ({
-				costPerTicket: 30,
-				avgTimePerTicket: 12,
+				blendedRatePerHour: 30,
+				timeToTake: 12,
 
-				setCostPerTicket: (cost) => set({ costPerTicket: cost }),
-				setAvgTimePerTicket: (time) => set({ avgTimePerTicket: time }),
+				setBlendedRatePerHour: (rate) => set({ blendedRatePerHour: rate }),
+				setTimeToTake: (time) => set({ timeToTake: time }),
 				setSettings: (settings) =>
 					set({
-						costPerTicket: settings.costPerTicket,
-						avgTimePerTicket: settings.avgTimePerTicket,
+						blendedRatePerHour: settings.blendedRatePerHour,
+						timeToTake: settings.timeToTake,
 					}),
 			}),
 			{

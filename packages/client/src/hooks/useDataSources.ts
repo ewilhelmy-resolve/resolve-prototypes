@@ -7,6 +7,62 @@ import type {
 } from "@/types/dataSource";
 import { mlModelKeys, signalSyncStarted } from "./useActiveModel";
 
+const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+
+const MOCK_CONFLUENCE: DataSourceConnection = {
+	id: "demo-confluence-001",
+	organization_id: "demo-org",
+	type: "confluence",
+	name: "Confluence",
+	description: "IT Knowledge Base",
+	settings: { spaces: "IT Support,HR Policies,Engineering" },
+	status: "idle",
+	last_sync_status: "completed",
+	latest_options: {
+		spaces: [
+			{ title: "IT Support", sys_id: "it-support" },
+			{ title: "HR Policies", sys_id: "hr-policies" },
+			{ title: "Engineering", sys_id: "engineering" },
+			{ title: "Finance", sys_id: "finance" },
+		],
+	},
+	enabled: true,
+	auto_sync: false,
+	last_verification_at: "2026-03-01T10:00:00Z",
+	last_verification_error: null,
+	last_sync_at: "2026-03-10T14:30:00Z",
+	last_sync_error: null,
+	created_by: "demo-user",
+	updated_by: "demo-user",
+	created_at: "2026-01-15T09:00:00Z",
+	updated_at: "2026-03-10T14:30:00Z",
+};
+
+const MOCK_DATA_SOURCES: DataSourceConnection[] = [
+	MOCK_CONFLUENCE,
+	{
+		id: "demo-servicenow-001",
+		organization_id: "demo-org",
+		type: "servicenow",
+		name: "ServiceNow",
+		description: null,
+		settings: {},
+		status: "idle",
+		last_sync_status: null,
+		latest_options: null,
+		enabled: false,
+		auto_sync: false,
+		last_verification_at: null,
+		last_verification_error: null,
+		last_sync_at: null,
+		last_sync_error: null,
+		created_by: "demo-user",
+		updated_by: "demo-user",
+		created_at: "2026-01-15T09:00:00Z",
+		updated_at: "2026-01-15T09:00:00Z",
+	},
+];
+
 // Query Keys
 export const dataSourceKeys = {
 	all: ["dataSources"] as const,
@@ -32,10 +88,11 @@ export function useDataSources() {
 	return useQuery({
 		queryKey: dataSourceKeys.list(),
 		queryFn: async () => {
+			if (IS_DEMO_MODE) return MOCK_DATA_SOURCES;
 			const response = await dataSourcesApi.list();
-			return response.data; // Unwrap { data: DataSourceConnection[] }
+			return response.data;
 		},
-		staleTime: 30000, // 30 seconds
+		staleTime: 30000,
 	});
 }
 
@@ -49,8 +106,13 @@ export function useDataSource(id: string | undefined) {
 		queryKey: dataSourceKeys.detail(id),
 		queryFn: async () => {
 			if (!id) throw new Error("ID is required");
+			if (IS_DEMO_MODE) {
+				const found = MOCK_DATA_SOURCES.find((s) => s.id === id);
+				if (!found) throw new Error("Source not found");
+				return found;
+			}
 			const response = await dataSourcesApi.get(id);
-			return response.data; // Unwrap { data: DataSourceConnection }
+			return response.data;
 		},
 		enabled: !!id,
 		staleTime: 30000,
@@ -65,9 +127,11 @@ export function useSeedDataSources() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: dataSourcesApi.seed,
+		mutationFn: async () => {
+			if (IS_DEMO_MODE) return { success: true, created: 0, existing: 2, message: "demo" };
+			return dataSourcesApi.seed();
+		},
 		onSuccess: () => {
-			// Invalidate list query to refetch with seeded data
 			queryClient.invalidateQueries({ queryKey: dataSourceKeys.list() });
 		},
 	});
