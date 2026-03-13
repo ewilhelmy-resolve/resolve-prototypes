@@ -321,23 +321,19 @@ function checkResendRateLimit(email: string): boolean {
  */
 router.post("/signup", async (req, res) => {
 	try {
+		const validation = SignupRequestSchema.safeParse(req.body);
+		if (!validation.success) {
+			return res.status(400).json({
+				error: "Invalid request",
+				details: validation.error.issues.map((issue) => ({
+					path: issue.path,
+					message: issue.message,
+				})),
+			});
+		}
+
 		const { firstName, lastName, email, company, password, tosAcceptedAt } =
-			req.body;
-
-		if (!firstName || !lastName || !email || !company || !password) {
-			return res.status(400).json({
-				error:
-					"First name, last name, email, company, and password are required",
-			});
-		}
-
-		// Validate email format
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!emailRegex.test(email)) {
-			return res.status(400).json({
-				error: "Invalid email format",
-			});
-		}
+			validation.data;
 
 		// Check if user already exists
 		const existingUser = await authRepository.getUserByEmail(email);

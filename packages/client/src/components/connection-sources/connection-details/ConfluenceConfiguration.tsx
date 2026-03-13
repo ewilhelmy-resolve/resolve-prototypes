@@ -1,9 +1,20 @@
 "use client";
 
+import { Loader2, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { ritaToast } from "@/components/ui/rita-toast";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
@@ -15,11 +26,12 @@ import {
 	parseAvailableSpaces,
 	parseSelectedSpaces,
 } from "@/lib/dataSourceUtils";
-import { Label } from "../../ui/label";
-import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
+import type { MultiSelectOption } from "../../ui/multi-select";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
+import { SyncErrorAlert } from "../SyncErrorAlert";
+import KbSyncSection from "./KbSyncSection";
 
 interface ConfluenceConfigurationProps {
 	onEdit?: () => void;
@@ -37,24 +49,16 @@ export default function ConfluenceConfiguration({
 
 	const isSyncing =
 		source.status.toLowerCase() === STATUS.SYNCING.toLowerCase();
-	const isVerifying =
-		source.status.toLowerCase() === STATUS.VERIFYING.toLowerCase();
 
-	const isSyncButtonDisabled =
-		isSyncing ||
-		isVerifying ||
-		updateMutation.isPending ||
-		syncMutation.isPending;
+	const [isAnalyzing, setIsAnalyzing] = useState(false);
+	const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+	const [syncInterval, setSyncInterval] = useState("24h");
 
-	const isCancelButtonDisabled = cancelMutation.isPending;
-
-	// Parse available spaces from latest_options (discovered during verification)
 	const availableSpaces: MultiSelectOption[] = useMemo(() => {
 		const spaces = parseAvailableSpaces(source.backendData?.latest_options);
 		return spaces.map((space) => ({ label: space, value: space }));
 	}, [source.backendData?.latest_options]);
 
-	// Initialize selected spaces from settings.spaces (already configured)
 	useEffect(() => {
 		const selected = parseSelectedSpaces(source.backendData?.settings);
 		if (selected.length > 0) {
@@ -72,7 +76,6 @@ export default function ConfluenceConfiguration({
 		}
 
 		try {
-			// Step 1: Update selected spaces in settings
 			await updateMutation.mutateAsync({
 				id: source.backendData.id,
 				data: {
@@ -83,7 +86,6 @@ export default function ConfluenceConfiguration({
 				},
 			});
 
-			// Step 2: Trigger sync
 			await syncMutation.mutateAsync(source.backendData.id);
 
 			ritaToast.success({
@@ -128,6 +130,18 @@ export default function ConfluenceConfiguration({
 		}
 	};
 
+	const handleAnalyzeKnowledge = async () => {
+		setIsAnalyzing(true);
+		// Simulate analysis — will be replaced with real API call
+		await new Promise((r) => setTimeout(r, 2000));
+		setIsAnalyzing(false);
+		ritaToast.success({
+			title: "Analysis complete",
+			description:
+				"Knowledge sources have been analyzed and matched to ticket clusters.",
+		});
+	};
+
 	return (
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
@@ -137,64 +151,100 @@ export default function ConfluenceConfiguration({
 				</div>
 
 				<ConnectionStatusCard source={source} onRetry={handleSync} />
+				<SyncErrorAlert backendData={source.backendData} onReVerify={onEdit} />
 
-				{/* Show cancel button when syncing */}
-				{isSyncing && (
-					<div className="flex flex-col gap-1">
-						<div className="border border-border bg-popover rounded-md p-4">
-							<div className="rounded-lg flex items-center justify-between">
-								<Label>{t("config.sync.inProgress")}</Label>
-								<Button
-									onClick={handleCancelSync}
-									disabled={isCancelButtonDisabled}
-									variant="destructive"
-								>
-									{cancelMutation.isPending
-										? t("config.sync.cancelling")
-										: t("config.sync.cancelSync")}
-								</Button>
-							</div>
-						</div>
+				<KbSyncSection
+					source={source}
+					label={t("config.labels.spacesQuestion")}
+					options={availableSpaces}
+					selectedValues={selectedSpaces}
+					onSelectedChange={setSelectedSpaces}
+					placeholder={t("config.placeholders.chooseSpaces")}
+					emptyIndicator={t("config.placeholders.noSpaces")}
+					onSync={handleSync}
+					onCancelSync={handleCancelSync}
+					isSyncDisabled={
+						isSyncing || updateMutation.isPending || syncMutation.isPending
+					}
+					isSyncing={isSyncing}
+					isSyncPending={updateMutation.isPending || syncMutation.isPending}
+					isCancelPending={cancelMutation.isPending}
+					syncingLabel={t("config.sync.syncing")}
+					syncLabel={t("config.sync.sync")}
+					cancellingLabel={t("config.sync.cancelling")}
+					cancelSyncLabel={t("config.sync.cancelSync")}
+					inProgressLabel={t("config.sync.inProgress")}
+				/>
+			</div>
+
+			<Separator className="my-4" />
+
+			{/* Knowledge Analysis */}
+			<div className="flex flex-col gap-2.5">
+				<FormSectionTitle title="Knowledge Analysis" />
+
+				<div className="border border-border bg-popover rounded-md p-4 flex flex-col gap-4">
+					<div>
+						<p className="text-sm text-muted-foreground">
+							Analyze synced knowledge against your ticket clusters to identify
+							coverage gaps and matches.
+						</p>
 					</div>
-				)}
 
-				{/* Only show spaces selector when status is not Error, Verifying, or Syncing */}
-				{source.status.toLowerCase() !== STATUS.ERROR.toLowerCase() &&
-					!isVerifying &&
-					!isSyncing && (
-						<div className="flex flex-col gap-1">
-							<div className="border border-border bg-popover rounded-md p-4">
-								<div className="rounded-lg">
-									<Label className="mb-2">
-										{t("config.labels.spacesQuestion")}
-									</Label>
-									<div className="flex flex-col md:flex-row items-start gap-4">
-										<div className="md:flex-1 w-full">
-											<MultiSelect
-												animationConfig={{ optionHoverAnimation: "none" }}
-												options={availableSpaces}
-												defaultValue={selectedSpaces}
-												onValueChange={setSelectedSpaces}
-												placeholder={t("config.placeholders.chooseSpaces")}
-												searchable={true}
-												emptyIndicator={t("config.placeholders.noSpaces")}
-											/>
-										</div>
-										<Button
-											onClick={handleSync}
-											disabled={isSyncButtonDisabled}
-											className="w-full md:w-fit"
-											variant="default"
-										>
-											{updateMutation.isPending || syncMutation.isPending
-												? t("config.sync.syncing")
-												: t("config.sync.sync")}
-										</Button>
-									</div>
-								</div>
-							</div>
+					<Button
+						onClick={handleAnalyzeKnowledge}
+						disabled={isAnalyzing || isSyncing}
+						variant="outline"
+						className="w-fit"
+					>
+						{isAnalyzing ? (
+							<>
+								<Loader2 className="size-4 animate-spin mr-1.5" />
+								Analyzing...
+							</>
+						) : (
+							<>
+								<Search className="size-4 mr-1.5" />
+								Analyze Knowledge
+							</>
+						)}
+					</Button>
+				</div>
+
+				{/* Auto-sync Schedule */}
+				<div className="border border-border bg-popover rounded-md p-4 flex flex-col gap-4">
+					<div className="flex items-center justify-between">
+						<div>
+							<Label>Auto-sync schedule</Label>
+							<p className="text-sm text-muted-foreground mt-0.5">
+								Automatically sync and analyze on a recurring schedule.
+							</p>
+						</div>
+						<Switch
+							checked={autoSyncEnabled}
+							onCheckedChange={setAutoSyncEnabled}
+							aria-label="Toggle auto-sync"
+						/>
+					</div>
+
+					{autoSyncEnabled && (
+						<div className="flex items-center gap-3">
+							<Label className="shrink-0">Run every</Label>
+							<Select value={syncInterval} onValueChange={setSyncInterval}>
+								<SelectTrigger className="w-[160px]" aria-label="Sync interval">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="6h">6 hours</SelectItem>
+									<SelectItem value="12h">12 hours</SelectItem>
+									<SelectItem value="24h">24 hours</SelectItem>
+									<SelectItem value="48h">48 hours</SelectItem>
+									<SelectItem value="7d">7 days</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 					)}
+				</div>
 			</div>
 		</div>
 	);

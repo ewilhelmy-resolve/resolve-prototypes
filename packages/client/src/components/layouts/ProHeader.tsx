@@ -14,7 +14,6 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useProfile } from "@/hooks/api/useProfile";
@@ -44,11 +43,7 @@ export function ProHeader() {
 		<header className="flex h-12 items-center justify-between bg-slate-800 px-4">
 			{/* Left: Logo + grid menu */}
 			<div className="flex items-center gap-3">
-				<img
-					src="/logo-pro.png"
-					alt="Resolve Actions Pro"
-					className="h-8"
-				/>
+				<img src="/logo-pro.png" alt="Resolve Actions Pro" className="h-8" />
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button
@@ -66,9 +61,7 @@ export function ProHeader() {
 								key={item.path}
 								onClick={() => navigate(item.path)}
 								className={
-									location.pathname === item.path
-										? "bg-accent font-medium"
-										: ""
+									location.pathname === item.path ? "bg-accent font-medium" : ""
 								}
 							>
 								<item.icon className="size-4" />

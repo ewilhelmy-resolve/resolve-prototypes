@@ -1,4 +1,4 @@
-import { BookX, ZapOff } from "lucide-react";
+import { BookX } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/tickets/prioritization";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 import type { ClusterListItem } from "@/types/cluster";
+import { formatRelativeTime } from "./TicketGroupStat";
 
 interface PrioritizationRankedListProps {
 	clusters: ClusterListItem[];
@@ -29,8 +30,6 @@ interface PrioritizationRankedListProps {
 	activePreset: RoiSortKey | null;
 	/** Callback when column sort overrides the preset */
 	onPresetChange?: (key: RoiSortKey) => void;
-	/** Map of cluster ID → has linked action */
-	actionsMap?: Record<string, boolean>;
 }
 
 type SortColumn = "tickets" | "open" | RoiSortKey;
@@ -39,11 +38,10 @@ export function PrioritizationRankedList({
 	clusters,
 	activePreset,
 	onPresetChange,
-	actionsMap,
 }: PrioritizationRankedListProps) {
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
-	const { costPerTicket, avgTimePerTicket } = useTicketSettingsStore();
+	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 
 	const [sortCol, setSortCol] = useState<SortColumn>(
 		activePreset ?? "costImpact",
@@ -78,12 +76,12 @@ export function PrioritizationRankedList({
 		() =>
 			rankClustersByRoi(
 				clusters,
-				costPerTicket,
-				avgTimePerTicket,
+				blendedRatePerHour,
+				timeToTake,
 				roiSortKey,
 				sortDir,
 			),
-		[clusters, costPerTicket, avgTimePerTicket, roiSortKey, sortDir],
+		[clusters, blendedRatePerHour, timeToTake, roiSortKey, sortDir],
 	);
 
 	const sorted = useMemo(() => {
@@ -118,8 +116,7 @@ export function PrioritizationRankedList({
 
 	const gapIcons = (cluster: ClusterListItem) => {
 		const hasKnowledgeGap = cluster.kb_status === "GAP";
-		const hasAutomationGap = actionsMap?.[cluster.id] === false;
-		if (!hasKnowledgeGap && !hasAutomationGap) return null;
+		if (!hasKnowledgeGap) return null;
 		return (
 			<div className="flex items-center gap-1.5">
 				{hasKnowledgeGap && (
@@ -130,16 +127,6 @@ export function PrioritizationRankedList({
 							</span>
 						</TooltipTrigger>
 						<TooltipContent>Knowledge Gap</TooltipContent>
-					</Tooltip>
-				)}
-				{hasAutomationGap && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
-								<ZapOff className="h-3.5 w-3.5 text-blue-500" />
-							</span>
-						</TooltipTrigger>
-						<TooltipContent>Automation Gap</TooltipContent>
 					</Tooltip>
 				)}
 			</div>
@@ -194,6 +181,7 @@ export function PrioritizationRankedList({
 							</button>
 						</TableHead>
 						<TableHead>{t("prioritizationList.columns.kbStatus")}</TableHead>
+						<TableHead>Updated</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -212,6 +200,15 @@ export function PrioritizationRankedList({
 							<TableCell>{formatCurrency(row.costImpact)}</TableCell>
 							<TableCell>{formatMinutes(row.timeTaken)}</TableCell>
 							<TableCell>{gapIcons(row.cluster)}</TableCell>
+							<TableCell className="text-muted-foreground text-xs">
+								{(() => {
+									const newCount = Math.floor(
+										row.cluster.needs_response_count * 0.3,
+									);
+									const time = formatRelativeTime(row.cluster.updated_at);
+									return newCount > 0 ? `${newCount} new \u00b7 ${time}` : time;
+								})()}
+							</TableCell>
 						</TableRow>
 					))}
 				</TableBody>

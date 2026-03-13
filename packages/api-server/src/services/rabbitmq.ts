@@ -212,7 +212,7 @@ export class RabbitMQService {
 	/**
 	 * Reconnection logic with exponential backoff
 	 */
-	private async reconnect(): Promise<void> {
+	async reconnect(): Promise<void> {
 		// Check if we've exceeded max attempts (0 means infinite retries)
 		if (
 			this.retryConfig.maxAttempts > 0 &&

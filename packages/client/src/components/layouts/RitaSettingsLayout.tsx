@@ -53,6 +53,14 @@ export default function RitaSettingsLayout({
 	const location = useLocation();
 	const { isOwnerOrAdmin } = useProfilePermissions();
 	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
+	const isJiraEnabled = useFeatureFlag("ENABLE_JIRA");
+	const isIvantiEnabled = useFeatureFlag("ENABLE_IVANTI");
+	const isFreshserviceEnabled = useFeatureFlag("ENABLE_FRESHSERVICE");
+	const isAnyItsmEnabled =
+		isServiceNowEnabled ||
+		isJiraEnabled ||
+		isIvantiEnabled ||
+		isFreshserviceEnabled;
 
 	const handleBackToApp = () => {
 		// Navigate to root, which will redirect to the default app route
@@ -143,7 +151,7 @@ export default function RitaSettingsLayout({
 														<span className="text-sm">Knowledge Sources</span>
 													</SidebarMenuSubButton>
 												</SidebarMenuSubItem>
-												{isServiceNowEnabled && (
+												{isAnyItsmEnabled && (
 													<SidebarMenuSubItem>
 														<SidebarMenuSubButton
 															className={cn(

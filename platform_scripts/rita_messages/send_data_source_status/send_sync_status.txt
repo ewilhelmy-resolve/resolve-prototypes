@@ -26,9 +26,33 @@ All fields are populated from workflow variables, typically set by:
 
 FIELDS
 ------
-• Status: One of sync_completed, sync_failed
+• Status: One of sync_started, sync_completed, sync_failed
 • Sync Error: Error description (when status = sync_failed)
 • Documents Processed: Document count (when status = sync_completed)
+
+ERROR HANDLING — CREDENTIAL/PERMISSION FAILURES
+------------------------------------------------
+When KB sync fails due to credential or permission issues, the platform
+MUST send "sync_failed" with a descriptive error_message.
+
+Rita detects credential errors by checking if error_message contains
+"authentication" or "permission" (case-insensitive). When detected, the UI
+shows a specific "Re-verify credentials" action button to the user.
+
+IMPORTANT: Do NOT send "sync_completed" with documents_processed=0 when
+credentials fail. Always send "sync_failed" with an error_message.
+
+Recommended error messages:
+• Authentication: "Authentication failed: invalid or expired credentials.
+  Please re-verify your connection credentials."
+• Permission: "Permission denied: the service account does not have
+  sufficient permissions to read the requested resources."
+
+ZERO DOCUMENTS
+--------------
+If sync completes successfully but finds 0 documents (e.g., empty
+knowledge base), send "sync_completed" with documents_processed=0.
+Rita will show a warning (not error) to the user.
 
 EXAMPLES
 --------
@@ -36,6 +60,31 @@ Completed:
 - %sync_status%: "sync_completed"
 - %documents_processed%: "150"
 
-Failed:
+Completed (zero documents — shows warning):
+- %sync_status%: "sync_completed"
+- %documents_processed%: "0"
+
+Failed (generic):
 - %sync_status%: "sync_failed"
 - %sync_error%: "Connection timeout after 30s"
+
+Failed (credential error — shows re-verify button):
+- %sync_status%: "sync_failed"
+- %sync_error%: "Authentication failed: invalid or expired credentials. Please re-verify your connection credentials."
+
+Failed (permission error — shows re-verify button):
+- %sync_status%: "sync_failed"
+- %sync_error%: "Permission denied: the service account does not have sufficient permissions to read the requested resources."
+
+RABBITMQ MESSAGE FORMAT
+-----------------------
+All messages go to the "data_source_status" queue with type "sync".
+
+{
+  "type": "sync",
+  "connection_id": "<connection-id>",
+  "tenant_id": "<tenant-id>",
+  "status": "sync_failed",
+  "error_message": "Authentication failed: invalid or expired credentials. Please re-verify your connection credentials.",
+  "timestamp": "2026-03-09T00:00:00.000Z"
+}

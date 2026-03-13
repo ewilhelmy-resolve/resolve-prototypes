@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import { ConfigurationHeader } from "../ConfigurationHeader";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
+import { SyncErrorAlert } from "../SyncErrorAlert";
 
 interface SharePointConfigurationProps {
 	onEdit?: () => void;
@@ -22,6 +23,8 @@ export default function SharePointConfiguration({
 					onEdit={onEdit}
 				/>
 				<ConnectionStatusCard source={source} />
+				{/* Sync error/warning alert */}
+				<SyncErrorAlert backendData={source.backendData} onReVerify={onEdit} />
 			</div>
 		</div>
 	);

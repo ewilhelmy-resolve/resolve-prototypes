@@ -19,8 +19,7 @@ export default function RunbooksPage() {
 
 	const filtered = MOCK_PRO_RUNBOOKS.filter(
 		(rb) =>
-			search === "" ||
-			rb.name.toLowerCase().includes(search.toLowerCase()),
+			search === "" || rb.name.toLowerCase().includes(search.toLowerCase()),
 	);
 
 	return (
@@ -68,7 +67,10 @@ export default function RunbooksPage() {
 						))}
 						{filtered.length === 0 && (
 							<TableRow>
-								<TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+								<TableCell
+									colSpan={3}
+									className="text-center text-muted-foreground py-8"
+								>
 									No runbooks found
 								</TableCell>
 							</TableRow>

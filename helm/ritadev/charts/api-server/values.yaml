@@ -52,6 +52,8 @@ secrets:
   valkeyUrl: ""
   automationWebhookUrl: ""
   automationAuth: ""
+  rollbarAccessToken: ""
+  rollbarHashSalt: ""
 
 # External services
 externalServices:

@@ -79,6 +79,7 @@ import { WizardAgentBuilder } from "@/components/agents/WizardAgentBuilder";
 import { WizardFloatBuilder } from "@/components/agents/WizardFloatBuilder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -90,11 +91,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -831,6 +827,7 @@ export default function AgentBuilderPage() {
 	const [showAddSkillModal, setShowAddSkillModal] = useState(false);
 	const [skillSearchQuery, setSkillSearchQuery] = useState("");
 	const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+	const [skillsTab, setSkillsTab] = useState<"available" | "all">("available");
 
 	// Instructions expanded modal state
 	const [showInstructionsModal, setShowInstructionsModal] = useState(false);
@@ -2969,7 +2966,7 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 											</p>
 										</div>
 										<Button
-											variant="secondary"
+											variant="outline"
 											size="sm"
 											className="h-8 gap-1.5"
 											onClick={() => setShowAddSkillModal(true)}
@@ -3057,7 +3054,7 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 													}))
 												}
 												placeholder="Describe instructions..."
-												className="min-h-[60px] resize-none text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
+												className="min-h-[80px] max-h-[120px] resize-none text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
 											/>
 											<button
 												className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
@@ -3081,59 +3078,157 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 												</svg>
 											</button>
 										</div>
-										{/* Footer bar */}
-										<div className="bg-muted/50 border-t px-4 py-3 flex items-center justify-between">
-											<span className="text-xs text-muted-foreground">
-												Update instructions as needed...
-											</span>
-											<div className="flex items-center gap-3">
-												<div className="flex items-center gap-1">
-													<span className="text-sm">Default personality</span>
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<HelpCircle className="size-4 text-muted-foreground cursor-help" />
-														</TooltipTrigger>
-														<TooltipContent side="top" className="max-w-xs">
-															<p className="font-medium mb-1">
-																Adds the following guidelines to the system
-																prompt:
-															</p>
-															<ul className="list-disc pl-4 text-xs space-y-0.5">
-																<li>
-																	Do not restate your identity unless explicitly
-																	requested by the user.
-																</li>
-																<li>
-																	Provide helpful, accurate, and informative
-																	responses to user questions.
-																</li>
-																<li>
-																	Ask clarifying questions when needed to better
-																	understand the task or provide more relevant
-																	information.
-																</li>
-																<li>
-																	Maintain a polite, professional, and
-																	respectful tone at all times.
-																</li>
-																<li>
-																	Keep responses clear, concise, and focused on
-																	the user's intent.
-																</li>
-															</ul>
-														</TooltipContent>
-													</Tooltip>
-												</div>
-												<Switch defaultChecked />
-											</div>
-										</div>
 									</div>
+									<p className="text-xs text-muted-foreground">
+										Update instructions as needed
+									</p>
 
 									{/* Updated from skills message */}
 									{instructionsUpdatedFromSkills && (
-										<p className="text-xs text-primary mt-2">
+										<p className="text-xs text-primary mt-1">
 											Updated based on skills
 										</p>
+									)}
+								</div>
+
+								{/* Conversation Starters Section */}
+								<div className="space-y-2">
+									<div>
+										<label className="text-sm font-medium text-foreground">
+											Conversation starters
+										</label>
+										<p className="text-sm text-muted-foreground mt-0.5">
+											Suggested prompts shown to users when starting a
+											conversation
+										</p>
+									</div>
+									{/* Input with inline tags */}
+									<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
+										{/* Added starters as solid badges */}
+										{config.conversationStarters.map((starter, index) => (
+											<div
+												key={index}
+												className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
+											>
+												<span>{starter}</span>
+												<button
+													onClick={() => {
+														const updated = config.conversationStarters.filter(
+															(_, i) => i !== index,
+														);
+														setConfig((prev) => ({
+															...prev,
+															conversationStarters: updated,
+														}));
+													}}
+													className="text-muted-foreground hover:text-destructive"
+												>
+													<Plus className="size-3" />
+												</button>
+											</div>
+										))}
+										{/* Input for typing new starters */}
+										{config.conversationStarters.length < 6 && (
+											<input
+												type="text"
+												placeholder="Type and press Enter to add..."
+												className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+												onKeyDown={(e) => {
+													if (
+														e.key === "Enter" &&
+														e.currentTarget.value.trim()
+													) {
+														e.preventDefault();
+														setConfig((prev) => ({
+															...prev,
+															conversationStarters: [
+																...prev.conversationStarters,
+																e.currentTarget.value.trim(),
+															],
+														}));
+														e.currentTarget.value = "";
+													}
+												}}
+											/>
+										)}
+									</div>
+								</div>
+
+								{/* Guardrails Section */}
+								<div className="space-y-2">
+									<div>
+										<label className="text-sm font-medium text-foreground">
+											Guardrails
+										</label>
+										<p className="text-xs text-muted-foreground mt-0.5">
+											Topics or requests the agent should NOT handle
+										</p>
+									</div>
+
+									{config.guardrails.length === 0 ? (
+										<button
+											onClick={() => {
+												setConfig((prev) => ({
+													...prev,
+													guardrails: [...prev.guardrails, ""],
+												}));
+											}}
+											className="w-full border border-dashed rounded-lg py-4 px-4 text-center hover:border-muted-foreground/50 transition-colors"
+										>
+											<p className="text-sm text-muted-foreground">
+												Add a guardrail
+											</p>
+										</button>
+									) : (
+										<div className="space-y-2">
+											{config.guardrails.map((guardrail, index) => (
+												<div key={index} className="flex items-center gap-2">
+													<Input
+														value={guardrail}
+														onChange={(e) => {
+															const updated = [...config.guardrails];
+															updated[index] = e.target.value;
+															setConfig((prev) => ({
+																...prev,
+																guardrails: updated,
+															}));
+														}}
+														placeholder="e.g., HR policy questions"
+														className="flex-1"
+													/>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="size-9 text-muted-foreground hover:text-foreground"
+														onClick={() => {
+															const updated = config.guardrails.filter(
+																(_, i) => i !== index,
+															);
+															setConfig((prev) => ({
+																...prev,
+																guardrails: updated,
+															}));
+														}}
+													>
+														<Trash2 className="size-4" />
+													</Button>
+												</div>
+											))}
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-8 gap-1.5 text-muted-foreground"
+												onClick={() => {
+													setConfig((prev) => ({
+														...prev,
+														guardrails: [...prev.guardrails, ""],
+													}));
+												}}
+											>
+												<Plus className="size-4" />
+												Add guardrail
+											</Button>
+										</div>
 									)}
 								</div>
 
@@ -3142,7 +3237,7 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 									<div>
 										<Label className="text-sm font-medium">Knowledge</Label>
 										<p className="text-sm text-muted-foreground mt-1">
-											Give your agent general knowledge around its topic
+											Give your agent general knowledge to answer best
 										</p>
 									</div>
 
@@ -3325,17 +3420,8 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 
 										{/* Toggle options */}
 										<div className="px-4">
-											<div className="flex items-start justify-between py-3 gap-3">
-												<div className="flex-1">
-													<p className="text-sm font-medium">
-														Search the web for information
-													</p>
-													<p className="text-sm text-muted-foreground mt-1">
-														Let the agent search and reference information found
-														on the websites
-													</p>
-												</div>
-												<Switch
+											<div className="flex items-start gap-3 py-3">
+												<Checkbox
 													checked={config.capabilities.webSearch}
 													onCheckedChange={(checked) =>
 														setConfig((prev) => ({
@@ -3346,20 +3432,21 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 															},
 														}))
 													}
+													className="mt-0.5"
 												/>
-											</div>
-											<div className="border-t" />
-											<div className="flex items-start justify-between py-3 gap-3">
 												<div className="flex-1">
 													<p className="text-sm font-medium">
-														Enable all workspace knowledge
+														Search the web for information
 													</p>
 													<p className="text-sm text-muted-foreground mt-1">
-														Let the agent use all shared integrations, files,
-														and other assets in this workspace
+														Let the agent search and reference information found
+														on the websites
 													</p>
 												</div>
-												<Switch
+											</div>
+											<div className="border-t" />
+											<div className="flex items-start gap-3 py-3">
+												<Checkbox
 													checked={config.capabilities.useAllWorkspaceContent}
 													onCheckedChange={(checked) => {
 														setConfig((prev) => ({
@@ -3373,138 +3460,20 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 															setKnowledgeSearchQuery("");
 														}
 													}}
+													className="mt-0.5"
 												/>
-											</div>
-										</div>
-									</div>
-								</div>
-
-								{/* Conversation Starters Section */}
-								<div className="space-y-2">
-									<div>
-										<label className="text-sm font-medium text-foreground">
-											Conversation starters
-										</label>
-										<p className="text-xs text-muted-foreground mt-0.5">
-											By default, starters are generated from skills. Add custom
-											ones below.
-										</p>
-									</div>
-									{/* Input with inline tags */}
-									<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-										{/* Added starters as solid badges */}
-										{config.conversationStarters.map((starter, index) => (
-											<div
-												key={index}
-												className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded-md text-xs whitespace-nowrap"
-											>
-												<span>{starter}</span>
-												<button
-													onClick={() => {
-														const updated = config.conversationStarters.filter(
-															(_, i) => i !== index,
-														);
-														setConfig((prev) => ({
-															...prev,
-															conversationStarters: updated,
-														}));
-													}}
-													className="text-foreground hover:text-destructive"
-												>
-													<X className="size-3" />
-												</button>
-											</div>
-										))}
-										{/* Input for typing new starters */}
-										{config.conversationStarters.length < 6 && (
-											<input
-												type="text"
-												placeholder="Type and press Enter to add..."
-												className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-												onKeyDown={(e) => {
-													if (
-														e.key === "Enter" &&
-														e.currentTarget.value.trim()
-													) {
-														e.preventDefault();
-														setConfig((prev) => ({
-															...prev,
-															conversationStarters: [
-																...prev.conversationStarters,
-																e.currentTarget.value.trim(),
-															],
-														}));
-														e.currentTarget.value = "";
-													}
-												}}
-											/>
-										)}
-									</div>
-								</div>
-
-								{/* Guardrails Section */}
-								<div className="space-y-2">
-									<div>
-										<label className="text-sm font-medium text-foreground">
-											Guardrails
-										</label>
-										<p className="text-xs text-muted-foreground mt-0.5">
-											Topics or requests the agent should NOT handle
-										</p>
-									</div>
-
-									{config.guardrails.length > 0 && (
-										<div className="space-y-2">
-											{config.guardrails.map((guardrail, index) => (
-												<div key={index} className="flex items-center gap-2">
-													<Input
-														value={guardrail}
-														onChange={(e) => {
-															const updated = [...config.guardrails];
-															updated[index] = e.target.value;
-															setConfig((prev) => ({
-																...prev,
-																guardrails: updated,
-															}));
-														}}
-														placeholder="e.g., HR policy questions"
-														className="flex-1"
-													/>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="size-9 text-muted-foreground hover:text-foreground"
-														onClick={() => {
-															const updated = config.guardrails.filter(
-																(_, i) => i !== index,
-															);
-															setConfig((prev) => ({
-																...prev,
-																guardrails: updated,
-															}));
-														}}
-													>
-														<Trash2 className="size-4" />
-													</Button>
+												<div className="flex-1">
+													<p className="text-sm font-medium">
+														Enable all workspace knowledge
+													</p>
+													<p className="text-sm text-muted-foreground mt-1">
+														Let the agent use all shared integrations, files,
+														and other assets in this workspace
+													</p>
 												</div>
-											))}
+											</div>
 										</div>
-									)}
-
-									<Button
-										variant="outline"
-										size="sm"
-										className="h-8 gap-1.5"
-										onClick={() => {
-											setConfig((prev) => ({
-												...prev,
-												guardrails: [...prev.guardrails, ""],
-											}));
-										}}
-									>
-										<Plus className="size-4" />
-										Add guardrail
-									</Button>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -4380,50 +4349,11 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 							/>
 						</div>
 
-						{/* Footer bar */}
-						<div className="bg-muted/50 border-t px-6 py-4 flex items-center justify-between">
-							<p className="text-sm text-muted-foreground">
-								Update instructions as needed...
+						{/* Footer */}
+						<div className="px-6 py-4 border-t">
+							<p className="text-xs text-muted-foreground">
+								Update instructions as needed
 							</p>
-							<div className="flex items-center gap-3">
-								<div className="flex items-center gap-1">
-									<span className="text-sm">Default personality</span>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<HelpCircle className="size-4 text-muted-foreground cursor-help" />
-										</TooltipTrigger>
-										<TooltipContent side="top" className="max-w-xs">
-											<p className="font-medium mb-1">
-												Adds the following guidelines to the system prompt:
-											</p>
-											<ul className="list-disc pl-4 text-xs space-y-0.5">
-												<li>
-													Do not restate your identity unless explicitly
-													requested by the user.
-												</li>
-												<li>
-													Provide helpful, accurate, and informative responses
-													to user questions.
-												</li>
-												<li>
-													Ask clarifying questions when needed to better
-													understand the task or provide more relevant
-													information.
-												</li>
-												<li>
-													Maintain a polite, professional, and respectful tone
-													at all times.
-												</li>
-												<li>
-													Keep responses clear, concise, and focused on the
-													user's intent.
-												</li>
-											</ul>
-										</TooltipContent>
-									</Tooltip>
-								</div>
-								<Switch defaultChecked />
-							</div>
 						</div>
 					</div>
 				</div>
@@ -4583,227 +4513,221 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 			)}
 
 			{/* Add Skill Modal */}
-			{showAddSkillModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => {
-							setShowAddSkillModal(false);
-							setSkillSearchQuery("");
-							setSelectedSkills([]);
-						}}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
-						{/* Header */}
-						<div className="flex items-center justify-between px-6 py-4 border-b">
-							<h2 className="text-lg font-medium">Add skills</h2>
-							<button
-								onClick={() => {
-									setShowAddSkillModal(false);
-									setSkillSearchQuery("");
-									setSelectedSkills([]);
-								}}
-								className="text-muted-foreground hover:text-foreground"
-							>
-								<X className="size-5" />
-							</button>
-						</div>
+			{showAddSkillModal &&
+				(() => {
+					const closeModal = () => {
+						setShowAddSkillModal(false);
+						setSkillSearchQuery("");
+						setSelectedSkills([]);
+						setSkillsTab("available");
+					};
 
-						{/* Search */}
-						<div className="px-6 py-4 border-b">
-							<div className="relative">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-								<Input
-									placeholder="Search skills..."
-									className="pl-9"
-									value={skillSearchQuery}
-									onChange={(e) => setSkillSearchQuery(e.target.value)}
-								/>
-							</div>
-						</div>
+					const filterBySearch = (skill) =>
+						!skillSearchQuery ||
+						skill.name.toLowerCase().includes(skillSearchQuery.toLowerCase()) ||
+						skill.author.toLowerCase().includes(skillSearchQuery.toLowerCase());
 
-						{/* Skills list */}
-						<div className="flex-1 overflow-y-auto p-2">
-							{AVAILABLE_SKILLS.filter((skill) => {
-								if (!skillSearchQuery) return true;
-								const query = skillSearchQuery.toLowerCase();
-								return (
-									skill.name.toLowerCase().includes(query) ||
-									skill.author.toLowerCase().includes(query)
-								);
-							}).map((skill) => {
-								const isAlreadyAdded = config.workflows.includes(skill.name);
-								const isLinkedToOther = skill.linkedAgent !== null;
-								const isSelected = selectedSkills.includes(skill.name);
-								const SkillIcon = skill.icon;
-								const isDisabled = isAlreadyAdded || isLinkedToOther;
+					const availableSkills = AVAILABLE_SKILLS.filter(
+						(s) => s.linkedAgent === null && !config.workflows.includes(s.name),
+					).filter(filterBySearch);
 
-								return (
-									<div
-										key={skill.id}
-										className={cn(
-											"w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors",
-											isDisabled
-												? "opacity-60"
-												: "hover:bg-muted/50 cursor-pointer",
-											isSelected &&
-												!isDisabled &&
-												"bg-primary/5 border border-primary/20",
-										)}
+					const allSkills = AVAILABLE_SKILLS.filter(filterBySearch);
+
+					const displayedSkills =
+						skillsTab === "available" ? availableSkills : allSkills;
+
+					const getIconBg = (author: string) =>
+						/IT|System|Compliance/i.test(author)
+							? "bg-violet-200"
+							: "bg-amber-100";
+
+					return (
+						<div className="fixed inset-0 z-50 flex items-center justify-center">
+							<div
+								className="absolute inset-0 bg-black/50"
+								onClick={closeModal}
+							/>
+							<div className="relative bg-white rounded-xl shadow-lg w-full max-w-lg h-[600px] overflow-hidden flex flex-col">
+								{/* Close */}
+								<button
+									onClick={closeModal}
+									className="absolute right-4 top-4 text-muted-foreground/70 hover:text-foreground z-10"
+								>
+									<X className="size-4" />
+								</button>
+								{/* Header + Search + Tabs */}
+								<div className="px-6 pt-6 flex flex-col gap-4">
+									<div>
+										<h2 className="text-lg font-semibold">Add skills</h2>
+										<p className="text-sm text-muted-foreground mt-1.5">
+											Help users understand what this agent can help them with
+											by adding skills
+										</p>
+									</div>
+									<div className="relative">
+										<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+										<Input
+											placeholder="Search skills..."
+											className="pl-9 rounded-lg"
+											value={skillSearchQuery}
+											onChange={(e) => setSkillSearchQuery(e.target.value)}
+										/>
+									</div>
+									<Tabs
+										value={skillsTab}
+										onValueChange={(v) => setSkillsTab(v)}
+									>
+										<TabsList className="w-full">
+											<TabsTrigger value="available" className="flex-1">
+												Available
+												<Badge
+													variant="secondary"
+													className="ml-1.5 text-xs px-1.5 py-0"
+												>
+													{availableSkills.length}
+												</Badge>
+											</TabsTrigger>
+											<TabsTrigger value="all" className="flex-1">
+												All
+												<Badge
+													variant="secondary"
+													className="ml-1.5 text-xs px-1.5 py-0"
+												>
+													{allSkills.length}
+												</Badge>
+											</TabsTrigger>
+										</TabsList>
+									</Tabs>
+								</div>
+
+								{/* Skills list */}
+								<div className="flex-1 overflow-y-auto max-h-[400px] mt-5">
+									{displayedSkills.map((skill) => {
+										const isAlreadyAdded = config.workflows.includes(
+											skill.name,
+										);
+										const isLinkedToOther =
+											skill.linkedAgent !== null && !isAlreadyAdded;
+										const isSelected = selectedSkills.includes(skill.name);
+										const SkillIcon = skill.icon;
+
+										return (
+											<div
+												key={skill.id}
+												className={cn(
+													"flex items-start gap-[10px] px-6 py-[10px] border-b",
+													isLinkedToOther && "opacity-60",
+												)}
+											>
+												<div
+													className={cn(
+														"size-5 rounded-sm flex items-center justify-center flex-shrink-0 mt-0.5",
+														getIconBg(skill.author),
+													)}
+												>
+													<SkillIcon className="size-3" />
+												</div>
+												<div className="min-w-0 flex-1">
+													<p className="text-sm font-medium leading-none">
+														{skill.name}
+													</p>
+													<p className="text-sm text-muted-foreground leading-5">
+														{skill.author}
+													</p>
+												</div>
+												<div className="flex-shrink-0">
+													{isAlreadyAdded ? (
+														<span className="text-xs text-muted-foreground">
+															Added
+														</span>
+													) : isLinkedToOther ? (
+														<div className="text-right">
+															<p className="text-xs text-primary">
+																Duplicate in Actions
+															</p>
+															<p className="text-xs text-muted-foreground">
+																used in {skill.linkedAgent}
+															</p>
+														</div>
+													) : (
+														<Switch
+															checked={isSelected}
+															onCheckedChange={(checked) => {
+																setSelectedSkills((prev) =>
+																	checked
+																		? [...prev, skill.name]
+																		: prev.filter((s) => s !== skill.name),
+																);
+															}}
+														/>
+													)}
+												</div>
+											</div>
+										);
+									})}
+									{displayedSkills.length === 0 && (
+										<div className="py-8 text-center text-sm text-muted-foreground">
+											No skills found matching "{skillSearchQuery}"
+										</div>
+									)}
+								</div>
+
+								{/* Footer */}
+								<div className="px-6 py-3 flex justify-end gap-2">
+									<Button variant="outline" size="sm" onClick={closeModal}>
+										Cancel
+									</Button>
+									<Button
+										size="sm"
+										disabled={selectedSkills.length === 0}
 										onClick={() => {
-											if (isDisabled) return;
-											setSelectedSkills((prev) =>
-												prev.includes(skill.name)
-													? prev.filter((s) => s !== skill.name)
-													: [...prev, skill.name],
-											);
+											const newStarters: string[] = [];
+											selectedSkills.forEach((skillName) => {
+												const skill = AVAILABLE_SKILLS.find(
+													(s) => s.name === skillName,
+												);
+												if (skill?.starters) {
+													skill.starters.slice(0, 1).forEach((starter) => {
+														if (!newStarters.includes(starter)) {
+															newStarters.push(starter);
+														}
+													});
+												}
+											});
+
+											setConfig((prev) => {
+												const existingStarters = prev.conversationStarters;
+												const startersToAdd = newStarters.filter(
+													(s) => !existingStarters.includes(s),
+												);
+												const availableSlots = 6 - existingStarters.length;
+												const finalNewStarters = startersToAdd.slice(
+													0,
+													availableSlots,
+												);
+
+												return {
+													...prev,
+													workflows: [...prev.workflows, ...selectedSkills],
+													conversationStarters: [
+														...existingStarters,
+														...finalNewStarters,
+													],
+												};
+											});
+											closeModal();
 										}}
 									>
-										<div
-											className={cn(
-												"size-10 rounded-lg flex items-center justify-center flex-shrink-0",
-												isSelected && !isDisabled
-													? "bg-primary/10"
-													: "bg-purple-50",
-											)}
-										>
-											<SkillIcon
-												className={cn(
-													"size-5",
-													isSelected && !isDisabled
-														? "text-primary"
-														: "text-purple-600",
-												)}
-											/>
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="text-sm font-medium">{skill.name}</p>
-											<p className="text-xs text-muted-foreground">
-												{isLinkedToOther ? (
-													<>
-														Used by{" "}
-														<span className="font-medium">
-															{skill.linkedAgent}
-														</span>
-													</>
-												) : (
-													skill.author
-												)}
-											</p>
-										</div>
-										{isAlreadyAdded ? (
-											<span className="text-xs text-muted-foreground">
-												Added
-											</span>
-										) : isLinkedToOther ? (
-											<span className="text-xs text-primary cursor-pointer">
-												Duplicate in Actions
-											</span>
-										) : (
-											<Switch
-												checked={isSelected}
-												onCheckedChange={(checked) => {
-													setSelectedSkills((prev) =>
-														checked
-															? [...prev, skill.name]
-															: prev.filter((s) => s !== skill.name),
-													);
-												}}
-												onClick={(e) => e.stopPropagation()}
-											/>
-										)}
-									</div>
-								);
-							})}
-							{AVAILABLE_SKILLS.filter((skill) => {
-								if (!skillSearchQuery) return true;
-								const query = skillSearchQuery.toLowerCase();
-								return (
-									skill.name.toLowerCase().includes(query) ||
-									skill.author.toLowerCase().includes(query)
-								);
-							}).length === 0 && (
-								<div className="py-8 text-center text-sm text-muted-foreground">
-									No skills found matching "{skillSearchQuery}"
+										Add{" "}
+										{selectedSkills.length > 0
+											? `(${selectedSkills.length})`
+											: ""}
+									</Button>
 								</div>
-							)}
-						</div>
-
-						{/* Footer */}
-						<div className="px-6 py-4 border-t flex items-center justify-between">
-							<span className="text-sm text-muted-foreground">
-								{selectedSkills.length} skill
-								{selectedSkills.length !== 1 ? "s" : ""} selected
-							</span>
-							<div className="flex items-center gap-2">
-								<Button
-									variant="outline"
-									onClick={() => {
-										setShowAddSkillModal(false);
-										setSkillSearchQuery("");
-										setSelectedSkills([]);
-									}}
-								>
-									Cancel
-								</Button>
-								<Button
-									disabled={selectedSkills.length === 0}
-									onClick={() => {
-										// Collect starters from selected skills
-										const newStarters: string[] = [];
-										selectedSkills.forEach((skillName) => {
-											const skill = AVAILABLE_SKILLS.find(
-												(s) => s.name === skillName,
-											);
-											if (skill?.starters) {
-												// Add first starter from each skill (up to limit)
-												skill.starters.slice(0, 1).forEach((starter) => {
-													if (!newStarters.includes(starter)) {
-														newStarters.push(starter);
-													}
-												});
-											}
-										});
-
-										setConfig((prev) => {
-											// Filter out starters already in config
-											const existingStarters = prev.conversationStarters;
-											const startersToAdd = newStarters.filter(
-												(s) => !existingStarters.includes(s),
-											);
-											// Keep within 6 limit
-											const availableSlots = 6 - existingStarters.length;
-											const finalNewStarters = startersToAdd.slice(
-												0,
-												availableSlots,
-											);
-
-											return {
-												...prev,
-												workflows: [...prev.workflows, ...selectedSkills],
-												conversationStarters: [
-													...existingStarters,
-													...finalNewStarters,
-												],
-											};
-										});
-										setShowAddSkillModal(false);
-										setSkillSearchQuery("");
-										setSelectedSkills([]);
-									}}
-								>
-									Add{" "}
-									{selectedSkills.length > 0
-										? `(${selectedSkills.length})`
-										: ""}
-								</Button>
 							</div>
 						</div>
-					</div>
-				</div>
-			)}
+					);
+				})()}
 
 			{/* Unlink Workflow Confirmation Modal */}
 			{showUnlinkConfirm && workflowToUnlink && (

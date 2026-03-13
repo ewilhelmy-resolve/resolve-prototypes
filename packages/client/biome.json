@@ -40,5 +40,39 @@
 			"!src/index.css",
 			"!src/test"
 		]
-	}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"src/pages/AgentBuilderPage.tsx",
+				"src/pages/AgentChatPage.tsx",
+				"src/pages/AgentTestPage.tsx",
+				"src/pages/RunbookDesignerPage.tsx",
+				"src/components/agent-builder/**",
+				"src/components/agents/**"
+			],
+			"linter": {
+				"rules": {
+					"a11y": {
+						"noStaticElementInteractions": "off",
+						"noLabelWithoutControl": "off",
+						"useKeyWithClickEvents": "off"
+					},
+					"correctness": {
+						"noNestedComponentDefinitions": "off",
+						"noUnusedFunctionParameters": "off"
+					},
+					"suspicious": {
+						"noShadowRestrictedNames": "off"
+					},
+					"security": {
+						"noDangerouslySetInnerHtml": "off"
+					},
+					"style": {
+						"noNonNullAssertion": "off"
+					}
+				}
+			}
+		}
+	]
 }

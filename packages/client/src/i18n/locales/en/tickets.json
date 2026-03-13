@@ -1,6 +1,7 @@
 {
 	"header": {
 		"description": "RITA learned from <strong>{{ticketCount}}</strong> tickets for <strong>{{period}}</strong>",
+		"lastSynced": "Last synced {{time}}",
 		"stats": {
 			"totalTickets": "Total tickets",
 			"totalClusters": "Total clusters",
@@ -14,8 +15,8 @@
 			"avgReassignmentRate": "Avg. Reassignment Rate",
 			"reassignmentTooltip": "Connect your ITSM to track ticket reassignment rates",
 			"comingSoon": "Coming soon",
-			"moneySaved": "Money Saved",
-			"timeSaved": "Time Saved",
+			"moneyImpact": "Est. Money Saved",
+			"timeImpact": "Est. Time Saved",
 			"estMonthlySpend": "Est. Monthly Spend",
 			"estMonthlyHours": "Est. Monthly Hours"
 		}
@@ -49,7 +50,7 @@
 			"volume": "Highest Volume",
 			"cost": "Highest Cost",
 			"mttr": "Longest MTTR",
-			"time": "Most Time Taken"
+			"time": "Calculated Time Taken"
 		},
 		"searchPlaceholder": "Search by ticket group...",
 		"filterOptions": {
@@ -65,7 +66,8 @@
 		},
 		"pagination": {
 			"previous": "Previous",
-			"next": "Next"
+			"next": "Next",
+			"showing": "Showing {{from}}–{{to}} of {{total}}"
 		}
 	},
 	"navigation": {
@@ -237,7 +239,7 @@
 		"presets": {
 			"highestCost": "Highest Cost Impact",
 			"longestMttr": "Longest MTTR",
-			"mostTime": "Most Time Taken"
+			"mostTime": "Calculated Time Taken"
 		},
 		"columns": {
 			"cluster": "Cluster",
@@ -280,7 +282,8 @@
 			"kbArticles": "KB Articles",
 			"estMonthlyCost": "Est. Monthly Cost",
 			"estMonthlyHours": "Est. Monthly Hours",
-			"estImpact": "Est. Impact",
+			"estMoneySaved": "Est. Money Saved",
+			"estTimeSaved": "Est. Time Saved",
 			"mttr": "Mean Time to Resolution",
 			"mttrTooltip": "Connect your ITSM to track Mean Time to Resolution",
 			"avgReassignmentRate": "Avg. Reassignment Rate",
@@ -405,12 +408,14 @@
 	"ticketSettings": {
 		"title": "Ticket settings",
 		"description": "Customize dashboard metrics",
-		"savingsSection": "How should we calculate savings?",
-		"timeSavedSection": "How should we calculate time saved?",
+		"savingsSection": "Cost calculation",
+		"timeSavedSection": "Time calculation",
 		"costPerTicket": "Cost per ticket",
-		"costHelper": "Used to calculate total money saved from automated tickets.",
+		"blendedRatePerHour": "Blended rate per hour",
+		"costHelper": "Average fully-loaded cost per hour of agent time.",
 		"avgTimePerTicket": "Average time per ticket",
-		"timeHelper": "Used to calculate total time saved from automated tickets.",
+		"timeToTake": "Time to take",
+		"timeHelper": "Average minutes an agent spends resolving one ticket.",
 		"timeUnit": {
 			"minutes": "Minutes"
 		},

@@ -225,6 +225,8 @@ jobs:
           ROUTE53_ENABLED: ${{ secrets.ROUTE53_ENABLED || 'false' }}
           ROUTE53_HOSTED_ZONE_ID: ${{ secrets.ROUTE53_HOSTED_ZONE_ID || '' }}
           DEV_RITA_CLIENT_SECRET: ${{ secrets.DEV_RITA_CLIENT_SECRET }}
+          ROLLBAR_ACCESS_TOKEN: ${{ secrets.ROLLBAR_ACCESS_TOKEN }}
+          ROLLBAR_HASH_SALT: ${{ secrets.ROLLBAR_HASH_SALT }}
         run: |
           # Retry function for helmfile commands
           retry_helmfile() {

@@ -13,18 +13,14 @@ import {
 	ArrowLeft,
 	BookOpen,
 	Bot,
-	ChevronDown,
+	BotMessageSquare,
 	ChevronUp,
-	Copy,
 	Database,
 	Headphones,
 	Key,
 	Loader2,
-	MoreHorizontal,
 	RefreshCw,
-	Rocket,
-	RotateCcw,
-	Send,
+	SendHorizontal,
 	ShieldCheck,
 	ThumbsDown,
 	ThumbsUp,
@@ -268,7 +264,7 @@ export default function AgentTestPage() {
 				(m) => m.type === "suggestion" && m.suggestion && !m.suggestion.applied,
 			);
 			if (suggestionIndex !== -1) {
-				const suggestion = messages[suggestionIndex].suggestion!;
+				const suggestion = messages[suggestionIndex].suggestion;
 				setConfig((prev) =>
 					prev
 						? {
@@ -281,7 +277,12 @@ export default function AgentTestPage() {
 				setMessages((prev) =>
 					prev.map((m, i) =>
 						i === suggestionIndex
-							? { ...m, suggestion: { ...m.suggestion!, applied: true } }
+							? {
+									...m,
+									suggestion: m.suggestion
+										? { ...m.suggestion, applied: true }
+										: m.suggestion,
+								}
 							: m,
 					),
 				);
@@ -366,55 +367,29 @@ export default function AgentTestPage() {
 	};
 
 	return (
-		<div className="h-screen flex flex-col bg-slate-50">
+		<div className="h-screen flex flex-col bg-white">
 			{/* Header */}
-			<header className="flex items-center justify-between px-4 py-3 border-b bg-white">
+			<header className="flex items-center justify-between px-6 py-3 border-b bg-white">
 				<div className="flex items-center gap-3">
 					<Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
 						<ArrowLeft className="size-4" />
 					</Button>
-					<div
-						className={cn(
-							"size-8 rounded-lg flex items-center justify-center",
-							color.bg,
-						)}
-					>
-						<Icon className={cn("size-4", color.text)} />
+					<div className="size-[38px] rounded-lg bg-violet-200 flex items-center justify-center">
+						<BotMessageSquare className="size-5" />
 					</div>
 					<div className="flex items-center gap-2">
-						<span className="font-medium">{config.name}</span>
-						<Badge variant="outline" className="text-xs">
-							Test Mode
+						<span className="font-semibold">{config.name}</span>
+						<Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
+							Test mode
 						</Badge>
-						{hasChanges && (
-							<Badge
-								variant="outline"
-								className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200"
-							>
-								Changes pending
-							</Badge>
-						)}
 					</div>
 				</div>
 
 				<div className="flex items-center gap-2">
-					{messages.length > 0 && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleReset}
-							className="gap-1.5"
-						>
-							<RotateCcw className="size-3.5" />
-							Reset
-						</Button>
-					)}
-					<Button
-						size="sm"
-						onClick={() => setShowPublishDialog(true)}
-						className="gap-1.5"
-					>
-						<Rocket className="size-3.5" />
+					<Button variant="outline" size="sm" onClick={handleReset}>
+						Reset
+					</Button>
+					<Button size="sm" onClick={() => setShowPublishDialog(true)}>
 						Publish
 					</Button>
 				</div>
@@ -422,315 +397,301 @@ export default function AgentTestPage() {
 
 			{/* Chat area */}
 			<div className="flex-1 overflow-y-auto">
-				<div className="max-w-2xl mx-auto py-8 px-4">
-					{messages.length === 0 ? (
-						/* Empty state */
-						<div className="text-center py-12">
-							<div
-								className={cn(
-									"size-16 rounded-xl flex items-center justify-center mx-auto mb-4",
-									color.bg,
-								)}
-							>
-								<Icon className={cn("size-8", color.text)} />
-							</div>
-							<h2 className="text-xl font-semibold">{config.name}</h2>
-							<p className="text-muted-foreground mt-1 mb-8">
-								{config.description}
-							</p>
-
-							{starters.length > 0 && (
-								<div className="space-y-2 max-w-md mx-auto">
-									<p className="text-sm text-muted-foreground mb-3">
-										Try a prompt:
-									</p>
-									{starters.map((starter, i) => (
-										<button
-											key={i}
-											onClick={() => handleStartTest(starter)}
-											disabled={isLoading}
-											className="w-full text-left px-4 py-3 text-sm bg-white rounded-xl border hover:shadow-sm hover:border-primary/30 transition-all disabled:opacity-50"
-										>
-											{starter}
-										</button>
-									))}
-								</div>
-							)}
-						</div>
-					) : (
-						/* Messages */
-						<div className="space-y-4">
-							{messages.map((msg) => (
-								<div key={msg.id}>
-									{/* User message */}
-									{msg.type === "user" && (
-										<div className="flex justify-end mb-4">
-											<div className="bg-foreground text-background rounded-xl rounded-br-sm px-3 py-2 max-w-[80%]">
-												<p className="text-[13px]">{msg.content}</p>
-											</div>
+				<div className="bg-neutral-50 h-full flex flex-col">
+					<div className="bg-white flex-1 flex flex-col overflow-hidden mx-6 my-6 rounded-lg">
+						{/* Chat messages scroll area */}
+						<div className="flex-1 overflow-y-auto px-6 py-6">
+							<div className="max-w-2xl mx-auto">
+								{messages.length === 0 ? (
+									/* Empty state */
+									<div className="text-center py-12">
+										<div className="size-[38px] rounded-lg bg-violet-200 flex items-center justify-center mx-auto mb-4">
+											<BotMessageSquare className="size-5" />
 										</div>
-									)}
+										<h2 className="text-xl font-semibold">{config.name}</h2>
+										<p className="text-muted-foreground mt-1 mb-8">
+											{config.description}
+										</p>
 
-									{/* Agent response */}
-									{(msg.type === "agent" || msg.type === "agent-retry") && (
-										<div className="space-y-2 mb-4">
-											{msg.type === "agent-retry" && (
-												<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-9">
-													<RefreshCw className="size-2.5" />
-													<span>Revision {msg.iterationNumber}</span>
-												</div>
-											)}
-
-											<div className="flex gap-2.5">
-												<div
-													className={cn(
-														"size-6 rounded-md flex items-center justify-center flex-shrink-0",
-														color.bg,
-													)}
-												>
-													<Icon className={cn("size-3", color.text)} />
-												</div>
-												<div className="flex-1 min-w-0">
-													<div className="bg-white rounded-xl rounded-tl-sm px-3 py-2.5 border border-border/50 shadow-sm">
-														<p className="text-[13px] whitespace-pre-wrap leading-relaxed">
-															{msg.content}
-														</p>
-
-														{/* Sources */}
-														{msg.sourcesUsed && msg.sourcesUsed.length > 0 && (
-															<>
-																<button
-																	onClick={() =>
-																		setExpandedSources(
-																			expandedSources === msg.id
-																				? null
-																				: msg.id,
-																		)
-																	}
-																	className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-																>
-																	{expandedSources === msg.id ? (
-																		<ChevronUp className="size-2.5" />
-																	) : (
-																		<ChevronDown className="size-2.5" />
-																	)}
-																	Sources ({msg.sourcesUsed.length})
-																</button>
-																{expandedSources === msg.id && (
-																	<div className="mt-1.5 space-y-0.5">
-																		{msg.sourcesUsed.map((source, i) => (
-																			<div
-																				key={i}
-																				className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
-																			>
-																				{source.type === "knowledge" ? (
-																					<Database className="size-2.5" />
-																				) : (
-																					<Zap className="size-2.5" />
-																				)}
-																				{source.name}
-																			</div>
-																		))}
-																	</div>
-																)}
-															</>
-														)}
+										{starters.length > 0 && (
+											<div className="space-y-2 max-w-md mx-auto">
+												<p className="text-sm text-muted-foreground mb-3">
+													Try a prompt:
+												</p>
+												{starters.map((starter, i) => (
+													<button
+														key={i}
+														onClick={() => handleStartTest(starter)}
+														disabled={isLoading}
+														className="w-full text-left px-4 py-3 text-sm bg-white rounded-xl border hover:shadow-sm hover:border-primary/30 transition-all disabled:opacity-50"
+													>
+														{starter}
+													</button>
+												))}
+											</div>
+										)}
+									</div>
+								) : (
+									/* Messages */
+									<div className="flex flex-col gap-2">
+										{messages.map((msg) => (
+											<div key={msg.id}>
+												{/* User message */}
+												{msg.type === "user" && (
+													<div className="flex justify-end">
+														<div className="bg-[#eff6ff] text-foreground rounded-lg px-4 py-3">
+															<p className="text-base">{msg.content}</p>
+														</div>
 													</div>
+												)}
 
-													{/* Postman-style rating icons */}
-													{(phase === "awaiting-rating" ||
-														phase === "awaiting-feedback") &&
-														messages[messages.length - 1]?.id === msg.id && (
-															<div className="mt-3 space-y-3">
-																{/* Icon row */}
-																<div className="flex items-center justify-end gap-1">
-																	<button
-																		onClick={() =>
-																			navigator.clipboard.writeText(msg.content)
-																		}
-																		className="size-7 flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 rounded transition-colors"
-																		title="Copy"
-																	>
-																		<Copy className="size-4" />
-																	</button>
-																	<button
-																		onClick={() => handleRating("good")}
-																		className="size-7 flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 rounded transition-colors"
-																		title="Good response"
-																	>
-																		<ThumbsUp className="size-4" />
-																	</button>
-																	<button
-																		onClick={() => handleRating("poor")}
-																		className={cn(
-																			"size-7 flex items-center justify-center rounded transition-colors",
-																			phase === "awaiting-feedback"
-																				? "text-muted-foreground bg-muted/50"
-																				: "text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50",
-																		)}
-																		title="Bad response"
-																	>
-																		<ThumbsDown className="size-4" />
-																	</button>
-																	<button
-																		className="size-7 flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 rounded transition-colors"
-																		title="More options"
-																	>
-																		<MoreHorizontal className="size-4" />
-																	</button>
-																</div>
-
-																{/* Feedback textarea - Postman style */}
-																{phase === "awaiting-feedback" && (
-																	<div className="space-y-2">
-																		<textarea
-																			value={feedbackInput}
-																			onChange={(e) =>
-																				setFeedbackInput(e.target.value)
-																			}
-																			placeholder="Help us improve. What went wrong?"
-																			className="w-full h-20 px-3 py-2 text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
-																		/>
-																		<div className="flex justify-end gap-2">
-																			<button
-																				onClick={() => {
-																					setFeedbackInput("");
-																					setPhase("awaiting-rating");
-																				}}
-																				className="h-8 px-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
-																			>
-																				Cancel
-																			</button>
-																			<button
-																				onClick={handleFeedbackSubmit}
-																				disabled={!feedbackInput.trim()}
-																				className="h-8 px-4 text-sm font-medium bg-orange-500 text-white rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-																			>
-																				Submit
-																			</button>
-																		</div>
-																	</div>
-																)}
+												{/* Agent response */}
+												{(msg.type === "agent" ||
+													msg.type === "agent-retry") && (
+													<div className="space-y-2">
+														{msg.type === "agent-retry" && (
+															<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-[50px]">
+																<RefreshCw className="size-2.5" />
+																<span>Revision {msg.iterationNumber}</span>
 															</div>
 														)}
-												</div>
-											</div>
-										</div>
-									)}
 
-									{/* User feedback */}
-									{msg.type === "user-feedback" && (
-										<div className="flex justify-end mb-4">
-											<div className="bg-muted/60 rounded-xl rounded-br-sm px-3 py-2 max-w-[80%]">
-												<p className="text-[12px] italic text-muted-foreground">
-													{msg.content}
-												</p>
-											</div>
-										</div>
-									)}
+														<div className="flex gap-2">
+															<div className="flex items-start py-2 shrink-0">
+																<div className="size-[38px] rounded-lg bg-violet-200 flex items-center justify-center">
+																	<BotMessageSquare className="size-6" />
+																</div>
+															</div>
+															<div className="flex-1 min-w-0 flex flex-col gap-2">
+																<p className="text-sm whitespace-pre-wrap leading-normal p-2">
+																	{msg.content}
+																</p>
 
-									{/* System message */}
-									{msg.type === "system" && (
-										<p className="text-[11px] text-muted-foreground text-center py-2">
-											{msg.content}
-										</p>
-									)}
+																{/* Sources */}
+																{msg.sourcesUsed &&
+																	msg.sourcesUsed.length > 0 && (
+																		<>
+																			<button
+																				onClick={() =>
+																					setExpandedSources(
+																						expandedSources === msg.id
+																							? null
+																							: msg.id,
+																					)
+																				}
+																				className="flex items-center gap-1 bg-white rounded-md px-2 py-0.5"
+																			>
+																				<ChevronUp
+																					className={cn(
+																						"size-3 transition-transform",
+																						expandedSources === msg.id
+																							? ""
+																							: "rotate-180",
+																					)}
+																				/>
+																				<span className="text-xs text-foreground">
+																					Sources ({msg.sourcesUsed.length})
+																				</span>
+																			</button>
+																			{expandedSources === msg.id && (
+																				<div className="mt-1.5 space-y-0.5">
+																					{msg.sourcesUsed.map((source, i) => (
+																						<div
+																							key={i}
+																							className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+																						>
+																							{source.type === "knowledge" ? (
+																								<Database className="size-2.5" />
+																							) : (
+																								<Zap className="size-2.5" />
+																							)}
+																							{source.name}
+																						</div>
+																					))}
+																				</div>
+																			)}
+																		</>
+																	)}
 
-									{/* Suggestion */}
-									{msg.type === "suggestion" && msg.suggestion && (
-										<div className="max-w-sm mx-auto my-4">
-											<div className="border border-border/50 rounded-lg p-3 bg-white">
-												<div className="flex items-start gap-2">
-													<Zap className="size-3.5 text-amber-500 mt-0.5" />
-													<div className="flex-1">
-														<p className="text-[12px] font-medium">
-															Suggested improvement
-														</p>
-														<p className="text-[11px] text-muted-foreground mt-0.5">
-															{msg.content}
-														</p>
-														<div className="mt-2 p-2 bg-muted/40 rounded text-[11px] font-mono leading-relaxed">
-															{msg.suggestion.updateValue}
+																{/* Rating bar */}
+																{(phase === "awaiting-rating" ||
+																	phase === "awaiting-feedback") &&
+																	messages[messages.length - 1]?.id ===
+																		msg.id && (
+																		<div className="space-y-3">
+																			<div className="bg-neutral-50 rounded-md p-2 flex items-center gap-3">
+																				<span className="text-xs text-foreground">
+																					Rate this response:
+																				</span>
+																				<div className="flex items-center gap-3">
+																					<button
+																						onClick={() => handleRating("good")}
+																						className="flex items-center justify-center text-foreground hover:text-foreground/70 transition-colors"
+																						title="Good response"
+																					>
+																						<ThumbsUp className="size-3" />
+																					</button>
+																					<button
+																						onClick={() => handleRating("poor")}
+																						className="flex items-center justify-center text-foreground hover:text-foreground/70 transition-colors"
+																						title="Bad response"
+																					>
+																						<ThumbsDown className="size-3" />
+																					</button>
+																				</div>
+																			</div>
+
+																			{/* Feedback textarea */}
+																			{phase === "awaiting-feedback" && (
+																				<div className="space-y-2">
+																					<textarea
+																						value={feedbackInput}
+																						onChange={(e) =>
+																							setFeedbackInput(e.target.value)
+																						}
+																						placeholder="Help us improve. What went wrong?"
+																						className="w-full h-20 px-3 py-2 text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
+																					/>
+																					<div className="flex justify-end gap-2">
+																						<button
+																							onClick={() => {
+																								setFeedbackInput("");
+																								setPhase("awaiting-rating");
+																							}}
+																							className="h-8 px-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
+																						>
+																							Cancel
+																						</button>
+																						<button
+																							onClick={handleFeedbackSubmit}
+																							disabled={!feedbackInput.trim()}
+																							className="h-8 px-4 text-sm font-medium bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+																						>
+																							Submit
+																						</button>
+																					</div>
+																				</div>
+																			)}
+																		</div>
+																	)}
+															</div>
 														</div>
 													</div>
-												</div>
-												{!msg.suggestion.applied &&
-													phase === "awaiting-suggestion-response" && (
-														<div className="flex gap-2 mt-3 pt-2 border-t border-border/50">
-															<button
-																onClick={() => handleSuggestionResponse(true)}
-																className="h-7 px-3 text-[11px] font-medium bg-foreground text-background rounded hover:bg-foreground/90 transition-colors"
-															>
-																Apply
-															</button>
-															<button
-																onClick={() => handleSuggestionResponse(false)}
-																className="h-7 px-3 text-[11px] text-muted-foreground hover:text-foreground rounded hover:bg-muted/50 transition-colors"
-															>
-																Skip
-															</button>
+												)}
+
+												{/* User feedback */}
+												{msg.type === "user-feedback" && (
+													<div className="flex justify-end">
+														<div className="px-4 py-3">
+															<p className="text-base italic text-muted-foreground">
+																{msg.content}
+															</p>
 														</div>
-													)}
-												{msg.suggestion.applied && (
-													<p className="text-[10px] text-emerald-600 mt-2 pt-2 border-t border-border/50">
-														Applied
+													</div>
+												)}
+
+												{/* System message */}
+												{msg.type === "system" && (
+													<p className="text-[11px] text-muted-foreground text-center py-2">
+														{msg.content}
 													</p>
 												)}
+
+												{/* Suggestion */}
+												{msg.type === "suggestion" && msg.suggestion && (
+													<div className="bg-neutral-50 rounded-md p-2">
+														<div className="flex items-start gap-[10px]">
+															<div className="flex items-start py-[7px] shrink-0">
+																<Zap className="size-[18px] text-foreground" />
+															</div>
+															<div className="flex-1 flex flex-col gap-2">
+																<div className="flex flex-col gap-1">
+																	<p className="text-sm font-bold text-foreground">
+																		Suggested improvement
+																	</p>
+																	<p className="text-sm text-foreground">
+																		{msg.content}
+																	</p>
+																</div>
+																<div className="bg-neutral-50 rounded-md py-2">
+																	<p className="text-sm text-foreground leading-normal">
+																		{msg.suggestion.updateValue}
+																	</p>
+																</div>
+																{!msg.suggestion.applied &&
+																	phase === "awaiting-suggestion-response" && (
+																		<Button
+																			size="sm"
+																			onClick={() =>
+																				handleSuggestionResponse(true)
+																			}
+																			className="h-8 w-fit text-xs"
+																		>
+																			Apply suggestion
+																		</Button>
+																	)}
+																{msg.suggestion.applied && (
+																	<p className="text-xs text-emerald-600 font-medium">
+																		Applied
+																	</p>
+																)}
+															</div>
+														</div>
+													</div>
+												)}
 											</div>
-										</div>
-									)}
-								</div>
-							))}
+										))}
 
-							{/* Loading */}
-							{isLoading && (
-								<div className="flex gap-3 mb-6">
-									<div
-										className={cn(
-											"size-8 rounded-lg flex items-center justify-center flex-shrink-0",
-											color.bg,
+										{/* Loading */}
+										{isLoading && (
+											<div className="flex gap-2">
+												<div className="flex items-start py-2 shrink-0">
+													<div className="size-[38px] rounded-lg bg-violet-200 flex items-center justify-center">
+														<BotMessageSquare className="size-6" />
+													</div>
+												</div>
+												<div className="flex items-center gap-2 text-muted-foreground p-2">
+													<Loader2 className="size-4 animate-spin" />
+												</div>
+											</div>
 										)}
-									>
-										<Icon className={cn("size-4", color.text)} />
-									</div>
-									<div className="flex items-center gap-2 text-muted-foreground">
-										<Loader2 className="size-4 animate-spin" />
-									</div>
-								</div>
-							)}
 
-							<div ref={chatEndRef} />
+										<div ref={chatEndRef} />
+									</div>
+								)}
+							</div>
 						</div>
-					)}
-				</div>
-			</div>
 
-			{/* Input - always visible for new prompts */}
-			<div className="border-t bg-white px-4 py-3">
-				<div className="max-w-2xl mx-auto">
-					<div className="relative">
-						<Textarea
-							ref={inputRef}
-							value={input}
-							onChange={(e) => setInput(e.target.value)}
-							onKeyDown={handleKeyDown}
-							placeholder="Test another prompt..."
-							className="min-h-[40px] max-h-[100px] pr-10 text-sm resize-none border-muted-foreground/20 focus:border-muted-foreground/40"
-							disabled={isLoading || phase === "awaiting-suggestion-response"}
-						/>
-						<Button
-							size="icon"
-							variant="ghost"
-							onClick={handleSend}
-							disabled={
-								!input.trim() ||
-								isLoading ||
-								phase === "awaiting-suggestion-response"
-							}
-							className="absolute bottom-1.5 right-1.5 size-7"
-						>
-							<Send className="size-3.5" />
-						</Button>
+						{/* Input - inside the white panel at bottom */}
+						<div className="px-6 pb-4">
+							<div className="max-w-2xl mx-auto">
+								<div className="border rounded-md flex items-center p-3">
+									<Textarea
+										ref={inputRef}
+										value={input}
+										onChange={(e) => setInput(e.target.value)}
+										onKeyDown={handleKeyDown}
+										placeholder="Test another prompt..."
+										className="min-h-[27px] max-h-[100px] text-base resize-none border-0 shadow-none focus-visible:ring-0 p-0"
+										disabled={
+											isLoading || phase === "awaiting-suggestion-response"
+										}
+									/>
+									<Button
+										size="icon"
+										onClick={handleSend}
+										disabled={
+											!input.trim() ||
+											isLoading ||
+											phase === "awaiting-suggestion-response"
+										}
+										className="size-9 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex-shrink-0 shadow-sm"
+									>
+										<SendHorizontal className="size-4" />
+									</Button>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -740,7 +701,6 @@ export default function AgentTestPage() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
-							<Rocket className="size-5" />
 							Publish Agent
 						</DialogTitle>
 						<DialogDescription>
@@ -784,7 +744,6 @@ export default function AgentTestPage() {
 								navigate("/agents", { state: { published: true } })
 							}
 						>
-							<Rocket className="size-4 mr-1.5" />
 							Publish
 						</Button>
 					</DialogFooter>

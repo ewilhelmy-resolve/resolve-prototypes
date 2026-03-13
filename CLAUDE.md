@@ -62,7 +62,7 @@ pnpm --filter rita-api-server docs:generate  # Regenerate OpenAPI spec
 
 # Client
 pnpm --filter rita-client test:unit          # Client tests
-pnpm --filter rita-client check:fix          # Auto-fix lint+format
+pnpm --filter rita-client check:fix          # Auto-fix lint+format (⚠️ formats ALL files, ask user before running)
 
 # Infrastructure
 docker compose up -d  # Start all Docker services
@@ -127,6 +127,7 @@ All start via `docker compose up -d`.
 - **Package manager**: pnpm only (`packageManager` enforced in package.json)
 - **Linter/formatter**: Biome — tab indentation, no ESLint/Prettier
 - **Pre-commit**: husky + lint-staged → `biome check --write` + `biome lint` + `type-check` + OpenAPI regen
+- **Never run `check:fix` without asking** — it reformats ALL files in the package, not just changed ones. Let pre-commit hooks handle formatting on staged files. If full reformat is needed, ask user first.
 - **Client state**: Zustand (client), TanStack Query (server)
 - **Forms**: React Hook Form + Zod
 - **UI**: shadcn/ui + Radix + Tailwind CSS
