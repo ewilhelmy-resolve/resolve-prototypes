@@ -8,23 +8,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function TicketGroupSkeleton() {
 	return (
 		<div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
-			{/* Title and Count */}
-			<div className="flex flex-col gap-3.5">
-				<Skeleton className="h-7 w-3/4" />
-				<Skeleton className="h-9 w-16" />
-			</div>
+			{/* Title */}
+			<Skeleton className="h-7 w-3/4" />
 
-			{/* Progress Bar */}
-			<div className="flex flex-col gap-2">
-				<Skeleton className="h-2 w-full rounded-full" />
-				<div className="flex justify-between">
+			{/* Count + metrics row */}
+			<div className="flex items-end justify-between">
+				<div className="flex items-baseline gap-2">
+					<Skeleton className="h-9 w-16" />
 					<Skeleton className="h-4 w-20" />
-					<Skeleton className="h-4 w-24" />
 				</div>
+				<Skeleton className="h-6 w-6 rounded-full" />
 			</div>
 
-			{/* Knowledge Status Badge */}
-			<Skeleton className="h-5 w-24 rounded-full" />
+			{/* Footer */}
+			<div className="border-t border-border pt-3">
+				<Skeleton className="h-4 w-32" />
+			</div>
 		</div>
 	);
 }

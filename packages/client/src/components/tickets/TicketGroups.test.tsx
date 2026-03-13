@@ -20,6 +20,13 @@ vi.mock("@/hooks/useClusters", () => ({
 	clusterKeys: { all: ["clusters"], lists: () => ["clusters", "list"] },
 }));
 
+vi.mock("@/stores/ticketSettingsStore", () => ({
+	useTicketSettingsStore: () => ({
+		blendedRatePerHour: 30,
+		timeToTake: 12,
+	}),
+}));
+
 beforeEach(() => {
 	mockUseActiveModel.mockReturnValue({
 		data: null,
@@ -56,6 +63,7 @@ describe("TicketGroups conditional rendering", () => {
 		mockUseIsIngesting.mockReturnValue({
 			isIngesting: true,
 			latestRun: { status: "running", records_processed: 50, metadata: {} },
+			isBelowThreshold: false,
 		});
 
 		renderTicketGroups();
@@ -104,10 +112,12 @@ describe("TicketGroups conditional rendering", () => {
 						name: "Password Reset",
 						subcluster_name: null,
 						ticket_count: 42,
-						kb_status: "found",
+						needs_response_count: 10,
+						kb_status: "FOUND",
+						updated_at: new Date().toISOString(),
 					},
 				],
-				pagination: { has_more: false },
+				pagination: { has_more: false, total: 1 },
 				totals: { total_clusters: 1 },
 			},
 			isLoading: false,
@@ -161,26 +171,28 @@ describe("TicketGroups conditional rendering", () => {
 		expect(screen.getByText("groups.goToItsmConnections")).toBeInTheDocument();
 	});
 
-	it("shows pagination with 'Showing' info when there are more clusters than PAGE_SIZE", () => {
+	it("renders multiple clusters in card view", () => {
 		mockUseActiveModel.mockReturnValue({
 			data: { metadata: { training_state: "complete" } },
 			isLoading: false,
 			notifySyncStarted: vi.fn(),
 		});
 
-		const clusters = Array.from({ length: 20 }, (_, i) => ({
+		const clusters = Array.from({ length: 5 }, (_, i) => ({
 			id: `c${i}`,
 			name: `Cluster ${i}`,
 			subcluster_name: null,
 			ticket_count: 10,
+			needs_response_count: 3,
 			kb_status: "PENDING",
+			updated_at: new Date().toISOString(),
 		}));
 
 		mockUseClusters.mockReturnValue({
 			data: {
 				data: clusters,
-				pagination: { total: 30, limit: 20, offset: 0, has_more: true },
-				totals: { total_clusters: 30 },
+				pagination: { has_more: false, total: 5 },
+				totals: { total_clusters: 5 },
 			},
 			isLoading: false,
 			error: null,
@@ -188,17 +200,9 @@ describe("TicketGroups conditional rendering", () => {
 
 		renderTicketGroups();
 
-		// All 20 page items rendered
-		for (let i = 0; i < 20; i++) {
+		for (let i = 0; i < 5; i++) {
 			expect(screen.getByText(`Cluster ${i}`)).toBeInTheDocument();
 		}
-
-		// Pagination visible with info text and Next enabled
-		expect(screen.getByText("groups.pagination.showing")).toBeInTheDocument();
-		const nextButton = screen.getByRole("button", {
-			name: "groups.pagination.next",
-		});
-		expect(nextButton).not.toBeDisabled();
 	});
 
 	it("shows spinner while model is loading", () => {
@@ -216,5 +220,37 @@ describe("TicketGroups conditional rendering", () => {
 		expect(
 			screen.queryByText("groups.noSourceConnected"),
 		).not.toBeInTheDocument();
+	});
+
+	it("shows pagination when more pages available", () => {
+		mockUseActiveModel.mockReturnValue({
+			data: { metadata: { training_state: "complete" } },
+			isLoading: false,
+			notifySyncStarted: vi.fn(),
+		});
+		mockUseClusters.mockReturnValue({
+			data: {
+				data: [
+					{
+						id: "c1",
+						name: "Cluster A",
+						subcluster_name: null,
+						ticket_count: 20,
+						needs_response_count: 5,
+						kb_status: "FOUND",
+						updated_at: new Date().toISOString(),
+					},
+				],
+				pagination: { has_more: true, total: 25, offset: 0, limit: 20 },
+				totals: { total_clusters: 25 },
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		renderTicketGroups();
+
+		expect(screen.getByText("groups.pagination.next")).toBeInTheDocument();
+		expect(screen.getByText("groups.pagination.previous")).toBeInTheDocument();
 	});
 });

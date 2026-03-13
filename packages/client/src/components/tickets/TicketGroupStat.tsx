@@ -1,7 +1,12 @@
+import { BookX } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { getKnowledgeStatusBadge } from "@/lib/cluster-utils";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { formatRelativeTime } from "@/lib/date-utils";
 import type { KBStatus } from "@/types/cluster";
 
 interface TicketGroupStatProps {
@@ -13,33 +18,42 @@ interface TicketGroupStatProps {
 	count: number;
 	/** Knowledge base status */
 	knowledgeStatus: KBStatus;
-	/** Manual handling percentage (hardcoded for now) */
-	manualPercentage?: number;
-	/** Automated handling percentage (hardcoded for now) */
-	automatedPercentage?: number;
+	/** Estimated monthly cost impact */
+	costImpact?: number;
+	/** Mean time to resolve in minutes */
+	mttr?: number;
 	/** Optional click handler - overrides default navigation */
 	onClick?: () => void;
+	/** Number of new tickets since last check */
+	newTicketCount?: number;
+	/** ISO date string of last update */
+	updatedAt?: string;
 }
 
 /**
- * TicketGroupStat - Individual ticket group statistics card
+ * TicketGroupStat - Cluster card
  *
- * Displays a ticket category with count and knowledge status indicator.
- * Clickable to navigate to detail page.
+ * Displays cluster name, ticket count, cost/MTTR metrics, and gap icons.
  */
 export function TicketGroupStat({
 	id,
 	title,
 	count,
 	knowledgeStatus,
-	automatedPercentage = 0,
+	costImpact,
+	mttr,
 	onClick,
+	newTicketCount,
+	updatedAt,
 }: TicketGroupStatProps) {
+	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
 
 	const handleClick = () => {
 		onClick ? onClick() : navigate(`/tickets/${id}`);
 	};
+
+	const hasKnowledgeGap = knowledgeStatus === "GAP";
 
 	return (
 		<button
@@ -47,38 +61,69 @@ export function TicketGroupStat({
 			onClick={handleClick}
 			className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 cursor-pointer hover:bg-accent/50 transition-colors text-left"
 		>
-			{/* Title and Count */}
-			<div className="flex flex-col gap-3.5">
-				<h2 className="text-base font-normal text-card-foreground leading-7">
-					{title}
-				</h2>
-				<div className="text-[38px] font-normal leading-6 text-card-foreground">
-					{count}
+			<h2 className="text-base font-normal text-card-foreground leading-7">
+				{title}
+			</h2>
+			<div className="flex items-end justify-between">
+				<div className="flex items-baseline gap-2">
+					<span className="text-[38px] font-normal leading-6 text-card-foreground">
+						{count.toLocaleString()}
+					</span>
+					{(costImpact != null || mttr != null) && (
+						<div className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
+							{costImpact != null && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span>
+											$
+											{costImpact >= 1000
+												? `${(costImpact / 1000).toFixed(1)}k`
+												: Math.round(costImpact).toLocaleString()}
+										</span>
+									</TooltipTrigger>
+									<TooltipContent>
+										{t("prioritizationList.columns.costImpact")}
+									</TooltipContent>
+								</Tooltip>
+							)}
+							{costImpact != null && mttr != null && <span>·</span>}
+							{mttr != null && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span>{mttr}m</span>
+									</TooltipTrigger>
+									<TooltipContent>
+										{t("prioritizationList.columns.mttr")}
+									</TooltipContent>
+								</Tooltip>
+							)}
+						</div>
+					)}
 				</div>
+				{hasKnowledgeGap && (
+					<div className="flex items-center gap-1.5">
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
+									<BookX className="h-3.5 w-3.5 text-yellow-600" />
+								</span>
+							</TooltipTrigger>
+							<TooltipContent>{t("gaps.knowledgeGap")}</TooltipContent>
+						</Tooltip>
+					</div>
+				)}
 			</div>
-
-			{/* Progress Bar */}
-			<div className="flex flex-col gap-2">
-				<Progress
-					value={automatedPercentage}
-					indicatorClassName="bg-rita-teal"
-				/>
-				<div className="text-xs text-muted-foreground">
-					<span>{automatedPercentage}% Automate</span>
+			{(newTicketCount != null && newTicketCount > 0) || updatedAt ? (
+				<div className="border-t border-border pt-3 mt-auto text-xs text-muted-foreground">
+					{newTicketCount != null && newTicketCount > 0 && updatedAt
+						? `${newTicketCount} new ticket${newTicketCount === 1 ? "" : "s"} \u00b7 ${formatRelativeTime(updatedAt)}`
+						: newTicketCount != null && newTicketCount > 0
+							? `${newTicketCount} new ticket${newTicketCount === 1 ? "" : "s"}`
+							: updatedAt
+								? `Updated ${formatRelativeTime(updatedAt)}`
+								: null}
 				</div>
-			</div>
-
-			{/* Knowledge Status Badge */}
-			<div>
-				{(() => {
-					const style = getKnowledgeStatusBadge(knowledgeStatus);
-					return style ? (
-						<Badge variant={style.variant} className={style.className}>
-							{style.text}
-						</Badge>
-					) : null;
-				})()}
-			</div>
+			) : null}
 		</button>
 	);
 }
