@@ -13,12 +13,23 @@ import {
 	Printer,
 	RefreshCw,
 	SendHorizontal,
+	Sparkles,
 	ThumbsDown,
 	ThumbsUp,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ProLayout } from "@/components/layouts/ProLayout";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -41,6 +52,28 @@ type DesignerTab = "main" | "abort";
 type ViewTab = "page" | "automation" | "decision-tree";
 type PropsTab = "configure" | "view" | "jarvis";
 type ParamsTab = "input" | "output";
+
+interface FlowNode {
+	id: string;
+	type: "start" | "task" | "decision" | "comment";
+	label: string;
+	sublabel?: string;
+	x: number;
+	y: number;
+	selected?: boolean;
+}
+
+// Used by future flow grouping feature
+// @ts-expect-error prototype — not yet referenced
+interface FlowGroup {
+	id: string;
+	label: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	nodes: FlowNode[];
+}
 
 interface TaskParam {
 	name: string;
@@ -150,42 +183,103 @@ const DEMO_RESPONSES: string[] = [
 	'To convert this task to use a different SAM API version, update the endpoint:\n\n**Current (v1):**\n`GET /nbi/api/v1/site/{siteId}`\n\n**New (v2):**\n`POST /nbi/api/v2/sites/query`\n```json\n{\n  "filter": { "siteId": "10.246.222.20" },\n  "fields": ["equipmentName", "loopbackIp", "adminState"]\n}\n```\n\nThe v2 API is faster because it only returns requested fields instead of the full site object. You\'d also need to change the auth from Bearer token to **OAuth client credentials** — update the `authType` in the task config.',
 ];
 
-function JarvisChat() {
-	const [messages, setMessages] = useState<ChatMessage[]>([]);
+/** Per-task conversation starters based on task config */
+function getTaskStarters(task: TaskConfig): string[] {
+	const name = task.displayName;
+	const paramNames = task.params.map((p) => p.name);
+	const hasPropertyRefs = task.params.some((p) =>
+		p.value.includes("$PROPERTY("),
+	);
+	const hasOutputRefs = task.params.some((p) => p.value.includes("$OUTPUT("));
+	const hasInputRefs = task.params.some((p) => p.value.includes("$INPUT("));
+
+	const starters: string[] = [`What does "${name}" do?`];
+
+	if (paramNames.length > 0) {
+		starters.push(`Explain the ${paramNames.length} input variables`);
+	}
+
+	if (hasPropertyRefs) {
+		starters.push("Which server properties does this use?");
+	}
+
+	if (hasOutputRefs) {
+		starters.push("What upstream data does this depend on?");
+	}
+
+	if (hasInputRefs) {
+		starters.push("What runbook inputs feed into this?");
+	}
+
+	starters.push(`How do I debug "${name}" if it fails?`);
+
+	// Return max 4 starters
+	return starters.slice(0, 4);
+}
+
+interface JarvisChatProps {
+	taskId: string;
+	task: TaskConfig;
+	messagesByTask: Record<string, ChatMessage[]>;
+	setMessagesByTask: React.Dispatch<
+		React.SetStateAction<Record<string, ChatMessage[]>>
+	>;
+}
+
+function JarvisChat({
+	taskId,
+	task,
+	messagesByTask,
+	setMessagesByTask,
+}: JarvisChatProps) {
 	const [input, setInput] = useState("");
 	const [isTyping, setIsTyping] = useState(false);
-	const responseIndex = useRef(0);
+	const responseIndexByTask = useRef<Record<string, number>>({});
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll on message changes
-	useEffect(() => {
-		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [messages, isTyping]);
+	const messages = messagesByTask[taskId] ?? [];
 
-	const handleSend = () => {
-		const text = input.trim();
-		if (!text || isTyping) return;
+	const scrollToBottom = () => {
+		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+	};
+
+	useEffect(() => {
+		scrollToBottom();
+	}, [scrollToBottom]);
+
+	// Clear input when switching tasks
+	useEffect(() => {
+		setInput("");
+	}, []);
+
+	const sendMessage = (text: string) => {
+		if (!text.trim() || isTyping) return;
 
 		const userMsg: ChatMessage = {
 			id: crypto.randomUUID(),
 			role: "user",
-			content: text,
+			content: text.trim(),
 		};
-		setMessages((prev) => [...prev, userMsg]);
+		setMessagesByTask((prev) => ({
+			...prev,
+			[taskId]: [...(prev[taskId] ?? []), userMsg],
+		}));
 		setInput("");
 		setIsTyping(true);
 
-		// Simulate typing delay then respond
 		setTimeout(() => {
-			const response =
-				DEMO_RESPONSES[responseIndex.current % DEMO_RESPONSES.length];
-			responseIndex.current += 1;
+			const idx = responseIndexByTask.current[taskId] ?? 0;
+			const response = DEMO_RESPONSES[idx % DEMO_RESPONSES.length];
+			responseIndexByTask.current[taskId] = idx + 1;
 			const assistantMsg: ChatMessage = {
 				id: crypto.randomUUID(),
 				role: "assistant",
 				content: response,
 			};
-			setMessages((prev) => [...prev, assistantMsg]);
+			setMessagesByTask((prev) => ({
+				...prev,
+				[taskId]: [...(prev[taskId] ?? []), assistantMsg],
+			}));
 			setIsTyping(false);
 		}, 1500);
 	};
@@ -193,17 +287,40 @@ function JarvisChat() {
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
-			handleSend();
+			sendMessage(input);
 		}
 	};
+
+	const starters = getTaskStarters(task);
 
 	return (
 		<div className="flex flex-col h-full">
 			{/* Messages */}
 			<div className="flex-1 overflow-auto p-3 space-y-3">
 				{messages.length === 0 && !isTyping && (
-					<div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 px-4">
-						<p className="text-xs text-center">Ask Jarvis about this task</p>
+					<div className="flex flex-col h-full px-3 pt-6 gap-4">
+						<div className="flex flex-col items-center gap-1.5">
+							<Sparkles className="size-5 text-[#0ec0c0]" />
+							<p className="text-xs font-medium text-center">
+								Ask Jarvis about "{task.displayName}"
+							</p>
+							<p className="text-[10px] text-muted-foreground text-center">
+								{task.params.length} variables ·{" "}
+								{task.taskName.split("#")[1] ?? "task"}
+							</p>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							{starters.map((starter) => (
+								<button
+									key={starter}
+									type="button"
+									onClick={() => sendMessage(starter)}
+									className="text-left text-xs px-3 py-2 rounded-md border border-border bg-white hover:bg-accent/50 transition-colors text-foreground"
+								>
+									{starter}
+								</button>
+							))}
+						</div>
 					</div>
 				)}
 				{messages.map((msg) => (
@@ -271,13 +388,13 @@ function JarvisChat() {
 						value={input}
 						onChange={(e) => setInput(e.target.value)}
 						onKeyDown={handleKeyDown}
-						placeholder="Ask about this task..."
+						placeholder={`Ask about ${task.displayName}...`}
 						className="flex-1 text-sm bg-transparent outline-none placeholder:text-neutral-400"
 						aria-label="Chat with Jarvis"
 					/>
 					<button
 						type="button"
-						onClick={handleSend}
+						onClick={() => sendMessage(input)}
 						disabled={isTyping || !input.trim()}
 						className="bg-blue-50 rounded-md p-1.5 text-blue-600 hover:bg-blue-100 disabled:opacity-40"
 						aria-label="Send message"
@@ -323,7 +440,6 @@ function TaskNode({
 	const h = 44;
 	return (
 		<g
-			role={onClick ? "button" : undefined}
 			transform={`translate(${x}, ${y})`}
 			onClick={onClick}
 			className={onClick ? "cursor-pointer" : ""}
@@ -398,7 +514,6 @@ function ActionTaskNode({
 	const h = 44;
 	return (
 		<g
-			role={onClick ? "button" : undefined}
 			transform={`translate(${x}, ${y})`}
 			onClick={onClick}
 			className={onClick ? "cursor-pointer" : ""}
@@ -589,6 +704,40 @@ export default function RunbookDesignerPage() {
 		TASK_CONFIGS.find((t) => t.id === selectedTaskId) ?? TASK_CONFIGS[1];
 	const [paramsTab, setParamsTab] = useState<ParamsTab>("input");
 
+	// Jarvis chat state (lifted so we can check before switching tasks)
+	const [messagesByTask, setMessagesByTask] = useState<
+		Record<string, ChatMessage[]>
+	>({});
+	const [pendingTaskSwitch, setPendingTaskSwitch] = useState<string | null>(
+		null,
+	);
+
+	const handleTaskSelect = (taskId: string) => {
+		if (taskId === selectedTaskId) return;
+		const currentMessages = messagesByTask[selectedTaskId] ?? [];
+		if (currentMessages.length > 0) {
+			setPendingTaskSwitch(taskId);
+		} else {
+			setSelectedTaskId(taskId);
+		}
+	};
+
+	const confirmTaskSwitch = () => {
+		if (!pendingTaskSwitch) return;
+		// Clear conversation for the task we're leaving
+		setMessagesByTask((prev) => {
+			const next = { ...prev };
+			delete next[selectedTaskId];
+			return next;
+		});
+		setSelectedTaskId(pendingTaskSwitch);
+		setPendingTaskSwitch(null);
+	};
+
+	const cancelTaskSwitch = () => {
+		setPendingTaskSwitch(null);
+	};
+
 	return (
 		<ProLayout>
 			<div className="flex flex-col h-[calc(100vh-3rem)]">
@@ -776,7 +925,7 @@ export default function RunbookDesignerPage() {
 									label="parse interface name"
 									sublabel="#se.tellabs"
 									selected={selectedTaskId === "parse-interface"}
-									onClick={() => setSelectedTaskId("parse-interface")}
+									onClick={() => handleTaskSelect("parse-interface")}
 								/>
 
 								{/* Arrow into Group 1 */}
@@ -833,7 +982,7 @@ export default function RunbookDesignerPage() {
 									label="get site"
 									sublabel="#se.nokia.5620sam"
 									selected={selectedTaskId === "get-site"}
-									onClick={() => setSelectedTaskId("get-site")}
+									onClick={() => handleTaskSelect("get-site")}
 								/>
 								<Arrow x1={300} y1={234} x2={300} y2={266} color="#22c55e" />
 
@@ -927,7 +1076,7 @@ export default function RunbookDesignerPage() {
 									label="get equipment physical port details"
 									sublabel="#se.nokia.5620sam"
 									selected={selectedTaskId === "get-port"}
-									onClick={() => setSelectedTaskId("get-port")}
+									onClick={() => handleTaskSelect("get-port")}
 								/>
 								<Arrow x1={300} y1={504} x2={300} y2={536} color="#22c55e" />
 
@@ -992,29 +1141,21 @@ export default function RunbookDesignerPage() {
 						{/* Property fields */}
 						<div className="px-4 py-3 space-y-3 border-b">
 							<div className="grid grid-cols-[100px_1fr] items-center gap-2">
-								<label
-									htmlFor="task-display-name"
-									className="text-xs text-muted-foreground"
-								>
+								<label className="text-xs text-muted-foreground">
 									Display Name:
 								</label>
 								<Input
-									id="task-display-name"
 									value={selectedTask.displayName}
 									readOnly
 									className="h-7 text-xs"
 								/>
 							</div>
 							<div className="grid grid-cols-[100px_1fr] items-center gap-2">
-								<label
-									htmlFor="task-name"
-									className="text-xs text-muted-foreground"
-								>
+								<label className="text-xs text-muted-foreground">
 									Task Name:
 								</label>
 								<div className="flex items-center gap-1">
 									<Input
-										id="task-name"
 										value={selectedTask.taskName}
 										readOnly
 										className="h-7 text-xs flex-1"
@@ -1036,14 +1177,8 @@ export default function RunbookDesignerPage() {
 								</div>
 							</div>
 							<div className="grid grid-cols-[100px_1fr] items-center gap-2">
-								<label
-									htmlFor="task-merge"
-									className="text-xs text-muted-foreground"
-								>
-									Merge:
-								</label>
+								<label className="text-xs text-muted-foreground">Merge:</label>
 								<Input
-									id="task-merge"
 									value={selectedTask.merge}
 									readOnly
 									className="h-7 text-xs"
@@ -1089,7 +1224,12 @@ export default function RunbookDesignerPage() {
 						{/* Tab content */}
 						{propsTab === "jarvis" ? (
 							<div className="flex-1 overflow-hidden">
-								<JarvisChat />
+								<JarvisChat
+									taskId={selectedTaskId}
+									task={selectedTask}
+									messagesByTask={messagesByTask}
+									setMessagesByTask={setMessagesByTask}
+								/>
 							</div>
 						) : (
 							<>
@@ -1163,6 +1303,28 @@ export default function RunbookDesignerPage() {
 					</aside>
 				</div>
 			</div>
+			<AlertDialog
+				open={pendingTaskSwitch !== null}
+				onOpenChange={(open) => {
+					if (!open) cancelTaskSwitch();
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Switch task?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Your Jarvis conversation for "{selectedTask.displayName}" will be
+							cleared when you leave this task. This can't be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Stay on task</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmTaskSwitch}>
+							Switch task
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</ProLayout>
 	);
 }

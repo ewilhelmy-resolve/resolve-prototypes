@@ -28,6 +28,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import ProAgentBuilderPage from "./pages/ProAgentBuilderPage";
 import ProAgentsPage from "./pages/ProAgentsPage";
 import ProDashboardPage from "./pages/ProDashboardPage";
+import ProLLMConfigPage from "./pages/ProLLMConfigPage";
 import RunbookDesignerPage from "./pages/RunbookDesignerPage";
 import RunbooksPage from "./pages/RunbooksPage";
 import SchedulerDashboardPage from "./pages/SchedulerDashboardPage";
@@ -122,6 +123,14 @@ const router = createBrowserRouter([
 		element: (
 			<ProtectedRoute>
 				<ProAgentBuilderPage />
+			</ProtectedRoute>
+		),
+	},
+	{
+		path: "/pro/llm",
+		element: (
+			<ProtectedRoute>
+				<ProLLMConfigPage />
 			</ProtectedRoute>
 		),
 	},

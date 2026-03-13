@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ProLayout } from "@/components/layouts/ProLayout";
 import { EndpointPreview } from "@/components/pro/EndpointPreview";
 import { MCPSkillSheet } from "@/components/pro/MCPSkillSheet";
@@ -18,14 +18,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-	MOCK_MCP_SKILLS,
-	MOCK_PRO_AGENTS,
-	MOCK_PRO_RUNBOOKS,
-} from "@/data/mock-pro";
+import { MOCK_MCP_SKILLS, MOCK_PRO_AGENTS } from "@/data/mock-pro";
 import type { MCPAuthMethod, MCPSkill, ProAgentVersion } from "@/types/pro";
-
-const NONE_RUNBOOK = "__none__";
 
 function slugify(value: string): string {
 	return value
@@ -36,6 +30,7 @@ function slugify(value: string): string {
 
 export default function ProAgentBuilderPage() {
 	const { id } = useParams<{ id: string }>();
+	const navigate = useNavigate();
 	const existingAgent = id
 		? MOCK_PRO_AGENTS.find((a) => a.id === id)
 		: undefined;
@@ -53,6 +48,7 @@ export default function ProAgentBuilderPage() {
 	const [selectedVersion, setSelectedVersion] = useState(
 		latestVersion?.version ?? 1,
 	);
+
 	// Form state — initialized from latest version or agent
 	const [name, setName] = useState(
 		latestVersion?.name ?? existingAgent?.name ?? "",
@@ -62,9 +58,6 @@ export default function ProAgentBuilderPage() {
 	);
 	const [endpointSlug, setEndpointSlug] = useState(
 		latestVersion?.endpointSlug ?? existingAgent?.endpointSlug ?? "",
-	);
-	const [runbookId, setRunbookId] = useState(
-		latestVersion?.runbookId ?? existingAgent?.runbookId ?? NONE_RUNBOOK,
 	);
 	const [authMethod, setAuthMethod] = useState<MCPAuthMethod>(
 		latestVersion?.authMethod ?? existingAgent?.authMethod ?? "none",
@@ -94,7 +87,6 @@ export default function ProAgentBuilderPage() {
 			setName(ver.name);
 			setDescription(ver.description);
 			setEndpointSlug(ver.endpointSlug);
-			setRunbookId(ver.runbookId ?? NONE_RUNBOOK);
 			setAuthMethod(ver.authMethod ?? "none");
 			setSelectedSkillIds([...ver.skillIds]);
 			slugManuallyEdited.current = true;
@@ -127,20 +119,7 @@ export default function ProAgentBuilderPage() {
 		[],
 	);
 
-	const assembleAgent = () => ({
-		name,
-		description,
-		endpointSlug,
-		runbookId: runbookId === NONE_RUNBOOK ? null : runbookId,
-		authMethod,
-		skillIds: selectedSkillIds,
-	});
-
-	const handleSaveDraft = () => {
-		console.log("Save draft:", assembleAgent());
-	};
-
-	const handlePublish = () => {
+	const handleSave = () => {
 		const now = new Date().toISOString();
 		const nextVersion =
 			versions.length > 0 ? Math.max(...versions.map((v) => v.version)) + 1 : 1;
@@ -149,7 +128,7 @@ export default function ProAgentBuilderPage() {
 			name,
 			description,
 			endpointSlug,
-			runbookId: runbookId === NONE_RUNBOOK ? null : runbookId,
+			runbookId: null,
 			authMethod,
 			skillIds: [...selectedSkillIds],
 			status: "active",
@@ -159,7 +138,11 @@ export default function ProAgentBuilderPage() {
 		setVersions((prev) => [...prev, newVersion]);
 		setActiveVersion(nextVersion);
 		setSelectedVersion(nextVersion);
-		console.log("Publish — new version:", newVersion);
+		console.log("Save — new version:", newVersion);
+	};
+
+	const handleCancel = () => {
+		navigate("/pro/mcp");
 	};
 
 	const selectedSkills = localSkills.filter((s) =>
@@ -245,23 +228,6 @@ export default function ProAgentBuilderPage() {
 						</div>
 
 						<div className="space-y-1.5">
-							<Label htmlFor="agent-runbook">Runbook</Label>
-							<Select value={runbookId} onValueChange={setRunbookId}>
-								<SelectTrigger id="agent-runbook">
-									<SelectValue placeholder="Select a runbook" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value={NONE_RUNBOOK}>None</SelectItem>
-									{MOCK_PRO_RUNBOOKS.map((rb) => (
-										<SelectItem key={rb.id} value={rb.id}>
-											{rb.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-1.5">
 							<Label htmlFor="agent-auth">Authentication</Label>
 							<Select
 								value={authMethod}
@@ -273,8 +239,7 @@ export default function ProAgentBuilderPage() {
 								<SelectContent>
 									<SelectItem value="none">None</SelectItem>
 									<SelectItem value="oauth">OAuth</SelectItem>
-									<SelectItem value="api_key">API Key</SelectItem>
-									<SelectItem value="bearer">Bearer Token</SelectItem>
+									<SelectItem value="basic">Basic Auth</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -296,25 +261,20 @@ export default function ProAgentBuilderPage() {
 							</div>
 						)}
 
-						{authMethod === "api_key" && (
-							<div className="space-y-1.5 rounded-md border p-4">
-								<Label htmlFor="auth-api-key">API Key</Label>
-								<Input
-									id="auth-api-key"
-									type="password"
-									placeholder="Enter API key"
-								/>
-							</div>
-						)}
-
-						{authMethod === "bearer" && (
-							<div className="space-y-1.5 rounded-md border p-4">
-								<Label htmlFor="auth-bearer-token">Bearer Token</Label>
-								<Input
-									id="auth-bearer-token"
-									type="password"
-									placeholder="Enter bearer token"
-								/>
+						{authMethod === "basic" && (
+							<div className="space-y-3 rounded-md border p-4">
+								<div className="space-y-1.5">
+									<Label htmlFor="basic-username">Username</Label>
+									<Input id="basic-username" placeholder="Enter username" />
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="basic-password">Password</Label>
+									<Input
+										id="basic-password"
+										type="password"
+										placeholder="Enter password"
+									/>
+								</div>
 							</div>
 						)}
 
@@ -351,16 +311,16 @@ export default function ProAgentBuilderPage() {
 								onClick={() => setSkillSheetOpen(true)}
 							>
 								<Plus className="size-3.5" />
-								Create Skill
+								MCP Skill
 							</Button>
 						</div>
 
 						<div className="flex items-center gap-3 pt-4 border-t">
-							<Button type="button" variant="outline" onClick={handleSaveDraft}>
-								Save Draft
+							<Button type="button" onClick={handleSave}>
+								Save
 							</Button>
-							<Button type="button" onClick={handlePublish}>
-								Publish
+							<Button type="button" variant="outline" onClick={handleCancel}>
+								Cancel
 							</Button>
 						</div>
 					</form>

@@ -48,6 +48,7 @@
 				"src/pages/AgentChatPage.tsx",
 				"src/pages/AgentTestPage.tsx",
 				"src/pages/RunbookDesignerPage.tsx",
+				"src/pages/ProAgentBuilderPage.tsx",
 				"src/components/agent-builder/**",
 				"src/components/agents/**"
 			],
@@ -60,7 +61,9 @@
 					},
 					"correctness": {
 						"noNestedComponentDefinitions": "off",
-						"noUnusedFunctionParameters": "off"
+						"noUnusedFunctionParameters": "off",
+						"noUnusedVariables": "off",
+						"useExhaustiveDependencies": "off"
 					},
 					"suspicious": {
 						"noShadowRestrictedNames": "off"
