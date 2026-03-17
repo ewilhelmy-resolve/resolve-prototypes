@@ -27,6 +27,19 @@ export const ClusterConfigSchema = z
 	.openapi("ClusterConfig");
 
 // ============================================================================
+// Request Schemas
+// ============================================================================
+
+export const LinkKbArticleRequestSchema = z
+	.object({
+		blob_metadata_id: z
+			.string()
+			.uuid()
+			.openapi({ description: "ID of the blob_metadata record to link" }),
+	})
+	.openapi("LinkKbArticleRequest");
+
+// ============================================================================
 // Query Schemas
 // ============================================================================
 

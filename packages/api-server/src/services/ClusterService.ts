@@ -456,6 +456,61 @@ export class ClusterService {
 	}
 
 	/**
+	 * Link a KB article (blob_metadata) to a cluster
+	 * Creates a cluster_kb_links row and updates kb_status to FOUND if GAP
+	 */
+	async linkKbArticle(
+		clusterId: string,
+		blobMetadataId: string,
+		organizationId: string,
+	): Promise<KbArticle> {
+		// Insert link row
+		await db
+			.insertInto("cluster_kb_links")
+			.values({
+				organization_id: organizationId,
+				cluster_id: clusterId,
+				blob_metadata_id: blobMetadataId,
+			})
+			.execute();
+
+		// Update kb_status to FOUND if currently GAP
+		await db
+			.updateTable("clusters")
+			.set({ kb_status: "FOUND" })
+			.where("id", "=", clusterId)
+			.where("organization_id", "=", organizationId)
+			.where("kb_status", "=", "GAP")
+			.execute();
+
+		// Return the linked article metadata
+		const row = await db
+			.selectFrom("blob_metadata as bm")
+			.select([
+				"bm.id",
+				"bm.filename",
+				"bm.file_size",
+				"bm.mime_type",
+				"bm.status",
+				"bm.created_at",
+				"bm.updated_at",
+			])
+			.where("bm.id", "=", blobMetadataId)
+			.where("bm.organization_id", "=", organizationId)
+			.executeTakeFirstOrThrow();
+
+		return {
+			id: row.id,
+			filename: row.filename,
+			file_size: row.file_size,
+			mime_type: row.mime_type,
+			status: row.status,
+			created_at: row.created_at as Date,
+			updated_at: row.updated_at as Date,
+		};
+	}
+
+	/**
 	 * Get a single ticket by ID
 	 */
 	async getTicketById(

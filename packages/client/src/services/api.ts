@@ -606,6 +606,16 @@ export const clustersApi = {
 		apiRequest<import("../types/cluster").ClusterKbArticlesResponse>(
 			`/api/clusters/${clusterId}/kb-articles`,
 		),
+
+	// Link a KB article (blob_metadata) to a cluster
+	linkKbArticle: (clusterId: string, blobMetadataId: string) =>
+		apiRequest<{ data: import("../types/cluster").KbArticle }>(
+			`/api/clusters/${clusterId}/kb-articles`,
+			{
+				method: "POST",
+				body: { blob_metadata_id: blobMetadataId },
+			},
+		),
 };
 
 // Tickets API
