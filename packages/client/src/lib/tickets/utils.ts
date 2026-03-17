@@ -1,5 +1,6 @@
 import { type LucideIcon, Network, Sparkles, Zap } from "lucide-react";
 import type { TicketPriority } from "@/components/tickets/ReviewAIResponseSheet";
+import type { KBStatus } from "@/types/cluster";
 
 /**
  * AI Response type constants
@@ -129,4 +130,30 @@ export function getConfidenceLabel(score: number): string {
 export function formatPriority(priority: TicketPriority): string {
 	if (!priority) return "Unset";
 	return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+export type GapType = "knowledge" | null;
+
+export function detectGapType(kbStatus?: KBStatus): GapType {
+	if (kbStatus === "GAP") return "knowledge";
+	return null;
+}
+
+export function computeValueScore(
+	cluster: {
+		ticket_count: number;
+		kb_status: KBStatus;
+		needs_response_count: number;
+	},
+	maxTicketCount: number,
+): number {
+	if (maxTicketCount === 0) return 0;
+	const volumeNorm = cluster.ticket_count / maxTicketCount;
+	const hasKb = cluster.kb_status === "FOUND" ? 1 : 0;
+	const responseRatio =
+		cluster.ticket_count > 0
+			? cluster.needs_response_count / cluster.ticket_count
+			: 0;
+	const easeScore = hasKb * 0.6 + responseRatio * 0.4;
+	return Math.round((volumeNorm * 0.5 + easeScore * 0.5) * 100);
 }
