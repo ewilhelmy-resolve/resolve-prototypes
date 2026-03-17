@@ -4,11 +4,10 @@ import { ClusterService } from "../ClusterService.js";
 // Track execute calls to control main query vs totals query results
 const mockExecute = vi.fn();
 const mockExecuteTakeFirst = vi.fn();
-const mockExecuteTakeFirstOrThrow = vi.fn();
 
 /**
  * Generic fluent mock — returns `this` for any chained Kysely method,
- * with execute/executeTakeFirst/executeTakeFirstOrThrow as terminal operations.
+ * with execute/executeTakeFirst as terminal operations.
  */
 function createFluentMock() {
 	const mock: Record<string, any> = {};
@@ -16,8 +15,6 @@ function createFluentMock() {
 		get(_target, prop) {
 			if (prop === "execute") return mockExecute;
 			if (prop === "executeTakeFirst") return mockExecuteTakeFirst;
-			if (prop === "executeTakeFirstOrThrow")
-				return mockExecuteTakeFirstOrThrow;
 			if (prop === "as") return () => `subquery_ref`;
 			// All other methods return the proxy (fluent chaining)
 			return (..._args: any[]) => new Proxy({}, handler);
@@ -29,8 +26,6 @@ function createFluentMock() {
 vi.mock("../../config/kysely.js", () => ({
 	db: {
 		selectFrom: () => createFluentMock(),
-		insertInto: () => createFluentMock(),
-		updateTable: () => createFluentMock(),
 	},
 }));
 
@@ -143,54 +138,6 @@ describe("ClusterService", () => {
 				updated_at: now,
 			});
 			expect(result.totals.total_automated_tickets).toBe(10);
-		});
-	});
-
-	describe("linkKbArticle", () => {
-		const clusterId = "cluster-1";
-		const blobId = "blob-1";
-		const now = new Date("2024-06-01");
-
-		it("inserts link, updates kb_status, and returns article metadata", async () => {
-			// 1st execute() → insertInto cluster_kb_links
-			mockExecute.mockResolvedValueOnce([]);
-			// 2nd execute() → updateTable clusters (kb_status GAP→FOUND)
-			mockExecute.mockResolvedValueOnce([]);
-			// executeTakeFirstOrThrow() → select blob_metadata
-			mockExecuteTakeFirstOrThrow.mockResolvedValueOnce({
-				id: blobId,
-				filename: "guide.pdf",
-				file_size: 2048,
-				mime_type: "application/pdf",
-				status: "processed",
-				created_at: now,
-				updated_at: now,
-			});
-
-			const result = await service.linkKbArticle(clusterId, blobId, orgId);
-
-			expect(result).toEqual({
-				id: blobId,
-				filename: "guide.pdf",
-				file_size: 2048,
-				mime_type: "application/pdf",
-				status: "processed",
-				created_at: now,
-				updated_at: now,
-			});
-			// insert + update = 2 execute calls
-			expect(mockExecute).toHaveBeenCalledTimes(2);
-			expect(mockExecuteTakeFirstOrThrow).toHaveBeenCalledTimes(1);
-		});
-
-		it("throws when blob_metadata not found", async () => {
-			mockExecute.mockResolvedValueOnce([]);
-			mockExecute.mockResolvedValueOnce([]);
-			mockExecuteTakeFirstOrThrow.mockRejectedValueOnce(new Error("no result"));
-
-			await expect(
-				service.linkKbArticle(clusterId, blobId, orgId),
-			).rejects.toThrow("no result");
 		});
 	});
 });

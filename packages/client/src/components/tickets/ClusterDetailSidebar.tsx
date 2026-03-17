@@ -1,5 +1,5 @@
 import { FileText, Loader2, Plus, Upload, WandSparkles } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -8,13 +8,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ritaToast } from "@/components/ui/rita-toast";
-import { useUploadFile } from "@/hooks/api/useFiles";
-import { useClusterKbArticles, useLinkKbArticle } from "@/hooks/useClusters";
-import {
-	SUPPORTED_DOCUMENT_TYPES,
-	validateFileForUpload,
-} from "@/lib/constants";
+import { useClusterKbArticles } from "@/hooks/useClusters";
 import type { KBStatus } from "@/types/cluster";
 import { CreateKnowledgeArticleSheet } from "./CreateKnowledgeArticleSheet";
 import { RecommendationAlert } from "./RecommendationAlert";
@@ -45,14 +39,10 @@ export function ClusterDetailSidebar({
 	kbStatus,
 	onKnowledgeAdded,
 }: ClusterDetailSidebarProps) {
-	const { t } = useTranslation(["tickets", "toast", "kbs"]);
+	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
 	const [createSheetOpen, setCreateSheetOpen] = useState(false);
 	const { data: kbArticles, isLoading } = useClusterKbArticles(clusterId);
-	const uploadFileMutation = useUploadFile();
-	const linkKbArticleMutation = useLinkKbArticle(clusterId);
-	const fileInputRef = useRef<HTMLInputElement>(null);
-	const [isUploading, setIsUploading] = useState(false);
 
 	// Optimistic local articles added via the KA generator
 	const [localArticles, setLocalArticles] = useState<string[]>([]);
@@ -75,64 +65,11 @@ export function ClusterDetailSidebar({
 	};
 
 	const handleUploadClick = () => {
-		fileInputRef.current?.click();
-	};
-
-	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const files = e.target.files;
-		if (!files || files.length === 0) return;
-
-		setIsUploading(true);
-		const filesToUpload = Array.from(files);
-		let successCount = 0;
-
-		for (const file of filesToUpload) {
-			const validation = validateFileForUpload(file);
-			if (!validation.isValid && validation.errorCode) {
-				ritaToast.error({
-					title: t("toast:error.uploadFailed"),
-					description: `${file.name}: ${t(`kbs:errors.${validation.errorCode}.description`, validation.errorParams)}`,
-				});
-				continue;
-			}
-
-			try {
-				// Upload file
-				const response = await uploadFileMutation.mutateAsync(file);
-				// Link to cluster
-				await linkKbArticleMutation.mutateAsync(response.document.id);
-				successCount++;
-			} catch (error: any) {
-				if (error.status === 409) {
-					ritaToast.warning({
-						title: file.name,
-						description: "File already exists or is already linked",
-					});
-				} else {
-					ritaToast.error({
-						title: t("toast:error.uploadFailed"),
-						description: `${file.name}: ${error.message || "Upload failed"}`,
-					});
-				}
-			}
-		}
-
-		setIsUploading(false);
-
-		// Reset file input
-		if (fileInputRef.current) {
-			fileInputRef.current.value = "";
-		}
-
-		if (successCount > 0) {
-			onKnowledgeAdded?.();
-			ritaToast.success({
-				title: t("toast:success.filesUploaded"),
-				description: t("toast:descriptions.uploadedProcessing", {
-					count: successCount,
-				}),
-			});
-		}
+		// TODO: implement file upload and link to cluster
+		console.log("[ClusterDetailSidebar] Upload file clicked", {
+			clusterId,
+			clusterName,
+		});
 	};
 
 	return (
@@ -195,20 +132,10 @@ export function ClusterDetailSidebar({
 								</div>
 							))}
 
-							{/* Upload in progress */}
-							{isUploading && (
-								<div className="flex items-center gap-3 px-4 py-3">
-									<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-									<span className="text-sm text-muted-foreground">
-										Uploading...
-									</span>
-								</div>
-							)}
-
 							{/* Empty state */}
-							{!hasKnowledge && !isUploading && (
+							{!hasKnowledge && (
 								<p className="px-4 py-3 text-sm text-muted-foreground">
-									{t("tickets:knowledge.noArticles")}
+									{t("knowledge.noArticles")}
 								</p>
 							)}
 						</div>
@@ -266,26 +193,15 @@ export function ClusterDetailSidebar({
 				{/* Knowledge gap CTA — hidden after article is generated */}
 				{effectiveKbStatus === "GAP" && (
 					<RecommendationAlert
-						title={t("tickets:knowledgeGap.title")}
-						description={t("tickets:knowledgeGap.description")}
+						title={t("knowledgeGap.title")}
+						description={t("knowledgeGap.description")}
 						icon={WandSparkles}
-						buttonLabel={t("tickets:knowledgeGap.createArticle")}
+						buttonLabel={t("knowledgeGap.createArticle")}
 						onButtonClick={() => setCreateSheetOpen(true)}
 						variant="warning"
 					/>
 				)}
 			</div>
-
-			{/* Hidden file input */}
-			<input
-				ref={fileInputRef}
-				type="file"
-				multiple
-				className="hidden"
-				onChange={handleFileChange}
-				accept={SUPPORTED_DOCUMENT_TYPES}
-				disabled={isUploading}
-			/>
 
 			<CreateKnowledgeArticleSheet
 				open={createSheetOpen}

@@ -8,7 +8,6 @@ import {
 	ClusterListResponseSchema,
 	ClusterTicketsQuerySchema,
 	ClusterTicketsResponseSchema,
-	LinkKbArticleRequestSchema,
 } from "../schemas/cluster.js";
 import {
 	ErrorResponseSchema,
@@ -313,56 +312,6 @@ router.get("/:id/kb-articles", async (req, res) => {
 	} catch (error) {
 		console.error("[Clusters] Error fetching cluster KB articles:", error);
 		res.status(500).json({ error: "Failed to fetch cluster KB articles" });
-	}
-});
-
-/**
- * POST /api/clusters/:id/kb-articles
- * Link a KB article (blob_metadata) to a cluster
- */
-router.post("/:id/kb-articles", async (req, res) => {
-	const authReq = req as AuthenticatedRequest;
-	const { id } = req.params;
-
-	try {
-		const body = LinkKbArticleRequestSchema.parse(req.body);
-
-		const exists = await clusterService.clusterExists(
-			id,
-			authReq.user.activeOrganizationId,
-		);
-
-		if (!exists) {
-			return res.status(404).json({ error: "Cluster not found" });
-		}
-
-		const article = await clusterService.linkKbArticle(
-			id,
-			body.blob_metadata_id,
-			authReq.user.activeOrganizationId,
-		);
-
-		res.status(201).json({ data: article });
-	} catch (error: any) {
-		// Handle unique constraint violation (already linked)
-		if (error?.code === "23505") {
-			return res
-				.status(409)
-				.json({ error: "Article already linked to this cluster" });
-		}
-		// Handle foreign key violation (blob_metadata not found)
-		if (error?.code === "23503") {
-			return res.status(404).json({ error: "Document not found" });
-		}
-		// Handle Zod validation errors
-		if (error?.name === "ZodError") {
-			return res
-				.status(400)
-				.json({ error: "Invalid request", details: error.errors });
-		}
-
-		console.error("[Clusters] Error linking KB article:", error);
-		res.status(500).json({ error: "Failed to link KB article" });
 	}
 });
 

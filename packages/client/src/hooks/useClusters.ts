@@ -1,9 +1,7 @@
 import {
 	keepPreviousData,
 	useInfiniteQuery,
-	useMutation,
 	useQuery,
-	useQueryClient,
 } from "@tanstack/react-query";
 import { clustersApi, ticketsApi } from "@/services/api";
 import type {
@@ -154,37 +152,6 @@ export function useClusterKbArticles(id: string | undefined) {
 		},
 		enabled: !!id,
 		staleTime: 30000,
-	});
-}
-
-/**
- * Link a KB article (blob_metadata) to a cluster
- * @param clusterId - Cluster UUID
- */
-export function useLinkKbArticle(clusterId: string | undefined) {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationFn: async (blobMetadataId: string) => {
-			const response = await clustersApi.linkKbArticle(
-				clusterId as string,
-				blobMetadataId,
-			);
-			return response.data;
-		},
-		onSuccess: () => {
-			if (clusterId) {
-				void queryClient.invalidateQueries({
-					queryKey: clusterKeys.kbArticleList(clusterId),
-				});
-				void queryClient.invalidateQueries({
-					queryKey: clusterKeys.detail(clusterId),
-				});
-				void queryClient.invalidateQueries({
-					queryKey: clusterKeys.lists(),
-				});
-			}
-		},
 	});
 }
 
