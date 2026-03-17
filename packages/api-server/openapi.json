@@ -2992,6 +2992,16 @@
 							}
 						}
 					},
+					"429": {
+						"description": "Rate limited - too many signup attempts",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
 					"500": {
 						"description": "Server error",
 						"content": {
