@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -11,7 +12,7 @@ import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
-import { useClusterDetails } from "@/hooks/useClusters";
+import { clusterKeys, useClusterDetails } from "@/hooks/useClusters";
 import {
 	getClusterDisplayTitle,
 	getKnowledgeStatusBadge,
@@ -54,11 +55,11 @@ export default function ClusterDetailPage() {
 	const { t } = useTranslation("tickets");
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
 	const bannerRef = useRef<HTMLDivElement>(null);
 
-	// Banner state for review completion and auto-populate
-	// key increments on each new banner to trigger scroll even when already visible
+	// Banner state — key increments on each new banner to trigger scroll even when already visible
 	const [bannerData, setBannerData] = useState<{
 		visible: boolean;
 		variant: "success" | "destructive" | "enriched";
@@ -94,30 +95,19 @@ export default function ClusterDetailPage() {
 		}
 	};
 
-	const handleAutoPopulateEnabled = () => {
-		showBanner("enriched", t("clusterDetail.banners.enrichedTickets"));
-	};
-
 	const handleKnowledgeAdded = () => {
+		// Refetch cluster details (kb_status), KB articles, and clusters list
+		if (id) {
+			void queryClient.invalidateQueries({ queryKey: clusterKeys.detail(id) });
+			void queryClient.invalidateQueries({
+				queryKey: clusterKeys.kbArticleList(id),
+			});
+			void queryClient.invalidateQueries({ queryKey: clusterKeys.lists() });
+		}
 		showBanner(
 			"success",
 			t("clusterDetail.banners.knowledgeAdded"),
 			t("clusterDetail.banners.knowledgeAddedDesc"),
-		);
-	};
-
-	const handleAutoRespondEnabled = (
-		ticketGroupName: string,
-		automatedPercentage: number,
-	) => {
-		showBanner(
-			"enriched",
-			t("clusterDetail.banners.automatedWork", {
-				percentage: automatedPercentage,
-			}),
-			t("clusterDetail.banners.automatedWorkDesc", {
-				groupName: ticketGroupName,
-			}),
 		);
 	};
 
@@ -267,11 +257,9 @@ export default function ClusterDetailPage() {
 				<ClusterDetailSidebar
 					clusterId={id}
 					clusterName={title}
-					knowledgeCount={cluster.kb_articles_count}
+					kbArticlesCount={cluster.kb_articles_count}
 					kbStatus={cluster.kb_status}
-					onAutoPopulateEnabled={handleAutoPopulateEnabled}
 					onKnowledgeAdded={handleKnowledgeAdded}
-					onAutoRespondEnabled={handleAutoRespondEnabled}
 				/>
 			</div>
 		</RitaLayout>
