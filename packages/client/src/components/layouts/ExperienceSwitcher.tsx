@@ -7,24 +7,20 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/uiStore";
 
-type Experience = "ritaGo" | "actionsPro";
+type Experience = "ritaGo" | "actionsPro" | "resolveActions";
 
 interface ExperienceOption {
 	id: Experience;
 	label: string;
-	path: string;
 }
 
 const EXPERIENCES: ExperienceOption[] = [
-	{ id: "ritaGo", label: "Rita Go", path: "/chat" },
-	{ id: "actionsPro", label: "Actions Pro", path: "/pro" },
+	{ id: "ritaGo", label: "Rita Go" },
+	{ id: "actionsPro", label: "Actions Pro" },
+	{ id: "resolveActions", label: "Resolve Actions" },
 ];
-
-function resolveCurrentExperience(pathname: string): Experience {
-	if (pathname.startsWith("/pro")) return "actionsPro";
-	return "ritaGo";
-}
 
 interface ExperienceSwitcherProps {
 	variant?: "light" | "dark";
@@ -35,9 +31,35 @@ export function ExperienceSwitcher({
 }: ExperienceSwitcherProps) {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const current = resolveCurrentExperience(location.pathname);
+	const headerStyle = useUIStore((state) => state.headerStyle);
+	const setHeaderStyle = useUIStore((state) => state.setHeaderStyle);
+
+	const current: Experience = location.pathname.startsWith("/pro")
+		? "actionsPro"
+		: headerStyle === "resolve"
+			? "resolveActions"
+			: "ritaGo";
+
 	const currentLabel =
 		EXPERIENCES.find((e) => e.id === current)?.label ?? "Rita Go";
+
+	const handleSelect = (exp: ExperienceOption) => {
+		if (exp.id === current) return;
+
+		if (exp.id === "actionsPro") {
+			// Ensure RITA header before navigating to Pro
+			if (headerStyle === "resolve") setHeaderStyle("rita");
+			navigate("/pro");
+		} else if (exp.id === "resolveActions") {
+			// If on /pro, navigate back first
+			if (location.pathname.startsWith("/pro")) navigate("/chat");
+			setHeaderStyle("resolve");
+		} else {
+			// Rita Go
+			if (headerStyle === "resolve") setHeaderStyle("rita");
+			if (location.pathname.startsWith("/pro")) navigate("/chat");
+		}
+	};
 
 	return (
 		<DropdownMenu>
@@ -56,9 +78,7 @@ export function ExperienceSwitcher({
 				{EXPERIENCES.map((exp) => (
 					<DropdownMenuItem
 						key={exp.id}
-						onClick={() => {
-							if (exp.id !== current) navigate(exp.path);
-						}}
+						onClick={() => handleSelect(exp)}
 						className="flex items-center gap-2"
 					>
 						<Check

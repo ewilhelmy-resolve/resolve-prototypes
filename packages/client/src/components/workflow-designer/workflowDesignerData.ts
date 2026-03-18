@@ -14,7 +14,7 @@ export const DEFAULT_NODES: Node[] = [
 			subtitle: "",
 			icon: "play",
 			enabled: true,
-			config: {},
+			config: { triggerType: "manual" },
 		},
 	},
 	{
@@ -265,7 +265,7 @@ export const GOOGLE_PASSWORD_RESET_NODES: Node[] = [
 			subtitle: "",
 			icon: "play",
 			enabled: true,
-			config: {},
+			config: { triggerType: "manual" },
 		},
 	},
 	{
@@ -579,6 +579,47 @@ export const TOOLBOX_ITEMS: ToolboxItem[] = [
 		icon: "log_action",
 		category: "Data",
 	},
+];
+
+// Mock workflow variables — simulates the flattened variable list from all activities
+// In production, these come from the workflow engine's variable registry
+export interface WorkflowVariable {
+	name: string;
+	activityId: string; // which activity owns this variable
+	activityLabel: string;
+	type: "string" | "number" | "boolean" | "object" | "array";
+}
+
+export const MOCK_WORKFLOW_VARIABLES: WorkflowVariable[] = [
+	// Split activity outputs
+	{ name: "splitResult", activityId: "split-1", activityLabel: "Split", type: "string" },
+	{ name: "splitParts", activityId: "split-1", activityLabel: "Split", type: "array" },
+	{ name: "splitCount", activityId: "split-1", activityLabel: "Split", type: "number" },
+	// User Name activity outputs
+	{ name: "firstName", activityId: "user-name-1", activityLabel: "User Name", type: "string" },
+	{ name: "lastName", activityId: "user-name-1", activityLabel: "User Name", type: "string" },
+	{ name: "fullName", activityId: "user-name-1", activityLabel: "User Name", type: "string" },
+	{ name: "emailAddress", activityId: "user-name-1", activityLabel: "User Name", type: "string" },
+	// Trim Name activity outputs
+	{ name: "trimmedName", activityId: "trim-name-1", activityLabel: "Trim Name", type: "string" },
+	// Azure AD User activity outputs
+	{ name: "azureUserId", activityId: "azure-user-1", activityLabel: "Azure AD User", type: "string" },
+	{ name: "azureUserPrincipalName", activityId: "azure-user-1", activityLabel: "Azure AD User", type: "string" },
+	{ name: "azureDisplayName", activityId: "azure-user-1", activityLabel: "Azure AD User", type: "string" },
+	{ name: "azureAccountEnabled", activityId: "azure-user-1", activityLabel: "Azure AD User", type: "boolean" },
+	{ name: "azureDepartment", activityId: "azure-user-1", activityLabel: "Azure AD User", type: "string" },
+	{ name: "azureJobTitle", activityId: "azure-user-1", activityLabel: "Azure AD User", type: "string" },
+	{ name: "azureManager", activityId: "azure-user-1", activityLabel: "Azure AD User", type: "string" },
+	// Filter activity outputs
+	{ name: "filteredResults", activityId: "filter-1", activityLabel: "Filter Results", type: "array" },
+	{ name: "filterMatchCount", activityId: "filter-1", activityLabel: "Filter Results", type: "number" },
+	// Display Name activity outputs
+	{ name: "displayName", activityId: "display-name-1", activityLabel: "Display Name", type: "string" },
+	// Row Count activity outputs
+	{ name: "rowCount", activityId: "row-count-1", activityLabel: "Row Count", type: "number" },
+	// If/Else activity outputs
+	{ name: "conditionResult", activityId: "if-else-1", activityLabel: "If / Else", type: "boolean" },
+	{ name: "branchTaken", activityId: "if-else-1", activityLabel: "If / Else", type: "string" },
 ];
 
 // Pre-built workflow templates

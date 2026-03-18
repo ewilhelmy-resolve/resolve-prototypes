@@ -476,6 +476,24 @@ const AVAILABLE_SKILLS = [
 	},
 ];
 
+// Merge in workflow-published skills from localStorage
+function getPublishedWorkflowSkills() {
+	try {
+		const raw = localStorage.getItem("publishedWorkflowSkills");
+		if (!raw) return [];
+		return JSON.parse(raw).map((s) => ({
+			id: `wf-${s.id}`,
+			name: s.name,
+			author: "Workflow",
+			icon: Workflow,
+			starters: [s.description || `Run ${s.name}`],
+			linkedAgent: null,
+		}));
+	} catch {
+		return [];
+	}
+}
+
 // Icon picker options
 const ICON_COLORS = [
 	{
@@ -615,8 +633,7 @@ const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
 		knowledgeSources: ["IT Security Policy", "Employee FAQ"],
 		workflows: ["Reset password", "Unlock account", "Request system access"],
 		hasRequiredConnections: true,
-		instructions:
-			"You are a friendly and knowledgeable IT HelpDesk Advisor.\n\n## Your Role\nHelp employees troubleshoot and resolve common technical issues. Provide clear, step-by-step guidance that non-technical users can follow.\n\n## Guidelines\n- Always greet users warmly and acknowledge their issue\n- Ask clarifying questions to understand the problem before suggesting solutions\n- Provide numbered step-by-step instructions when walking through solutions\n- Use simple, non-technical language whenever possible\n- If a solution doesn't work, offer alternative approaches\n- Know when to escalate: if an issue requires physical access, admin privileges, or is beyond self-service, direct users to submit a ticket\n\n## Common Issues You Handle\n- Password resets and account lockouts\n- VPN connection problems\n- Software installation requests\n- Email and calendar issues\n- Printer and peripheral setup\n- Network connectivity troubleshooting\n\n## Escalation\nIf you cannot resolve an issue or it requires hands-on IT support, help the user create a support ticket with all relevant details.",
+		instructions: "## Role\nStore Operations Manager\n\n## Backstory\nYou are an experienced store operations manager responsible for managing and updating store configurations. You have expertise in retail operations and understand the importance of accurate store hour information for customers and employees. You ensure that all store hour updates are properly validated, formatted, and saved to maintain consistency across the system.\n\n## Goal\nTo update the store operating hours for a specific store after authorization has been confirmed.\n\n## Task\nAnalyze context to identify store_id, user_id, new_store_hours, and manager_email. Validate user authorization for the specified store. Check for manager approval — if missing, send notification and wait. Once approved, update the store hours.",
 		conversationStarters: [
 			"I forgot my password",
 			"My account is locked",
@@ -649,8 +666,7 @@ const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
 		],
 		workflows: [],
 		hasRequiredConnections: true,
-		instructions:
-			"You are a compliance onboarding assistant.\n\nYou ONLY answer from the connected compliance documents.\n\nDo not make up information - if something isn't in the documents, say so.",
+		instructions: "## Role\nCompliance Onboarding Assistant\n\n## Backstory\nYou are a compliance-focused onboarding assistant that only answers from connected compliance documents. You never make up information — if something isn't in the documents, you say so.\n\n## Goal\nGuide new employees through required compliance training and answer questions about company policies.\n\n## Task\nRespond to compliance questions using only connected knowledge sources. Track which required items the employee has reviewed. Confirm understanding of all required compliance items before marking complete.",
 		conversationStarters: [
 			"What compliance training do I need?",
 			"Tell me about the code of conduct",
@@ -678,8 +694,7 @@ const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
 		knowledgeSources: [],
 		workflows: ["Password Reset"],
 		hasRequiredConnections: true,
-		instructions:
-			"You help employees reset their passwords.\n\nAlways verify the user's identity before initiating a reset.\n\nExplain each step of the process clearly.",
+		instructions: "## Role\nAutomated Password Reset Assistant\n\n## Backstory\nYou help employees reset their passwords through a secure, verified process. You always verify the user's identity before initiating a reset and explain each step clearly.\n\n## Goal\nVerify user identity and execute password resets through the AD workflow.\n\n## Task\nConfirm user identity via security questions or manager verification. Execute the password reset workflow. Verify the user can log in with new credentials. Escalate if reset fails after 2 attempts.",
 		conversationStarters: [
 			"I need to reset my password",
 			"I'm locked out of my account",
@@ -862,22 +877,12 @@ export default function AgentBuilderPage() {
 	// Detect when skills are added and auto-populate instructions
 	useEffect(() => {
 		if (config.workflows.length > prevWorkflowsLength.current) {
-			// Skills were added - generate instructions content
 			const skillNames = config.workflows.map((w) => w.name);
-			const generatedInstructions = `# What you do
-Help users with ${skillNames.join(", ")}. Guide them through each process step-by-step.
-
-# Skills available
-${skillNames.map((name) => `- ${name}`).join("\n")}
-
-# How you work
-1) Understand - Ask clarifying questions to understand what the user needs
-2) Execute - Use your skills to complete the task
-3) Confirm - Verify the task was completed successfully`;
-
-			setConfig((prev) => ({ ...prev, instructions: generatedInstructions }));
+			setConfig((prev) => ({
+				...prev,
+				instructions: `## Role\n\n## Backstory\n\n## Goal\nHelp users with ${skillNames.join(", ")}.\n\n## Task\nGuide them through each process step-by-step.`,
+			}));
 			setInstructionsUpdatedFromSkills(true);
-			// Auto-hide message after 5 seconds
 			const timer = setTimeout(
 				() => setInstructionsUpdatedFromSkills(false),
 				5000,
@@ -3075,7 +3080,7 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 														instructions: e.target.value,
 													}))
 												}
-												placeholder="Describe instructions..."
+												placeholder="## Role\n\n## Backstory\n\n## Goal\n\n## Task"
 												className="min-h-[80px] max-h-[120px] resize-none text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
 											/>
 											<button
@@ -4235,6 +4240,55 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 							</p>
 						</div>
 
+						{/* Agent summary */}
+						<div className="bg-muted/40 rounded-xl p-4 space-y-2.5">
+							<div className="flex items-center gap-3 mb-3">
+								<div
+									className={cn(
+										"size-10 rounded-lg flex items-center justify-center",
+										ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg ||
+											"bg-slate-800",
+									)}
+								>
+									{(() => {
+										const IconComp =
+											AVAILABLE_ICONS.find((i) => i.id === config.iconId)?.icon ||
+											Squirrel;
+										const colorCls =
+											ICON_COLORS.find((c) => c.id === config.iconColorId)
+												?.text || "text-white";
+										return <IconComp className={cn("size-5", colorCls)} />;
+									})()}
+								</div>
+								<div>
+									<p className="text-sm font-medium">{config.name}</p>
+									<p className="text-xs text-muted-foreground line-clamp-1">{config.description}</p>
+								</div>
+							</div>
+							{config.workflows.length > 0 && (
+								<div className="flex items-center justify-between text-xs">
+									<span className="text-muted-foreground">Skills</span>
+									<span className="font-medium">{config.workflows.length}</span>
+								</div>
+							)}
+							{config.knowledgeSources.length > 0 && (
+								<div className="flex items-center justify-between text-xs">
+									<span className="text-muted-foreground">Knowledge Sources</span>
+									<span className="font-medium">{config.knowledgeSources.length}</span>
+								</div>
+							)}
+							<div className="flex items-center justify-between text-xs">
+								<span className="text-muted-foreground">Conversation Starters</span>
+								<span className="font-medium">{config.conversationStarters.filter((s) => s.trim()).length}</span>
+							</div>
+							{config.guardrails.length > 0 && (
+								<div className="flex items-center justify-between text-xs">
+									<span className="text-muted-foreground">Guardrails</span>
+									<span className="font-medium">{config.guardrails.length}</span>
+								</div>
+							)}
+						</div>
+
 						{/* Changes list */}
 						<div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
 							{configChanges.map((change, index) => (
@@ -4340,22 +4394,17 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 			{/* Instructions Expanded Modal */}
 			{showInstructionsModal && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					{/* Backdrop */}
 					<div
 						className="absolute inset-0 bg-black/50"
 						onClick={() => setShowInstructionsModal(false)}
 					/>
-					{/* Modal */}
 					<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden">
-						{/* Close button */}
 						<button
 							onClick={() => setShowInstructionsModal(false)}
 							className="absolute top-4 right-4 text-muted-foreground hover:text-foreground z-10"
 						>
 							<X className="size-5" />
 						</button>
-
-						{/* Content area */}
 						<div className="flex-1 overflow-y-auto p-6">
 							<Textarea
 								value={config.instructions}
@@ -4365,12 +4414,10 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 										instructions: e.target.value,
 									}))
 								}
-								placeholder="Describe instructions..."
+								placeholder="## Role\n\n## Backstory\n\n## Goal\n\n## Task"
 								className="min-h-[400px] resize-none text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
 							/>
 						</div>
-
-						{/* Footer */}
 						<div className="px-6 py-4 border-t">
 							<p className="text-xs text-muted-foreground">
 								Update instructions as needed
@@ -4547,11 +4594,13 @@ ${skillNames.map((name) => `- ${name}`).join("\n")}
 					skill.name.toLowerCase().includes(skillSearchQuery.toLowerCase()) ||
 					skill.author.toLowerCase().includes(skillSearchQuery.toLowerCase());
 
-				const availableSkills = AVAILABLE_SKILLS.filter(
+				const allSkillsPool = [...AVAILABLE_SKILLS, ...getPublishedWorkflowSkills()];
+
+				const availableSkills = allSkillsPool.filter(
 					(s) => s.linkedAgent === null && !config.workflows.includes(s.name),
 				).filter(filterBySearch);
 
-				const allSkills = AVAILABLE_SKILLS.filter(filterBySearch);
+				const allSkills = allSkillsPool.filter(filterBySearch);
 
 				const displayedSkills = skillsTab === "available" ? availableSkills : allSkills;
 

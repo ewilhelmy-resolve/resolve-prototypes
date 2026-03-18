@@ -418,7 +418,7 @@ export function WorkflowJarvisPanel({
 						>
 							Templates
 						</TabsTrigger>
-					</TabsList>
+						</TabsList>
 					<div className="flex-1 flex items-center justify-end">
 						<button
 							onClick={() => setCollapsed(true)}
