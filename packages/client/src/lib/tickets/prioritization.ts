@@ -1,4 +1,8 @@
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
+import {
+	calculateEstMoneySaved,
+	calculateEstTimeSavedMinutes,
+} from "@/lib/format-utils";
 import type { ClusterListItem } from "@/types/cluster";
 
 export type CTAState = "pending" | "gap" | "knowledgeFound";
@@ -41,9 +45,15 @@ export function rankClustersByRoi(
 		cluster,
 		rank: 0,
 		displayName: getClusterDisplayTitle(cluster.name, cluster.subcluster_name),
-		costImpact:
-			blendedRatePerHour * (avgMinutesPerTicket / 60) * cluster.ticket_count,
-		timeTaken: avgMinutesPerTicket * cluster.needs_response_count,
+		costImpact: calculateEstMoneySaved(
+			blendedRatePerHour,
+			avgMinutesPerTicket,
+			cluster.ticket_count,
+		),
+		timeTaken: calculateEstTimeSavedMinutes(
+			avgMinutesPerTicket,
+			cluster.needs_response_count,
+		),
 		mttr: undefined,
 		ctaState: deriveCTAState(cluster),
 	}));

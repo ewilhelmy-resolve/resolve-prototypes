@@ -5,17 +5,22 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
+import { StatCard } from "@/components/StatCard";
+import { StatGroup } from "@/components/StatGroup";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
-import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import { clusterKeys, useClusterDetails } from "@/hooks/useClusters";
+import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import {
-	getClusterDisplayTitle,
-	getKnowledgeStatusBadge,
-} from "@/lib/cluster-utils";
+	calculateEstMoneySaved,
+	calculateEstTimeSavedMinutes,
+	formatMoneySaved,
+	formatTimeSaved,
+	STAT_NOT_AVAILABLE,
+} from "@/lib/format-utils";
+import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
 /** Fire confetti animation for success/enriched banners */
 const fireConfetti = () => {
@@ -66,6 +71,8 @@ export default function ClusterDetailPage() {
 		description?: string;
 		key: number;
 	}>({ visible: false, variant: "success", title: "", key: 0 });
+
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
 	const handleBack = () => {
 		navigate("/tickets");
@@ -145,33 +152,16 @@ export default function ClusterDetailPage() {
 		);
 	}
 
-	const title = cluster
-		? getClusterDisplayTitle(cluster.name, cluster.subcluster_name)
-		: "Cluster";
-	const knowledgeStatusBadge = cluster
-		? getKnowledgeStatusBadge(cluster.kb_status)
-		: null;
-
-	const badges = [
-		{
-			text: t("clusterDetail.badges.tickets", { count: cluster.ticket_count }),
-			variant: "secondary" as const,
-			className: "",
-		},
-		{
-			text: t("clusterDetail.badges.open", { count: cluster.open_count }),
-			variant: "secondary" as const,
-			className: "",
-		},
-		{
-			text: t("clusterDetail.badges.kbArticles", {
-				count: cluster.kb_articles_count,
-			}),
-			variant: "secondary" as const,
-			className: "",
-		},
-		...(knowledgeStatusBadge ? [knowledgeStatusBadge] : []),
-	];
+	const title = getClusterDisplayTitle(cluster.name, cluster.subcluster_name);
+	const moneySaved = calculateEstMoneySaved(
+		blendedRatePerHour,
+		avgMinutesPerTicket,
+		cluster.ticket_count,
+	);
+	const timeSavedMinutes = calculateEstTimeSavedMinutes(
+		avgMinutesPerTicket,
+		cluster.ticket_count,
+	);
 
 	return (
 		<RitaLayout activePage="tickets">
@@ -189,36 +179,48 @@ export default function ClusterDetailPage() {
 
 			<div className="flex min-h-screen flex-col lg:flex-row">
 				{/* Main Content */}
-				<div className="flex-1 p-4">
+				<div className="min-w-0 flex-1 p-4">
 					<div className="flex flex-col gap-4">
 						{/* Page Header */}
-						<div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-							<div className="flex items-center gap-2">
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={handleBack}
-									aria-label={t("clusterDetail.backToTickets")}
-								>
-									<ArrowLeft className="h-4 w-4" />
-								</Button>
-								<h1 className="text-xl font-medium">{title}</h1>
-							</div>
-							<div className="flex flex-wrap gap-2">
-								{badges.map((badge, index) => (
-									<Badge
-										key={index}
-										variant={badge.variant}
-										className={badge.className}
-									>
-										{badge.text}
-									</Badge>
-								))}
-							</div>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={handleBack}
+								aria-label={t("clusterDetail.backToTickets")}
+							>
+								<ArrowLeft className="h-4 w-4" />
+							</Button>
+							<h1 className="text-xl font-medium">{title}</h1>
 						</div>
 
-						{/* Ticket Trends Chart */}
-						<TicketTrendsChart />
+						{/* Cluster Metrics */}
+						<StatGroup columns={6}>
+							<StatCard
+								value={cluster.ticket_count.toLocaleString()}
+								label={t("clusterDetail.stats.totalTickets")}
+							/>
+							<StatCard
+								value={cluster.open_count.toLocaleString()}
+								label={t("clusterDetail.stats.openTickets")}
+							/>
+							<StatCard
+								value={formatMoneySaved(moneySaved)}
+								label={t("clusterDetail.stats.estMoneySaved")}
+							/>
+							<StatCard
+								value={formatTimeSaved(timeSavedMinutes)}
+								label={t("clusterDetail.stats.estTimeSaved")}
+							/>
+							<StatCard
+								value={STAT_NOT_AVAILABLE}
+								label={t("clusterDetail.stats.mttr")}
+							/>
+							<StatCard
+								value={STAT_NOT_AVAILABLE}
+								label={t("clusterDetail.stats.avgReassignmentRate")}
+							/>
+						</StatGroup>
 
 						{/* Table Section */}
 						<ClusterDetailTable
