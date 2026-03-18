@@ -12,6 +12,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	calculateEstMoneySaved,
+	calculateEstTimeSavedMinutes,
+	formatMoneySaved,
+	formatTimeSaved,
+	STAT_NOT_AVAILABLE,
+} from "@/lib/format-utils";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 import type { PeriodFilter } from "@/types/cluster";
 
@@ -19,41 +26,16 @@ interface ClustersPageHeaderProps {
 	period: PeriodFilter;
 	onPeriodChange: (period: PeriodFilter) => void;
 	totalTickets: number;
-	automatedTickets?: number;
 	showSkeletons: boolean;
 	hasNoModel: boolean;
 	onSettingsClick: () => void;
 	lastSynced?: string;
 }
 
-/**
- * Format minutes into human-readable time string.
- * e.g. 90 → "1.5hr", 30 → "30min", 0 → "0min"
- */
-function formatTimeSaved(totalMinutes: number): string {
-	if (totalMinutes >= 60) {
-		const hours = totalMinutes / 60;
-		return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}hr`;
-	}
-	return `${Math.round(totalMinutes)}min`;
-}
-
-/**
- * Format dollar amount for display.
- * e.g. 1500 → "$1.5k", 500 → "$500", 0 → "$0"
- */
-function formatMoneySaved(amount: number): string {
-	if (amount >= 1000) {
-		return `$${(amount / 1000).toFixed(1)}k`;
-	}
-	return `$${Math.round(amount)}`;
-}
-
 export function ClustersPageHeader({
 	period,
 	onPeriodChange,
 	totalTickets,
-	automatedTickets = 0,
 	showSkeletons,
 	hasNoModel,
 	onSettingsClick,
@@ -62,13 +44,15 @@ export function ClustersPageHeader({
 	const { t } = useTranslation("tickets");
 	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
-	const costPerTicket = blendedRatePerHour;
-	const avgTimeMinutes = avgMinutesPerTicket;
-
-	const automationPct =
-		totalTickets > 0 ? Math.round((automatedTickets / totalTickets) * 100) : 0;
-	const moneySaved = automatedTickets * costPerTicket;
-	const timeSavedMinutes = automatedTickets * avgTimeMinutes;
+	const moneySaved = calculateEstMoneySaved(
+		blendedRatePerHour,
+		avgMinutesPerTicket,
+		totalTickets,
+	);
+	const timeSavedMinutes = calculateEstTimeSavedMinutes(
+		avgMinutesPerTicket,
+		totalTickets,
+	);
 
 	const periodLabels: Record<PeriodFilter, string> = {
 		last30: t("groups.periods.last30Days"),
@@ -149,24 +133,19 @@ export function ClustersPageHeader({
 						loading={showSkeletons}
 					/>
 					<StatCard
-						value={automatedTickets.toLocaleString()}
-						label={t("header.stats.totalTicketsAutomated")}
-						loading={showSkeletons}
-					/>
-					<StatCard
-						value={`${automationPct}%`}
-						label={t("header.stats.automationPercentage")}
-						loading={showSkeletons}
-					/>
-					<StatCard
 						value={formatMoneySaved(moneySaved)}
-						label={t("header.stats.moneySaved")}
+						label={t("header.stats.estMoneySaved")}
 						loading={showSkeletons}
 					/>
 					<StatCard
 						value={formatTimeSaved(timeSavedMinutes)}
-						label={t("header.stats.timeSaved")}
+						label={t("header.stats.estTimeSaved")}
 						loading={showSkeletons}
+					/>
+					<StatCard value={STAT_NOT_AVAILABLE} label={t("header.stats.mttr")} />
+					<StatCard
+						value={STAT_NOT_AVAILABLE}
+						label={t("header.stats.avgReassignmentRate")}
 					/>
 				</StatGroup>
 			}

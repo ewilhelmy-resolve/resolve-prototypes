@@ -7,6 +7,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/date-utils";
+import { formatMoneySaved } from "@/lib/format-utils";
 import type { KBStatus } from "@/types/cluster";
 
 interface TicketGroupStatProps {
@@ -74,12 +75,7 @@ export function TicketGroupStat({
 							{costImpact != null && (
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<span>
-											$
-											{costImpact >= 1000
-												? `${(costImpact / 1000).toFixed(1)}k`
-												: Math.round(costImpact).toLocaleString()}
-										</span>
+										<span>{formatMoneySaved(costImpact)}</span>
 									</TooltipTrigger>
 									<TooltipContent>
 										{t("prioritizationList.columns.costImpact")}

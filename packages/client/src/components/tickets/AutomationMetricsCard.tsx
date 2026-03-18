@@ -1,4 +1,9 @@
 import { useTranslation } from "react-i18next";
+import {
+	calculateEstMoneySaved,
+	calculateEstTimeSavedMinutes,
+	formatMoneySaved,
+} from "@/lib/format-utils";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
 interface AutomationMetricsCardProps {
@@ -25,18 +30,15 @@ export function AutomationMetricsCard({
 	const { t } = useTranslation("tickets");
 	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
-	const costPerTicket = blendedRatePerHour;
-	const avgTimeMinutes = avgMinutesPerTicket;
-
-	const minsSaved = automated * avgTimeMinutes;
-	const savings = automated * costPerTicket;
-
-	const formatSavings = (value: number) => {
-		if (value >= 1000) {
-			return `$${(value / 1000).toFixed(1)}k`;
-		}
-		return `$${value}`;
-	};
+	const minsSaved = calculateEstTimeSavedMinutes(
+		avgMinutesPerTicket,
+		automated,
+	);
+	const savings = calculateEstMoneySaved(
+		blendedRatePerHour,
+		avgMinutesPerTicket,
+		automated,
+	);
 
 	return (
 		<div className={className}>
@@ -55,7 +57,9 @@ export function AutomationMetricsCard({
 						</div>
 					</div>
 					<div>
-						<div className="text-2xl font-medium">{formatSavings(savings)}</div>
+						<div className="text-2xl font-medium">
+							{formatMoneySaved(savings)}
+						</div>
 						<div className="text-xs text-muted-foreground">
 							{t("metrics.savings")}
 						</div>

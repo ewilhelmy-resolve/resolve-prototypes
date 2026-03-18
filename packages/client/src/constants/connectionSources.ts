@@ -232,7 +232,11 @@ export function formatRelativeTime(timestamp: string | null): string {
 	if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
 	if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
 
-	return date.toLocaleDateString();
+	return date.toLocaleDateString(navigator.language, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	});
 }
 
 /**

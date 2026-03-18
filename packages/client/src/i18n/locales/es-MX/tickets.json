@@ -1,4 +1,22 @@
 {
+	"header": {
+		"stats": {
+			"estMoneySaved": "Ahorro est. de dinero",
+			"estTimeSaved": "Ahorro est. de tiempo",
+			"mttr": "Tiempo promedio de resoluci\u00f3n",
+			"avgReassignmentRate": "Tasa prom. de reasignaci\u00f3n"
+		}
+	},
+	"clusterDetail": {
+		"stats": {
+			"totalTickets": "Total de tickets",
+			"openTickets": "Tickets abiertos",
+			"estMoneySaved": "Ahorro est. de dinero",
+			"estTimeSaved": "Ahorro est. de tiempo",
+			"mttr": "Tiempo promedio de resoluci\u00f3n",
+			"avgReassignmentRate": "Tasa prom. de reasignaci\u00f3n"
+		}
+	},
 	"ticketSettings": {
 		"title": "Configuraci\u00f3n de tickets",
 		"description": "Personalizar m\u00e9tricas del panel",

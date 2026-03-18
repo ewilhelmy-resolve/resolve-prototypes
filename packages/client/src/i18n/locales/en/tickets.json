@@ -8,7 +8,11 @@
 			"totalTicketsAutomated": "Total Tickets Automated",
 			"automationPercentage": "Automation %",
 			"moneySaved": "Money Saved",
-			"timeSaved": "Time Saved"
+			"timeSaved": "Time Saved",
+			"estMoneySaved": "Est. Money Saved",
+			"estTimeSaved": "Est. Time Saved",
+			"mttr": "Mean Time to Resolution",
+			"avgReassignmentRate": "Avg. Reassignment Rate"
 		}
 	},
 	"page": {
@@ -195,6 +199,14 @@
 			"tickets": "{{count}} tickets",
 			"open": "{{count}} open",
 			"kbArticles": "{{count}} KB articles"
+		},
+		"stats": {
+			"totalTickets": "Total Tickets",
+			"openTickets": "Open Tickets",
+			"estMoneySaved": "Est. Money Saved",
+			"estTimeSaved": "Est. Time Saved",
+			"mttr": "Mean Time to Resolution",
+			"avgReassignmentRate": "Avg. Reassignment Rate"
 		},
 		"banners": {
 			"reviewSuccess": "Great job! You reviewed {{count}} responses.",
