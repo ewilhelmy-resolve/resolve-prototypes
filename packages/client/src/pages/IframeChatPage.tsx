@@ -52,7 +52,7 @@ import { useRitaChat } from "../hooks/useRitaChat";
 import { iframeApi } from "../services/iframeApi";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
-import { setHostOrigin } from "../utils/hostOriginStore";
+import { resetHostOrigin, setHostOrigin } from "../utils/hostOriginStore";
 
 // Debug log entry
 interface DebugLogEntry {
@@ -488,6 +488,11 @@ function MockPlatformPanel({
 	const [isSmallViewport, setIsSmallViewport] = useState(
 		window.innerWidth < 500,
 	);
+
+	// Clear trusted origin on unmount to prevent stale origin across SPA navigations
+	useEffect(() => {
+		return () => resetHostOrigin();
+	}, []);
 
 	// Detect small viewport for compact layout
 	useEffect(() => {

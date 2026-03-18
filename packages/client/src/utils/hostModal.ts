@@ -12,7 +12,7 @@ import { getHostOrigin } from "./hostOriginStore";
  * Safely post message to parent window using trusted origin.
  * Blocks outbound messages if no trusted origin is configured (production).
  */
-function safePostToParent(message: unknown): boolean {
+export function safePostToParent(message: unknown): boolean {
 	const targetOrigin = getHostOrigin();
 	if (!targetOrigin) {
 		console.warn(

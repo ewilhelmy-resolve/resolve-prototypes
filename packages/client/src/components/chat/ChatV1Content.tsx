@@ -89,8 +89,8 @@ import {
 	extractFormFields,
 	openFormModal as hostOpenFormModal,
 	isInIframe,
+	safePostToParent,
 } from "@/utils/hostModal";
-import { getHostOrigin } from "@/utils/hostOriginStore";
 import { SchemaRenderer } from "../schema-renderer";
 import { InlineFormRequest } from "../ui-form-request/InlineFormRequest";
 import { ResponseWithInlineCitations } from "./ResponseWithInlineCitations";
@@ -506,15 +506,10 @@ function SimpleMessage({
 			};
 			window.addEventListener("message", onAck);
 
-			const targetOrigin = getHostOrigin();
-			if (!targetOrigin) {
+			if (!safePostToParent({ type: "RITA_FORM_MODAL", payload })) {
 				setShowFallbackDialog(true);
 				return;
 			}
-			window.parent.postMessage(
-				{ type: "RITA_FORM_MODAL", payload },
-				targetOrigin,
-			);
 
 			// Tier 2 fallback: if no ACK in 300ms, open in-iframe dialog
 			setTimeout(() => {

@@ -11,11 +11,18 @@
 
 let trustedOrigin: string | null = null;
 
+const VALID_ORIGIN_RE = /^https?:\/\/[^/]+$/;
+
 /**
  * Store the trusted host origin from the Valkey payload (via API response).
+ * Only accepts http/https origins to prevent javascript:, data:, blob: etc.
  */
 export function setHostOrigin(origin: string): void {
 	if (origin && origin !== "null") {
+		if (!VALID_ORIGIN_RE.test(origin)) {
+			console.warn("[hostOriginStore] Rejected invalid origin format:", origin);
+			return;
+		}
 		trustedOrigin = origin;
 	}
 }
@@ -27,7 +34,12 @@ export function setHostOrigin(origin: string): void {
  */
 export function getHostOrigin(): string | null {
 	if (trustedOrigin) return trustedOrigin;
-	if (import.meta.env.DEV) return "*";
+	if (import.meta.env.DEV) {
+		console.warn(
+			"[hostOriginStore] No parentOrigin configured — falling back to '*'. This is unsafe in production.",
+		);
+		return "*";
+	}
 	return null;
 }
 

@@ -71,11 +71,17 @@ function postToParent(message: IframeOutboundMessage): void {
 }
 
 /**
- * Check if origin is allowed
+ * Check if origin is allowed for inbound messages.
+ * Checks against trusted host origin from Valkey, then allowed list.
  */
 function isAllowedOrigin(origin: string, allowedOrigins: string[]): boolean {
 	// In dev mode, allow any origin for cross-port testing
 	if (import.meta.env.DEV) {
+		return true;
+	}
+	// Check against trusted host origin from Valkey
+	const trustedOrigin = getHostOrigin();
+	if (trustedOrigin && trustedOrigin !== "*" && origin === trustedOrigin) {
 		return true;
 	}
 	// If no origins specified, allow same-origin only
