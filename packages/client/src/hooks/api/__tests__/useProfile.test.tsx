@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { UserProfile } from "@/types/profile";
 import { profileKeys, useProfilePermissions } from "../useProfile";
 
@@ -75,6 +75,16 @@ const mockUserProfile: UserProfile = {
 };
 
 describe("useProfilePermissions", () => {
+	const originalEnv = import.meta.env.VITE_DEMO_MODE;
+
+	beforeEach(() => {
+		import.meta.env.VITE_DEMO_MODE = "false";
+	});
+
+	afterEach(() => {
+		import.meta.env.VITE_DEMO_MODE = originalEnv;
+	});
+
 	describe("when profile is null", () => {
 		it("should return false for all permissions", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {

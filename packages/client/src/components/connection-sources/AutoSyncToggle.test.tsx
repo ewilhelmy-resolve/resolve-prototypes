@@ -57,11 +57,11 @@ describe("AutoSyncToggle", () => {
 			expect(screen.queryByRole("switch")).not.toBeInTheDocument();
 		});
 
-		it("should not render when active model is not active", () => {
+		it("should render when active model exists even if not active", () => {
 			mockActiveModelQuery.data = { active: false };
 			render(<AutoSyncToggle {...defaultProps} />);
 
-			expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+			expect(screen.getByRole("switch")).toBeInTheDocument();
 		});
 
 		it("should render when active model is active", () => {

@@ -1,27 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import type React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { organizationApi } from "../../../services/api";
-import { useAuthStore } from "../../../stores/auth-store";
-import { useProfilePermissions } from "../useProfile";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { UserProfile } from "@/types/profile";
+import { profileKeys, useProfilePermissions } from "../useProfile";
 
-// Mock the auth store
-vi.mock("../../../stores/auth-store", () => ({
-	useAuthStore: vi.fn(),
-}));
-
-// Mock the organization API
-vi.mock("../../../services/api", () => ({
-	organizationApi: {
-		getCurrentOrganization: vi.fn(),
-	},
-}));
+const originalDemoMode = import.meta.env.VITE_DEMO_MODE;
 
 describe("useProfilePermissions - role-based permission checks", () => {
 	let queryClient: QueryClient;
 
 	beforeEach(() => {
+		import.meta.env.VITE_DEMO_MODE = "false";
 		queryClient = new QueryClient({
 			defaultOptions: {
 				queries: { retry: false },
@@ -30,367 +20,244 @@ describe("useProfilePermissions - role-based permission checks", () => {
 		vi.clearAllMocks();
 	});
 
-	const createWrapper = () => {
+	afterEach(() => {
+		import.meta.env.VITE_DEMO_MODE = originalDemoMode;
+	});
+
+	const createWrapper = (profile?: UserProfile | null) => {
+		if (profile) {
+			queryClient.setQueryData(profileKeys.detail(), profile);
+		}
 		return ({ children }: { children: React.ReactNode }) => (
 			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 		);
 	};
 
-	const mockAuthStore = (authenticated = true, sessionReady = true) => {
-		(useAuthStore as any).mockImplementation((selector?: any) => {
-			const state = {
-				authenticated,
-				loading: false,
-				initialized: true,
-				sessionReady,
-				user: {
-					id: "user-123",
-					email: "test@example.com",
-					firstName: "Test",
-					lastName: "User",
-					username: "testuser",
-				},
-				token: "mock-token",
-				tokenExpiry: Date.now() / 1000 + 3600,
-				sessionExpiry: Date.now() / 1000 + 7200,
-				error: null,
-				retryCount: 0,
-				loginRedirectPath: null,
-				login: vi.fn(),
-				logout: vi.fn(),
-				refreshAuthToken: vi.fn(),
-				clearError: vi.fn(),
-				retry: vi.fn(),
-				silentLogin: vi.fn(),
-				clearSession: vi.fn(),
-			};
-			return selector ? selector(state) : state;
-		});
+	const ownerProfile: UserProfile = {
+		user: {
+			id: "user-123",
+			email: "test@example.com",
+			firstName: "Test",
+			lastName: "User",
+		},
+		organization: {
+			id: "org-123",
+			name: "Test Org",
+			role: "owner",
+			memberCount: 5,
+			createdAt: "2024-01-01T00:00:00Z",
+		},
+	};
+
+	const adminProfile: UserProfile = {
+		...ownerProfile,
+		organization: { ...ownerProfile.organization, role: "admin" },
+	};
+
+	const userProfile: UserProfile = {
+		...ownerProfile,
+		organization: { ...ownerProfile.organization, role: "user" },
 	};
 
 	describe("Owner role", () => {
-		beforeEach(() => {
-			mockAuthStore();
-			(organizationApi.getCurrentOrganization as any).mockResolvedValue({
-				organization: {
-					id: "org-123",
-					name: "Test Org",
-					user_role: "owner",
-					member_count: 5,
-					created_at: "2024-01-01T00:00:00Z",
-				},
+		it('should return true for hasRole("owner")', () => {
+			const { result } = renderHook(() => useProfilePermissions(), {
+				wrapper: createWrapper(ownerProfile),
 			});
+			expect(result.current.hasRole("owner")).toBe(true);
 		});
 
-		it('should return true for hasRole("owner")', async () => {
+		it("should return true for isOwner()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(ownerProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.hasRole("owner")).toBe(true);
-			});
+			expect(result.current.isOwner()).toBe(true);
 		});
 
-		it("should return true for isOwner()", async () => {
+		it("should return false for isAdmin()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(ownerProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isOwner()).toBe(true);
-			});
+			expect(result.current.isAdmin()).toBe(false);
 		});
 
-		it("should return false for isAdmin()", async () => {
+		it("should return true for isOwnerOrAdmin()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(ownerProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isAdmin()).toBe(false);
-			});
+			expect(result.current.isOwnerOrAdmin()).toBe(true);
 		});
 
-		it("should return true for isOwnerOrAdmin()", async () => {
+		it("should return true for canManageInvitations()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(ownerProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isOwnerOrAdmin()).toBe(true);
-			});
+			expect(result.current.canManageInvitations()).toBe(true);
 		});
 
-		it("should return true for canManageInvitations()", async () => {
+		it("should return true for canManageMembers()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(ownerProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageInvitations()).toBe(true);
-			});
+			expect(result.current.canManageMembers()).toBe(true);
 		});
 
-		it("should return true for canManageMembers()", async () => {
+		it("should return true for canManageOrganization()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(ownerProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageMembers()).toBe(true);
-			});
+			expect(result.current.canManageOrganization()).toBe(true);
 		});
 
-		it("should return true for canManageOrganization()", async () => {
+		it("should return true for canDeleteConversations()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(ownerProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageOrganization()).toBe(true);
-			});
-		});
-
-		it("should return true for canDeleteConversations()", async () => {
-			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
-			});
-
-			await waitFor(() => {
-				expect(result.current.canDeleteConversations()).toBe(true);
-			});
+			expect(result.current.canDeleteConversations()).toBe(true);
 		});
 	});
 
 	describe("Admin role", () => {
-		beforeEach(() => {
-			mockAuthStore();
-			(organizationApi.getCurrentOrganization as any).mockResolvedValue({
-				organization: {
-					id: "org-123",
-					name: "Test Org",
-					user_role: "admin",
-					member_count: 5,
-					created_at: "2024-01-01T00:00:00Z",
-				},
+		it('should return false for hasRole("owner")', () => {
+			const { result } = renderHook(() => useProfilePermissions(), {
+				wrapper: createWrapper(adminProfile),
 			});
+			expect(result.current.hasRole("owner")).toBe(false);
 		});
 
-		it('should return false for hasRole("owner")', async () => {
+		it('should return true for hasRole("admin")', () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.hasRole("owner")).toBe(false);
-			});
+			expect(result.current.hasRole("admin")).toBe(true);
 		});
 
-		it('should return true for hasRole("admin")', async () => {
+		it("should return false for isOwner()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.hasRole("admin")).toBe(true);
-			});
+			expect(result.current.isOwner()).toBe(false);
 		});
 
-		it("should return false for isOwner()", async () => {
+		it("should return true for isAdmin()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isOwner()).toBe(false);
-			});
+			expect(result.current.isAdmin()).toBe(true);
 		});
 
-		it("should return true for isAdmin()", async () => {
+		it("should return true for isOwnerOrAdmin()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isAdmin()).toBe(true);
-			});
+			expect(result.current.isOwnerOrAdmin()).toBe(true);
 		});
 
-		it("should return true for isOwnerOrAdmin()", async () => {
+		it("should return true for canManageInvitations()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isOwnerOrAdmin()).toBe(true);
-			});
+			expect(result.current.canManageInvitations()).toBe(true);
 		});
 
-		it("should return true for canManageInvitations()", async () => {
+		it("should return true for canManageMembers()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageInvitations()).toBe(true);
-			});
+			expect(result.current.canManageMembers()).toBe(true);
 		});
 
-		it("should return true for canManageMembers()", async () => {
+		it("should return false for canManageOrganization()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageMembers()).toBe(true);
-			});
+			expect(result.current.canManageOrganization()).toBe(false);
 		});
 
-		it("should return false for canManageOrganization()", async () => {
+		it("should return true for canDeleteConversations()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageOrganization()).toBe(false);
-			});
-		});
-
-		it("should return true for canDeleteConversations()", async () => {
-			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
-			});
-
-			await waitFor(() => {
-				expect(result.current.canDeleteConversations()).toBe(true);
-			});
+			expect(result.current.canDeleteConversations()).toBe(true);
 		});
 	});
 
 	describe("User role", () => {
-		beforeEach(() => {
-			mockAuthStore();
-			(organizationApi.getCurrentOrganization as any).mockResolvedValue({
-				organization: {
-					id: "org-123",
-					name: "Test Org",
-					user_role: "user",
-					member_count: 5,
-					created_at: "2024-01-01T00:00:00Z",
-				},
+		it('should return false for hasRole("owner")', () => {
+			const { result } = renderHook(() => useProfilePermissions(), {
+				wrapper: createWrapper(userProfile),
 			});
+			expect(result.current.hasRole("owner")).toBe(false);
 		});
 
-		it('should return false for hasRole("owner")', async () => {
+		it('should return false for hasRole("admin")', () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.hasRole("owner")).toBe(false);
-			});
+			expect(result.current.hasRole("admin")).toBe(false);
 		});
 
-		it('should return false for hasRole("admin")', async () => {
+		it('should return true for hasRole("user")', () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.hasRole("admin")).toBe(false);
-			});
+			expect(result.current.hasRole("user")).toBe(true);
 		});
 
-		it('should return true for hasRole("user")', async () => {
+		it("should return false for isOwner()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.hasRole("user")).toBe(true);
-			});
+			expect(result.current.isOwner()).toBe(false);
 		});
 
-		it("should return false for isOwner()", async () => {
+		it("should return false for isAdmin()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isOwner()).toBe(false);
-			});
+			expect(result.current.isAdmin()).toBe(false);
 		});
 
-		it("should return false for isAdmin()", async () => {
+		it("should return false for isOwnerOrAdmin()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isAdmin()).toBe(false);
-			});
+			expect(result.current.isOwnerOrAdmin()).toBe(false);
 		});
 
-		it("should return false for isOwnerOrAdmin()", async () => {
+		it("should return false for canManageInvitations()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.isOwnerOrAdmin()).toBe(false);
-			});
+			expect(result.current.canManageInvitations()).toBe(false);
 		});
 
-		it("should return false for canManageInvitations()", async () => {
+		it("should return false for canManageMembers()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageInvitations()).toBe(false);
-			});
+			expect(result.current.canManageMembers()).toBe(false);
 		});
 
-		it("should return false for canManageMembers()", async () => {
+		it("should return false for canManageOrganization()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageMembers()).toBe(false);
-			});
+			expect(result.current.canManageOrganization()).toBe(false);
 		});
 
-		it("should return false for canManageOrganization()", async () => {
+		it("should return false for canDeleteConversations()", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(userProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.canManageOrganization()).toBe(false);
-			});
-		});
-
-		it("should return false for canDeleteConversations()", async () => {
-			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
-			});
-
-			await waitFor(() => {
-				expect(result.current.canDeleteConversations()).toBe(false);
-			});
+			expect(result.current.canDeleteConversations()).toBe(false);
 		});
 	});
 
 	describe("No profile loaded", () => {
-		beforeEach(() => {
-			mockAuthStore(false, false);
-		});
-
-		it("should return false for all permission checks when not authenticated", async () => {
+		it("should return false for all permission checks when not authenticated", () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(null),
 			});
 
 			expect(result.current.hasRole("owner")).toBe(false);
@@ -405,37 +272,18 @@ describe("useProfilePermissions - role-based permission checks", () => {
 	});
 
 	describe("Array role checks", () => {
-		beforeEach(() => {
-			mockAuthStore();
-			(organizationApi.getCurrentOrganization as any).mockResolvedValue({
-				organization: {
-					id: "org-123",
-					name: "Test Org",
-					user_role: "admin",
-					member_count: 5,
-					created_at: "2024-01-01T00:00:00Z",
-				},
+		it('should return true for hasRole(["owner", "admin"]) when user is admin', () => {
+			const { result } = renderHook(() => useProfilePermissions(), {
+				wrapper: createWrapper(adminProfile),
 			});
+			expect(result.current.hasRole(["owner", "admin"])).toBe(true);
 		});
 
-		it('should return true for hasRole(["owner", "admin"]) when user is admin', async () => {
+		it('should return false for hasRole(["owner"]) when user is admin', () => {
 			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
+				wrapper: createWrapper(adminProfile),
 			});
-
-			await waitFor(() => {
-				expect(result.current.hasRole(["owner", "admin"])).toBe(true);
-			});
-		});
-
-		it('should return false for hasRole(["owner"]) when user is admin', async () => {
-			const { result } = renderHook(() => useProfilePermissions(), {
-				wrapper: createWrapper(),
-			});
-
-			await waitFor(() => {
-				expect(result.current.hasRole(["owner"])).toBe(false);
-			});
+			expect(result.current.hasRole(["owner"])).toBe(false);
 		});
 	});
 });

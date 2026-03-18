@@ -44,6 +44,7 @@ const getTicketSource = (metadata: Record<string, unknown>): string => {
 
 // Get source icon path
 const getSourceIcon = (source: string): string => {
+	if (typeof source !== "string") return "";
 	return `/connections/icon_${source.toLowerCase()}.svg`;
 };
 

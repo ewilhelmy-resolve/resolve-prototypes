@@ -10,6 +10,14 @@ vi.mock("@/hooks/api/useAutopilotSettings", () => ({
 	}),
 }));
 
+// Mock the ticket settings store with known defaults
+vi.mock("@/stores/ticketSettingsStore", () => ({
+	useTicketSettingsStore: () => ({
+		blendedRatePerHour: 30,
+		timeToTake: 12,
+	}),
+}));
+
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({
 		t: (key: string) => key,
@@ -35,53 +43,52 @@ function renderHeader(
 	);
 }
 
+// With defaults: blendedRatePerHour=30, timeToTake=12
+// moneySaved = 30 * (12/60) * totalTickets = 6 * totalTickets
+// timeSavedMins = 12 * totalTickets
+// timeSavedHrs = Math.floor(timeSavedMins / 60)
+
 describe("ClustersPageHeader", () => {
-	it("calculates stats with automated tickets", () => {
-		renderHeader({ totalTickets: 200, automatedTickets: 50 });
+	it("calculates stats from totalTickets", () => {
+		// totalTickets=200: money=6*200=1200 -> "$1.2k", time=12*200=2400min -> 40hr
+		renderHeader({ totalTickets: 200 });
 
 		expect(screen.getByText("200")).toBeInTheDocument();
-		expect(screen.getByText("50")).toBeInTheDocument();
-		expect(screen.getByText("25%")).toBeInTheDocument();
-		expect(screen.getByText("$1.3k")).toBeInTheDocument();
-		expect(screen.getByText("12.5hr")).toBeInTheDocument();
+		expect(screen.getByText("$1.2k")).toBeInTheDocument();
+		expect(screen.getByText("40hr")).toBeInTheDocument();
 	});
 
-	it("defaults automatedTickets to 0", () => {
-		renderHeader({ totalTickets: 100 });
+	it("shows zero stats when totalTickets is 0", () => {
+		// totalTickets=0: money=0 -> "$0", time=0min -> 0hr
+		renderHeader({ totalTickets: 0 });
 
 		expect(screen.getByText("0")).toBeInTheDocument();
-		expect(screen.getByText("0%")).toBeInTheDocument();
 		expect(screen.getByText("$0")).toBeInTheDocument();
-		expect(screen.getByText("0min")).toBeInTheDocument();
-	});
-
-	it("avoids division by zero when totalTickets is 0", () => {
-		renderHeader({ totalTickets: 0, automatedTickets: 0 });
-
-		expect(screen.getByText("0%")).toBeInTheDocument();
-		expect(screen.queryByText("NaN")).not.toBeInTheDocument();
+		expect(screen.getByText("0hr")).toBeInTheDocument();
 	});
 
 	it("formats money under $1000 without k suffix", () => {
-		renderHeader({ totalTickets: 100, automatedTickets: 10 });
+		// totalTickets=100: money=6*100=600 -> "$600"
+		renderHeader({ totalTickets: 100 });
 
-		expect(screen.getByText("$250")).toBeInTheDocument();
+		expect(screen.getByText("$600")).toBeInTheDocument();
 	});
 
-	it("formats time under 60min without hr suffix", () => {
-		renderHeader({ totalTickets: 100, automatedTickets: 3 });
+	it("formats money over $1000 with k suffix", () => {
+		// totalTickets=200: money=6*200=1200 -> "$1.2k"
+		renderHeader({ totalTickets: 200 });
 
-		expect(screen.getByText("45min")).toBeInTheDocument();
+		expect(screen.getByText("$1.2k")).toBeInTheDocument();
 	});
 
 	it("shows skeletons when loading", () => {
 		renderHeader({
 			totalTickets: 100,
-			automatedTickets: 50,
 			showSkeletons: true,
 		});
 
-		expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(0);
+		// 3 stat cards have loading=true (skeleton), 2 static cards still show h3
+		expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(2);
 	});
 
 	it("calls onSettingsClick when settings button is clicked", async () => {
