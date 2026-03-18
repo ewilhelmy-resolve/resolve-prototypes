@@ -23,7 +23,7 @@ vi.mock("@/hooks/useClusters", () => ({
 vi.mock("@/stores/ticketSettingsStore", () => ({
 	useTicketSettingsStore: () => ({
 		blendedRatePerHour: 30,
-		timeToTake: 12,
+		avgMinutesPerTicket: 12,
 	}),
 }));
 

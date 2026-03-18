@@ -125,7 +125,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	}, [period, debouncedSearch, activeGapFilters]);
 
 	// Ticket settings for ROI computation
-	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
 	// Fetch active model to check training state
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
@@ -178,11 +178,11 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		return rankClustersByRoi(
 			clusters,
 			blendedRatePerHour,
-			timeToTake,
+			avgMinutesPerTicket,
 			activePreset ?? "costImpact",
 			"desc",
 		);
-	}, [clusters, blendedRatePerHour, timeToTake, activePreset]);
+	}, [clusters, blendedRatePerHour, avgMinutesPerTicket, activePreset]);
 
 	// ROI lookup for card view metrics
 	const roiMap = useMemo(() => {

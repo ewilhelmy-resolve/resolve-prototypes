@@ -316,18 +316,23 @@
 	"ticketSettings": {
 		"title": "Ticket settings",
 		"description": "Customize dashboard metrics",
-		"savingsSection": "How should we calculate savings?",
-		"timeSavedSection": "How should we calculate time saved?",
-		"costPerTicket": "Cost per ticket",
-		"costHelper": "Used to calculate total money saved from automated tickets.",
-		"avgTimePerTicket": "Average time per ticket",
-		"timeHelper": "Used to calculate total time saved from automated tickets.",
+		"savingsSection": "Cost calculation",
+		"timeSavedSection": "Time calculation",
+		"blendedRatePerHour": "Blended rate per hour",
+		"costHelper": "Average fully-loaded cost per hour of agent time.",
+		"avgMinutesPerTicket": "Average minutes per ticket",
+		"timeHelper": "Average minutes an agent spends resolving one ticket.",
 		"timeUnit": {
 			"minutes": "Minutes"
 		},
 		"validation": {
 			"costMustBePositive": "Cost must be greater than zero",
 			"timeMustBePositive": "Time must be greater than zero"
-		}
+		},
+		"estMoneySaved": "Est. Money Saved",
+		"estTimeSaved": "Est. Time Saved",
+		"calculatorFormula": "${{rate}}/hr × {{time}} min × # of tickets = ${{perTicket}} per ticket",
+		"timeFormula": "{{time}} min × # of tickets",
+		"calculatorNote": "# of tickets is determined by your ticket data per cluster. These settings update the Est. Money Saved and Est. Time Saved metrics on the dashboard and cluster pages."
 	}
 }

@@ -1,19 +1,67 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import TicketSettingsDialog from "@/components/dialogs/TicketSettingsDialog";
+import TicketSettingsDialog, {
+	type TicketSettingsValues,
+} from "@/components/dialogs/TicketSettingsDialog";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { ClustersPageHeader } from "@/components/tickets/ClustersPageHeader";
 import TicketGroups from "@/components/tickets/TicketGroups";
+import { ritaToast } from "@/components/ui/rita-toast";
 import { formatRelativeTime } from "@/constants/connectionSources";
+import {
+	useAutopilotSettings,
+	useUpdateAutopilotSettings,
+} from "@/hooks/api/useAutopilotSettings";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
+import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 import type { PeriodFilter } from "@/types/cluster";
 import { TRAINING_STATES } from "@/types/mlModel";
 
 export default function ClustersPage() {
 	const [period, setPeriod] = useState<PeriodFilter>("last90");
 	const [settingsOpen, setSettingsOpen] = useState(false);
+
+	// Hydrate Zustand store from API settings
+	const { data: apiSettings } = useAutopilotSettings();
+	const settingsStore = useTicketSettingsStore();
+	const updateMutation = useUpdateAutopilotSettings();
+	const setSettings = settingsStore.setSettings;
+
+	useEffect(() => {
+		if (apiSettings) {
+			setSettings({
+				blendedRatePerHour: apiSettings.cost_per_ticket,
+				avgMinutesPerTicket: apiSettings.avg_time_per_ticket_minutes,
+			});
+		}
+	}, [apiSettings, setSettings]);
+
+	const { t: tToast } = useTranslation("toast");
+
+	const handleSettingsSave = (values: TicketSettingsValues) => {
+		settingsStore.setSettings(values);
+		updateMutation.mutate(
+			{
+				cost_per_ticket: values.blendedRatePerHour,
+				avg_time_per_ticket_minutes: values.avgMinutesPerTicket,
+			},
+			{
+				onSuccess: () => {
+					ritaToast.success({
+						title: tToast("success.autopilotSettingsUpdated"),
+					});
+				},
+				onError: () => {
+					ritaToast.error({
+						title: tToast("error.autopilotSettingsFailed"),
+					});
+				},
+			},
+		);
+	};
 
 	// Get training state from active model
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
@@ -62,6 +110,11 @@ export default function ClustersPage() {
 			<TicketSettingsDialog
 				open={settingsOpen}
 				onOpenChange={setSettingsOpen}
+				defaultValues={{
+					blendedRatePerHour: settingsStore.blendedRatePerHour,
+					avgMinutesPerTicket: settingsStore.avgMinutesPerTicket,
+				}}
+				onSave={handleSettingsSave}
 			/>
 		</RitaLayout>
 	);

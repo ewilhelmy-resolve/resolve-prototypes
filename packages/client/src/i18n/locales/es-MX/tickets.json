@@ -1,0 +1,24 @@
+{
+	"ticketSettings": {
+		"title": "Configuraci\u00f3n de tickets",
+		"description": "Personalizar m\u00e9tricas del panel",
+		"savingsSection": "C\u00e1lculo de costo",
+		"timeSavedSection": "C\u00e1lculo de tiempo",
+		"blendedRatePerHour": "Tarifa combinada por hora",
+		"costHelper": "Costo promedio total por hora del tiempo de un agente.",
+		"avgMinutesPerTicket": "Minutos promedio por ticket",
+		"timeHelper": "Minutos promedio que un agente tarda en resolver un ticket.",
+		"timeUnit": {
+			"minutes": "Minutos"
+		},
+		"validation": {
+			"costMustBePositive": "El costo debe ser mayor a cero",
+			"timeMustBePositive": "El tiempo debe ser mayor a cero"
+		},
+		"estMoneySaved": "Ahorro est. de dinero",
+		"estTimeSaved": "Ahorro est. de tiempo",
+		"calculatorFormula": "${{rate}}/hr \u00d7 {{time}} min \u00d7 # de tickets = ${{perTicket}} por ticket",
+		"timeFormula": "{{time}} min \u00d7 # de tickets",
+		"calculatorNote": "El # de tickets se determina por los datos de tickets por cl\u00faster. Estos ajustes actualizan las m\u00e9tricas de Ahorro est. de dinero y Ahorro est. de tiempo en el panel y las p\u00e1ginas de cl\u00fasteres."
+	}
+}

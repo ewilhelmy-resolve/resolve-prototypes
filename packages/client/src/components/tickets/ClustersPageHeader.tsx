@@ -12,7 +12,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAutopilotSettings } from "@/hooks/api/useAutopilotSettings";
+import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 import type { PeriodFilter } from "@/types/cluster";
 
 interface ClustersPageHeaderProps {
@@ -60,10 +60,10 @@ export function ClustersPageHeader({
 	lastSynced,
 }: ClustersPageHeaderProps) {
 	const { t } = useTranslation("tickets");
-	const { data: settings } = useAutopilotSettings();
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
-	const costPerTicket = settings?.cost_per_ticket ?? 30;
-	const avgTimeMinutes = settings?.avg_time_per_ticket_minutes ?? 12;
+	const costPerTicket = blendedRatePerHour;
+	const avgTimeMinutes = avgMinutesPerTicket;
 
 	const automationPct =
 		totalTickets > 0 ? Math.round((automatedTickets / totalTickets) * 100) : 0;

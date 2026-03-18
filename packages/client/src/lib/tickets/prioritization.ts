@@ -33,7 +33,7 @@ export type RoiSortKey = "costImpact" | "mttr" | "timeTaken";
 export function rankClustersByRoi(
 	clusters: ClusterListItem[],
 	blendedRatePerHour: number,
-	timeToTake: number,
+	avgMinutesPerTicket: number,
 	sortKey: RoiSortKey = "costImpact",
 	sortDir: "asc" | "desc" = "desc",
 ): RoiRankedCluster[] {
@@ -41,8 +41,9 @@ export function rankClustersByRoi(
 		cluster,
 		rank: 0,
 		displayName: getClusterDisplayTitle(cluster.name, cluster.subcluster_name),
-		costImpact: blendedRatePerHour * (timeToTake / 60) * cluster.ticket_count,
-		timeTaken: timeToTake * cluster.needs_response_count,
+		costImpact:
+			blendedRatePerHour * (avgMinutesPerTicket / 60) * cluster.ticket_count,
+		timeTaken: avgMinutesPerTicket * cluster.needs_response_count,
 		mttr: undefined,
 		ctaState: deriveCTAState(cluster),
 	}));
@@ -60,7 +61,7 @@ export function rankClustersByRoi(
 export function computeAggregateSavings(
 	clusters: ClusterListItem[],
 	blendedRatePerHour: number,
-	timeToTake: number,
+	avgMinutesPerTicket: number,
 ): AggregateSavings {
 	let totalNeedsResponse = 0;
 	let knowledgeFoundCount = 0;
@@ -75,7 +76,7 @@ export function computeAggregateSavings(
 	return {
 		totalNeedsResponse,
 		totalMonthlyCost: totalNeedsResponse * blendedRatePerHour,
-		totalMonthlyHours: (totalNeedsResponse * timeToTake) / 60,
+		totalMonthlyHours: (totalNeedsResponse * avgMinutesPerTicket) / 60,
 		knowledgeFoundCount,
 		totalCount: clusters.length,
 	};
