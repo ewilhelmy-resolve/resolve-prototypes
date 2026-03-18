@@ -1,3 +1,4 @@
+import crypto, { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { db } from "../config/kysely.js";
 
@@ -11,6 +12,7 @@ import type {
 	ClusterListQueryOptions,
 	ClusterTicketsQueryOptions,
 	ClusterTotals,
+	GenerateKnowledgeResponse,
 	KBStatus,
 	KbArticle,
 	OffsetPaginationInfo,
@@ -506,6 +508,182 @@ export class ClusterService {
 			priority: row.priority,
 			created_at: row.created_at as Date,
 			updated_at: row.updated_at as Date,
+		};
+	}
+
+	/**
+	 * Trigger knowledge article generation for a cluster.
+	 * Sends webhook to external platform and returns correlation ID.
+	 */
+	async generateKnowledge(params: {
+		clusterId: string;
+		organizationId: string;
+		userId: string;
+		userEmail: string;
+		sources: string[];
+	}): Promise<GenerateKnowledgeResponse> {
+		const cluster = await this.getClusterDetails(
+			params.clusterId,
+			params.organizationId,
+		);
+
+		if (!cluster) {
+			throw new Error("Cluster not found");
+		}
+
+		const generationId = randomUUID();
+
+		const { WebhookService } = await import("./WebhookService.js");
+		const webhookService = new WebhookService();
+		await webhookService.sendGenericEvent({
+			organizationId: params.organizationId,
+			userId: params.userId,
+			userEmail: params.userEmail,
+			source: "rita-chat",
+			action: "create_knowledge",
+			additionalData: {
+				cluster_id: params.clusterId,
+				cluster_name: cluster.name,
+				generation_id: generationId,
+				sources: params.sources,
+			},
+		});
+
+		return { generation_id: generationId };
+	}
+
+	/**
+	 * Add a knowledge article to a cluster.
+	 * Creates blob + blob_metadata + cluster_kb_links in a single transaction,
+	 * then triggers document_uploaded webhook for RAG indexing.
+	 */
+	async addKbArticle(params: {
+		clusterId: string;
+		organizationId: string;
+		userId: string;
+		userEmail: string;
+		content: string;
+		filename: string;
+	}): Promise<KbArticle> {
+		const exists = await this.clusterExists(
+			params.clusterId,
+			params.organizationId,
+		);
+
+		if (!exists) {
+			throw new Error("Cluster not found");
+		}
+
+		const textBuffer = Buffer.from(params.content, "utf8");
+		const digest = crypto.createHash("sha256").update(textBuffer).digest("hex");
+
+		const { withOrgContext } = await import("../config/database.js");
+		const result = await withOrgContext(
+			params.userId,
+			params.organizationId,
+			async (client) => {
+				await client.query("BEGIN");
+
+				try {
+					// 1. Create or reuse blob (deduplication)
+					let blobId: string;
+					const existingBlob = await client.query(
+						"SELECT blob_id FROM blobs WHERE digest = $1",
+						[digest],
+					);
+
+					if (existingBlob.rows.length > 0) {
+						blobId = existingBlob.rows[0].blob_id;
+					} else {
+						const blobResult = await client.query(
+							"INSERT INTO blobs (data, digest) VALUES ($1, $2) RETURNING blob_id",
+							[textBuffer, digest],
+						);
+						blobId = blobResult.rows[0].blob_id;
+					}
+
+					// 2. Create blob_metadata
+					const metadataResult = await client.query(
+						`INSERT INTO blob_metadata (
+							blob_id, organization_id, user_id, filename, file_size,
+							mime_type, status, source, processed_markdown, metadata
+						) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+						RETURNING id, blob_id, filename, file_size, mime_type, status, created_at, updated_at`,
+						[
+							blobId,
+							params.organizationId,
+							params.userId,
+							params.filename,
+							textBuffer.byteLength,
+							"text/markdown",
+							"processing",
+							"ai-generated",
+							params.content,
+							JSON.stringify({
+								source: "ai-generated",
+								cluster_id: params.clusterId,
+							}),
+						],
+					);
+
+					const metadata = metadataResult.rows[0];
+
+					// 3. Link to cluster
+					await client.query(
+						`INSERT INTO cluster_kb_links (organization_id, cluster_id, blob_metadata_id)
+						VALUES ($1, $2, $3)
+						ON CONFLICT (cluster_id, blob_metadata_id) DO NOTHING`,
+						[params.organizationId, params.clusterId, metadata.id],
+					);
+
+					// 4. Update cluster kb_status to FOUND if currently GAP
+					await client.query(
+						`UPDATE clusters SET kb_status = 'FOUND', updated_at = NOW()
+						WHERE id = $1 AND organization_id = $2 AND kb_status = 'GAP'`,
+						[params.clusterId, params.organizationId],
+					);
+
+					await client.query("COMMIT");
+					return metadata;
+				} catch (error) {
+					await client.query("ROLLBACK");
+					throw error;
+				}
+			},
+		);
+
+		// Send document_uploaded webhook for RAG indexing (non-blocking)
+		try {
+			const { WebhookService } = await import("./WebhookService.js");
+			const webhookService = new WebhookService();
+			const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+			await webhookService.sendDocumentEvent({
+				organizationId: params.organizationId,
+				userId: params.userId,
+				userEmail: params.userEmail,
+				blobMetadataId: result.id,
+				blobId: result.blob_id,
+				documentUrl: `${baseUrl}/api/files/${result.id}/download`,
+				fileType: "text/markdown",
+				fileSize: textBuffer.byteLength,
+				originalFilename: params.filename,
+			});
+		} catch (webhookError) {
+			// Don't fail the request if webhook fails
+			console.error(
+				"[ClusterService] Failed to send document webhook:",
+				webhookError,
+			);
+		}
+
+		return {
+			id: result.id,
+			filename: result.filename,
+			file_size: result.file_size,
+			mime_type: result.mime_type,
+			status: result.status,
+			created_at: result.created_at,
+			updated_at: result.updated_at,
 		};
 	}
 }

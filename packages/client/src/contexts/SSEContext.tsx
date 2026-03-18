@@ -16,6 +16,7 @@ import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
+import { useKnowledgeGenerationStore } from "../stores/knowledgeGenerationStore";
 import {
 	DEFAULT_MINIMUM_TICKETS,
 	type IngestionRun,
@@ -537,6 +538,20 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						ns: "toast",
 					}),
 				});
+			} else if (event.type === "cluster_knowledge_generated") {
+				const store = useKnowledgeGenerationStore.getState();
+				if (event.data.generation_id === store.generationId) {
+					if (event.data.error || !event.data.content) {
+						store.receiveError(
+							event.data.error || "Received empty article content",
+						);
+					} else {
+						store.receiveResult({
+							content: event.data.content,
+							filename: event.data.filename || "knowledge-article.md",
+						});
+					}
+				}
 			} else if (event.type === "dynamic_workflow") {
 				// Dispatch custom event for WorkflowsPage to handle
 				const workflowEvent = new CustomEvent("workflow:event", {

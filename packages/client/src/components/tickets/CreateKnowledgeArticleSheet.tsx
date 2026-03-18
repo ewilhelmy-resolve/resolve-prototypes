@@ -1,4 +1,15 @@
-import { useState } from "react";
+import {
+	AlertCircle,
+	Check,
+	Copy,
+	Plus,
+	RefreshCw,
+	WandSparkles,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Sheet,
 	SheetContent,
@@ -7,10 +18,10 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { WandSparkles, Copy, Plus, Check } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAddKbArticle, useGenerateKnowledge } from "@/hooks/useClusters";
 import { copyToClipboard } from "@/lib/utils";
+import { useKnowledgeGenerationStore } from "@/stores/knowledgeGenerationStore";
 
 interface KnowledgeSource {
 	id: string;
@@ -22,6 +33,8 @@ interface KnowledgeSource {
 interface CreateKnowledgeArticleSheetProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	/** Cluster ID for the generation API call */
+	clusterId?: string;
 	/** Ticket group name for context */
 	ticketGroupName?: string;
 	/** Called when user clicks "Add knowledge" with the content */
@@ -40,40 +53,22 @@ const INITIAL_SOURCES: KnowledgeSource[] = [
 	{
 		id: "web-search",
 		label: "Web Search",
-		description: "Include relevant information from web sources and documentation",
+		description:
+			"Include relevant information from web sources and documentation",
 		checked: true,
 	},
 ];
 
-const MOCK_GENERATED_ARTICLE = `# Network Connectivity Troubleshooting Guide
-
-## Overview
-This guide provides step-by-step instructions for resolving common network connectivity issues reported by users.
-
-## Common Symptoms
-- Unable to access network resources
-- Intermittent connection drops
-- Slow network performance
-- Cannot connect to VPN
-
-## Troubleshooting Steps
-
-### 1. Check Physical Connections
-- Verify ethernet cable is securely connected
-- Check for damaged cables or ports
-- Ensure WiFi is enabled on the device
-
-### 2. Verify Network Settings
-\`\`\`
-ipconfig /all...`;
+const GENERATION_TIMEOUT_MS = 60_000;
 
 /**
  * Sheet component for creating knowledge articles from ticket patterns
  *
  * Features:
  * - Knowledge source selection (checkboxes)
- * - Generate article button
- * - AI-generated article preview
+ * - Generate article via backend webhook + RabbitMQ + SSE
+ * - AI-generated article preview with loading skeleton
+ * - Error state with inline alert and retry
  * - Copy and Add knowledge actions
  *
  * @component
@@ -81,31 +76,78 @@ ipconfig /all...`;
 export function CreateKnowledgeArticleSheet({
 	open,
 	onOpenChange,
+	clusterId,
 	ticketGroupName = "Software Installation",
 	onAddKnowledge,
 	onKnowledgeAdded,
 }: CreateKnowledgeArticleSheetProps) {
 	const [sources, setSources] = useState<KnowledgeSource[]>(INITIAL_SOURCES);
 	const [generatedArticle, setGeneratedArticle] = useState<string>("");
-	const [isGenerating, setIsGenerating] = useState(false);
 	const [isCopied, setIsCopied] = useState(false);
+	const [saveError, setSaveError] = useState<string | null>(null);
+	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const store = useKnowledgeGenerationStore();
+	const generateMutation = useGenerateKnowledge(clusterId ?? "");
+	const addKbArticleMutation = useAddKbArticle(clusterId ?? "");
+
+	const isGenerating = store.status === "generating";
+	const isError = store.status === "error";
+	const isSuccess = store.status === "success";
+
+	// Sync store content to local textarea state on success
+	useEffect(() => {
+		if (isSuccess && store.content) {
+			setGeneratedArticle(store.content);
+		}
+	}, [isSuccess, store.content]);
+
+	// Clean up timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
+	}, []);
 
 	const handleSourceToggle = (sourceId: string) => {
 		setSources((prev) =>
 			prev.map((source) =>
 				source.id === sourceId
 					? { ...source, checked: !source.checked }
-					: source
-			)
+					: source,
+			),
 		);
 	};
 
 	const handleGenerateArticle = async () => {
-		setIsGenerating(true);
-		// Simulate API call
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-		setGeneratedArticle(MOCK_GENERATED_ARTICLE);
-		setIsGenerating(false);
+		if (!clusterId) return;
+
+		// Clear previous error state before retrying
+		store.reset();
+
+		const selectedSources = sources.filter((s) => s.checked).map((s) => s.id);
+
+		try {
+			const result = await generateMutation.mutateAsync(selectedSources);
+			store.startGeneration(result.generation_id);
+
+			// Start timeout
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+			timeoutRef.current = setTimeout(() => {
+				const current = useKnowledgeGenerationStore.getState();
+				if (current.status === "generating") {
+					current.timeout();
+				}
+			}, GENERATION_TIMEOUT_MS);
+		} catch (_error) {
+			store.receiveError(
+				"Failed to start article generation. Please try again.",
+			);
+		}
 	};
 
 	const handleCopy = async () => {
@@ -114,31 +156,73 @@ export function CreateKnowledgeArticleSheet({
 		setTimeout(() => setIsCopied(false), 2000);
 	};
 
-	const handleAddKnowledge = () => {
-		onAddKnowledge?.(generatedArticle);
-		onKnowledgeAdded?.();
-		onOpenChange(false);
-		// Reset state
+	const handleAddKnowledge = async () => {
+		if (!clusterId || !generatedArticle) return;
+
+		setSaveError(null);
+
+		const filename =
+			store.filename ||
+			generatedArticle
+				.match(/^#\s+(.+)$/m)?.[1]
+				?.trim()
+				.replace(/[^a-zA-Z0-9-_ ]/g, "")
+				.replace(/\s+/g, "-")
+				.toLowerCase()
+				.concat(".md") ||
+			"knowledge-article.md";
+
+		try {
+			await addKbArticleMutation.mutateAsync({
+				content: generatedArticle,
+				filename,
+			});
+			onAddKnowledge?.(generatedArticle);
+			onKnowledgeAdded?.();
+			onOpenChange(false);
+			resetState();
+		} catch (_error) {
+			setSaveError("Failed to add knowledge article. Please try again.");
+		}
+	};
+
+	const resetState = () => {
 		setGeneratedArticle("");
 		setSources(INITIAL_SOURCES);
+		setIsCopied(false);
+		setSaveError(null);
+		store.reset();
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
 	};
 
 	const handleCancel = () => {
 		onOpenChange(false);
-		// Reset state
-		setGeneratedArticle("");
-		setSources(INITIAL_SOURCES);
+		resetState();
 	};
 
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen) {
+			resetState();
+		}
+		onOpenChange(nextOpen);
+	};
+
+	const hasSelectedSources = sources.some((s) => s.checked);
+	const showArticlePreview = isSuccess && generatedArticle;
+
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
+		<Sheet open={open} onOpenChange={handleOpenChange}>
 			<SheetContent className="flex flex-col gap-6 sm:max-w-xl w-full p-8 overflow-hidden">
 				<SheetHeader className="p-0 flex-shrink-0">
 					<SheetTitle className="text-lg font-semibold">
 						Create Knowledge Article
 					</SheetTitle>
 					<SheetDescription className="text-sm text-muted-foreground">
-						Generate a knowledge article for "{ticketGroupName}" to enable automation
+						Generate a knowledge article for "{ticketGroupName}" to enable
+						automation
 					</SheetDescription>
 				</SheetHeader>
 
@@ -164,7 +248,9 @@ export function CreateKnowledgeArticleSheet({
 										id={source.id}
 										checked={source.checked}
 										onCheckedChange={() => handleSourceToggle(source.id)}
+										disabled={isGenerating}
 										className="mt-0.5"
+										aria-label={`Include ${source.label} as a knowledge source`}
 									/>
 									<div className="flex flex-col gap-0.5">
 										<span className="text-sm font-medium">{source.label}</span>
@@ -182,14 +268,63 @@ export function CreateKnowledgeArticleSheet({
 						variant="outline"
 						className="w-full gap-2"
 						onClick={handleGenerateArticle}
-						disabled={isGenerating || !sources.some((s) => s.checked)}
+						disabled={
+							isGenerating ||
+							!hasSelectedSources ||
+							!clusterId ||
+							generateMutation.isPending
+						}
+						aria-label="Generate knowledge article from selected sources"
 					>
 						<WandSparkles className="h-4 w-4" />
-						{isGenerating ? "Generating..." : "Generate Article"}
+						{isGenerating || generateMutation.isPending
+							? "Generating..."
+							: "Generate Article"}
 					</Button>
 
-					{/* AI-Message Section */}
-					{generatedArticle && (
+					{/* Generating State - Loading Skeleton */}
+					{isGenerating && (
+						<output
+							className="flex flex-col gap-3 flex-1 min-h-[200px] p-4 rounded-md border border-input bg-gray-50"
+							aria-label="Generating article"
+						>
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								<RefreshCw className="h-4 w-4 animate-spin" />
+								<span>Generating article from selected sources...</span>
+							</div>
+							<Skeleton className="h-4 w-3/4" />
+							<Skeleton className="h-4 w-full" />
+							<Skeleton className="h-4 w-5/6" />
+							<Skeleton className="h-4 w-2/3" />
+							<Skeleton className="h-4 w-full" />
+							<Skeleton className="h-4 w-4/5" />
+						</output>
+					)}
+
+					{/* Error State - Inline Alert */}
+					{isError && (
+						<Alert variant="destructive">
+							<AlertCircle className="h-4 w-4" />
+							<AlertTitle>Generation failed</AlertTitle>
+							<AlertDescription className="flex flex-col gap-2">
+								<span>{store.error}</span>
+								<Button
+									variant="outline"
+									size="sm"
+									className="w-fit gap-2"
+									onClick={handleGenerateArticle}
+									disabled={!hasSelectedSources || !clusterId}
+									aria-label="Retry article generation"
+								>
+									<RefreshCw className="h-3.5 w-3.5" />
+									Retry
+								</Button>
+							</AlertDescription>
+						</Alert>
+					)}
+
+					{/* AI-Message Section - Success State */}
+					{showArticlePreview && (
 						<div className="flex flex-col gap-2 flex-1 min-h-[200px] p-2 md:p-0">
 							<label htmlFor="ai-message" className="text-sm font-medium">
 								AI-Message
@@ -199,19 +334,36 @@ export function CreateKnowledgeArticleSheet({
 								value={generatedArticle}
 								onChange={(e) => setGeneratedArticle(e.target.value)}
 								className="flex-1 w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								aria-label="Generated knowledge article content"
 							/>
 						</div>
 					)}
 				</div>
+
+				{/* Save Error Alert */}
+				{saveError && (
+					<Alert variant="destructive">
+						<AlertCircle className="h-4 w-4" />
+						<AlertTitle>Save failed</AlertTitle>
+						<AlertDescription>{saveError}</AlertDescription>
+					</Alert>
+				)}
 
 				{/* Footer Actions */}
 				<SheetFooter className="flex-row justify-end gap-2 flex-shrink-0 p-0">
 					<Button variant="outline" onClick={handleCancel}>
 						Cancel
 					</Button>
-					{generatedArticle && (
+					{showArticlePreview && (
 						<>
-							<Button variant="outline" className="gap-2" onClick={handleCopy}>
+							<Button
+								variant="outline"
+								className="gap-2"
+								onClick={handleCopy}
+								aria-label={
+									isCopied ? "Copied to clipboard" : "Copy article to clipboard"
+								}
+							>
 								{isCopied ? (
 									<Check className="h-4 w-4 text-primary" />
 								) : (
@@ -219,9 +371,14 @@ export function CreateKnowledgeArticleSheet({
 								)}
 								{isCopied ? "Copied!" : "Copy"}
 							</Button>
-							<Button className="gap-2" onClick={handleAddKnowledge}>
+							<Button
+								className="gap-2"
+								onClick={handleAddKnowledge}
+								disabled={addKbArticleMutation.isPending}
+								aria-label="Add knowledge article"
+							>
 								<Plus className="h-4 w-4" />
-								Add knowledge
+								{addKbArticleMutation.isPending ? "Adding..." : "Add knowledge"}
 							</Button>
 						</>
 					)}
