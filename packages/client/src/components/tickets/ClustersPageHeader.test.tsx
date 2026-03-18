@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { QueryWrapper } from "@/test/mocks/providers";
 import { ClustersPageHeader } from "./ClustersPageHeader";
 
-vi.mock("@/hooks/api/useAutopilotSettings", () => ({
-	useAutopilotSettings: () => ({
-		data: { cost_per_ticket: 25, avg_time_per_ticket_minutes: 15 },
+vi.mock("@/stores/ticketSettingsStore", () => ({
+	useTicketSettingsStore: () => ({
+		blendedRatePerHour: 25,
+		avgMinutesPerTicket: 15,
 	}),
 }));
 

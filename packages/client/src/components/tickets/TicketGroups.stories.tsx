@@ -52,6 +52,8 @@ const mockClusters = [
 		subcluster_name: "VPN Issues",
 		kb_status: "FOUND" as const,
 		ticket_count: 156,
+		costImpact: 4680,
+		mttr: 18,
 	},
 	{
 		id: "2",
@@ -59,6 +61,7 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "GAP" as const,
 		ticket_count: 89,
+		costImpact: 2670,
 	},
 	{
 		id: "3",
@@ -66,6 +69,8 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "PENDING" as const,
 		ticket_count: 234,
+		costImpact: 7020,
+		mttr: 22,
 	},
 	{
 		id: "4",
@@ -73,6 +78,7 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "FOUND" as const,
 		ticket_count: 67,
+		costImpact: 2010,
 	},
 	{
 		id: "5",
@@ -80,6 +86,8 @@ const mockClusters = [
 		subcluster_name: "License Expired",
 		kb_status: "GAP" as const,
 		ticket_count: 45,
+		costImpact: 1350,
+		mttr: 10,
 	},
 	{
 		id: "6",
@@ -87,6 +95,7 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "PENDING" as const,
 		ticket_count: 112,
+		costImpact: 3360,
 	},
 	{
 		id: "7",
@@ -94,6 +103,8 @@ const mockClusters = [
 		subcluster_name: "Battery",
 		kb_status: "FOUND" as const,
 		ticket_count: 78,
+		costImpact: 2340,
+		mttr: 25,
 	},
 	{
 		id: "8",
@@ -101,6 +112,7 @@ const mockClusters = [
 		subcluster_name: "Driver Issues",
 		kb_status: "GAP" as const,
 		ticket_count: 34,
+		costImpact: 1020,
 	},
 	{
 		id: "9",
@@ -108,6 +120,8 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "PENDING" as const,
 		ticket_count: 189,
+		costImpact: 5670,
+		mttr: 15,
 	},
 ];
 
@@ -212,6 +226,8 @@ export const WithClusters: Story = {
 						}
 						count={cluster.ticket_count}
 						knowledgeStatus={cluster.kb_status}
+						costImpact={cluster.costImpact}
+						mttr={cluster.mttr}
 					/>
 				))}
 			</div>
@@ -247,6 +263,8 @@ export const MiddlePage: Story = {
 						}
 						count={cluster.ticket_count}
 						knowledgeStatus={cluster.kb_status}
+						costImpact={cluster.costImpact}
+						mttr={cluster.mttr}
 					/>
 				))}
 			</div>
@@ -305,6 +323,8 @@ export const WithSearch: Story = {
 							title={cluster.name}
 							count={cluster.ticket_count}
 							knowledgeStatus={cluster.kb_status}
+							costImpact={cluster.costImpact}
+							mttr={cluster.mttr}
 						/>
 					))}
 			</div>
@@ -464,6 +484,8 @@ export const ReImportWithClusters: Story = {
 						}
 						count={cluster.ticket_count}
 						knowledgeStatus={cluster.kb_status}
+						costImpact={cluster.costImpact}
+						mttr={cluster.mttr}
 					/>
 				))}
 			</div>

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useAutopilotSettings } from "@/hooks/api/useAutopilotSettings";
+import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
 interface AutomationMetricsCardProps {
 	/** Number of automated tickets */
@@ -23,10 +23,10 @@ export function AutomationMetricsCard({
 	className,
 }: AutomationMetricsCardProps) {
 	const { t } = useTranslation("tickets");
-	const { data: settings } = useAutopilotSettings();
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
-	const costPerTicket = settings?.cost_per_ticket ?? 30;
-	const avgTimeMinutes = settings?.avg_time_per_ticket_minutes ?? 12;
+	const costPerTicket = blendedRatePerHour;
+	const avgTimeMinutes = avgMinutesPerTicket;
 
 	const minsSaved = automated * avgTimeMinutes;
 	const savings = automated * costPerTicket;
