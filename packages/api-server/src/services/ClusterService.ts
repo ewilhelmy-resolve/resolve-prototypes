@@ -331,6 +331,16 @@ export class ClusterService {
 			query = query.where(sql`source_metadata->>'source'`, "=", options.source);
 		}
 
+		// Priority filter
+		if (options.priority) {
+			query = query.where("priority", "=", options.priority);
+		}
+
+		// External status filter
+		if (options.external_status) {
+			query = query.where("external_status", "=", options.external_status);
+		}
+
 		// Case-insensitive sorting with stable tiebreaker
 		const sortFieldMap: Record<string, ReturnType<typeof sql>> = {
 			created_at: sql`"created_at"`,
@@ -367,6 +377,12 @@ export class ClusterService {
 						"=",
 						options.source as string,
 					),
+				)
+				.$if(!!options.priority, (qb) =>
+					qb.where("priority", "=", options.priority as string),
+				)
+				.$if(!!options.external_status, (qb) =>
+					qb.where("external_status", "=", options.external_status as string),
 				)
 				.executeTakeFirstOrThrow(),
 		]);

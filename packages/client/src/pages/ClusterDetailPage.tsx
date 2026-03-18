@@ -223,7 +223,12 @@ export default function ClusterDetailPage() {
 						</StatGroup>
 
 						{/* Table Section */}
-						<ClusterDetailTable key={id} clusterId={id} />
+						<ClusterDetailTable
+							key={id}
+							clusterId={id}
+							totalCount={cluster.ticket_count}
+							openCount={cluster.open_count}
+						/>
 					</div>
 				</div>
 
