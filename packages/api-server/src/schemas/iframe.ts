@@ -48,6 +48,9 @@ export const IframeValidateResponseSchema = z
 			.string()
 			.optional()
 			.openapi({ description: "Custom placeholder text from Valkey" }),
+		parentOrigin: z.string().optional().openapi({
+			description: "Host page origin for secure postMessage targetOrigin",
+		}),
 		valkeyPayload: z
 			.record(z.string(), z.unknown())
 			.optional()

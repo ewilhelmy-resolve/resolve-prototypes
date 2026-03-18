@@ -52,6 +52,7 @@ import { useRitaChat } from "../hooks/useRitaChat";
 import { iframeApi } from "../services/iframeApi";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
+import { setHostOrigin } from "../utils/hostOriginStore";
 
 // Debug log entry
 interface DebugLogEntry {
@@ -1245,6 +1246,11 @@ export default function IframeChatPage() {
 					setTitleText(response.titleText);
 					setWelcomeText(response.welcomeText);
 					setPlaceholderText(response.placeholderText);
+
+					// Store trusted host origin from Valkey for secure postMessage
+					if (response.parentOrigin) {
+						setHostOrigin(response.parentOrigin);
+					}
 
 					// Store full Valkey payload for dev tools export (JAR-69)
 					if (response.valkeyPayload) {

@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
+import { getHostOrigin } from "@/utils/hostOriginStore";
 
 // Message types from host page
 export interface IframeInboundMessage {
@@ -54,13 +55,17 @@ interface UseIframeMessagingOptions {
 
 /**
  * Post message to parent window (host page)
- * Uses '*' in dev mode for cross-port testing, same-origin in production
+ * Uses trusted host origin from Valkey, falls back safely
  */
 function postToParent(message: IframeOutboundMessage): void {
 	if (window.parent && window.parent !== window) {
-		// In dev mode, allow cross-origin for testing (different ports)
-		// In production, same-domain deployment means same origin
-		const targetOrigin = import.meta.env.DEV ? "*" : window.location.origin;
+		const targetOrigin = getHostOrigin();
+		if (!targetOrigin) {
+			console.warn(
+				"[IframeMessaging] Blocked outbound message: no trusted parentOrigin configured",
+			);
+			return;
+		}
 		window.parent.postMessage(message, targetOrigin);
 	}
 }

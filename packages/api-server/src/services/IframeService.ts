@@ -672,6 +672,8 @@ export class IframeService {
 			welcomeText?: string;
 			placeholderText?: string;
 		};
+		/** Host page origin for secure postMessage targetOrigin */
+		parentOrigin?: string;
 		/** Full Valkey payload for dev tools (sensitive fields redacted) */
 		valkeyPayload?: Record<string, unknown>;
 	}> {
@@ -832,6 +834,8 @@ export class IframeService {
 			tenantName: config.tenantName,
 			// Custom UI text from Valkey ui_config (undefined if not provided)
 			uiConfig: config.uiConfig,
+			// Host page origin for secure postMessage targetOrigin
+			parentOrigin: config.parentOrigin,
 			// Full Valkey payload for dev tools (sensitive fields redacted)
 			valkeyPayload: {
 				...config,

@@ -5,6 +5,24 @@
  * Uses DOM injection when same-origin, falls back to postMessage when cross-origin.
  */
 
+import { getHostOrigin } from "./hostOriginStore";
+
+/**
+ * Safely post message to parent window using trusted origin.
+ * Blocks outbound messages if no trusted origin is configured (production).
+ */
+function safePostToParent(message: unknown): boolean {
+	const targetOrigin = getHostOrigin();
+	if (!targetOrigin) {
+		console.warn(
+			"[hostModal] Blocked outbound message: no trusted parentOrigin configured",
+		);
+		return false;
+	}
+	window.parent.postMessage(message, targetOrigin);
+	return true;
+}
+
 const MODAL_STYLES = `
   #rita-injected-modal-overlay {
     position: fixed;
@@ -189,20 +207,17 @@ function closeModalInHost(): void {
  * Request host to open modal via postMessage (cross-origin fallback)
  */
 function requestModalViaPostMessage(iframeSrc: string, title: string): void {
-	window.parent.postMessage(
-		{
-			type: "RITA_OPEN_MODAL",
-			payload: { iframeSrc, title },
-		},
-		"*",
-	);
+	safePostToParent({
+		type: "RITA_OPEN_MODAL",
+		payload: { iframeSrc, title },
+	});
 }
 
 /**
  * Request host to close modal via postMessage
  */
 function requestCloseViaPostMessage(): void {
-	window.parent.postMessage({ type: "RITA_CLOSE_MODAL" }, "*");
+	safePostToParent({ type: "RITA_CLOSE_MODAL" });
 }
 
 /**
@@ -440,13 +455,10 @@ export function openFullscreenContent(
 	}
 
 	// Fall back to postMessage (cross-origin)
-	window.parent.postMessage(
-		{
-			type: "RITA_FULLSCREEN_CONTENT",
-			payload: { content, title, customStyles },
-		},
-		"*",
-	);
+	safePostToParent({
+		type: "RITA_FULLSCREEN_CONTENT",
+		payload: { content, title, customStyles },
+	});
 	return "postMessage";
 }
 
@@ -459,7 +471,7 @@ export function closeFullscreenContent(): void {
 	if (canAccessParentDocument()) {
 		closeFullscreenInHost();
 	} else {
-		window.parent.postMessage({ type: "RITA_CLOSE_FULLSCREEN" }, "*");
+		safePostToParent({ type: "RITA_CLOSE_FULLSCREEN" });
 	}
 }
 
@@ -800,22 +812,19 @@ export function openFormModal(config: FormModalConfig): boolean {
 	if (!canAccessParentDocument()) {
 		// Cross-origin: send via postMessage (host must handle rendering)
 		console.log("[hostModal] Sending RITA_FORM_MODAL via postMessage");
-		window.parent.postMessage(
-			{
-				type: "RITA_FORM_MODAL",
-				payload: {
-					title: config.title,
-					description: config.description,
-					size: config.size,
-					fields: config.fields,
-					submitLabel: config.submitLabel,
-					cancelLabel: config.cancelLabel,
-					submitVariant: config.submitVariant,
-					preventBackdropClose: config.preventBackdropClose,
-				},
+		safePostToParent({
+			type: "RITA_FORM_MODAL",
+			payload: {
+				title: config.title,
+				description: config.description,
+				size: config.size,
+				fields: config.fields,
+				submitLabel: config.submitLabel,
+				cancelLabel: config.cancelLabel,
+				submitVariant: config.submitVariant,
+				preventBackdropClose: config.preventBackdropClose,
 			},
-			"*",
-		);
+		});
 		return true;
 	}
 
@@ -925,6 +934,6 @@ export function closeFormModal(): void {
 	if (canAccessParentDocument()) {
 		closeFormModalInHost();
 	} else {
-		window.parent.postMessage({ type: "RITA_CLOSE_FORM_MODAL" }, "*");
+		safePostToParent({ type: "RITA_CLOSE_FORM_MODAL" });
 	}
 }
