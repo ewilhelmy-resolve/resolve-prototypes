@@ -154,6 +154,8 @@ export interface ClusterTicketsQueryParams {
 	sort?: TicketSortOption;
 	sort_dir?: SortDirection;
 	source?: string;
+	priority?: string;
+	external_status?: string;
 }
 
 /**

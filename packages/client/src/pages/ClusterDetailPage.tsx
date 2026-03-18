@@ -7,7 +7,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
-import type { ReviewStats } from "@/components/tickets/ReviewAIResponseSheet";
 import { TicketTrendsChart } from "@/components/tickets/TicketTrendsChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,29 +69,6 @@ export default function ClusterDetailPage() {
 
 	const handleBack = () => {
 		navigate("/tickets");
-	};
-
-	const handleReviewComplete = (stats: ReviewStats) => {
-		const { trusted, totalReviewed, confidenceImprovement } = stats;
-		if (confidenceImprovement > 0) {
-			showBanner(
-				"success",
-				t("clusterDetail.banners.reviewSuccess", { count: totalReviewed }),
-				t("clusterDetail.banners.reviewSuccessDesc", {
-					trusted,
-					improvement: confidenceImprovement,
-				}),
-			);
-		} else {
-			showBanner(
-				"destructive",
-				t("clusterDetail.banners.reviewNeedsImprovement"),
-				t("clusterDetail.banners.reviewNeedsImprovementDesc", {
-					count: totalReviewed,
-				}),
-				false,
-			);
-		}
 	};
 
 	const handleKnowledgeAdded = () => {
@@ -248,7 +224,8 @@ export default function ClusterDetailPage() {
 						<ClusterDetailTable
 							key={id}
 							clusterId={id}
-							onReviewComplete={handleReviewComplete}
+							totalCount={cluster.ticket_count}
+							openCount={cluster.open_count}
 						/>
 					</div>
 				</div>

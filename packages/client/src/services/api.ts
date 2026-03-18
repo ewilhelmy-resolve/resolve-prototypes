@@ -594,6 +594,9 @@ export const clustersApi = {
 		if (params?.sort) searchParams.append("sort", params.sort);
 		if (params?.sort_dir) searchParams.append("sort_dir", params.sort_dir);
 		if (params?.source) searchParams.append("source", params.source);
+		if (params?.priority) searchParams.append("priority", params.priority);
+		if (params?.external_status)
+			searchParams.append("external_status", params.external_status);
 
 		const queryString = searchParams.toString();
 		return apiRequest<import("../types/cluster").ClusterTicketsResponse>(

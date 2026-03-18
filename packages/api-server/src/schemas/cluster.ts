@@ -98,6 +98,14 @@ export const ClusterTicketsQuerySchema = z
 			.string()
 			.optional()
 			.openapi({ description: "Filter by data source" }),
+		priority: z
+			.string()
+			.optional()
+			.openapi({ description: "Filter by ticket priority" }),
+		external_status: z
+			.string()
+			.optional()
+			.openapi({ description: "Filter by external ticket status" }),
 	})
 	.openapi("ClusterTicketsQuery");
 

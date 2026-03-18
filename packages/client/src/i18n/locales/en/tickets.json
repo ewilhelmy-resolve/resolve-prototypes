@@ -236,11 +236,16 @@
 		"searchPlaceholder": "Search tickets...",
 		"tabs": {
 			"needsResponse": "Needs Response",
-			"completed": "Completed"
+			"completed": "Completed",
+			"open": "Open",
+			"all": "All"
 		},
 		"headers": {
 			"subject": "Subject",
 			"externalId": "External ID",
+			"priority": "Priority",
+			"status": "Status",
+			"assignmentGroup": "Assignment Group",
 			"source": "Source",
 			"created": "Created"
 		},

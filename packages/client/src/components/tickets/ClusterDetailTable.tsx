@@ -1,11 +1,8 @@
-// TODO: Uncomment ChevronDown when source filter data is available
-import { /* ChevronDown, */ Loader2, MoreHorizontal } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, Loader2, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
-import { BulkActions } from "@/components/BulkActions";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -21,7 +18,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClusterTickets } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/lib/date-utils";
@@ -29,65 +25,149 @@ import { renderSortIcon } from "@/lib/table-utils";
 import type {
 	ClusterTicketsQueryParams,
 	SortDirection,
-	Ticket,
 	TicketSortOption,
 } from "@/types/cluster";
-import ReviewAIResponseSheet, {
-	type ReviewStats,
-	type ReviewTicket,
-} from "./ReviewAIResponseSheet";
 
 interface ClusterDetailTableProps {
-	/** Cluster ID for fetching tickets */
 	clusterId?: string;
-	/** Called when AI review is completed with stats */
-	onReviewComplete?: (stats: ReviewStats) => void;
+	totalCount?: number;
+	openCount?: number;
 }
 
-// Extract source from source_metadata (Freshservice stores source as a number)
 const getTicketSource = (metadata: Record<string, unknown>): string => {
 	const source = metadata?.source;
 	return typeof source === "string" ? source : "";
 };
 
-// Get source icon path
-const getSourceIcon = (source: string): string => {
-	return `/connections/icon_${source.toLowerCase()}.svg`;
-};
+const getSourceIcon = (source: string): string =>
+	`/connections/icon_${source.toLowerCase()}.svg`;
+
+const capitalize = (value: string): string =>
+	value.charAt(0).toUpperCase() + value.slice(1);
 
 const PAGE_SIZE = 10;
 
-/**
- * ClusterDetailTable - Table displaying tickets with filters and pagination
- */
+const SORT_HEADER_MAP = {
+	subject: "table.headers.subject",
+	external_id: "table.headers.externalId",
+	created_at: "table.headers.created",
+} as const;
+
+function TabButton({
+	value,
+	label,
+	count,
+	active,
+	onClick,
+}: {
+	value: string;
+	label: string;
+	count: number;
+	active: boolean;
+	onClick: (value: string) => void;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={() => onClick(value)}
+			className={`pb-2 text-sm font-medium transition-colors ${
+				active
+					? "border-b-2 border-foreground text-foreground"
+					: "text-muted-foreground hover:text-foreground"
+			}`}
+		>
+			{label} ({count})
+		</button>
+	);
+}
+
+function FilterDropdown({
+	value,
+	options,
+	label,
+	allLabel,
+	onChange,
+}: {
+	value: string | undefined;
+	options: string[];
+	label: string;
+	allLabel: string;
+	onChange: (v: string | undefined) => void;
+}) {
+	if (options.length === 0) return null;
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button variant="outline" size="sm">
+					{value ? capitalize(value) : label}
+					<ChevronDown className="ml-1 h-3.5 w-3.5" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent>
+				<DropdownMenuItem onClick={() => onChange(undefined)}>
+					{allLabel}
+				</DropdownMenuItem>
+				{options.map((opt) => (
+					<DropdownMenuItem key={opt} onClick={() => onChange(opt)}>
+						{capitalize(opt)}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+function SortableHeader({
+	field,
+	sortField,
+	sortDir,
+	onSort,
+	label,
+	className,
+}: {
+	field: TicketSortOption;
+	sortField: TicketSortOption;
+	sortDir: SortDirection;
+	onSort: (field: TicketSortOption) => void;
+	label: string;
+	className?: string;
+}) {
+	return (
+		<TableHead className={className}>
+			<Button
+				variant="ghost"
+				className={`h-auto p-0 flex items-center gap-2${className?.includes("text-right") ? " ml-auto" : ""}`}
+				onClick={() => onSort(field)}
+			>
+				{label}
+				{renderSortIcon(sortField, field, sortDir)}
+			</Button>
+		</TableHead>
+	);
+}
+
 export function ClusterDetailTable({
 	clusterId,
-	onReviewComplete,
+	totalCount,
+	openCount,
 }: ClusterDetailTableProps) {
 	const { t } = useTranslation("tickets");
 	const [searchParams, setSearchParams] = useSearchParams();
 
-	// Read table state from URL params (enables back-navigation restoration)
-	const activeTab =
-		(searchParams.get("tab") as "needs_response" | "completed") ||
-		"needs_response";
+	const activeTab = (searchParams.get("tab") as "open" | "all") || "open";
 	const page = Number(searchParams.get("page") || "0");
 	const sortField =
 		(searchParams.get("sort") as TicketSortOption) || "created_at";
 	const sortDir = (searchParams.get("sort_dir") as SortDirection) || "desc";
 
-	// Search stays in local state for responsive typing; debounced value syncs to URL
 	const [searchQuery, setSearchQuery] = useState(
 		searchParams.get("search") || "",
 	);
-	const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
-	// TODO: Uncomment when source filter data is available (tickets need data_source_connection_id populated)
-	// const [sourceFilter, setSourceFilter] = useState<string | undefined>(undefined);
+	const [priorityFilter, setPriorityFilter] = useState<string | undefined>();
+	const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
-	// Debounce search to avoid excessive API calls
 	const debouncedSearch = useDebounce(searchQuery, 300);
 
-	// Helper to update URL params without polluting browser history
 	const updateParams = useCallback(
 		(updates: Record<string, string | undefined>) => {
 			setSearchParams(
@@ -108,18 +188,14 @@ export function ClusterDetailTable({
 		[setSearchParams],
 	);
 
-	// Track previous debounced search to only sync when it actually changes
-	// (avoids resetting page when updateParams reference changes on URL updates)
 	const prevDebouncedSearch = useRef(debouncedSearch);
 
-	// Sync debounced search to URL params only when the search value changes
 	useEffect(() => {
 		if (prevDebouncedSearch.current === debouncedSearch) return;
 		prevDebouncedSearch.current = debouncedSearch;
 		updateParams({ search: debouncedSearch || undefined, page: "0" });
 	}, [debouncedSearch, updateParams]);
 
-	// Build ticket detail URL with current table state for navigation context
 	const buildTicketUrl = (ticketId: string, rowIndex: number) => {
 		const globalIdx = page * PAGE_SIZE + rowIndex;
 		const params = new URLSearchParams(searchParams);
@@ -128,43 +204,51 @@ export function ClusterDetailTable({
 	};
 
 	const queryParams: ClusterTicketsQueryParams = {
-		tab: activeTab,
 		offset: page * PAGE_SIZE,
 		limit: PAGE_SIZE,
 		search: debouncedSearch || undefined,
 		sort: sortField,
 		sort_dir: sortDir,
-		// TODO: Uncomment when source filter data is available
-		// source: sourceFilter,
+		external_status: activeTab === "open" ? "Open" : statusFilter,
+		priority: priorityFilter,
 	};
 
-	const { data, isLoading, error } = useClusterTickets(clusterId, queryParams);
+	const { data, isLoading, isFetching, error } = useClusterTickets(
+		clusterId,
+		queryParams,
+		{ keepPrevious: true },
+	);
 	const tickets = data?.data ?? [];
 	const pagination = data?.pagination;
 
-	// Review sheet state
-	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
-	const [reviewTickets, setReviewTickets] = useState<ReviewTicket[]>([]);
-	const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+	const priorityOptions = useMemo(
+		() =>
+			[...new Set(tickets.map((t) => t.priority).filter(Boolean))] as string[],
+		[tickets],
+	);
+	const statusOptions = useMemo(
+		() =>
+			[
+				...new Set(tickets.map((t) => t.external_status).filter(Boolean)),
+			] as string[],
+		[tickets],
+	);
 
-	// Handle tab change - reset page and search
 	const handleTabChange = (value: string) => {
 		updateParams({ tab: value, page: "0", search: undefined });
-		setSelectedTickets([]);
 		setSearchQuery("");
+		setPriorityFilter(undefined);
+		setStatusFilter(undefined);
 	};
 
-	// Handle search input (local state for responsive typing; debounce syncs to URL)
-	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setSearchQuery(e.target.value);
+	const handleFilterChange = (
+		setter: (v: string | undefined) => void,
+		value: string | undefined,
+	) => {
+		setter(value);
+		updateParams({ page: "0" });
 	};
 
-	// TODO: Uncomment when source filter data is available
-	// const handleSourceChange = (value: string) => {
-	// 	updateParams({ source: value === "all" ? undefined : value, page: "0" });
-	// };
-
-	// Generic sort handler for columns
 	const handleSort = (field: TicketSortOption) => {
 		const newDir =
 			sortField === field
@@ -177,76 +261,7 @@ export function ClusterDetailTable({
 		updateParams({ sort: field, sort_dir: newDir, page: "0" });
 	};
 
-	// Selection handlers
-	const handleSelectAll = (checked: boolean) => {
-		if (checked) {
-			setSelectedTickets(tickets.map((t) => t.id));
-		} else {
-			setSelectedTickets([]);
-		}
-	};
-
-	const handleSelectTicket = (ticketId: string, checked: boolean) => {
-		if (checked) {
-			setSelectedTickets([...selectedTickets, ticketId]);
-		} else {
-			setSelectedTickets(selectedTickets.filter((id) => id !== ticketId));
-		}
-	};
-
-	// Convert Ticket to ReviewTicket format
-	const convertToReviewTicket = (ticket: Ticket): ReviewTicket => ({
-		id: ticket.id,
-		externalId: ticket.external_id,
-		title: ticket.subject,
-		description: ticket.description || "No description provided.",
-		priority: "medium",
-	});
-
-	// Single ticket review
-	const reviewAI = (ticketId: string) => {
-		const ticket = tickets.find((t) => t.id === ticketId);
-		if (ticket) {
-			setReviewTickets([convertToReviewTicket(ticket)]);
-			setCurrentReviewIndex(0);
-			setReviewSheetOpen(true);
-		}
-	};
-
-	// Bulk review handler
-	const handleBulkReviewAI = async () => {
-		const ticketsToReview = tickets
-			.filter((t) => selectedTickets.includes(t.id))
-			.map(convertToReviewTicket);
-
-		setReviewTickets(ticketsToReview);
-		setCurrentReviewIndex(0);
-		setReviewSheetOpen(true);
-	};
-
-	// Handle approve/reject actions
-	const handleApprove = (ticketId: string) => {
-		console.log(`Approved AI response for ticket: ${ticketId}`);
-		// TODO: Implement API call to approve response
-	};
-
-	const handleReject = (ticketId: string) => {
-		console.log(`Rejected AI response for ticket: ${ticketId}`);
-		// TODO: Implement API call to reject response or open editor
-	};
-
-	const handleNavigate = (index: number) => {
-		setCurrentReviewIndex(index);
-	};
-
-	const handleReviewSheetClose = (open: boolean) => {
-		setReviewSheetOpen(open);
-		if (!open) {
-			setSelectedTickets([]);
-		}
-	};
-
-	if (isLoading) {
+	if (isLoading && !data) {
 		return (
 			<div className="flex min-h-[300px] items-center justify-center">
 				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -262,145 +277,102 @@ export function ClusterDetailTable({
 		);
 	}
 
+	const allLabel = t("table.tabs.all");
+
 	return (
 		<div className="flex flex-col gap-3">
-			{/* Filters or Bulk Actions */}
-			{selectedTickets.length === 0 ? (
-				<div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-					<div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-						<Tabs
-							value={activeTab}
-							onValueChange={handleTabChange}
-							className="w-fit"
-						>
-							<TabsList>
-								<TabsTrigger value="needs_response">
-									{t("table.tabs.needsResponse")}
-								</TabsTrigger>
-								<TabsTrigger value="completed">
-									{t("table.tabs.completed")}
-								</TabsTrigger>
-							</TabsList>
-						</Tabs>
-					</div>
-
-					<div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-						{/* TODO: Uncomment when source filter data is available (tickets need data_source_connection_id populated)
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" className="w-fit">
-									{sourceFilter
-										? sourceFilter.charAt(0).toUpperCase() +
-											sourceFilter.slice(1)
-										: "All Sources"}
-									<ChevronDown className="ml-2 h-4 w-4" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent>
-								<DropdownMenuItem onClick={() => handleSourceChange("all")}>
-									All Sources
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									onClick={() => handleSourceChange("servicenow")}
-								>
-									ServiceNow
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-						*/}
-
-						<Input
-							placeholder={t("table.searchPlaceholder")}
-							className="md:w-64 w-full"
-							value={searchQuery}
-							onChange={handleSearchChange}
-						/>
-					</div>
-				</div>
-			) : (
-				<BulkActions
-					selectedItems={selectedTickets.map(String)}
-					actions={[
-						{
-							key: "review",
-							label: t("table.actions.reviewAIResponses"),
-							variant: "default",
-							onClick: handleBulkReviewAI,
-						},
-					]}
-					onClose={() => setSelectedTickets([])}
-					itemLabel="tickets"
+			{/* Tabs */}
+			<div className="flex gap-4 border-b">
+				<TabButton
+					value="open"
+					label={t("table.tabs.open")}
+					count={openCount ?? 0}
+					active={activeTab === "open"}
+					onClick={handleTabChange}
 				/>
-			)}
+				<TabButton
+					value="all"
+					label={allLabel}
+					count={totalCount ?? 0}
+					active={activeTab === "all"}
+					onClick={handleTabChange}
+				/>
+			</div>
+
+			{/* Filters */}
+			<div className="flex flex-wrap items-center gap-2">
+				<div className="relative min-w-[200px] max-w-sm flex-1">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder={t("table.searchPlaceholder")}
+						className="pl-10"
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+					/>
+				</div>
+
+				<FilterDropdown
+					value={priorityFilter}
+					options={priorityOptions}
+					label={t("table.headers.priority")}
+					allLabel={allLabel}
+					onChange={(v) => handleFilterChange(setPriorityFilter, v)}
+				/>
+
+				{activeTab === "all" && (
+					<FilterDropdown
+						value={statusFilter}
+						options={statusOptions}
+						label={t("table.headers.status")}
+						allLabel={allLabel}
+						onChange={(v) => handleFilterChange(setStatusFilter, v)}
+					/>
+				)}
+			</div>
 
 			{/* Table */}
-			<div className="rounded-md border">
+			<div className={`rounded-md border${isFetching ? " opacity-60" : ""}`}>
 				<Table>
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-8">
-								<Checkbox
-									checked={
-										tickets.length > 0 &&
-										selectedTickets.length === tickets.length
-									}
-									onCheckedChange={(checked) =>
-										handleSelectAll(checked as boolean)
-									}
-								/>
-							</TableHead>
-							<TableHead>
-								<Button
-									variant="ghost"
-									className="h-auto p-0 flex items-center gap-2"
-									onClick={() => handleSort("subject")}
-								>
-									{t("table.headers.subject")}
-									{renderSortIcon(sortField, "subject", sortDir)}
-								</Button>
-							</TableHead>
-							<TableHead>
-								<Button
-									variant="ghost"
-									className="h-auto p-0 flex items-center gap-2"
-									onClick={() => handleSort("external_id")}
-								>
-									{t("table.headers.externalId")}
-									{renderSortIcon(sortField, "external_id", sortDir)}
-								</Button>
-							</TableHead>
+							<SortableHeader
+								field="subject"
+								sortField={sortField}
+								sortDir={sortDir}
+								onSort={handleSort}
+								label={t(SORT_HEADER_MAP.subject)}
+							/>
+							<SortableHeader
+								field="external_id"
+								sortField={sortField}
+								sortDir={sortDir}
+								onSort={handleSort}
+								label={t(SORT_HEADER_MAP.external_id)}
+							/>
+							<TableHead>{t("table.headers.priority")}</TableHead>
+							<TableHead>{t("table.headers.status")}</TableHead>
+							<TableHead>{t("table.headers.assignmentGroup")}</TableHead>
 							<TableHead>{t("table.headers.source")}</TableHead>
-							<TableHead className="text-right">
-								<Button
-									variant="ghost"
-									className="h-auto p-0 flex items-center gap-2 ml-auto"
-									onClick={() => handleSort("created_at")}
-								>
-									{t("table.headers.created")}
-									{renderSortIcon(sortField, "created_at", sortDir)}
-								</Button>
-							</TableHead>
-							<TableHead className="w-16" />
+							<SortableHeader
+								field="created_at"
+								sortField={sortField}
+								sortDir={sortDir}
+								onSort={handleSort}
+								label={t(SORT_HEADER_MAP.created_at)}
+								className="text-right"
+							/>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{tickets.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={6} className="h-24 text-center">
+								<TableCell colSpan={7} className="h-24 text-center">
 									{t("table.noTickets")}
 								</TableCell>
 							</TableRow>
 						) : (
 							tickets.map((row, rowIndex) => (
 								<TableRow key={row.id}>
-									<TableCell>
-										<Checkbox
-											checked={selectedTickets.includes(row.id)}
-											onCheckedChange={(checked) =>
-												handleSelectTicket(row.id, checked as boolean)
-											}
-										/>
-									</TableCell>
 									<TableCell className="font-medium">
 										<Link
 											to={buildTicketUrl(row.id, rowIndex)}
@@ -410,6 +382,11 @@ export function ClusterDetailTable({
 										</Link>
 									</TableCell>
 									<TableCell>{row.external_id}</TableCell>
+									<TableCell>
+										{row.priority ? capitalize(row.priority) : "\u2014"}
+									</TableCell>
+									<TableCell>{row.external_status || "\u2014"}</TableCell>
+									<TableCell>{row.assigned_to || "\u2014"}</TableCell>
 									<TableCell>
 										{getTicketSource(row.source_metadata) && (
 											<img
@@ -424,20 +401,6 @@ export function ClusterDetailTable({
 									<TableCell className="text-right text-sm">
 										{formatDate(row.created_at)}
 									</TableCell>
-									<TableCell>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<Button variant="ghost" size="icon">
-													<MoreHorizontal />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end">
-												<DropdownMenuItem onClick={() => reviewAI(row.id)}>
-													{t("table.actions.reviewAI")}
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</TableCell>
 								</TableRow>
 							))
 						)}
@@ -445,7 +408,7 @@ export function ClusterDetailTable({
 				</Table>
 			</div>
 
-			{/* Table Footer - Pagination */}
+			{/* Pagination */}
 			<div className="flex items-center justify-between py-4">
 				<p className="text-sm text-muted-foreground">
 					{pagination
@@ -483,19 +446,6 @@ export function ClusterDetailTable({
 					</Button>
 				</div>
 			</div>
-
-			{/* Review AI Response Sheet */}
-			<ReviewAIResponseSheet
-				open={reviewSheetOpen}
-				onOpenChange={handleReviewSheetClose}
-				ticketGroupId={clusterId}
-				tickets={reviewTickets}
-				currentIndex={currentReviewIndex}
-				onNavigate={handleNavigate}
-				onApprove={handleApprove}
-				onReject={handleReject}
-				onReviewComplete={onReviewComplete}
-			/>
 		</div>
 	);
 }
