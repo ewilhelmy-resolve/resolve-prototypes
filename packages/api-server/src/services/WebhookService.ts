@@ -14,6 +14,49 @@ import type {
 } from "../types/webhook.js";
 import type { IframeWebhookConfig } from "./sessionStore.js";
 
+/** Keys whose values must never be persisted to the database or logged */
+const SENSITIVE_FIELD_KEYS = new Set([
+	"password",
+	"new_password",
+	"current_password",
+	"secret",
+	"clientKey",
+	"credentials",
+	"verification_token",
+	"verification_url",
+]);
+
+/**
+ * Deep-scrubs sensitive fields from a payload, replacing values with "[REDACTED]".
+ * Recurses into nested objects and arrays. Used before storing webhook failure
+ * payloads in the database and before logging payloads (SOC2).
+ */
+export function scrubSensitiveFields<T extends Record<string, any>>(
+	payload: T,
+): T {
+	const scrubbed = { ...payload };
+	for (const key of Object.keys(scrubbed)) {
+		if (SENSITIVE_FIELD_KEYS.has(key)) {
+			(scrubbed as Record<string, any>)[key] = "[REDACTED]";
+		} else if (
+			scrubbed[key] !== null &&
+			typeof scrubbed[key] === "object" &&
+			!Array.isArray(scrubbed[key])
+		) {
+			(scrubbed as Record<string, any>)[key] = scrubSensitiveFields(
+				scrubbed[key],
+			);
+		} else if (Array.isArray(scrubbed[key])) {
+			(scrubbed as Record<string, any>)[key] = scrubbed[key].map((item: any) =>
+				item !== null && typeof item === "object"
+					? scrubSensitiveFields(item)
+					: item,
+			);
+		}
+	}
+	return scrubbed;
+}
+
 export class WebhookService {
 	private config: WebhookConfig;
 
@@ -339,7 +382,10 @@ export class WebhookService {
 				"[WebhookService] Payload validation failed:",
 				validationError,
 			);
-			console.error("[WebhookService] Invalid payload:", payload);
+			console.error(
+				"[WebhookService] Invalid payload:",
+				scrubSensitiveFields(payload as Record<string, any>),
+			);
 			return {
 				success: false,
 				status: 0,
@@ -459,7 +505,7 @@ export class WebhookService {
 					[
 						payload.tenant_id || null,
 						payload.action,
-						JSON.stringify(payload),
+						JSON.stringify(scrubSensitiveFields(payload)),
 						retryCount,
 						this.config.retryAttempts,
 						error?.message || "Unknown error",

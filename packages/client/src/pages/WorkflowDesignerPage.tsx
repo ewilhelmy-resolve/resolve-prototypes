@@ -4,7 +4,17 @@ import {
 	useEdgesState,
 	useNodesState,
 } from "@xyflow/react";
-import { FilePlus, FileText, Plus, X } from "lucide-react";
+import {
+	Braces,
+	CheckCircle,
+	FilePlus,
+	FileText,
+	History,
+	MoreVertical,
+	Plus,
+	Upload,
+	X,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { Button } from "@/components/ui/button";
@@ -18,7 +28,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WorkflowCanvas } from "@/components/workflow-designer/WorkflowCanvas";
 import { WorkflowConfigPanel } from "@/components/workflow-designer/WorkflowConfigPanel";
+import { WorkflowConfigPanelV2 } from "@/components/workflow-designer/WorkflowConfigPanelV2";
 import { WorkflowJarvisPanel } from "@/components/workflow-designer/WorkflowJarvisPanel";
+import { WorkflowSkillMetadataDialog } from "@/components/workflow-designer/WorkflowSkillMetadataDialog";
+import { WorkflowSkillVariableDialog } from "@/components/workflow-designer/WorkflowSkillVariableDialog";
 import {
 	DEFAULT_EDGES,
 	DEFAULT_NODES,
@@ -29,15 +42,39 @@ import {
 import type {
 	ActivityConfig,
 	ActivityNodeData,
+	SkillMetadata,
 	WorkflowTab,
 } from "@/components/workflow-designer/workflowDesignerTypes";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
+
+const DEFAULT_SKILL_METADATA: SkillMetadata = {
+	name: "",
+	description: "",
+	toolEid: "",
+	inputsJson: "",
+	outputsJson: "",
+};
 
 export default function WorkflowDesignerPage() {
+	const isV2 = useFeatureFlag("ENABLE_WORKFLOW_DESIGNER_V2");
+
 	// Workflow tabs
 	const [tabs, setTabs] = useState<WorkflowTab[]>([
 		{ id: "new-1", name: "New Workflow" },
 	]);
 	const [activeTabId, setActiveTabId] = useState("new-1");
+
+	// Skill metadata per tab
+	const [skillMetadataMap, setSkillMetadataMap] = useState<
+		Record<string, SkillMetadata>
+	>({});
+	const [skillDialogVariant, setSkillDialogVariant] = useState<
+		"json" | "variables" | null
+	>(null);
+	const [skillOption, setSkillOption] = useState<"json" | "variables">("json");
+	const [publishedSkills, setPublishedSkills] = useState<
+		Record<string, SkillMetadata>
+	>({});
 
 	// React Flow state — start empty for demo
 	const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -96,6 +133,47 @@ export default function WorkflowDesignerPage() {
 			loadTemplateData(templateId);
 		},
 		[loadTemplateData],
+	);
+
+	const handleSelectStartNode = useCallback(() => {
+		const startNode = nodes.find((n) => n.type === "start");
+		if (startNode) {
+			setSelectedNodeId(startNode.id);
+		}
+	}, [nodes]);
+
+	const handlePublishSkill = useCallback(
+		(metadata: SkillMetadata) => {
+			setSkillMetadataMap((prev) => ({
+				...prev,
+				[activeTabId]: metadata,
+			}));
+			setPublishedSkills((prev) => {
+				const next = { ...prev, [activeTabId]: metadata };
+				// Persist for agent builder to pick up
+				try {
+					const existing = JSON.parse(
+						localStorage.getItem("publishedWorkflowSkills") || "[]",
+					);
+					const filtered = existing.filter(
+						(s: { id: string }) => s.id !== activeTabId,
+					);
+					filtered.push({
+						id: activeTabId,
+						name: metadata.name,
+						description: metadata.description,
+					});
+					localStorage.setItem(
+						"publishedWorkflowSkills",
+						JSON.stringify(filtered),
+					);
+				} catch {
+					// ignore
+				}
+				return next;
+			});
+		},
+		[activeTabId],
 	);
 
 	const handleRenameTab = useCallback(
@@ -158,6 +236,47 @@ export default function WorkflowDesignerPage() {
 								}}
 							>
 								<span className="truncate max-w-[140px]">{tab.name}</span>
+								{activeTabId === tab.id && (
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<button
+												onClick={(e) => e.stopPropagation()}
+												className="p-0.5 hover:bg-slate-200 rounded transition-colors"
+												aria-label={`${tab.name} options`}
+											>
+												<MoreVertical className="w-3 h-3" />
+											</button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="start" className="w-56">
+											<DropdownMenuItem
+												onClick={(e) => {
+													e.stopPropagation();
+													setSkillDialogVariant(skillOption);
+												}}
+											>
+												<Braces className="w-4 h-4 mr-2" />
+												Configure as Skill
+											</DropdownMenuItem>
+											<DropdownMenuItem disabled>
+												<FileText className="w-4 h-4 mr-2" />
+												Documents
+											</DropdownMenuItem>
+											<DropdownMenuSeparator />
+											<DropdownMenuItem disabled>
+												<CheckCircle className="w-4 h-4 mr-2" />
+												Verify
+											</DropdownMenuItem>
+											<DropdownMenuItem disabled>
+												<History className="w-4 h-4 mr-2" />
+												History
+											</DropdownMenuItem>
+											<DropdownMenuItem disabled>
+												<Upload className="w-4 h-4 mr-2" />
+												Export
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								)}
 								{tabs.length > 1 && (
 									<button
 										onClick={(e) => {
@@ -223,13 +342,75 @@ export default function WorkflowDesignerPage() {
 						setNodes={setNodes}
 						onNodeSelect={handleNodeSelect}
 					/>
-					<WorkflowConfigPanel
-						selectedNode={selectedNode}
-						onUpdateConfig={handleUpdateConfig}
-						onClose={() => setSelectedNodeId(null)}
-					/>
+					{isV2 ? (
+						<div className="flex flex-col shrink-0 h-full overflow-hidden">
+							<div className="h-8 bg-slate-50 border-l border-b border-slate-200 flex items-center px-3 gap-2">
+								<span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+									Skill Modal
+								</span>
+								<select
+									value={skillOption}
+									onChange={(e) =>
+										setSkillOption(e.target.value as "json" | "variables")
+									}
+									className="text-[11px] h-5 rounded border border-slate-200 bg-white text-slate-600 px-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+									aria-label="Skill configuration option"
+								>
+									<option value="json">Opt 1: JSON Schema</option>
+									<option value="variables">Opt 2: Variable Picker</option>
+								</select>
+							</div>
+							<WorkflowConfigPanelV2
+								selectedNode={selectedNode}
+								onUpdateConfig={handleUpdateConfig}
+								onClose={() => setSelectedNodeId(null)}
+								onSelectStartNode={handleSelectStartNode}
+								nodes={nodes}
+								workflowName={
+									tabs.find((t) => t.id === activeTabId)?.name ?? ""
+								}
+								skillMetadata={
+									skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA
+								}
+								onConfigureSkill={() => setSkillDialogVariant(skillOption)}
+								published={activeTabId in publishedSkills}
+							/>
+						</div>
+					) : (
+						<WorkflowConfigPanel
+							selectedNode={selectedNode}
+							onUpdateConfig={handleUpdateConfig}
+							onClose={() => setSelectedNodeId(null)}
+							onSelectStartNode={handleSelectStartNode}
+							nodes={nodes}
+						/>
+					)}
 				</div>
 			</div>
+			<WorkflowSkillMetadataDialog
+				open={skillDialogVariant === "json"}
+				onOpenChange={(open) => !open && setSkillDialogVariant(null)}
+				value={skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA}
+				onSave={(metadata) =>
+					setSkillMetadataMap((prev) => ({
+						...prev,
+						[activeTabId]: metadata,
+					}))
+				}
+				onPublish={handlePublishSkill}
+			/>
+			<WorkflowSkillVariableDialog
+				open={skillDialogVariant === "variables"}
+				onOpenChange={(open) => !open && setSkillDialogVariant(null)}
+				value={skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA}
+				onSave={(metadata) =>
+					setSkillMetadataMap((prev) => ({
+						...prev,
+						[activeTabId]: metadata,
+					}))
+				}
+				onPublish={handlePublishSkill}
+			/>
 		</RitaLayout>
 	);
 }

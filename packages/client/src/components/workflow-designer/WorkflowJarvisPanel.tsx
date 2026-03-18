@@ -79,7 +79,6 @@ export function WorkflowJarvisPanel({
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const editingIdx = useRef(0);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll on message count change
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages.length]);

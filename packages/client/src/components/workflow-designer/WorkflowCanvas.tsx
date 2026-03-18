@@ -71,9 +71,7 @@ export function WorkflowCanvas({
 
 	const onNodeClick = useCallback(
 		(_: React.MouseEvent, node: Node) => {
-			if (node.type !== "start") {
-				onNodeSelect(node.id);
-			}
+			onNodeSelect(node.id);
 		},
 		[onNodeSelect],
 	);

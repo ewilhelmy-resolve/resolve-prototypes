@@ -25,6 +25,8 @@ export type FeatureFlagKey =
 	| "ENABLE_AUTO_PILOT"
 	| "ENABLE_AUTO_PILOT_SUGGESTIONS"
 	| "ENABLE_AUTO_PILOT_ACTIONS"
+	// Workflow Designer V2
+	| "ENABLE_WORKFLOW_DESIGNER_V2"
 	// Iframe dev tools (platform-controlled)
 	| "ENABLE_IFRAME_DEV_TOOLS";
 
@@ -172,6 +174,13 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		defaultValue: false,
 		category: "autopilot",
 		platformControlled: true,
+	},
+	ENABLE_WORKFLOW_DESIGNER_V2: {
+		key: "ENABLE_WORKFLOW_DESIGNER_V2",
+		label: "Workflow Designer V2",
+		description: "Enable V2 config panel with text tabs and sub-tabs",
+		defaultValue: false,
+		category: "experimental",
 	},
 	// Iframe dev tools (platform-controlled)
 	ENABLE_IFRAME_DEV_TOOLS: {

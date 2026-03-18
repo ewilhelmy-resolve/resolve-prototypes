@@ -50,7 +50,8 @@
 				"src/pages/RunbookDesignerPage.tsx",
 				"src/pages/ProAgentBuilderPage.tsx",
 				"src/components/agent-builder/**",
-				"src/components/agents/**"
+				"src/components/agents/**",
+				"src/components/workflow-designer/**"
 			],
 			"linter": {
 				"rules": {

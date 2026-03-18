@@ -1,8 +1,10 @@
 import {
+	Calendar,
 	Cloud,
 	FileCheck,
 	Filter,
 	GitBranch,
+	Hand,
 	Hash,
 	KeyRound,
 	type LucideProps,
@@ -12,6 +14,8 @@ import {
 	ShieldCheck,
 	SplitSquareVertical,
 	User,
+	Webhook,
+	Zap,
 } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 
@@ -83,11 +87,87 @@ export interface WorkflowTemplate {
 	description: string;
 }
 
+// Trigger types for start nodes
+export type TriggerType = "manual" | "webhook" | "schedule" | "event";
+
+export interface TriggerConfig {
+	triggerType: TriggerType;
+	webhookUrl?: string;
+	webhookSecret?: string;
+	interval?: string;
+	cron?: string;
+	eventSource?: string;
+}
+
+type LucideIcon = ForwardRefExoticComponent<
+	Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>
+>;
+
+export const TRIGGER_TYPE_OPTIONS: {
+	value: TriggerType;
+	label: string;
+	icon: LucideIcon;
+}[] = [
+	{ value: "manual", label: "Manual", icon: Hand },
+	{ value: "webhook", label: "Webhook", icon: Webhook },
+	{ value: "schedule", label: "Schedule", icon: Calendar },
+	{ value: "event", label: "Event", icon: Zap },
+];
+
+export const TRIGGER_CONFIG_FIELDS: Record<TriggerType, ConfigField[]> = {
+	manual: [],
+	webhook: [
+		{ name: "webhookUrl", label: "Webhook URL", type: "url" },
+		{ name: "webhookSecret", label: "Secret", type: "password" },
+	],
+	schedule: [
+		{
+			name: "interval",
+			label: "Interval",
+			type: "select",
+			options: [
+				{ value: "5m", label: "Every 5 min" },
+				{ value: "15m", label: "Every 15 min" },
+				{ value: "1h", label: "Every hour" },
+				{ value: "6h", label: "Every 6 hours" },
+				{ value: "1d", label: "Daily" },
+				{ value: "custom", label: "Custom (cron)" },
+			],
+		},
+		{ name: "cron", label: "Cron Expression", type: "text" },
+	],
+	event: [
+		{
+			name: "eventSource",
+			label: "Event Source",
+			type: "select",
+			options: [
+				{ value: "ticket_created", label: "Ticket Created" },
+				{ value: "ticket_updated", label: "Ticket Updated" },
+				{ value: "user_login", label: "User Login" },
+				{ value: "alert_fired", label: "Alert Fired" },
+			],
+		},
+	],
+};
+
+// Skill metadata for publishing workflows to agent builder
+export interface SkillMetadata {
+	name: string;
+	description: string;
+	toolEid: string;
+	inputsJson: string; // JSON schema for tool inputs
+	outputsJson: string; // JSON schema for tool outputs
+	prePython?: string;
+	postPython?: string;
+}
+
 // Config form field definition
 export interface ConfigField {
 	name: string;
 	label: string;
-	type: "text" | "password" | "url";
+	type: "text" | "password" | "url" | "select";
+	options?: { value: string; label: string }[];
 }
 
 // Maps ActivityType to a lucide icon component

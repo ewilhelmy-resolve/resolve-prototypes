@@ -10,6 +10,7 @@ import type {
 	WebhookError,
 	WebhookResponse,
 } from "../types/webhook.js";
+import { scrubSensitiveFields } from "./WebhookService.js";
 
 export class DataSourceWebhookService {
 	private config: WebhookConfig;
@@ -133,7 +134,10 @@ export class DataSourceWebhookService {
 				"[DataSourceWebhook] Payload validation failed:",
 				validationError,
 			);
-			console.error("[DataSourceWebhook] Invalid payload:", payload);
+			console.error(
+				"[DataSourceWebhook] Invalid payload:",
+				scrubSensitiveFields(payload as Record<string, any>),
+			);
 			return {
 				success: false,
 				status: 0,
@@ -259,7 +263,9 @@ export class DataSourceWebhookService {
 					[
 						payload.tenant_id || null,
 						payload.action,
-						JSON.stringify(payload),
+						JSON.stringify(
+							scrubSensitiveFields(payload as Record<string, any>),
+						),
 						retryCount,
 						this.config.retryAttempts,
 						error?.message || "Unknown error",
