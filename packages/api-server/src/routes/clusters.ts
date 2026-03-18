@@ -265,6 +265,8 @@ router.get("/:id/tickets", async (req, res) => {
 				sort: query.sort,
 				sort_dir: query.sort_dir,
 				source: query.source,
+				priority: query.priority,
+				external_status: query.external_status,
 			},
 		);
 

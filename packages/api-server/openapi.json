@@ -3730,6 +3730,26 @@
 						"description": "Filter by data source",
 						"name": "source",
 						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Filter by ticket priority"
+						},
+						"required": false,
+						"description": "Filter by ticket priority",
+						"name": "priority",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Filter by external ticket status"
+						},
+						"required": false,
+						"description": "Filter by external ticket status",
+						"name": "external_status",
+						"in": "query"
 					}
 				],
 				"responses": {
