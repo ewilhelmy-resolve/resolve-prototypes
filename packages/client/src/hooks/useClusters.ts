@@ -156,6 +156,20 @@ export function useClusterKbArticles(id: string | undefined) {
 }
 
 /**
+ * Get cluster actions map (whether each cluster has a linked Resolve Action workflow)
+ * TODO: wire to real actions API when available
+ */
+export function useClusterActions() {
+	return useQuery({
+		queryKey: ["cluster-actions"],
+		queryFn: async () => {
+			return {} as Record<string, boolean>;
+		},
+		staleTime: 30000,
+	});
+}
+
+/**
  * Get a single ticket by ID
  * @param id - Ticket UUID
  * @returns Query with ticket details

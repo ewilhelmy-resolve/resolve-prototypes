@@ -6,7 +6,7 @@ interface StatCardProps {
 	/** The main numeric value or content to display */
 	value: ReactNode;
 	/** The label/description text below the value */
-	label: string;
+	label: ReactNode;
 	/** Optional badge or additional content to display next to the value */
 	badge?: ReactNode;
 	/** Show skeleton loading state instead of value */

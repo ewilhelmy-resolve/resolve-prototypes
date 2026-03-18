@@ -52,6 +52,7 @@ secrets:
   valkeyUrl: ""
   automationWebhookUrl: ""
   automationAuth: ""
+  rdsAdminUrl: ""
   rollbarAccessToken: ""
   rollbarHashSalt: ""
 
@@ -76,6 +77,12 @@ migration:
   backoffLimit: 0
   ttlSecondsAfterFinished: 86400
 
+# Database initialization (creates database if not exists)
+dbInit:
+  enabled: false
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+
 # Autoscaling (disabled by default for dev)
 autoscaling:
   enabled: false
@@ -89,3 +96,22 @@ strategy:
   rollingUpdate:
     maxSurge: 1
     maxUnavailable: 0
+
+# Network policy (disabled by default)
+networkPolicy:
+  enabled: false
+
+# Pod disruption budget (disabled by default)
+pdb:
+  enabled: false
+  minAvailable: 1
+
+# Resource quota per namespace (disabled by default)
+resourceQuota:
+  enabled: false
+  hard:
+    requests.cpu: "4"
+    requests.memory: "8Gi"
+    limits.cpu: "8"
+    limits.memory: "16Gi"
+    pods: "20"

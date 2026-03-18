@@ -31,12 +31,22 @@
 		"trainingFailed": "Training failed",
 		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
 		"goToItsmConnections": "Go to ITSM Connections",
+		"filter": "Filter",
 		"filterBy": "Filter by",
-		"searchPlaceholder": "Search by topic name...",
+		"clearFilters": "Clear",
+		"sortBy": "Sort by",
+		"sortOptions": {
+			"volume": "Highest Volume",
+			"cost": "Highest Cost",
+			"mttr": "Longest MTTR",
+			"time": "Calculated Time Taken"
+		},
+		"searchPlaceholder": "Search by ticket group...",
 		"filterOptions": {
 			"all": "All",
 			"knowledgeFound": "Knowledge found",
 			"knowledgeGap": "Knowledge gap",
+			"automationGap": "Automation gap",
 			"pending": "Pending"
 		},
 		"periods": {
@@ -276,6 +286,32 @@
 	"knowledge": {
 		"failedToLoad": "Failed to load KB articles",
 		"noArticles": "No knowledge articles linked"
+	},
+	"prioritizationList": {
+		"presets": {
+			"highestCost": "Highest Cost Impact",
+			"longestMttr": "Longest MTTR",
+			"mostTime": "Calculated Time Taken"
+		},
+		"columns": {
+			"cluster": "Cluster",
+			"tickets": "Tickets",
+			"open": "Open",
+			"mttr": "MTTR",
+			"costImpact": "Cost Impact",
+			"timeTaken": "Time Taken",
+			"kbStatus": "Gap",
+			"updated": "Updated"
+		}
+	},
+	"gaps": {
+		"knowledgeGap": "Knowledge Gap",
+		"automationGap": "Automation Gap",
+		"noResolveAction": "No Resolve Action linked",
+		"automationComingSoon": "Create a workflow in Actions to automate this cluster."
+	},
+	"gapBanner": {
+		"knowledgeGap": "Knowledge gap — no KB articles linked"
 	},
 	"ticketSettings": {
 		"title": "Ticket settings",

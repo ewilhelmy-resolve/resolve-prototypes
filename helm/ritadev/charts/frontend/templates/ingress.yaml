@@ -8,13 +8,25 @@ metadata:
     {{- include "frontend.labels" . | nindent 4 }}
   annotations:
     kubernetes.io/ingress.class: {{ .Values.ingress.className }}
+    {{- if .Values.ingress.groupName }}
+    alb.ingress.kubernetes.io/group.name: {{ .Values.ingress.groupName }}
+    {{- else }}
     alb.ingress.kubernetes.io/load-balancer-name: {{ printf "%s-fe" .Values.namespace | trunc 32 | trimSuffix "-" }}
+    {{- end }}
+    {{- if .Values.ingress.certificateArn }}
+    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.certificateArn }}
+    {{- end }}
     {{- range $key, $value := .Values.ingress.annotations }}
     {{ $key }}: {{ $value | quote }}
     {{- end }}
 spec:
   rules:
+  {{- if .Values.ingress.host }}
+  - host: {{ .Values.ingress.host }}
+    http:
+  {{- else }}
   - http:
+  {{- end }}
       paths:
       - path: /
         pathType: Prefix
