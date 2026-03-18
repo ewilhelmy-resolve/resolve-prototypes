@@ -250,7 +250,7 @@ describe("ClusterDetailTable", () => {
 			});
 		});
 
-		it("Open tab passes needs_response and external_status=Open to API", () => {
+		it("Open tab passes external_status=Open to API", () => {
 			render(
 				<TestProviders initialEntries={["/clusters/cluster-1?tab=open"]}>
 					<ClusterDetailTable {...defaultProps} />
@@ -260,14 +260,13 @@ describe("ClusterDetailTable", () => {
 			expect(mockUseClusterTickets).toHaveBeenCalledWith(
 				"cluster-1",
 				expect.objectContaining({
-					tab: "needs_response",
 					external_status: "Open",
 				}),
 				expect.anything(),
 			);
 		});
 
-		it("All tab passes undefined tab and no external_status to API", () => {
+		it("All tab passes no external_status to API", () => {
 			render(
 				<TestProviders initialEntries={["/clusters/cluster-1?tab=all"]}>
 					<ClusterDetailTable {...defaultProps} />
@@ -277,7 +276,6 @@ describe("ClusterDetailTable", () => {
 			expect(mockUseClusterTickets).toHaveBeenCalledWith(
 				"cluster-1",
 				expect.objectContaining({
-					tab: undefined,
 					external_status: undefined,
 				}),
 				expect.anything(),

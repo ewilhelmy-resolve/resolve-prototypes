@@ -204,7 +204,6 @@ export function ClusterDetailTable({
 	};
 
 	const queryParams: ClusterTicketsQueryParams = {
-		tab: activeTab === "open" ? "needs_response" : undefined,
 		offset: page * PAGE_SIZE,
 		limit: PAGE_SIZE,
 		search: debouncedSearch || undefined,
