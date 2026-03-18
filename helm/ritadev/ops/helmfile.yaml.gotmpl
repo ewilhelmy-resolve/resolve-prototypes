@@ -3,11 +3,17 @@ environments:
     values:
     - environment: dev
       domain: resolve.io
+      keycloakBaseUrl: "https://auth.dev.resolve.io"
+  prod:
+    values:
+    - environment: prod
+      domain: resolve.io
+      keycloakBaseUrl: "https://auth.resolve.io"
 
 ---
 releases:
 
-# Notes: Using centralized Keycloak at auth.dev.resolve.io
+# Notes: Using centralized Keycloak at auth.dev.resolve.io (dev) / auth.resolve.io (prod)
 # Per-tenant Keycloak charts remain in ../charts/ if needed in future
 
 # API Server
@@ -41,12 +47,14 @@ releases:
     value: {{ requiredEnv "AUTOMATION_WEBHOOK_URL" }}
   - name: secrets.automationAuth
     value: {{ requiredEnv "AUTOMATION_AUTH" }}
+  - name: secrets.rdsAdminUrl
+    value: {{ env "RDS_ADMIN_URL" | default "" }}
   - name: secrets.rollbarAccessToken
     value: {{ env "ROLLBAR_ACCESS_TOKEN" | default "" }}
   - name: secrets.rollbarHashSalt
     value: {{ env "ROLLBAR_HASH_SALT" | default "" }}
   - name: config.keycloakUrl
-    value: https://auth.dev.{{ .Values.domain }}
+    value: {{ .Values.keycloakBaseUrl }}
   - name: config.keycloakRealm
     value: {{ .StateValues.namespace | default "rita-dev" }}
   - name: config.consulAddr
@@ -72,13 +80,14 @@ releases:
   - name: ingress.host
     value: {{ .StateValues.namespace | default "rita-dev" }}-rita.{{ .Values.domain }}
   - name: keycloak.url
-    value: https://auth.dev.{{ .Values.domain }}
+    value: {{ .Values.keycloakBaseUrl }}
   - name: keycloak.realm
     value: {{ .StateValues.namespace | default "rita-dev" }}
   - name: keycloak.clientId
     value: onboarding-auth-client
   - name: keycloak.domain
     value: {{ .Values.domain }}
+{{- if eq .Environment.Name "dev" }}
   - name: keycloak.clientImport.enabled
     value: "true"
   - name: keycloak.clientImport.adminUser
@@ -87,6 +96,10 @@ releases:
     value: {{ env "DEV_KEYCLOAK_ADMIN_PASS" | default "admin" }}
   - name: keycloak.clientImport.clientSecret
     value: {{ env "DEV_RITA_CLIENT_SECRET" | default "change-me" }}
+{{- else }}
+  - name: keycloak.clientImport.enabled
+    value: "false"
+{{- end }}
   - name: route53.enabled
     value: {{ env "ROUTE53_ENABLED" | default "false" }}
   - name: route53.hostedZoneId
