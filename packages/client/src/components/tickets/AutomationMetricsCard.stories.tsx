@@ -1,12 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AutomationMetricsCard } from "./AutomationMetricsCard";
-
-const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: { retry: false, gcTime: 0 },
-	},
-});
 
 const meta: Meta<typeof AutomationMetricsCard> = {
 	component: AutomationMetricsCard,
@@ -17,17 +10,15 @@ const meta: Meta<typeof AutomationMetricsCard> = {
 		docs: {
 			description: {
 				component:
-					"Displays key automation metrics in a 3-column grid: automated count, minutes saved, and cost savings. Savings are computed from autopilot settings (cost/time per ticket).",
+					"Displays key automation metrics in a 3-column grid: automated count, minutes saved, and cost savings. Savings are computed from ticket settings store (blended rate per hour, average minutes per ticket).",
 			},
 		},
 	},
 	decorators: [
 		(Story) => (
-			<QueryClientProvider client={queryClient}>
-				<div className="w-80">
-					<Story />
-				</div>
-			</QueryClientProvider>
+			<div className="w-80">
+				<Story />
+			</div>
 		),
 	],
 };

@@ -12,7 +12,7 @@ const meta: Meta<typeof TicketGroupStat> = {
 		docs: {
 			description: {
 				component:
-					"Card displaying ticket group statistics with count, progress bar, and knowledge base status badge. Clickable for navigation.",
+					"Card displaying cluster name, ticket count, cost impact, MTTR, and knowledge gap icon. Clickable for navigation.",
 			},
 		},
 	},
@@ -42,78 +42,85 @@ export const Default: Story = {
 	},
 };
 
-export const KnowledgeFound: Story = {
+export const WithCostImpact: Story = {
 	args: {
 		id: "cluster-124",
 		title: "Email Access Problems",
 		count: 32,
 		knowledgeStatus: "FOUND",
+		costImpact: 960,
+	},
+};
+
+export const WithCostAndMttr: Story = {
+	args: {
+		id: "cluster-125",
+		title: "VPN Connection Failures",
+		count: 156,
+		knowledgeStatus: "FOUND",
+		costImpact: 4680,
+		mttr: 15,
 	},
 };
 
 export const KnowledgeGap: Story = {
 	args: {
-		id: "cluster-125",
+		id: "cluster-126",
 		title: "VPN Connection Failures",
 		count: 18,
 		knowledgeStatus: "GAP",
+		costImpact: 540,
 	},
 };
 
 export const Pending: Story = {
 	args: {
-		id: "cluster-126",
+		id: "cluster-127",
 		title: "New Hardware Requests",
 		count: 7,
 		knowledgeStatus: "PENDING",
 	},
 };
 
-export const PartialAutomation: Story = {
-	args: {
-		id: "cluster-127",
-		title: "Software Installation",
-		count: 156,
-		knowledgeStatus: "FOUND",
-		automatedPercentage: 70,
-	},
-};
-
-export const HighAutomation: Story = {
+export const WithNewTickets: Story = {
 	args: {
 		id: "cluster-128",
 		title: "Account Lockouts",
 		count: 89,
 		knowledgeStatus: "FOUND",
-		automatedPercentage: 90,
+		costImpact: 2670,
+		newTicketCount: 5,
+		updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+	},
+};
+
+export const WithUpdatedAt: Story = {
+	args: {
+		id: "cluster-129",
+		title: "Software Installation",
+		count: 45,
+		knowledgeStatus: "FOUND",
+		updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
 	},
 };
 
 export const LongTitle: Story = {
 	args: {
-		id: "cluster-129",
+		id: "cluster-130",
 		title: "Issues with Microsoft Office 365 Integration and Sharepoint Access",
 		count: 23,
 		knowledgeStatus: "GAP",
+		costImpact: 690,
 	},
 };
 
 export const LargeCount: Story = {
 	args: {
-		id: "cluster-130",
+		id: "cluster-131",
 		title: "General IT Support",
 		count: 1247,
 		knowledgeStatus: "FOUND",
-		automatedPercentage: 55,
-	},
-};
-
-export const ZeroAutomation: Story = {
-	args: {
-		id: "cluster-131",
-		title: "New Ticket Type",
-		count: 12,
-		knowledgeStatus: "PENDING",
-		automatedPercentage: 0,
+		costImpact: 37410,
+		mttr: 22,
 	},
 };
