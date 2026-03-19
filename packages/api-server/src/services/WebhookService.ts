@@ -12,6 +12,7 @@ import type {
 	WebhookResponse,
 	WebhookSource,
 } from "../types/webhook.js";
+import { validateWebhookUrl } from "../utils/validateWebhookUrl.js";
 import type { IframeWebhookConfig } from "./sessionStore.js";
 
 /** Keys whose values must never be persisted to the database or logged */
@@ -246,8 +247,11 @@ export class WebhookService {
 			);
 		}
 
-		// Build tenant-specific webhook URL (remove trailing slash if present)
-		const baseUrl = iframeConfig.actionsApiBaseUrl.replace(/\/$/, "");
+		// Build tenant-specific webhook URL — validate first to prevent SSRF
+		const baseUrl = validateWebhookUrl(
+			iframeConfig.actionsApiBaseUrl.replace(/\/$/, ""),
+			{ skipInDev: true },
+		);
 		const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${iframeConfig.tenantId}`;
 
 		// Build HTTP Basic auth header (clientId:clientKey base64 encoded)
