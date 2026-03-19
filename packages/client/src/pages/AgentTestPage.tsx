@@ -221,7 +221,7 @@ export default function AgentTestPage() {
 				const suggestion = generateConfigSuggestion(feedbackHistory);
 				addMessage({
 					type: "system",
-					content: `Response approved after ${feedbackHistory.length} revision${feedbackHistory.length > 1 ? "s" : ""}.`,
+					content: `Response approved after ${feedbackHistory.length} revision${feedbackHistory.length > 1 ? "s" : ""}. Consider applying the suggestion below to make this improvement permanent. When ready, **publish** to make the agent live for real users.`,
 				});
 				addMessage({
 					type: "suggestion",
@@ -233,7 +233,7 @@ export default function AgentTestPage() {
 				addMessage({
 					type: "system",
 					content:
-						"Response approved. Test another prompt or publish when ready.",
+						"Response approved. Test another prompt to continue validating, or **publish** when you're satisfied to make this agent live for real users.",
 				});
 				setPhase("idle");
 			}
@@ -244,7 +244,7 @@ export default function AgentTestPage() {
 			addMessage({
 				type: "system",
 				content:
-					"This response still isn't meeting expectations. Based on your feedback, I recommend updating the agent's instructions:",
+					"This response still isn't meeting expectations. Based on your feedback, I recommend updating the agent's instructions.\n\nYou can **apply the suggestion** below, or go back to **edit the instructions** directly. Once updated, **retest** to verify the agent responds correctly. Repeat this cycle until you're satisfied, then **publish** to make the agent live.",
 			});
 			addMessage({
 				type: "suggestion",
@@ -286,12 +286,12 @@ export default function AgentTestPage() {
 			}
 			addMessage({
 				type: "system",
-				content: "Applied! Test another prompt to verify.",
+				content: "Instructions updated! **Retest** with the same or a new prompt to verify the improvement. If the response is good, you can **publish** the agent to make it live for real users.",
 			});
 		} else {
 			addMessage({
 				type: "system",
-				content: "Skipped. Test another prompt or publish.",
+				content: "Skipped. You can **edit the instructions** manually, then retest. When you're happy with the results, **publish** to go live.",
 			});
 		}
 		setPhase("idle");
@@ -691,7 +691,7 @@ export default function AgentTestPage() {
 							Publish Agent
 						</DialogTitle>
 						<DialogDescription>
-							Make this agent available to users.
+							Publishing will make this agent active and available to be matched with real users in this environment.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -728,7 +728,19 @@ export default function AgentTestPage() {
 						</Button>
 						<Button
 							onClick={() =>
-								navigate("/agents", { state: { published: true } })
+								navigate("/agents", {
+									state: {
+										publishedAgent: {
+											id: agentId || Date.now().toString(),
+											name: config.name,
+											description: config.description,
+											agentType: config.agentType,
+											iconId: config.iconId,
+											iconColorId: config.iconColorId,
+											skills: config.workflows,
+										},
+									},
+								})
 							}
 						>
 							Publish
