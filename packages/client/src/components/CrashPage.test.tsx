@@ -31,7 +31,7 @@ describe("CrashPage", () => {
 	it("renders refresh button when onRefresh prop provided", () => {
 		render(<CrashPage {...defaultProps} onRefresh={vi.fn()} />);
 		expect(
-			screen.getByRole("button", { name: "Try Again" }),
+			screen.getByRole("button", { name: "actions.retry" }),
 		).toBeInTheDocument();
 	});
 
@@ -39,14 +39,14 @@ describe("CrashPage", () => {
 		const user = userEvent.setup();
 		const onRefresh = vi.fn();
 		render(<CrashPage {...defaultProps} onRefresh={onRefresh} />);
-		await user.click(screen.getByRole("button", { name: "Try Again" }));
+		await user.click(screen.getByRole("button", { name: "actions.retry" }));
 		expect(onRefresh).toHaveBeenCalledTimes(1);
 	});
 
 	it("does NOT render refresh button when onRefresh not provided", () => {
 		render(<CrashPage {...defaultProps} />);
 		expect(
-			screen.queryByRole("button", { name: "Try Again" }),
+			screen.queryByRole("button", { name: "actions.retry" }),
 		).not.toBeInTheDocument();
 	});
 });

@@ -10,6 +10,7 @@
  */
 
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 
 export interface CrashPageProps {
@@ -44,6 +45,7 @@ export function CrashPage({
 	onRefresh,
 	fullScreen = true,
 }: CrashPageProps) {
+	const { t } = useTranslation("common");
 	const heightClass = fullScreen ? "h-screen" : "h-full min-h-[400px]";
 	return (
 		<div
@@ -80,8 +82,12 @@ export function CrashPage({
 
 				{/* Optional Refresh/Retry Button */}
 				{onRefresh && (
-					<Button variant="outline" onClick={onRefresh} aria-label="Try Again">
-						Try Again
+					<Button
+						variant="outline"
+						onClick={onRefresh}
+						aria-label={t("actions.retry")}
+					>
+						{t("actions.retry")}
 					</Button>
 				)}
 			</div>
