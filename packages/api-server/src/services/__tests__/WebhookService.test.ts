@@ -703,6 +703,68 @@ describe("WebhookService", () => {
 		});
 	});
 
+	describe("sendTenantMessageEvent - SSRF prevention", () => {
+		const baseIframeConfig = {
+			accessToken: "token",
+			refreshToken: "refresh",
+			tabInstanceId: "tab-1",
+			tenantId: "tenant-1",
+			tenantName: "Test",
+			clientId: "client-1",
+			clientKey: "key-1",
+			tokenExpiry: Date.now() + 3600000,
+			userGuid: "user-1",
+		};
+
+		const ssrfUrls = [
+			["localhost", "http://localhost:3000"],
+			["127.0.0.1 (loopback)", "http://127.0.0.1"],
+			["10.x.x.x (RFC1918)", "http://10.0.0.1"],
+			["172.16.x.x (RFC1918)", "http://172.16.0.1"],
+			["192.168.x.x (RFC1918)", "http://192.168.1.1"],
+			["169.254.169.254 (AWS metadata)", "http://169.254.169.254"],
+			["file:// protocol", "file:///etc/passwd"],
+		];
+
+		it.each(ssrfUrls)(
+			"rejects SSRF actionsApiBaseUrl: %s",
+			async (_label, url) => {
+				await expect(
+					webhookService.sendTenantMessageEvent({
+						organizationId: "org-1",
+						userId: "user-1",
+						conversationId: "conv-1",
+						messageId: "msg-1",
+						customerMessage: "hello",
+						iframeConfig: { ...baseIframeConfig, actionsApiBaseUrl: url },
+					}),
+				).rejects.toThrow();
+
+				expect(mockedAxios.post).not.toHaveBeenCalled();
+			},
+		);
+
+		it("does not block valid public actionsApiBaseUrl", async () => {
+			mockedAxios.post.mockResolvedValueOnce({ status: 200, data: {} });
+
+			await expect(
+				webhookService.sendTenantMessageEvent({
+					organizationId: "org-1",
+					userId: "user-1",
+					conversationId: "conv-1",
+					messageId: "msg-1",
+					customerMessage: "hello",
+					iframeConfig: {
+						...baseIframeConfig,
+						actionsApiBaseUrl: "https://actions.example.com",
+					},
+				}),
+			).resolves.toBeDefined();
+
+			expect(mockedAxios.post).toHaveBeenCalled();
+		});
+	});
+
 	describe("sendTenantMessageEvent - iframe (NO document_ids, transcript_ids, user_email)", () => {
 		const mockIframeConfig = {
 			accessToken: "jwt-access-token",
