@@ -9,24 +9,29 @@
  * - Added accessibility attributes
  */
 
-import type React from "react"
-import { Button } from "@/components/ui/button"
+import type React from "react";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 
 export interface CrashPageProps {
 	/** Main heading/title of the error */
-	title: string
+	title: string;
 	/** Descriptive message explaining the error */
-	description: string
+	description: string;
 	/** Label for the action button */
-	actionLabel: string
+	actionLabel: string;
 	/** Callback when action button is clicked */
-	onAction: () => void
+	onAction: () => void;
 	/** Optional icon/image element to display (defaults to none) */
-	icon?: React.ReactNode
+	icon?: React.ReactNode;
 	/** Optional custom icon/image URL */
-	iconSrc?: string
+	iconSrc?: string;
 	/** Optional alt text for icon image */
-	iconAlt?: string
+	iconAlt?: string;
+	/** Optional refresh/retry callback — renders a secondary "Try Again" button when provided */
+	onRefresh?: () => void;
+	/** When false, uses h-full min-h-[400px] instead of h-screen. Defaults to true */
+	fullScreen?: boolean;
 }
 
 export function CrashPage({
@@ -37,9 +42,15 @@ export function CrashPage({
 	icon,
 	iconSrc = "/images/img_error.png",
 	iconAlt = "Error illustration",
+	onRefresh,
+	fullScreen = true,
 }: CrashPageProps) {
+	const { t } = useTranslation("common");
+	const heightClass = fullScreen ? "h-screen" : "h-full min-h-[400px]";
 	return (
-		<div className="w-full h-screen bg-[rgb(5,7,15)] flex items-center justify-center">
+		<div
+			className={`w-full ${heightClass} bg-[rgb(5,7,15)] flex items-center justify-center`}
+		>
 			<div className="w-full max-w-[624px] flex flex-col items-center gap-6 p-6">
 				{/* Icon/Image Section */}
 				{(icon || iconSrc) && (
@@ -68,9 +79,20 @@ export function CrashPage({
 				<Button onClick={onAction} aria-label={actionLabel}>
 					{actionLabel}
 				</Button>
+
+				{/* Optional Refresh/Retry Button */}
+				{onRefresh && (
+					<Button
+						variant="outline"
+						onClick={onRefresh}
+						aria-label={t("actions.retry")}
+					>
+						{t("actions.retry")}
+					</Button>
+				)}
 			</div>
 		</div>
-	)
+	);
 }
 
-export default CrashPage
+export default CrashPage;
