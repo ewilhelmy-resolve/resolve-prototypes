@@ -6386,8 +6386,7 @@
 			"delete": {
 				"tags": ["Iframe"],
 				"summary": "Delete conversation",
-				"description": "Delete iframe conversation and all messages. Used for 'Clear Chat' feature.",
-				"security": [],
+				"description": "Delete iframe conversation and all messages. Used for 'Clear Chat' feature. Requires session cookie and conversation ownership.",
 				"parameters": [
 					{
 						"schema": {

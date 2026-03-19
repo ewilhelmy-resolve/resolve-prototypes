@@ -12,9 +12,11 @@
  * See types/webhook.ts for ChatWebhookSource type definition.
  */
 import express from "express";
+import { pool } from "../config/database.js";
 import { logger } from "../config/logger.js";
 import { getValkeyStatus } from "../config/valkey.js";
 import { registry, z } from "../docs/openapi.js";
+import { authenticateUser } from "../middleware/auth.js";
 import { ErrorResponseSchema } from "../schemas/common.js";
 import {
 	IframeDebugResponseSchema,
@@ -27,6 +29,7 @@ import {
 } from "../schemas/iframe.js";
 import { getIframeService } from "../services/IframeService.js";
 import { getWorkflowExecutionService } from "../services/WorkflowExecutionService.js";
+import type { AuthenticatedRequest } from "../types/express.js";
 
 // ============================================================================
 // OpenAPI Documentation Registration
@@ -112,8 +115,7 @@ registry.registerPath({
 	tags: ["Iframe"],
 	summary: "Delete conversation",
 	description:
-		"Delete iframe conversation and all messages. Used for 'Clear Chat' feature.",
-	security: [],
+		"Delete iframe conversation and all messages. Used for 'Clear Chat' feature. Requires session cookie and conversation ownership.",
 	request: {
 		params: z.object({
 			conversationId: z
@@ -445,27 +447,45 @@ router.post("/execute", async (req, res) => {
  * Deletes conversation and all messages (cascade via FK).
  * Used by "Clear Chat" feature to start fresh.
  */
-router.delete("/conversation/:conversationId", async (req, res) => {
-	const { conversationId } = req.params;
+router.delete(
+	"/conversation/:conversationId",
+	authenticateUser,
+	async (req, res) => {
+		const authReq = req as AuthenticatedRequest;
+		const { conversationId } = req.params;
 
-	if (!conversationId) {
-		res.status(400).json({ success: false, error: "Missing conversationId" });
-		return;
-	}
+		if (!conversationId) {
+			res.status(400).json({ success: false, error: "Missing conversationId" });
+			return;
+		}
 
-	try {
-		const iframeService = getIframeService();
-		await iframeService.deleteConversation(conversationId);
-		res.json({ success: true });
-	} catch (error) {
-		const err = error as Error;
-		logger.error(
-			{ conversationId, error: err.message },
-			"Failed to delete conversation",
-		);
-		res.status(500).json({ success: false, error: "Failed to delete" });
-	}
-});
+		try {
+			// Verify conversation belongs to authenticated user
+			const convCheck = await pool.query(
+				"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+				[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
+			);
+
+			if (convCheck.rows.length === 0) {
+				res
+					.status(404)
+					.json({ success: false, error: "Conversation not found" });
+				return;
+			}
+
+			const iframeService = getIframeService();
+			await iframeService.deleteConversation(conversationId);
+			res.json({ success: true });
+		} catch (error) {
+			const err = error as Error;
+			logger.error(
+				{ conversationId, error: err.message },
+				"Failed to delete conversation",
+			);
+			res.status(500).json({ success: false, error: "Failed to delete" });
+		}
+	},
+);
 
 /**
  * Submit UI form response back to platform
@@ -474,7 +494,7 @@ router.delete("/conversation/:conversationId", async (req, res) => {
  * Used by UIFormRequestModal when user submits or cancels a form.
  * Sends webhook to Platform with form data for workflow correlation.
  */
-router.post("/ui-form-response", async (req, res) => {
+router.post("/ui-form-response", authenticateUser, async (req, res) => {
 	const { requestId, action, status, data } = req.body;
 
 	if (!requestId || !status) {
@@ -530,7 +550,8 @@ router.post("/ui-form-response", async (req, res) => {
  * Used by SchemaRenderer when user interacts with dynamic UI components.
  * Forwards action payload to platform via webhook.
  */
-router.post("/ui-action", async (req, res) => {
+router.post("/ui-action", authenticateUser, async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
 	const { action, data, messageId, conversationId, timestamp } = req.body;
 
 	if (!action || !messageId || !conversationId) {
@@ -542,6 +563,17 @@ router.post("/ui-action", async (req, res) => {
 	}
 
 	try {
+		// Verify conversation belongs to authenticated user
+		const convCheck = await pool.query(
+			"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+			[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
+		);
+
+		if (convCheck.rows.length === 0) {
+			res.status(404).json({ success: false, error: "Conversation not found" });
+			return;
+		}
+
 		logger.info(
 			{
 				action,
