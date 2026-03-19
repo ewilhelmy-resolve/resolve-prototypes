@@ -3,12 +3,13 @@ import { Loader2 } from "lucide-react";
 import type React from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { CrashPage } from "@/components/CrashPage";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { useProfile } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { usePendo } from "@/hooks/usePendo";
 import { usePlatformFlagsInit } from "@/hooks/usePlatformFlags";
-import { CrashPage } from "@/components/CrashPage";
 import { CitationProvider } from "./contexts/CitationContext";
 import { QueryProvider } from "./providers/QueryProvider";
 import { AppRouter } from "./router";
@@ -31,14 +32,28 @@ const AppContent: React.FC = () => {
 
 	// Force logout if profile fetch fails after all retries (initial + 2 retries = 3 total attempts)
 	useEffect(() => {
-		if (authenticated && sessionReady && profileError && !isLoadingProfile && failureCount >= 3) {
+		if (
+			authenticated &&
+			sessionReady &&
+			profileError &&
+			!isLoadingProfile &&
+			failureCount >= 3
+		) {
 			// Clear all cached data first
 			queryClient.clear();
 
 			// Force logout - this will clear Keycloak session and redirect to login
 			logout(`${window.location.origin}/login`);
 		}
-	}, [authenticated, sessionReady, profileError, isLoadingProfile, failureCount, queryClient, logout]);
+	}, [
+		authenticated,
+		sessionReady,
+		profileError,
+		isLoadingProfile,
+		failureCount,
+		queryClient,
+		logout,
+	]);
 
 	// Show loading while profile is being fetched or retrying after login
 	// This includes: initial load + retry attempts (but not when retries exhausted)
@@ -61,7 +76,7 @@ const AppContent: React.FC = () => {
 				description={t("errors:generic.profileLoad.description")}
 				actionLabel={t("common:actions.goToLogin")}
 				onAction={() => {
-					window.location.href = '/login';
+					window.location.href = "/login";
 				}}
 			/>
 		);
@@ -69,7 +84,21 @@ const AppContent: React.FC = () => {
 
 	return (
 		<>
-			<AppRouter />
+			<ErrorBoundary
+				fallback={
+					<CrashPage
+						title="Something went wrong"
+						description="An unexpected error occurred. Please try again."
+						actionLabel="Go to Login"
+						onAction={() => {
+							window.location.href = "/login";
+						}}
+						onRefresh={() => window.location.reload()}
+					/>
+				}
+			>
+				<AppRouter />
+			</ErrorBoundary>
 			<Toaster />
 		</>
 	);
