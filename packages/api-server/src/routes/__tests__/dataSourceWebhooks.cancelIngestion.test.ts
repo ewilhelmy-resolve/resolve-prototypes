@@ -33,6 +33,10 @@ vi.mock("../../middleware/auth.js", () => ({
 	authenticateUser: vi.fn((_req: any, _res: any, next: any) => next()),
 }));
 
+vi.mock("../../services/WebhookService.js", () => ({
+	scrubSensitiveFields: vi.fn((obj: unknown) => obj),
+}));
+
 import type { Mock } from "vitest";
 import { DataSourceService } from "../../services/DataSourceService.js";
 import dataSourceWebhookRoutes from "../dataSourceWebhooks.js";
@@ -135,6 +139,28 @@ describe("POST /api/data-sources/:id/cancel-ingestion", () => {
 
 		expect(response.status).toBe(500);
 		expect(response.body.error).toBe("Failed to cancel ticket sync");
+	});
+
+	it("should NOT call console.log or console.error during cancel-ingestion", async () => {
+		const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const consoleErrSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
+
+		mockGetDataSource.mockResolvedValueOnce({
+			id: "ds-1",
+			organization_id: "test-org-id",
+			type: "servicenow_itsm",
+		});
+		mockCancelIngestionRun.mockResolvedValueOnce({
+			id: "run-123",
+			status: "cancelled",
+		});
+
+		await request(app).post("/api/data-sources/ds-1/cancel-ingestion");
+
+		expect(consoleLogSpy).not.toHaveBeenCalled();
+		expect(consoleErrSpy).not.toHaveBeenCalled();
 	});
 
 	it("should call cancelIngestionRun with correct params", async () => {

@@ -1,5 +1,6 @@
 import axios, { type AxiosResponse } from "axios";
 import { pool } from "../config/database.js";
+import { logger } from "../config/logger.js";
 import type {
 	SyncTicketsWebhookPayload,
 	SyncTriggerWebhookPayload,
@@ -130,13 +131,12 @@ export class DataSourceWebhookService {
 			const testJson = JSON.stringify(payload);
 			JSON.parse(testJson); // Verify it's valid JSON
 		} catch (validationError) {
-			console.error(
-				"[DataSourceWebhook] Payload validation failed:",
-				validationError,
-			);
-			console.error(
-				"[DataSourceWebhook] Invalid payload:",
-				scrubSensitiveFields(payload as Record<string, any>),
+			logger.error(
+				{
+					error: validationError,
+					payload: scrubSensitiveFields(payload as Record<string, any>),
+				},
+				"[DataSourceWebhook] Payload validation failed",
 			);
 			return {
 				success: false,
@@ -147,14 +147,16 @@ export class DataSourceWebhookService {
 
 		for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
 			try {
-				console.log(
-					`[DataSourceWebhook] Sending event (attempt ${attempt}/${this.config.retryAttempts}):`,
+				logger.info(
 					{
 						source: payload.source,
 						action: payload.action,
 						tenant_id: payload.tenant_id,
 						connection_id: payload.connection_id,
+						attempt,
+						maxAttempts: this.config.retryAttempts,
 					},
+					"[DataSourceWebhook] Sending event",
 				);
 
 				const response: AxiosResponse = await axios.post(
@@ -169,7 +171,7 @@ export class DataSourceWebhookService {
 					},
 				);
 
-				console.log(`[DataSourceWebhook] Success: ${response.status}`);
+				logger.info({ status: response.status }, "[DataSourceWebhook] Success");
 
 				return {
 					success: true,
@@ -180,11 +182,15 @@ export class DataSourceWebhookService {
 				const webhookError = this.createWebhookError(error);
 				lastError = webhookError;
 
-				console.error(`[DataSourceWebhook] Attempt ${attempt} failed:`, {
-					status: webhookError.status,
-					message: webhookError.message,
-					isRetryable: webhookError.isRetryable,
-				});
+				logger.error(
+					{
+						status: webhookError.status,
+						message: webhookError.message,
+						isRetryable: webhookError.isRetryable,
+						attempt,
+					},
+					`[DataSourceWebhook] Attempt ${attempt} failed`,
+				);
 
 				// Don't retry if it's not a retryable error or if this is the last attempt
 				if (
@@ -201,8 +207,9 @@ export class DataSourceWebhookService {
 			}
 		}
 
-		console.error(
-			`[DataSourceWebhook] All attempts failed for ${payload.action}`,
+		logger.error(
+			{ action: payload.action },
+			"[DataSourceWebhook] All attempts failed",
 		);
 
 		return {
@@ -273,19 +280,21 @@ export class DataSourceWebhookService {
 					],
 				);
 
-				console.log(`[DataSourceWebhook] Webhook failure stored in database`, {
-					tenant_id: payload.tenant_id,
-					webhook_type: payload.action,
-					connection_id: payload.connection_id,
-					retry_count: retryCount,
-					error_message: error?.message,
-				});
+				logger.info(
+					{
+						tenant_id: payload.tenant_id,
+						webhook_type: payload.action,
+						connection_id: payload.connection_id,
+						retry_count: retryCount,
+						error_message: error?.message,
+					},
+					"[DataSourceWebhook] Webhook failure stored in database",
+				);
 			} finally {
 				client.release();
 			}
 		} catch (storeError) {
-			console.error(
-				`[DataSourceWebhook] Failed to store webhook failure in database:`,
+			logger.error(
 				{
 					error:
 						storeError instanceof Error
@@ -295,6 +304,7 @@ export class DataSourceWebhookService {
 					webhook_action: payload.action,
 					connection_id: payload.connection_id,
 				},
+				"[DataSourceWebhook] Failed to store webhook failure in database",
 			);
 		}
 	}

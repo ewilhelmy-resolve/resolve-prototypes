@@ -24,6 +24,8 @@ const SENSITIVE_FIELD_KEYS = new Set([
 	"credentials",
 	"verification_token",
 	"verification_url",
+	"instanceUrl",
+	"username",
 ]);
 
 /**
