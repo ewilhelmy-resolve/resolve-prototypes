@@ -94,6 +94,7 @@ interface WorkflowConfigPanelV2Props {
 	onSelectStartNode?: () => void;
 	nodes: Node[];
 	workflowName: string;
+	workflowDescription: string;
 	skillMetadata: SkillMetadata;
 	onConfigureSkill: () => void;
 	published: boolean;
@@ -110,11 +111,13 @@ const MOCK_VERSION_HISTORY = [
 
 function DetailsContent({
 	workflowName,
+	workflowDescription,
 	skillMetadata,
 	onConfigureSkill,
 	published,
 }: {
 	workflowName: string;
+	workflowDescription: string;
 	skillMetadata: SkillMetadata;
 	onConfigureSkill: () => void;
 	published: boolean;
@@ -161,7 +164,7 @@ function DetailsContent({
 				</button>
 				{descOpen && (
 					<p className="text-xs text-slate-500 leading-relaxed mb-2">
-						{skillMetadata.description || (
+						{workflowDescription || (
 							<span className="italic text-slate-400">No description</span>
 						)}
 					</p>
@@ -416,6 +419,7 @@ export function WorkflowConfigPanelV2({
 	onSelectStartNode: _onSelectStartNode,
 	nodes: _nodes,
 	workflowName,
+	workflowDescription,
 	skillMetadata,
 	onConfigureSkill,
 	published,
@@ -963,7 +967,7 @@ export function WorkflowConfigPanelV2({
 
 				{/* Tab content */}
 				<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-					{topTab === "details" && <DetailsContent workflowName={workflowName} skillMetadata={skillMetadata} onConfigureSkill={onConfigureSkill} published={published} />}
+					{topTab === "details" && <DetailsContent workflowName={workflowName} workflowDescription={workflowDescription} skillMetadata={skillMetadata} onConfigureSkill={onConfigureSkill} published={published} />}
 					{topTab === "config" && renderConfigContent()}
 					{topTab === "variables" && <VariablesContent />}
 				</div>

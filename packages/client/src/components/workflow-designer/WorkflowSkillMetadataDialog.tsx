@@ -1,3 +1,4 @@
+import confetti from "canvas-confetti";
 import { ChevronDown, ChevronRight, Code2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ export function WorkflowSkillMetadataDialog({
 		onPublish(buildMetadata());
 		setShowConfirm(false);
 		onOpenChange(false);
+		confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
 	};
 
 	return (

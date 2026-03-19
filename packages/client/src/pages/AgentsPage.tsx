@@ -101,6 +101,7 @@ interface PublishedAgentState {
 	agentType: "answer" | "knowledge" | "workflow" | null;
 	iconId: string;
 	iconColorId: string;
+	skills?: string[];
 }
 
 export default function AgentsPage() {
@@ -148,6 +149,7 @@ export default function AgentsPage() {
 					name: published.name,
 					description: published.description,
 					status: "published",
+					skills: published.skills || [],
 					updatedBy: { initials: "You", color: "blue" },
 					owner: { initials: "You", color: "blue" },
 					lastUpdated: new Date().toLocaleDateString("en-GB", {

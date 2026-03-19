@@ -1,3 +1,4 @@
+import confetti from "canvas-confetti";
 import { Check, ChevronDown, ChevronRight, Code2, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ export function WorkflowSkillVariableDialog({
 		onPublish(buildMetadata());
 		setShowConfirm(false);
 		onOpenChange(false);
+		confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
 	};
 
 	const inputFilteredVars = useMemo(

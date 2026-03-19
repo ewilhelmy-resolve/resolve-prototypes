@@ -40,6 +40,7 @@ import {
 	WORKFLOW_TEMPLATES,
 } from "@/components/workflow-designer/workflowDesignerData";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
+import { toast } from "@/lib/toast";
 import type {
 	ActivityConfig,
 	ActivityNodeData,
@@ -72,6 +73,9 @@ export default function WorkflowDesignerPage() {
 		"json" | "variables" | null
 	>(null);
 	const [skillOption, setSkillOption] = useState<"json" | "variables">("json");
+	const [workflowDescriptionMap, setWorkflowDescriptionMap] = useState<
+		Record<string, string>
+	>({});
 	const [publishedSkills, setPublishedSkills] = useState<
 		Record<string, SkillMetadata>
 	>({});
@@ -124,8 +128,16 @@ export default function WorkflowDesignerPage() {
 				setEdges([]);
 			}
 			setSelectedNodeId(null);
+			// Store template description for the active tab
+			const template = WORKFLOW_TEMPLATES.find((t) => t.id === templateId);
+			if (template) {
+				setWorkflowDescriptionMap((prev) => ({
+					...prev,
+					[activeTabId]: template.description,
+				}));
+			}
 		},
-		[setNodes, setEdges],
+		[setNodes, setEdges, activeTabId],
 	);
 
 	const handleLoadTemplate = useCallback(
@@ -171,6 +183,9 @@ export default function WorkflowDesignerPage() {
 					// ignore
 				}
 				return next;
+			});
+			toast.success("Skill published", {
+				description: `${metadata.name} is now available in the Agent Builder.`,
 			});
 		},
 		[activeTabId],
@@ -363,6 +378,7 @@ export default function WorkflowDesignerPage() {
 								onSelectStartNode={handleSelectStartNode}
 								nodes={nodes}
 								workflowName={tabs.find((t) => t.id === activeTabId)?.name ?? ""}
+								workflowDescription={workflowDescriptionMap[activeTabId] ?? ""}
 								skillMetadata={skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA}
 								onConfigureSkill={() => setSkillDialogVariant(skillOption)}
 								published={activeTabId in publishedSkills}

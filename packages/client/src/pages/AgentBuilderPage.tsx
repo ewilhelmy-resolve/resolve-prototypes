@@ -398,6 +398,7 @@ const AVAILABLE_SKILLS = [
 		icon: Calendar,
 		starters: ["When is my coworker's birthday?", "Look up a birthday"],
 		linkedAgent: null,
+		skillInstructions: "Look up employee birthdays from the HR directory. Respond with the employee's name and birthday. If not found, suggest checking the spelling.",
 	},
 	{
 		id: "reset-password",
@@ -410,6 +411,7 @@ const AVAILABLE_SKILLS = [
 			"I need a new password",
 		],
 		linkedAgent: "HelpDesk Advisor",
+		skillInstructions: "Guide users through password reset. Verify identity via security questions or MFA before initiating reset. Send temporary password via secure channel and require change on next login.",
 	},
 	{
 		id: "check-pto",
@@ -422,6 +424,7 @@ const AVAILABLE_SKILLS = [
 			"How many vacation days left?",
 		],
 		linkedAgent: "PTO Balance Checker",
+		skillInstructions: "Query the HR system for the user's PTO balance including vacation, sick, and personal days. Show accrued, used, and remaining totals.",
 	},
 	{
 		id: "verify-i9",
@@ -430,6 +433,7 @@ const AVAILABLE_SKILLS = [
 		icon: ShieldCheck,
 		starters: ["Check my I-9 status", "Is my I-9 complete?"],
 		linkedAgent: "Compliance Checker",
+		skillInstructions: "Check I-9 employment verification form status. Report whether the form is complete, pending, or missing required documents. Flag any approaching deadlines.",
 	},
 	{
 		id: "check-background",
@@ -441,6 +445,7 @@ const AVAILABLE_SKILLS = [
 			"Is my background check done?",
 		],
 		linkedAgent: null,
+		skillInstructions: "Query the background check provider for current status. Report whether the check is pending, in progress, or completed, along with any action items needed.",
 	},
 	{
 		id: "unlock-account",
@@ -449,6 +454,7 @@ const AVAILABLE_SKILLS = [
 		icon: Lock,
 		starters: ["My account is locked", "Unlock my account", "I can't log in"],
 		linkedAgent: "HelpDesk Advisor",
+		skillInstructions: "Unlock user accounts that have been locked due to failed login attempts. Verify user identity first, then unlock the account in Active Directory. Confirm the account is accessible.",
 	},
 	{
 		id: "submit-expense",
@@ -461,6 +467,7 @@ const AVAILABLE_SKILLS = [
 			"How do I get reimbursed?",
 		],
 		linkedAgent: null,
+		skillInstructions: "Help users submit expense reports. Collect receipt details, amount, category, and business justification. Submit to the finance system and provide a confirmation number.",
 	},
 	{
 		id: "request-access",
@@ -473,6 +480,35 @@ const AVAILABLE_SKILLS = [
 			"How do I get permissions?",
 		],
 		linkedAgent: "HelpDesk Advisor",
+		skillInstructions: "Process system access requests. Collect the target system, required access level, and business justification. Route to the appropriate approver and track request status.",
+	},
+	{
+		id: "provision-account",
+		name: "Provision account",
+		author: "IT Team",
+		icon: Users,
+		starters: [
+			"Set up a new account",
+			"Provision a new employee",
+			"Create user account",
+			"New hire onboarding",
+		],
+		linkedAgent: null,
+		skillInstructions: "Provision new user accounts across enterprise systems. Collect employee details (name, department, role, manager). Create accounts in Active Directory, Google Workspace, and assigned SaaS applications based on department role mapping. Configure email, distribution groups, and default permissions. Send welcome credentials via secure channel.",
+	},
+	{
+		id: "customer-engagement",
+		name: "Customer engagement",
+		author: "CX Team",
+		icon: MessageSquare,
+		starters: [
+			"Follow up with a customer",
+			"Send a customer update",
+			"Check customer satisfaction",
+			"Schedule customer touchpoint",
+		],
+		linkedAgent: null,
+		skillInstructions: "Manage customer engagement touchpoints. Look up customer context from CRM (recent interactions, open tickets, satisfaction score). Draft personalized follow-up messages. Schedule check-ins based on customer health score. Escalate at-risk accounts to the customer success manager.",
 	},
 ];
 
@@ -877,10 +913,22 @@ export default function AgentBuilderPage() {
 	// Detect when skills are added and auto-populate instructions
 	useEffect(() => {
 		if (config.workflows.length > prevWorkflowsLength.current) {
-			const skillNames = config.workflows.map((w) => w.name);
+			const allSkillsPool = [...AVAILABLE_SKILLS, ...getPublishedWorkflowSkills()];
+			const skillEntries = config.workflows.map((name) => {
+				const match = allSkillsPool.find((s) => s.name === name);
+				return {
+					name,
+					instructions: match?.skillInstructions || `Handle ${name} requests.`,
+				};
+			});
+
+			const skillSections = skillEntries
+				.map((s) => `### ${s.name}\n${s.instructions}`)
+				.join("\n\n");
+
 			setConfig((prev) => ({
 				...prev,
-				instructions: `## Role\n\n## Backstory\n\n## Goal\nHelp users with ${skillNames.join(", ")}.\n\n## Task\nGuide them through each process step-by-step.`,
+				instructions: `## Role\nYou are a specialized assistant that helps users with ${skillEntries.map((s) => s.name.toLowerCase()).join(", ")}.\n\n## Goal\nResolve user requests efficiently by leveraging the skills below. Always verify identity before performing sensitive operations.\n\n## Skills\n${skillSections}\n\n## Guidelines\n- Be concise and professional\n- Confirm actions before executing\n- Escalate if outside your skill scope`,
 			}));
 			setInstructionsUpdatedFromSkills(true);
 			const timer = setTimeout(
@@ -2478,6 +2526,7 @@ export default function AgentBuilderPage() {
 					agentType: config.agentType,
 					iconId: config.iconId,
 					iconColorId: config.iconColorId,
+					skills: config.workflows,
 				},
 			},
 		});
