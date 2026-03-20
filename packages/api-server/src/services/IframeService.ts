@@ -674,6 +674,8 @@ export class IframeService {
 		};
 		/** Full Valkey payload for dev tools (sensitive fields redacted) */
 		valkeyPayload?: Record<string, unknown>;
+		/** Debug info for diagnosing validation failures (server-side only) */
+		debug?: Record<string, unknown>;
 	}> {
 		// SessionKey (Valkey hashkey) required
 		if (!sessionKey) {
@@ -681,17 +683,23 @@ export class IframeService {
 			return { valid: false, error: "sessionKey required" };
 		}
 
-		// Fetch config from Valkey (dev mode handled in getDevMockPayload)
-		const config = await this.fetchValkeyPayload(sessionKey);
+		// Fetch config from Valkey with debug info (dev mode handled in getDevMockPayload)
+		const { config, debug: valkeyDebug } =
+			await this.fetchValkeyPayloadWithDebug(sessionKey);
 
 		if (!config) {
+			const errorDetail = valkeyDebug?.error || "unknown";
 			logger.warn(
-				{ sessionKey: `${sessionKey.substring(0, 8)}...` },
-				"Invalid or missing Valkey config",
+				{
+					sessionKey: `${sessionKey.substring(0, 8)}...`,
+					valkeyDebug,
+				},
+				"Valkey config unavailable",
 			);
 			return {
 				valid: false,
 				error: "Invalid or missing Valkey configuration",
+				debug: { reason: errorDetail },
 			};
 		}
 
@@ -749,17 +757,30 @@ export class IframeService {
 				[resolvedExistingConversationId, ritaOrgId, ritaUserId],
 			);
 			if (convCheck.rows.length === 0) {
+				const source = existingConversationId
+					? "frontend_param"
+					: config.conversationId
+						? "valkey_config"
+						: "activity_lookup";
+
 				logger.warn(
 					{
-						existingConversationId: resolvedExistingConversationId,
+						conversationId: resolvedExistingConversationId,
+						conversationIdSource: source,
 						ritaOrgId,
 						ritaUserId,
 					},
-					"Conversation not found or not owned by user",
+					"Conversation not found in DB — stale reference",
 				);
+
 				return {
 					valid: false,
 					error: "Conversation not found or access denied",
+					debug: {
+						reason: "conversation_not_in_db",
+						conversationId: resolvedExistingConversationId,
+						source,
+					},
 				};
 			}
 			conversationId = resolvedExistingConversationId;

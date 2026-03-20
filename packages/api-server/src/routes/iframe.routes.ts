@@ -219,6 +219,7 @@ router.post("/validate-instantiation", async (req, res) => {
 			logger.warn(
 				{
 					error: result.error,
+					debug: result.debug,
 					sessionKey: sessionKey?.substring(0, 8) + "...",
 				},
 				"Iframe validation failed",

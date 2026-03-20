@@ -22,6 +22,7 @@ New to RITA? Read these first:
 - `DATA_SOURCE_CONNECTIONS.md` - External data sources (Confluence, ServiceNow, etc.)
 - `file-upload-system.md` - Content-addressable storage, deduplication
 - `file-access-control.md` - File permissions & security
+- [`infrastructure.md`](infrastructure.md) - Docker services, DB tables, tech stack, K8s deployment (DevOps overview)
 
 ### ✨ [features/](features/)
 **Feature-specific implementation docs**
@@ -64,6 +65,7 @@ New to RITA? Read these first:
 | Build frontend features | `frontend/guide_frontend_stack.md` |
 | Configure Keycloak | `setup/KEYCLOAK_SETUP.md` |
 | Add feature flags | `frontend/feature-flags-system.md` |
+| See full infra / Docker setup | `infrastructure.md` |
 
 ## Contributing to Docs
 

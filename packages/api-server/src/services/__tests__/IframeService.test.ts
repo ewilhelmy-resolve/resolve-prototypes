@@ -1365,6 +1365,104 @@ describe("IframeService", () => {
 		});
 	});
 
+	/**
+	 * JAR-104: Debug info for stale conversation references
+	 *
+	 * When a conversationId is resolved but not found in the DB,
+	 * the error response includes debug info with the source of the stale ID.
+	 */
+	describe("validateAndSetup - debug info for stale references (JAR-104)", () => {
+		it("should return debug source 'frontend_param' when existingConversationId from param not in DB", async () => {
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify(validValkeyPayload),
+			);
+			mockPool.query
+				.mockResolvedValueOnce({
+					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
+				}) // org exists
+				.mockResolvedValueOnce({
+					rows: [{ user_id: validValkeyPayload.userGuid }],
+				}) // user exists
+				.mockResolvedValueOnce({ rows: [] }) // user update
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // conversation NOT found
+
+			const result = await iframeService.validateAndSetup(
+				"my-session-key",
+				undefined,
+				"stale-frontend-conv-id",
+			);
+
+			expect(result.valid).toBe(false);
+			expect(result.error).toBe("Conversation not found or access denied");
+			expect(result.debug).toEqual({
+				reason: "conversation_not_in_db",
+				conversationId: "stale-frontend-conv-id",
+				source: "frontend_param",
+			});
+		});
+
+		it("should return debug source 'valkey_config' when conversationId from Valkey not in DB", async () => {
+			const payloadWithConvId = {
+				...validValkeyPayload,
+				conversationId: "stale-valkey-conv-id",
+			};
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify(payloadWithConvId),
+			);
+			mockPool.query
+				.mockResolvedValueOnce({
+					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
+				}) // org exists
+				.mockResolvedValueOnce({
+					rows: [{ user_id: validValkeyPayload.userGuid }],
+				}) // user exists
+				.mockResolvedValueOnce({ rows: [] }) // user update
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // conversation NOT found
+
+			const result = await iframeService.validateAndSetup("my-session-key");
+
+			expect(result.valid).toBe(false);
+			expect(result.error).toBe("Conversation not found or access denied");
+			expect(result.debug).toEqual({
+				reason: "conversation_not_in_db",
+				conversationId: "stale-valkey-conv-id",
+				source: "valkey_config",
+			});
+		});
+
+		it("should return debug reason from Valkey when sessionKey has no entry", async () => {
+			mockValkeyClient.hget.mockResolvedValueOnce(null);
+
+			const result = await iframeService.validateAndSetup("missing-key");
+
+			expect(result.valid).toBe(false);
+			expect(result.error).toBe("Invalid or missing Valkey configuration");
+			expect(result.debug).toEqual({
+				reason: "No data found at key",
+			});
+		});
+
+		it("should return debug reason from Valkey when entry missing required fields", async () => {
+			const incompletePayload = {
+				tenantName: "Test Tenant",
+				accessToken: "token",
+			};
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify(incompletePayload),
+			);
+
+			const result = await iframeService.validateAndSetup("incomplete-key");
+
+			expect(result.valid).toBe(false);
+			expect(result.error).toBe("Invalid or missing Valkey configuration");
+			expect(result.debug).toEqual({
+				reason: "Missing required fields: tenantId, userGuid",
+			});
+		});
+	});
+
 	describe("validateAndSetup - stores valkeySessionKey", () => {
 		it("should store valkeySessionKey in session during setup", async () => {
 			mockValkeyClient.hget.mockResolvedValueOnce(
