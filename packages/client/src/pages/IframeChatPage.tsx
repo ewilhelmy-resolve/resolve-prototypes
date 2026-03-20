@@ -489,11 +489,6 @@ function MockPlatformPanel({
 		window.innerWidth < 500,
 	);
 
-	// Clear trusted origin on unmount to prevent stale origin across SPA navigations
-	useEffect(() => {
-		return () => resetHostOrigin();
-	}, []);
-
 	// Detect small viewport for compact layout
 	useEffect(() => {
 		const handleResize = () => setIsSmallViewport(window.innerWidth < 500);
@@ -1018,6 +1013,11 @@ export default function IframeChatPage() {
 			flagsStore.initialize(tenantId);
 		}
 	}, [tenantId, flagsStore]);
+
+	// Clear trusted origin on unmount to prevent stale origin across SPA navigations
+	useEffect(() => {
+		return () => resetHostOrigin();
+	}, []);
 
 	// Debug state
 	const [showDebug, setShowDebug] = useState(debug);
