@@ -507,6 +507,7 @@ function SimpleMessage({
 			window.addEventListener("message", onAck);
 
 			if (!safePostToParent({ type: "RITA_FORM_MODAL", payload })) {
+				window.removeEventListener("message", onAck);
 				setShowFallbackDialog(true);
 				return;
 			}
