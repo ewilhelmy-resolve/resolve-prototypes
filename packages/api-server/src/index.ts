@@ -241,6 +241,17 @@ app.get(
 	},
 );
 
+// Test endpoint to verify Rollbar error reporting pipeline (non-production only)
+if (process.env.NODE_ENV !== "production") {
+	app.get("/api/test-rollbar", (_req, res) => {
+		try {
+			throw new Error("Rollbar integration test — safe to ignore");
+		} catch (_err) {
+			res.status(500).json({ error: "Failed to test Rollbar integration" });
+		}
+	});
+}
+
 // Error handling middleware (must be last)
 // Rollbar error handler - reports errors to Rollbar
 app.use(rollbarErrorMiddleware);
