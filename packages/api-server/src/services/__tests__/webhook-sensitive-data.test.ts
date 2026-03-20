@@ -102,6 +102,32 @@ describe("scrubSensitiveFields", () => {
 		expect(scrubbed.verification_url).toBe("[REDACTED]");
 		expect(scrubbed.first_name).toBe("Test");
 	});
+
+	it("should redact instanceUrl from data source connection settings", () => {
+		const payload = {
+			action: "verify_credentials",
+			settings: {
+				instanceUrl: "https://mycompany.service-now.com",
+				maxTickets: 500,
+			},
+		};
+		const scrubbed = scrubSensitiveFields(payload);
+		expect(scrubbed.settings.instanceUrl).toBe("[REDACTED]");
+		expect(scrubbed.settings.maxTickets).toBe(500);
+	});
+
+	it("should redact username from data source connection settings", () => {
+		const payload = {
+			action: "verify_credentials",
+			settings: {
+				username: "admin@company.com",
+				project: "TEST",
+			},
+		};
+		const scrubbed = scrubSensitiveFields(payload);
+		expect(scrubbed.settings.username).toBe("[REDACTED]");
+		expect(scrubbed.settings.project).toBe("TEST");
+	});
 });
 
 describe("WebhookService – sensitive data scrubbing", () => {
