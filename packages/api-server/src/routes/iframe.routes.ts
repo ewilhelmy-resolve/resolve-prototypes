@@ -12,7 +12,6 @@
  * See types/webhook.ts for ChatWebhookSource type definition.
  */
 import express from "express";
-import { pool } from "../config/database.js";
 import { logger } from "../config/logger.js";
 import { getValkeyStatus } from "../config/valkey.js";
 import { registry, z } from "../docs/openapi.js";
@@ -460,20 +459,21 @@ router.delete(
 		}
 
 		try {
-			// Verify conversation belongs to authenticated user
-			const convCheck = await pool.query(
-				"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
-				[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
-			);
+			const iframeService = getIframeService();
 
-			if (convCheck.rows.length === 0) {
+			// Verify conversation belongs to authenticated user
+			const isOwner = await iframeService.verifyConversationOwnership(
+				conversationId,
+				authReq.user.activeOrganizationId,
+				authReq.user.id,
+			);
+			if (!isOwner) {
 				res
 					.status(404)
 					.json({ success: false, error: "Conversation not found" });
 				return;
 			}
 
-			const iframeService = getIframeService();
 			await iframeService.deleteConversation(conversationId);
 			res.json({ success: true });
 		} catch (error) {
@@ -563,13 +563,15 @@ router.post("/ui-action", authenticateUser, async (req, res) => {
 	}
 
 	try {
-		// Verify conversation belongs to authenticated user
-		const convCheck = await pool.query(
-			"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
-			[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
-		);
+		const iframeService = getIframeService();
 
-		if (convCheck.rows.length === 0) {
+		// Verify conversation belongs to authenticated user
+		const isOwner = await iframeService.verifyConversationOwnership(
+			conversationId,
+			authReq.user.activeOrganizationId,
+			authReq.user.id,
+		);
+		if (!isOwner) {
 			res.status(404).json({ success: false, error: "Conversation not found" });
 			return;
 		}
@@ -584,7 +586,6 @@ router.post("/ui-action", authenticateUser, async (req, res) => {
 			"Processing UI action",
 		);
 
-		const iframeService = getIframeService();
 		await iframeService.sendUIAction({
 			action,
 			data,
