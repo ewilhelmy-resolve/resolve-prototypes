@@ -33,6 +33,10 @@ vi.mock("../../middleware/auth.js", () => ({
 	authenticateUser: vi.fn((_req: any, _res: any, next: any) => next()),
 }));
 
+vi.mock("../../services/WebhookService.js", () => ({
+	scrubSensitiveFields: vi.fn((obj: unknown) => obj),
+}));
+
 import type { Mock } from "vitest";
 import { DataSourceService } from "../../services/DataSourceService.js";
 import { DataSourceWebhookService } from "../../services/DataSourceWebhookService.js";
