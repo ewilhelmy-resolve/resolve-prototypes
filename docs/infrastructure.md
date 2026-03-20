@@ -12,22 +12,22 @@ graph TB
 
     subgraph app ["Application Layer &nbsp;(pnpm dev)"]
         client["Client<br/>React + Vite (SPA + Iframe)<br/><code>:5173</code>"]
-        api["API Server<br/>Express + Kysely<br/><code>:3000</code>"]
+        api["API Server<br/>Express<br/><code>:3000</code>"]
         mock["Mock Service<br/>Express<br/><code>:3001</code>"]
     end
 
     subgraph docker ["Docker Compose &nbsp;(infrastructure)"]
         pg[("PostgreSQL 15<br/>+ pgvector<br/><code>:5432</code>")]
         rabbit["RabbitMQ<br/>AMQP + Mgmt UI<br/><code>:5672</code> / <code>:15672</code>"]
-        valkey["Valkey 8<br/>Sessions & Cache<br/><code>:6379</code>"]
+        valkey["Valkey 8<br/>Cache<br/><code>:6379</code>"]
         keycloak["Keycloak 24<br/>Identity (OIDC)<br/><code>:8080</code>"]
         mailpit["Mailpit<br/>Dev Email<br/><code>:1025</code> / <code>:8025</code>"]
     end
 
     client -- "REST / SSE" --> api
     api -- "SQL (Kysely)" --> pg
-    api -- "Publish / Consume" --> rabbit
-    api -- "Session read/write" --> valkey
+    api -- "Consume" --> rabbit
+    api -- "Cache read/write" --> valkey
     api -- "JWT validation" --> keycloak
     api -- "SMTP" --> mailpit
     api -- "HTTP POST (webhook)" --> webhook
@@ -49,7 +49,7 @@ graph TB
     style webhook fill:#f59e0b,stroke:#fff,color:#fff
 ```
 
-### Data Flow
+### Chat Data Flow
 
 ```mermaid
 sequenceDiagram
@@ -58,7 +58,6 @@ sequenceDiagram
     participant KC as Keycloak :8080
     participant API as API Server :3000
     participant PG as PostgreSQL :5432
-    participant VK as Valkey :6379
     participant WH as Automation Webhook
     participant RMQ as RabbitMQ :5672
 
@@ -94,6 +93,7 @@ All infrastructure runs via `docker compose up -d`. Application code (API server
 | PostgreSQL | rita | rita |
 | RabbitMQ | guest | guest |
 | Keycloak Admin | admin | admin |
+| Mailpit | — | no auth |
 | Valkey | — | no auth |
 
 ## Application Components
@@ -102,7 +102,7 @@ All infrastructure runs via `docker compose up -d`. Application code (API server
 |-----------|---------|------|-------------|
 | **API Server** | Node 20 + Express + Kysely | 3000 | REST API, SSE, RabbitMQ consumers, webhook dispatch |
 | **Client** | React 18 + Vite | 5173 | SPA with Keycloak auth, TanStack Query, Zustand |
-| **Iframe App** | Vite | 5174 | Embeddable chat widget, public guest access via Valkey sessions |
+| **Iframe App** | Vite (dev only, no Dockerfile) | 5174 | Embeddable chat widget, public guest access via Valkey sessions |
 | **Mock Service** | Node 20 + Express | 3001 | Simulates external automation webhook for local dev |
 | **Keycloak Theme** | Tailwind CSS | — | Custom login/registration theme (built as JAR) |
 
@@ -111,7 +111,7 @@ All infrastructure runs via `docker compose up -d`. Application code (API server
 - **Database name**: `onboarding`
 - **Extension**: pgvector (vector similarity search)
 - **Row-Level Security**: Enabled — `app.current_user_id` and `app.current_organization_id` set per transaction
-- **Migration files**: 80 SQL files (`packages/api-server/src/database/migrations/`)
+- **Migration files**: 81 SQL files (`packages/api-server/src/database/migrations/`)
 - **ORM**: Kysely (type-safe query builder, not a full ORM)
 - **Schema codegen**: kysely-codegen generates `types/database.ts` from live DB
 
@@ -150,9 +150,9 @@ All infrastructure runs via `docker compose up -d`. Application code (API server
 ## Valkey (Redis-Compatible Cache)
 
 - **Image**: Valkey 8 (Alpine)
-- **Purpose**: Session storage, iframe configuration cache, feature flags
+- **Purpose**: Iframe configuration cache, feature flags
 - **Key patterns**:
-  - `rita:session:{sessionKey}` — iframe session config (tenantId, userGuid, webhook credentials)
+  - `rita:session:{guid}` — iframe session config (tenantId, userGuid, webhook credentials)
   - Used for public guest access (no Keycloak) in iframe embed mode
 - **Persistence**: RDB snapshots to volume
 - **No auth** in local dev
@@ -162,9 +162,10 @@ All infrastructure runs via `docker compose up -d`. Application code (API server
 - **Image**: RabbitMQ 3 with management plugin
 - **Purpose**: Async inter-service communication
 - **Key queues**:
-  - `workflow.responses` — Platform → Rita response routing
-  - Data source sync events
-  - Document processing events
+  - `chat.responses` — Chat message response routing
+  - `workflow.responses` — Platform → Rita workflow response routing
+  - `document_processing_status` — Document ingestion status events
+  - `data_source_status` — Data source sync status events
 - **Management UI**: http://localhost:15672 (guest/guest)
 - **Message flow**: RITA → Webhook → Platform → RabbitMQ → WorkflowConsumer → SSE → Client
 
@@ -188,6 +189,8 @@ All infrastructure runs via `docker compose up -d`. Application code (API server
 | Mock Service | `node:20-slim` | `packages/mock-service/Dockerfile` |
 | Keycloak | `keycloak:24.0.4` | `keycloak/Dockerfile` |
 
+> **Note**: Iframe App is a static Vite build only — not containerized separately. Mailpit runs from its upstream image in docker-compose (no custom Dockerfile).
+
 All application images use multi-stage builds and run as non-root users.
 
 ### Kubernetes (AWS)
@@ -206,6 +209,27 @@ All application images use multi-stage builds and run as non-root users.
 |-------|-----------|
 | `api-server` | Deployment, Service, HPA, ConfigMap, Secrets, Migration Job |
 | `frontend` | Deployment, Service, Ingress, HPA, Nginx ConfigMap, Route53 cleanup |
+| `keycloak` | Deployment, Service, ConfigMap, Secrets |
+| `keycloak-postgres` | StatefulSet, Service, PVC, Velero backups |
+
+### Helm Environments
+
+Per-environment value overrides in `helm/ritadev/environments/`:
+
+| Environment | Value files |
+|-------------|-------------|
+| `dev` | `api-server.yml`, `frontend.yml`, `keycloak.yml`, `keycloak-postgres.yml` |
+
+## CI/CD (GitHub Actions)
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `test.yml` | PR, push | Type check & unit tests |
+| `build-keycloak-theme.yml` | Push | Build Keycloak theme JAR |
+| `deploy-dev.yml` | Push to main | Deploy to dev environment |
+| `deploy-staging.yml` | Manual/tag | Deploy to staging |
+| `deploy-prod.yml` | Manual/tag | Deploy to production |
+| `deploy-k8s-dev.yml` | Push to main | Deploy to K8s dev cluster |
 
 ## Technology Stack Summary
 
