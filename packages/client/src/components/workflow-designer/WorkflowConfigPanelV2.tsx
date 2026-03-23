@@ -2,6 +2,7 @@ import type { Node } from "@xyflow/react";
 import {
 	AlertTriangle,
 	Braces,
+	Check,
 	ChevronDown,
 	ChevronRight,
 	ChevronsLeft,
@@ -11,11 +12,13 @@ import {
 	HelpCircle,
 	Info,
 	Settings,
+	Shield,
 	StickyNote,
-	Wrench,
 	X,
+	Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -188,24 +191,117 @@ function DetailsContent({
 					<div className="mb-2">
 						{isSkillConfigured ? (
 							<div className="space-y-2.5">
-								<div>
-									<div className="text-[10px] text-slate-400 uppercase tracking-wider">
-										Skill Name
+								{/* Skill status card */}
+								<div
+									className={`rounded-lg border-2 p-3 ${
+										published
+											? "border-emerald-300 bg-emerald-50/50"
+											: "border-blue-300 bg-blue-50/50"
+									}`}
+								>
+									<div className="flex items-center gap-2 mb-1.5">
+										{published ? (
+											<Shield className="w-4 h-4 text-emerald-600" />
+										) : (
+											<Shield className="w-4 h-4 text-blue-600" />
+										)}
+										<span className="text-sm font-semibold text-slate-800">
+											{skillMetadata.name}
+										</span>
+										{published ? (
+											<span className="ml-auto text-[10px] font-medium bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5 flex items-center gap-1">
+												<Check className="w-3 h-3" />
+												Published
+											</span>
+										) : (
+											<span className="ml-auto text-[10px] font-medium bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">
+												Draft
+											</span>
+										)}
 									</div>
-									<div className="text-sm text-slate-700">
-										{skillMetadata.name}
-									</div>
-								</div>
-								{skillMetadata.description && (
-									<div>
-										<div className="text-[10px] text-slate-400 uppercase tracking-wider">
-											Description
-										</div>
-										<div className="text-xs text-slate-600">
+									{skillMetadata.description && (
+										<p className="text-xs text-slate-600 mb-1.5">
 											{skillMetadata.description}
+										</p>
+									)}
+									{skillMetadata.inputsJson &&
+										(() => {
+											try {
+												const inputs = JSON.parse(
+													skillMetadata.inputsJson,
+												);
+												const inputCount = Array.isArray(inputs)
+													? inputs.length
+													: Object.keys(inputs).length;
+												return (
+													<p className="text-[11px] text-slate-500">
+														{inputCount} input
+														{inputCount !== 1 ? "s" : ""} mapped
+													</p>
+												);
+											} catch {
+												return null;
+											}
+										})()}
+								</div>
+
+								{/* Sync warning — only when published */}
+								{published && (
+									<div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2.5">
+										<AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+										<div className="flex-1 min-w-0">
+											<p className="text-xs text-amber-800 font-medium leading-snug">
+												Workflow modified since last publish &mdash; 2 variables may need review
+											</p>
+											<Button
+												variant="outline"
+												size="sm"
+												className="text-xs h-6 mt-1.5 border-amber-300 text-amber-700 hover:bg-amber-100"
+												onClick={() => onConfigureSkill()}
+											>
+												Update Skill
+											</Button>
 										</div>
 									</div>
 								)}
+
+								{/* Input variable chips */}
+								{skillMetadata.inputsJson &&
+									(() => {
+										try {
+											const inputs = JSON.parse(
+												skillMetadata.inputsJson,
+											);
+											const names: string[] = Array.isArray(inputs)
+												? inputs.map(
+														(i: { name?: string; key?: string }) =>
+															i.name || i.key || String(i),
+													)
+												: Object.keys(inputs);
+											if (names.length === 0) return null;
+											return (
+												<div>
+													<div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">
+														Input Variables
+													</div>
+													<div className="flex flex-wrap gap-1">
+														{names.map((name) => (
+															<Badge
+																key={name}
+																variant="secondary"
+																className="text-[10px] font-mono px-1.5 py-0"
+															>
+																{name}
+															</Badge>
+														))}
+													</div>
+												</div>
+											);
+										} catch {
+											return null;
+										}
+									})()}
+
 								{skillMetadata.toolEid && (
 									<div>
 										<div className="text-[10px] text-slate-400 uppercase tracking-wider">
@@ -216,26 +312,7 @@ function DetailsContent({
 										</div>
 									</div>
 								)}
-								{skillMetadata.inputsJson && (
-									<div>
-										<div className="text-[10px] text-slate-400 uppercase tracking-wider">
-											Inputs
-										</div>
-										<pre className="text-[10px] font-mono text-slate-500 bg-slate-50 rounded p-2 overflow-x-auto max-h-[80px]">
-											{skillMetadata.inputsJson}
-										</pre>
-									</div>
-								)}
-								{skillMetadata.outputsJson && (
-									<div>
-										<div className="text-[10px] text-slate-400 uppercase tracking-wider">
-											Outputs
-										</div>
-										<pre className="text-[10px] font-mono text-slate-500 bg-slate-50 rounded p-2 overflow-x-auto max-h-[80px]">
-											{skillMetadata.outputsJson}
-										</pre>
-									</div>
-								)}
+
 								<div className="pt-1">
 									<Button
 										variant="outline"
@@ -250,15 +327,19 @@ function DetailsContent({
 							</div>
 						) : (
 							<div className="text-center py-4 border border-dashed border-slate-200 rounded-lg">
-								<Wrench className="w-6 h-6 text-slate-300 mx-auto mb-2" />
-								<p className="text-xs text-slate-400 mb-3">
+								<Zap className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+								<p className="text-xs text-slate-400 mb-1">
 									Not configured as a skill
+								</p>
+								<p className="text-[11px] text-slate-400 mb-3">
+									Enable this workflow as a skill for the Agent Builder
 								</p>
 								<Button
 									size="sm"
-									className="text-xs h-7"
+									className="text-xs h-8 px-4"
 									onClick={() => onConfigureSkill()}
 								>
+									<Zap className="w-3.5 h-3.5 mr-1.5" />
 									Configure
 								</Button>
 							</div>

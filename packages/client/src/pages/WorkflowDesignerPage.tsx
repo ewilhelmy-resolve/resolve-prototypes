@@ -31,6 +31,7 @@ import { WorkflowConfigPanel } from "@/components/workflow-designer/WorkflowConf
 import { WorkflowConfigPanelV2 } from "@/components/workflow-designer/WorkflowConfigPanelV2";
 import { WorkflowJarvisPanel } from "@/components/workflow-designer/WorkflowJarvisPanel";
 import { WorkflowSkillMetadataDialog } from "@/components/workflow-designer/WorkflowSkillMetadataDialog";
+import { WorkflowSkillAutoDetectDialog } from "@/components/workflow-designer/WorkflowSkillAutoDetectDialog";
 import { WorkflowSkillVariableDialog } from "@/components/workflow-designer/WorkflowSkillVariableDialog";
 import {
 	DEFAULT_EDGES,
@@ -70,9 +71,11 @@ export default function WorkflowDesignerPage() {
 		Record<string, SkillMetadata>
 	>({});
 	const [skillDialogVariant, setSkillDialogVariant] = useState<
-		"json" | "variables" | null
+		"json" | "variables" | "autodetect" | null
 	>(null);
-	const [skillOption, setSkillOption] = useState<"json" | "variables">("json");
+	const [skillOption, setSkillOption] = useState<
+		"json" | "variables" | "autodetect"
+	>("json");
 	const [workflowDescriptionMap, setWorkflowDescriptionMap] = useState<
 		Record<string, string>
 	>({});
@@ -363,12 +366,13 @@ export default function WorkflowDesignerPage() {
 								<span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Skill Modal</span>
 								<select
 									value={skillOption}
-									onChange={(e) => setSkillOption(e.target.value as "json" | "variables")}
+									onChange={(e) => setSkillOption(e.target.value as "json" | "variables" | "autodetect")}
 									className="text-[11px] h-5 rounded border border-slate-200 bg-white text-slate-600 px-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
 									aria-label="Skill configuration option"
 								>
 									<option value="json">Opt 1: JSON Schema</option>
 									<option value="variables">Opt 2: Variable Picker</option>
+									<option value="autodetect">Opt 3: Auto-Detect</option>
 								</select>
 							</div>
 							<WorkflowConfigPanelV2
@@ -418,6 +422,19 @@ export default function WorkflowDesignerPage() {
 					}))
 				}
 				onPublish={handlePublishSkill}
+			/>
+			<WorkflowSkillAutoDetectDialog
+				open={skillDialogVariant === "autodetect"}
+				onOpenChange={(open) => !open && setSkillDialogVariant(null)}
+				value={skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA}
+				onSave={(metadata) =>
+					setSkillMetadataMap((prev) => ({
+						...prev,
+						[activeTabId]: metadata,
+					}))
+				}
+				onPublish={handlePublishSkill}
+				nodes={nodes}
 			/>
 		</RitaLayout>
 	);

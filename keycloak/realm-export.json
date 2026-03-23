@@ -41,6 +41,21 @@
   ],
   "users": [
     {
+      "username": "testadmin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin@resolve.io",
+      "firstName": "Test",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test",
+          "temporary": false
+        }
+      ]
+    },
+    {
       "username": "testuser",
       "enabled": true,
       "emailVerified": true,

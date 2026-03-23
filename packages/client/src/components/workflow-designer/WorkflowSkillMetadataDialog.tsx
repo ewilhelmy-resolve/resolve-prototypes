@@ -1,6 +1,7 @@
 import confetti from "canvas-confetti";
 import { ChevronDown, ChevronRight, Code2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -37,7 +38,6 @@ export function WorkflowSkillMetadataDialog({
 	const [prePython, setPrePython] = useState(value.prePython ?? "");
 	const [postPython, setPostPython] = useState(value.postPython ?? "");
 	const [advancedOpen, setAdvancedOpen] = useState(false);
-	const [showConfirm, setShowConfirm] = useState(false);
 
 	useEffect(() => {
 		if (open) {
@@ -48,7 +48,6 @@ export function WorkflowSkillMetadataDialog({
 			setOutputsJson(value.outputsJson);
 			setPrePython(value.prePython ?? "");
 			setPostPython(value.postPython ?? "");
-			setShowConfirm(false);
 		}
 	}, [open, value]);
 
@@ -70,10 +69,13 @@ export function WorkflowSkillMetadataDialog({
 	};
 
 	const handlePublish = () => {
-		onPublish(buildMetadata());
-		setShowConfirm(false);
+		const metadata = buildMetadata();
+		onPublish(metadata);
 		onOpenChange(false);
 		confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+		toast.success("Skill published", {
+			description: `${metadata.name} is now available in the Agent Builder.`,
+		});
 	};
 
 	return (
@@ -240,7 +242,7 @@ export function WorkflowSkillMetadataDialog({
 					</Button>
 					<Button
 						size="sm"
-						onClick={() => setShowConfirm(true)}
+						onClick={handlePublish}
 						disabled={!canSave}
 					>
 						Publish
@@ -249,31 +251,6 @@ export function WorkflowSkillMetadataDialog({
 			</DialogContent>
 		</Dialog>
 
-		{/* Publish confirmation */}
-		<Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-			<DialogContent className="max-w-sm">
-				<DialogHeader>
-					<DialogTitle>Publish Skill</DialogTitle>
-				</DialogHeader>
-				<p className="text-sm text-slate-600 leading-relaxed">
-					This will make <span className="font-semibold">{name}</span> available
-					as a skill in the Agent Builder. Agents will be able to use this
-					workflow as a tool.
-				</p>
-				<DialogFooter>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => setShowConfirm(false)}
-					>
-						Cancel
-					</Button>
-					<Button size="sm" onClick={handlePublish}>
-						Confirm &amp; Publish
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
 		</>
 	);
 }

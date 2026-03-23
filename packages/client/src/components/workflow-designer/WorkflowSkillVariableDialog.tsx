@@ -1,6 +1,7 @@
 import confetti from "canvas-confetti";
-import { Check, ChevronDown, ChevronRight, Code2, Search, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -11,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
 	MOCK_WORKFLOW_VARIABLES,
 	type WorkflowVariable,
@@ -33,6 +33,185 @@ interface WorkflowSkillVariableDialogProps {
 	onPublish: (metadata: SkillMetadata) => void;
 }
 
+/** Typeahead combobox for picking workflow variables */
+function VariableTypeahead({
+	label,
+	selected,
+	onSelect,
+	onRemove,
+	onUpdateDescription,
+	ariaLabel,
+}: {
+	label: string;
+	selected: SelectedVariable[];
+	onSelect: (v: WorkflowVariable) => void;
+	onRemove: (varName: string) => void;
+	onUpdateDescription: (varName: string, desc: string) => void;
+	ariaLabel: string;
+}) {
+	const [query, setQuery] = useState("");
+	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const blurTimeout = useRef<ReturnType<typeof setTimeout>>();
+	const descRef = useRef<HTMLInputElement>(null);
+	const [focusNext, setFocusNext] = useState(false);
+
+	const selectedNames = useMemo(
+		() => new Set(selected.map((s) => s.variable.name)),
+		[selected],
+	);
+
+	const filtered = useMemo(
+		() =>
+			query.trim() === ""
+				? []
+				: MOCK_WORKFLOW_VARIABLES.filter(
+						(v) =>
+							!selectedNames.has(v.name) &&
+							(v.name.toLowerCase().includes(query.toLowerCase()) ||
+								v.activityLabel.toLowerCase().includes(query.toLowerCase())),
+					),
+		[query, selectedNames],
+	);
+
+	useEffect(() => {
+		if (focusNext && descRef.current) {
+			descRef.current.focus();
+			setFocusNext(false);
+		}
+	}, [focusNext, selected.length]);
+
+	const handleSelect = useCallback(
+		(v: WorkflowVariable) => {
+			onSelect(v);
+			setQuery("");
+			setDropdownOpen(false);
+			setFocusNext(true);
+		},
+		[onSelect],
+	);
+
+	const handleBlur = useCallback(() => {
+		blurTimeout.current = setTimeout(() => setDropdownOpen(false), 150);
+	}, []);
+
+	const handleFocus = useCallback(() => {
+		if (blurTimeout.current) clearTimeout(blurTimeout.current);
+		if (query.trim()) setDropdownOpen(true);
+	}, [query]);
+
+	return (
+		<div className="space-y-2">
+			<Label className="text-xs font-medium text-slate-600">
+				{label}
+				{selected.length > 0 && (
+					<span className="ml-1.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5">
+						{selected.length}
+					</span>
+				)}
+			</Label>
+
+			{/* Search input */}
+			<div className="relative">
+				<Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+				<Input
+					value={query}
+					onChange={(e) => {
+						setQuery(e.target.value);
+						setDropdownOpen(e.target.value.trim() !== "");
+					}}
+					onFocus={handleFocus}
+					onBlur={handleBlur}
+					placeholder="Search variables..."
+					className="text-xs h-8 pl-8"
+					aria-label={ariaLabel}
+					role="combobox"
+					aria-expanded={dropdownOpen && filtered.length > 0}
+					aria-autocomplete="list"
+				/>
+
+				{/* Dropdown */}
+				{dropdownOpen && filtered.length > 0 && (
+					<div
+						className="absolute left-0 right-0 top-full mt-1 max-h-[200px] overflow-y-auto border border-slate-200 shadow-md bg-white rounded-md z-10"
+						role="listbox"
+						aria-label={`${label} suggestions`}
+					>
+						{filtered.map((v) => (
+							<button
+								key={v.name}
+								type="button"
+								role="option"
+								aria-selected={false}
+								className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-slate-50 transition-colors"
+								onMouseDown={(e) => e.preventDefault()}
+								onClick={() => handleSelect(v)}
+								aria-label={`Select ${v.name}`}
+							>
+								<span className="text-xs font-mono text-slate-700 flex-1 truncate">
+									{v.name}
+								</span>
+								<span className="text-[10px] text-slate-400 shrink-0">
+									{v.type}
+								</span>
+								<span className="text-[10px] text-slate-400 shrink-0 truncate max-w-[100px]">
+									{v.activityLabel}
+								</span>
+							</button>
+						))}
+					</div>
+				)}
+				{dropdownOpen && query.trim() !== "" && filtered.length === 0 && (
+					<div className="absolute left-0 right-0 top-full mt-1 border border-slate-200 shadow-md bg-white rounded-md z-10 px-3 py-2 text-xs text-slate-400 text-center">
+						No variables match
+					</div>
+				)}
+			</div>
+
+			{/* Selected cards */}
+			{selected.length > 0 && (
+				<ul className="list-none space-y-1.5" aria-label={`Selected ${label.toLowerCase()}`}>
+					{selected.map((sel, idx) => (
+						<li
+							key={sel.variable.name}
+							className="rounded-md border border-blue-200 bg-blue-50/50 p-2 space-y-1"
+						>
+							<div className="flex items-center gap-2">
+								<span className="text-xs font-mono font-medium text-blue-700 flex-1 truncate">
+									{sel.variable.name}
+								</span>
+								<span className="text-[10px] bg-slate-100 text-slate-500 rounded px-1.5 py-0.5 shrink-0">
+									{sel.variable.type}
+								</span>
+								<span className="text-[10px] text-slate-400 shrink-0 truncate max-w-[100px]">
+									{sel.variable.activityLabel}
+								</span>
+								<button
+									type="button"
+									onClick={() => onRemove(sel.variable.name)}
+									className="p-0.5 hover:bg-blue-100 rounded text-blue-400 hover:text-blue-600 transition-colors"
+									aria-label={`Remove ${sel.variable.name}`}
+								>
+									<X className="w-3 h-3" />
+								</button>
+							</div>
+							<Input
+								ref={idx === selected.length - 1 ? descRef : undefined}
+								value={sel.description}
+								onChange={(e) =>
+									onUpdateDescription(sel.variable.name, e.target.value)
+								}
+								placeholder="Description"
+								className="text-xs h-7"
+								aria-label={`${sel.variable.name} description`}
+							/>
+						</li>
+					))}
+				</ul>
+			)}
+		</div>
+	);
+}
+
 export function WorkflowSkillVariableDialog({
 	open,
 	onOpenChange,
@@ -42,30 +221,15 @@ export function WorkflowSkillVariableDialog({
 }: WorkflowSkillVariableDialogProps) {
 	const [name, setName] = useState(value.name);
 	const [description, setDescription] = useState(value.description);
-	const [toolEid, setToolEid] = useState(value.toolEid);
-	const [prePython, setPrePython] = useState(value.prePython ?? "");
-	const [postPython, setPostPython] = useState(value.postPython ?? "");
-	const [advancedOpen, setAdvancedOpen] = useState(false);
-	const [showConfirm, setShowConfirm] = useState(false);
-
-	// Variable picker state
-	const [inputSearch, setInputSearch] = useState("");
 	const [selectedInputs, setSelectedInputs] = useState<SelectedVariable[]>([]);
-	const [outputSearch, setOutputSearch] = useState("");
 	const [selectedOutputs, setSelectedOutputs] = useState<SelectedVariable[]>([]);
 
 	useEffect(() => {
 		if (open) {
 			setName(value.name);
 			setDescription(value.description);
-			setToolEid(value.toolEid);
-			setPrePython(value.prePython ?? "");
-			setPostPython(value.postPython ?? "");
-			setInputSearch("");
-			setOutputSearch("");
 			setSelectedInputs(parseSelectedVars(value.inputsJson));
 			setSelectedOutputs(parseSelectedVars(value.outputsJson));
-			setShowConfirm(false);
 		}
 	}, [open, value]);
 
@@ -74,11 +238,9 @@ export function WorkflowSkillVariableDialog({
 	const buildMetadata = (): SkillMetadata => ({
 		name,
 		description,
-		toolEid,
+		toolEid: value.toolEid,
 		inputsJson: serializeSelectedVars(selectedInputs),
 		outputsJson: serializeSelectedVars(selectedOutputs),
-		prePython: prePython.trim() || undefined,
-		postPython: postPython.trim() || undefined,
 	});
 
 	const handleSave = () => {
@@ -87,537 +249,160 @@ export function WorkflowSkillVariableDialog({
 	};
 
 	const handlePublish = () => {
-		onPublish(buildMetadata());
-		setShowConfirm(false);
+		const metadata = buildMetadata();
+		onPublish(metadata);
 		onOpenChange(false);
 		confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+		toast.success("Skill published", {
+			description: `${metadata.name} is now available in the Agent Builder.`,
+		});
 	};
 
-	const inputFilteredVars = useMemo(
-		() =>
-			MOCK_WORKFLOW_VARIABLES.filter(
-				(v) =>
-					v.name.toLowerCase().includes(inputSearch.toLowerCase()) ||
-					v.activityLabel.toLowerCase().includes(inputSearch.toLowerCase()),
-			),
-		[inputSearch],
+	const addInput = useCallback(
+		(v: WorkflowVariable) =>
+			setSelectedInputs((prev) => [
+				...prev,
+				{ variable: v, description: "", defaultValue: "" },
+			]),
+		[],
 	);
 
-	const inputGrouped = useMemo(() => {
-		const map = new Map<string, WorkflowVariable[]>();
-		for (const v of inputFilteredVars) {
-			const group = map.get(v.activityLabel) ?? [];
-			group.push(v);
-			map.set(v.activityLabel, group);
-		}
-		return map;
-	}, [inputFilteredVars]);
-
-	const outputFilteredVars = useMemo(
-		() =>
-			MOCK_WORKFLOW_VARIABLES.filter(
-				(v) =>
-					v.name.toLowerCase().includes(outputSearch.toLowerCase()) ||
-					v.activityLabel.toLowerCase().includes(outputSearch.toLowerCase()),
+	const removeInput = useCallback(
+		(varName: string) =>
+			setSelectedInputs((prev) =>
+				prev.filter((s) => s.variable.name !== varName),
 			),
-		[outputSearch],
+		[],
 	);
 
-	const outputGrouped = useMemo(() => {
-		const map = new Map<string, WorkflowVariable[]>();
-		for (const v of outputFilteredVars) {
-			const group = map.get(v.activityLabel) ?? [];
-			group.push(v);
-			map.set(v.activityLabel, group);
-		}
-		return map;
-	}, [outputFilteredVars]);
-
-	const toggleInput = (variable: WorkflowVariable) => {
-		const exists = selectedInputs.find(
-			(s) => s.variable.name === variable.name,
-		);
-		if (exists) {
-			setSelectedInputs(
-				selectedInputs.filter((s) => s.variable.name !== variable.name),
-			);
-		} else {
-			setSelectedInputs([
-				...selectedInputs,
-				{ variable, description: "", defaultValue: "" },
-			]);
-		}
-	};
-
-	const toggleOutput = (variable: WorkflowVariable) => {
-		const exists = selectedOutputs.find(
-			(s) => s.variable.name === variable.name,
-		);
-		if (exists) {
-			setSelectedOutputs(
-				selectedOutputs.filter((s) => s.variable.name !== variable.name),
-			);
-		} else {
-			setSelectedOutputs([
-				...selectedOutputs,
-				{ variable, description: "", defaultValue: "" },
-			]);
-		}
-	};
-
-	const updateInputVar = (
-		varName: string,
-		field: "description" | "defaultValue",
-		val: string,
-	) => {
-		setSelectedInputs(
-			selectedInputs.map((s) =>
-				s.variable.name === varName ? { ...s, [field]: val } : s,
+	const updateInputDesc = useCallback(
+		(varName: string, desc: string) =>
+			setSelectedInputs((prev) =>
+				prev.map((s) =>
+					s.variable.name === varName ? { ...s, description: desc } : s,
+				),
 			),
-		);
-	};
+		[],
+	);
 
-	const updateOutputVar = (
-		varName: string,
-		field: "description" | "defaultValue",
-		val: string,
-	) => {
-		setSelectedOutputs(
-			selectedOutputs.map((s) =>
-				s.variable.name === varName ? { ...s, [field]: val } : s,
+	const addOutput = useCallback(
+		(v: WorkflowVariable) =>
+			setSelectedOutputs((prev) => [
+				...prev,
+				{ variable: v, description: "", defaultValue: "" },
+			]),
+		[],
+	);
+
+	const removeOutput = useCallback(
+		(varName: string) =>
+			setSelectedOutputs((prev) =>
+				prev.filter((s) => s.variable.name !== varName),
 			),
-		);
-	};
+		[],
+	);
+
+	const updateOutputDesc = useCallback(
+		(varName: string, desc: string) =>
+			setSelectedOutputs((prev) =>
+				prev.map((s) =>
+					s.variable.name === varName ? { ...s, description: desc } : s,
+				),
+			),
+		[],
+	);
 
 	return (
 		<>
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-				<DialogHeader>
-					<DialogTitle>Configure as Skill</DialogTitle>
-				</DialogHeader>
-				<div className="space-y-4 py-2">
-					<div>
-						<Label
-							htmlFor="sv-name"
-							className="text-xs font-medium text-slate-600 mb-1.5 block"
-						>
-							Name <span aria-hidden="true">*</span>
-						</Label>
-						<Input
-							id="sv-name"
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							placeholder="e.g. Password Reset"
-							className="text-sm h-9"
-							required
-							aria-required="true"
-						/>
-					</div>
-					<div>
-						<Label
-							htmlFor="sv-desc"
-							className="text-xs font-medium text-slate-600 mb-1.5 block"
-						>
-							Description
-						</Label>
-						<Textarea
-							id="sv-desc"
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-							placeholder="What does this workflow do when used as a skill?"
-							className="text-sm min-h-[60px]"
-						/>
-					</div>
-					<div>
-						<Label
-							htmlFor="sv-eid"
-							className="text-xs font-medium text-slate-600 mb-1.5 block"
-						>
-							Tool EID
-						</Label>
-						<Input
-							id="sv-eid"
-							value={toolEid}
-							onChange={(e) => setToolEid(e.target.value)}
-							placeholder="auto-generated"
-							className="text-sm h-9 font-mono"
-						/>
-					</div>
-
-					{/* Inputs — variable picker */}
-					<div className="space-y-2">
-						<Label className="text-xs font-medium text-slate-600">
-							Inputs
-							{selectedInputs.length > 0 && (
-								<span className="ml-1.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5">
-									{selectedInputs.length}
-								</span>
-							)}
-						</Label>
-
-						{selectedInputs.length > 0 && (
-							<ul
-								className="list-none space-y-1.5"
-								aria-label="Selected input variables"
-							>
-								{selectedInputs.map((sel) => (
-									<li
-										key={sel.variable.name}
-										className="rounded-md border border-blue-200 bg-blue-50/50 p-2 space-y-1.5"
-									>
-										<div className="flex items-center gap-2">
-											<span className="text-xs font-mono font-medium text-blue-700 flex-1">
-												{sel.variable.name}
-											</span>
-											<span className="text-[10px] text-slate-400">
-												{sel.variable.type}
-											</span>
-											<span className="text-[10px] text-slate-400">
-												{sel.variable.activityLabel}
-											</span>
-											<button
-												type="button"
-												onClick={() => toggleInput(sel.variable)}
-												className="p-0.5 hover:bg-blue-100 rounded text-blue-400 hover:text-blue-600 transition-colors"
-												aria-label={`Remove ${sel.variable.name}`}
-											>
-												<X className="w-3 h-3" />
-											</button>
-										</div>
-										<Input
-											value={sel.description}
-											onChange={(e) =>
-												updateInputVar(
-													sel.variable.name,
-													"description",
-													e.target.value,
-												)
-											}
-											placeholder="Description"
-											className="text-xs h-7"
-											aria-label={`${sel.variable.name} description`}
-										/>
-										<Input
-											value={sel.defaultValue}
-											onChange={(e) =>
-												updateInputVar(
-													sel.variable.name,
-													"defaultValue",
-													e.target.value,
-												)
-											}
-											placeholder="Default value (optional)"
-											className="text-xs h-7"
-											aria-label={`${sel.variable.name} default value`}
-										/>
-									</li>
-								))}
-							</ul>
-						)}
-
-						<div className="relative">
-							<Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-							<Input
-								value={inputSearch}
-								onChange={(e) => setInputSearch(e.target.value)}
-								placeholder="Search variables..."
-								className="text-xs h-8 pl-8"
-								aria-label="Search input variables"
-							/>
-						</div>
-
-						<div className="max-h-[200px] overflow-y-auto rounded-md border border-slate-200">
-							{Array.from(inputGrouped.entries()).map(
-								([activityLabel, vars]) => (
-									<div key={activityLabel}>
-										<div className="px-2.5 py-1.5 bg-slate-50 text-[10px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0">
-											{activityLabel}
-										</div>
-										{vars.map((v) => {
-											const isSelected = selectedInputs.some(
-												(s) => s.variable.name === v.name,
-											);
-											return (
-												<button
-													key={v.name}
-													type="button"
-													className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-slate-50 transition-colors ${
-														isSelected ? "bg-blue-50" : ""
-													}`}
-													onClick={() => toggleInput(v)}
-													aria-label={`${isSelected ? "Deselect" : "Select"} ${v.name}`}
-												>
-													<div
-														className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-															isSelected
-																? "bg-blue-600 border-blue-600"
-																: "border-slate-300"
-														}`}
-													>
-														{isSelected && (
-															<Check className="w-3 h-3 text-white" />
-														)}
-													</div>
-													<span className="text-xs font-mono text-slate-700 flex-1 truncate">
-														{v.name}
-													</span>
-													<span className="text-[10px] text-slate-400">
-														{v.type}
-													</span>
-												</button>
-											);
-										})}
-									</div>
-								),
-							)}
-							{inputGrouped.size === 0 && (
-								<div className="px-3 py-4 text-xs text-slate-400 text-center">
-									No variables match
-								</div>
-							)}
-						</div>
-					</div>
-
-					{/* Outputs — variable picker */}
-					<div className="space-y-2">
-						<Label className="text-xs font-medium text-slate-600">
-							Outputs
-							{selectedOutputs.length > 0 && (
-								<span className="ml-1.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5">
-									{selectedOutputs.length}
-								</span>
-							)}
-						</Label>
-
-						{selectedOutputs.length > 0 && (
-							<ul
-								className="list-none space-y-1.5"
-								aria-label="Selected output variables"
-							>
-								{selectedOutputs.map((sel) => (
-									<li
-										key={sel.variable.name}
-										className="rounded-md border border-blue-200 bg-blue-50/50 p-2 space-y-1.5"
-									>
-										<div className="flex items-center gap-2">
-											<span className="text-xs font-mono font-medium text-blue-700 flex-1">
-												{sel.variable.name}
-											</span>
-											<span className="text-[10px] text-slate-400">
-												{sel.variable.type}
-											</span>
-											<span className="text-[10px] text-slate-400">
-												{sel.variable.activityLabel}
-											</span>
-											<button
-												type="button"
-												onClick={() => toggleOutput(sel.variable)}
-												className="p-0.5 hover:bg-blue-100 rounded text-blue-400 hover:text-blue-600 transition-colors"
-												aria-label={`Remove ${sel.variable.name}`}
-											>
-												<X className="w-3 h-3" />
-											</button>
-										</div>
-										<Input
-											value={sel.description}
-											onChange={(e) =>
-												updateOutputVar(
-													sel.variable.name,
-													"description",
-													e.target.value,
-												)
-											}
-											placeholder="Description"
-											className="text-xs h-7"
-											aria-label={`${sel.variable.name} description`}
-										/>
-										<Input
-											value={sel.defaultValue}
-											onChange={(e) =>
-												updateOutputVar(
-													sel.variable.name,
-													"defaultValue",
-													e.target.value,
-												)
-											}
-											placeholder="Default value (optional)"
-											className="text-xs h-7"
-											aria-label={`${sel.variable.name} default value`}
-										/>
-									</li>
-								))}
-							</ul>
-						)}
-
-						<div className="relative">
-							<Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-							<Input
-								value={outputSearch}
-								onChange={(e) => setOutputSearch(e.target.value)}
-								placeholder="Search variables..."
-								className="text-xs h-8 pl-8"
-								aria-label="Search output variables"
-							/>
-						</div>
-
-						<div className="max-h-[200px] overflow-y-auto rounded-md border border-slate-200">
-							{Array.from(outputGrouped.entries()).map(
-								([activityLabel, vars]) => (
-									<div key={activityLabel}>
-										<div className="px-2.5 py-1.5 bg-slate-50 text-[10px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0">
-											{activityLabel}
-										</div>
-										{vars.map((v) => {
-											const isSelected = selectedOutputs.some(
-												(s) => s.variable.name === v.name,
-											);
-											return (
-												<button
-													key={v.name}
-													type="button"
-													className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-slate-50 transition-colors ${
-														isSelected ? "bg-blue-50" : ""
-													}`}
-													onClick={() => toggleOutput(v)}
-													aria-label={`${isSelected ? "Deselect" : "Select"} ${v.name}`}
-												>
-													<div
-														className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-															isSelected
-																? "bg-blue-600 border-blue-600"
-																: "border-slate-300"
-														}`}
-													>
-														{isSelected && (
-															<Check className="w-3 h-3 text-white" />
-														)}
-													</div>
-													<span className="text-xs font-mono text-slate-700 flex-1 truncate">
-														{v.name}
-													</span>
-													<span className="text-[10px] text-slate-400">
-														{v.type}
-													</span>
-												</button>
-											);
-										})}
-									</div>
-								),
-							)}
-							{outputGrouped.size === 0 && (
-								<div className="px-3 py-4 text-xs text-slate-400 text-center">
-									No variables match
-								</div>
-							)}
-						</div>
-					</div>
-
-					{/* Advanced: pre/post python scripts */}
-					<div className="border-t border-slate-200 pt-3">
-						<button
-							type="button"
-							className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-800 transition-colors"
-							onClick={() => setAdvancedOpen(!advancedOpen)}
-							aria-expanded={advancedOpen}
-						>
-							{advancedOpen ? (
-								<ChevronDown className="w-3.5 h-3.5" />
-							) : (
-								<ChevronRight className="w-3.5 h-3.5" />
-							)}
-							<Code2 className="w-3.5 h-3.5" />
-							Advanced Scripts
-						</button>
-
-						{advancedOpen && (
-							<div className="mt-3 space-y-3">
-								<div>
-									<Label
-										htmlFor="sv-pre-python"
-										className="text-xs text-slate-500 mb-1.5 block"
-									>
-										Pre-script (runs before tool)
-									</Label>
-									<Textarea
-										id="sv-pre-python"
-										value={prePython}
-										onChange={(e) => setPrePython(e.target.value)}
-										placeholder="# Python script to clean up inputs..."
-										className="text-xs font-mono min-h-[100px] resize-y"
-									/>
-								</div>
-								<div>
-									<Label
-										htmlFor="sv-post-python"
-										className="text-xs text-slate-500 mb-1.5 block"
-									>
-										Post-script (runs after tool)
-									</Label>
-									<Textarea
-										id="sv-post-python"
-										value={postPython}
-										onChange={(e) => setPostPython(e.target.value)}
-										placeholder="# Python script to clean up outputs..."
-										className="text-xs font-mono min-h-[100px] resize-y"
-									/>
-								</div>
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Configure as Skill</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4 py-2">
+						{/* Name + Description row */}
+						<div className="flex gap-3">
+							<div className="flex-1">
+								<Label
+									htmlFor="sv-name"
+									className="text-xs font-medium text-slate-600 mb-1.5 block"
+								>
+									Name <span aria-hidden="true">*</span>
+								</Label>
+								<Input
+									id="sv-name"
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+									placeholder="e.g. Password Reset"
+									className="text-sm h-9"
+									required
+									aria-required="true"
+								/>
 							</div>
-						)}
-					</div>
-				</div>
-				<DialogFooter className="gap-2 sm:gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => onOpenChange(false)}
-					>
-						Cancel
-					</Button>
-					<Button
-						variant="secondary"
-						size="sm"
-						onClick={handleSave}
-						disabled={!canSave}
-					>
-						Save for Later
-					</Button>
-					<Button
-						size="sm"
-						onClick={() => setShowConfirm(true)}
-						disabled={!canSave}
-					>
-						Publish
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+							<div className="flex-1">
+								<Label
+									htmlFor="sv-desc"
+									className="text-xs font-medium text-slate-600 mb-1.5 block"
+								>
+									Description
+								</Label>
+								<Input
+									id="sv-desc"
+									value={description}
+									onChange={(e) => setDescription(e.target.value)}
+									placeholder="What does this skill do?"
+									className="text-sm h-9"
+								/>
+							</div>
+						</div>
 
-		{/* Publish confirmation */}
-		<Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-			<DialogContent className="max-w-sm">
-				<DialogHeader>
-					<DialogTitle>Publish Skill</DialogTitle>
-				</DialogHeader>
-				<p className="text-sm text-slate-600 leading-relaxed">
-					This will make <span className="font-semibold">{name}</span> available
-					as a skill in the Agent Builder. Agents will be able to use this
-					workflow as a tool.
-				</p>
-				<DialogFooter>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => setShowConfirm(false)}
-					>
-						Cancel
-					</Button>
-					<Button size="sm" onClick={handlePublish}>
-						Confirm &amp; Publish
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+						{/* Inputs typeahead */}
+						<VariableTypeahead
+							label="Inputs"
+							selected={selectedInputs}
+							onSelect={addInput}
+							onRemove={removeInput}
+							onUpdateDescription={updateInputDesc}
+							ariaLabel="Search input variables"
+						/>
+
+						{/* Outputs typeahead */}
+						<VariableTypeahead
+							label="Outputs"
+							selected={selectedOutputs}
+							onSelect={addOutput}
+							onRemove={removeOutput}
+							onUpdateDescription={updateOutputDesc}
+							ariaLabel="Search output variables"
+						/>
+					</div>
+					<DialogFooter className="gap-2 sm:gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => onOpenChange(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="secondary"
+							size="sm"
+							onClick={handleSave}
+							disabled={!canSave}
+						>
+							Save for Later
+						</Button>
+						<Button
+							size="sm"
+							onClick={handlePublish}
+							disabled={!canSave}
+						>
+							Publish
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
 		</>
 	);
 }
