@@ -28,6 +28,10 @@ import type {
 } from "../../types/uiSchema";
 import { evaluateCondition, parseSchema } from "../../types/uiSchema";
 import {
+	handleClientAction,
+	isClientSideAction,
+} from "../../utils/clientActionHandler";
+import {
 	type FormModalField,
 	isInIframe,
 	openFormModal,
@@ -176,6 +180,7 @@ export function SchemaRenderer({
 	disabled = false,
 }: SchemaRendererProps) {
 	const [formData, setFormData] = useState<Record<string, string>>({});
+	const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 	const [modalFormData, setModalFormData] = useState<Record<string, string>>(
 		{},
 	);
@@ -288,18 +293,156 @@ export function SchemaRenderer({
 		);
 	}
 
+	const validateForm = (
+		rootId: string,
+		data: Record<string, string>,
+	): Record<string, string> => {
+		const errors: Record<string, string> = {};
+
+		const walkElements = (elementId: string) => {
+			const el = elements[elementId];
+			if (!el) return;
+
+			const condIf = el.props?.if as ConditionalProps | undefined;
+			if (condIf && !evaluateCondition(condIf, data)) return;
+
+			const type = el.type;
+			if (
+				type === "Input" ||
+				type === "TextInput" ||
+				type === "TextField" ||
+				type === "Select" ||
+				type === "Dropdown"
+			) {
+				const name = p<string>(el, "name", "");
+				const label = p<string>(el, "label", name);
+				const minLength = p<number>(el, "minLength");
+				const maxLength = p<number>(el, "maxLength");
+				const pattern = p<string>(el, "pattern");
+				const value = data[name] || "";
+				let required = p<boolean>(el, "required");
+
+				const isElementRequired = (
+					el?.props?.checks as Array<{ type: string }> | undefined
+				)?.find((check) => check.type === "required")?.type;
+
+				required = required || !!isElementRequired;
+
+				const checksMinLength = (
+					el?.props?.checks as
+						| Array<{ [x: string]: any; type: string }>
+						| undefined
+				)?.find((check) => check.type === "minLength")?.args as
+					| { min: number }
+					| undefined;
+
+				const effectiveMinLength = minLength || checksMinLength?.min;
+				const checksMaxLength = (
+					el?.props?.checks as
+						| Array<{ [x: string]: any; type: string }>
+						| undefined
+				)?.find((check) => check.type === "maxLength")?.args as
+					| { max: number }
+					| undefined;
+				const effectiveMaxLength = maxLength || checksMaxLength?.max;
+
+				if (required && !value.trim()) {
+					errors[name] = `${label} is required`;
+				} else if (value) {
+					if (effectiveMinLength && value.length < effectiveMinLength) {
+						errors[name] =
+							`${label} must be at least ${effectiveMinLength} characters`;
+					} else if (effectiveMaxLength && value.length > effectiveMaxLength) {
+						errors[name] =
+							`${label} must be at most ${effectiveMaxLength} characters`;
+					} else if (pattern && !new RegExp(pattern).test(value)) {
+						errors[name] = `${label} is invalid`;
+					}
+				}
+			}
+
+			for (const childId of el.children || []) {
+				walkElements(childId);
+			}
+		};
+
+		walkElements(rootId);
+		return errors;
+	};
+
 	const handleAction = (action: string, data?: Record<string, unknown>) => {
+		const timestamp = new Date().toISOString();
+		const result = handleClientAction({ action, data, timestamp });
+
+		// Handle form clear
+		if (result.shouldClearForm) {
+			setFormData({});
+			setFormErrors({});
+			if (openDialogId) {
+				setModalFormData({});
+			}
+		}
+
+		// Check if this is a client-side only action
+		if (isClientSideAction(action)) {
+			// Handle locally without sending to backend
+			if (result.success) {
+				// Handle navigation state updates if needed
+				if (result.navigationState) {
+					console.log("Navigation state updated:", result.navigationState);
+					// TODO: Update component state for multi-step forms if needed
+				}
+
+				// Handle form closure if needed
+				if (result.shouldCloseForm) {
+					console.log("Client action triggered form close:", action);
+					// TODO: Close dialog/modal if this is in a dialog context
+				}
+
+				// Handle external link - ask host to open new tab when in iframe
+				if (result.externalUrl) {
+					if (isInIframe()) {
+						window.parent.postMessage(
+							{ type: "OPEN_URL", data: { url: result.externalUrl } },
+							"*",
+						);
+					} else {
+						window.open(result.externalUrl, "_blank", "noopener,noreferrer");
+					}
+				}
+			}
+
+			return;
+		}
+		// Server-side action - validate form before sending
+		const actionData = data && Object.keys(data).length > 0 ? data : formData;
+		const errors = validateForm(
+			parsed.root,
+			actionData as Record<string, string>,
+		);
+		if (Object.keys(errors).length !== 0) {
+			setFormErrors(errors);
+			return;
+		}
+
 		onAction?.({
 			action,
-			data,
+			data: actionData,
 			messageId,
 			conversationId,
-			timestamp: new Date().toISOString(),
+			timestamp,
 		});
 	};
 
 	const handleInputChange = (name: string, value: string) => {
 		setFormData((prev) => ({ ...prev, [name]: value }));
+		if (formErrors[name]) {
+			setFormErrors((prev) => {
+				const next = { ...prev };
+				delete next[name];
+				return next;
+			});
+		}
 	};
 
 	const handleModalInputChange = (name: string, value: string) => {
@@ -381,6 +524,7 @@ export function SchemaRenderer({
 					submitVariant === "destructive" ? "destructive" : "default",
 				preventBackdropClose: options?.preventBackdropClose,
 				onSubmit: (data) => {
+					console.log("LUNETA");
 					pendingModalSubmitRef.current = null;
 					if (submitAction) {
 						const logEntry = {
@@ -528,6 +672,7 @@ export function SchemaRenderer({
 							onInputChange(p<string>(element, "name", ""), value)
 						}
 						disabled={disabled}
+						error={formErrors[p<string>(element, "name", "")]}
 					/>
 				);
 			case "Select":
@@ -543,6 +688,7 @@ export function SchemaRenderer({
 							onInputChange(p<string>(element, "name", ""), value)
 						}
 						disabled={disabled}
+						error={formErrors[p<string>(element, "name", "")]}
 					/>
 				);
 			case "Button":
@@ -552,6 +698,7 @@ export function SchemaRenderer({
 						el={element}
 						disabled={disabled}
 						onClick={() => {
+							console.log("LUNETAAAA");
 							const opensDialog = p<string>(element, "opensDialog");
 							const action =
 								p<string>(element, "action") ||
@@ -589,7 +736,13 @@ export function SchemaRenderer({
 					<FormRenderer
 						key={key}
 						el={element}
-						onSubmit={() => handleAction(submitAction, formData)}
+						onSubmit={() => {
+							const errors = validateForm(elementId, formData);
+							setFormErrors(errors);
+							if (Object.keys(errors).length === 0) {
+								handleAction(submitAction, formData);
+							}
+						}}
 					>
 						{renderChildren()}
 					</FormRenderer>
@@ -817,24 +970,35 @@ function InputRenderer({
 	value,
 	onChange,
 	disabled,
+	error,
 }: {
 	el: UIElement;
 	value: string;
 	onChange: (value: string) => void;
 	disabled?: boolean;
+	error?: string;
 }) {
 	const name = p<string>(el, "name", "");
 	const label = p<string>(el, "label");
 	const placeholder = p<string>(el, "placeholder");
 	const inputType = p<string>(el, "inputType") || p<string>(el, "type", "text");
-	const required = p<boolean>(el, "required");
 	const className = p<string>(el, "className", "");
+	let required = p<boolean>(el, "required");
+	const isElementRequired = (
+		el?.props?.checks as Array<{ type: string }> | undefined
+	)?.find((check) => check.type === "required")?.type;
+	required = required || !!isElementRequired;
 
 	const InputEl = inputType === "textarea" ? Textarea : Input;
 
 	return (
 		<div className={`space-y-1.5 ${className}`}>
-			{label && <Label htmlFor={name}>{label}</Label>}
+			{label && (
+				<Label htmlFor={name}>
+					{label}
+					{required && <span className="text-destructive ml-0.5">*</span>}
+				</Label>
+			)}
 			<InputEl
 				id={name}
 				name={name}
@@ -844,7 +1008,18 @@ function InputRenderer({
 				onChange={(e) => onChange(e.target.value)}
 				required={required}
 				disabled={disabled}
+				aria-invalid={!!error}
+				aria-describedby={error ? `${name}-error` : undefined}
 			/>
+			{error && (
+				<p
+					id={`${name}-error`}
+					className="text-sm text-destructive"
+					role="alert"
+				>
+					{error}
+				</p>
+			)}
 		</div>
 	);
 }
@@ -854,22 +1029,34 @@ function SelectRenderer({
 	value,
 	onChange,
 	disabled,
+	error,
 }: {
 	el: UIElement;
 	value: string;
 	onChange: (value: string) => void;
 	disabled?: boolean;
+	error?: string;
 }) {
+	const name = p<string>(el, "name", "");
 	const label = p<string>(el, "label");
+	const required = p<boolean>(el, "required");
 	const placeholder = p<string>(el, "placeholder", "Select...");
 	const options = p<Array<{ label: string; value: string }>>(el, "options", []);
 	const className = p<string>(el, "className", "");
 
 	return (
 		<div className={`space-y-1.5 ${className}`}>
-			{label && <Label>{label}</Label>}
+			{label && (
+				<Label>
+					{label}
+					{required && <span className="text-destructive ml-0.5">*</span>}
+				</Label>
+			)}
 			<Select value={value} onValueChange={onChange} disabled={disabled}>
-				<SelectTrigger>
+				<SelectTrigger
+					aria-invalid={!!error}
+					aria-describedby={error ? `${name}-error` : undefined}
+				>
 					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
 				<SelectContent>
@@ -880,6 +1067,15 @@ function SelectRenderer({
 					))}
 				</SelectContent>
 			</Select>
+			{error && (
+				<p
+					id={`${name}-error`}
+					className="text-sm text-destructive"
+					role="alert"
+				>
+					{error}
+				</p>
+			)}
 		</div>
 	);
 }
@@ -910,6 +1106,7 @@ function ButtonRenderer({
 
 	return (
 		<Button
+			type="button"
 			variant={variant}
 			disabled={disabled || elDisabled}
 			onClick={onClick}
@@ -1155,11 +1352,19 @@ function LinkRenderer({ el }: { el: UIElement }) {
 	const target = p<string>(el, "target");
 	const className = p<string>(el, "className", "");
 
+	const handleClick = (e: React.MouseEvent) => {
+		if (isInIframe()) {
+			e.preventDefault();
+			window.parent.postMessage({ type: "OPEN_URL", data: { url: href } }, "*");
+		}
+	};
+
 	return (
 		<a
 			href={href}
 			target={target}
 			rel={target === "_blank" ? "noopener noreferrer" : undefined}
+			onClick={handleClick}
 			className={`text-primary underline underline-offset-4 hover:text-primary/80 inline-flex items-center gap-1 ${className}`}
 		>
 			{text}

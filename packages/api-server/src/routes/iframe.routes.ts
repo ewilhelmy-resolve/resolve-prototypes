@@ -279,7 +279,7 @@ router.get("/debug", async (_req, res) => {
  */
 router.post("/execute", async (req, res) => {
 	const startTime = Date.now();
-
+	console.log("luneta utita");
 	try {
 		const { hashkey, sessionKey } = req.body;
 		// Support both hashkey and sessionKey (portal uses sessionKey)
@@ -391,7 +391,7 @@ router.delete("/conversation/:conversationId", async (req, res) => {
  * Sends webhook to Platform with form data for workflow correlation.
  */
 router.post("/ui-form-response", async (req, res) => {
-	const { requestId, action, status, data } = req.body;
+	const { requestId, action, status, data, conversationId } = req.body;
 
 	if (!requestId || !status) {
 		res.status(400).json({
@@ -421,9 +421,9 @@ router.post("/ui-form-response", async (req, res) => {
 		);
 
 		const iframeService = getIframeService();
-		await iframeService.sendUIFormResponse({
-			requestId,
+		await iframeService.sendCustomSchemaUI({
 			action,
+			conversationId,
 			status,
 			data,
 		});
@@ -483,6 +483,57 @@ router.post("/ui-action", async (req, res) => {
 		logger.error(
 			{ action, conversationId, error: err.message },
 			"Failed to send UI action",
+		);
+		res.status(500).json({ success: false, error: err.message });
+	}
+});
+
+/**
+ * Send UI form response back to platform
+ * POST /api/iframe/ui-form-response
+ *
+ * Used by UIFormRequestModal/InlineFormRequest when user submits or cancels a form.
+ * Updates message metadata and forwards response to platform via webhook.
+ */
+router.post("/ui-form-response", async (req, res) => {
+	const { requestId, action, status, data } = req.body;
+
+	if (!requestId || !status) {
+		res.status(400).json({
+			success: false,
+			error: "Missing required fields: requestId, status",
+		});
+		return;
+	}
+
+	if (status !== "submitted" && status !== "cancelled") {
+		res.status(400).json({
+			success: false,
+			error: "status must be 'submitted' or 'cancelled'",
+		});
+		return;
+	}
+
+	try {
+		logger.info(
+			{ requestId, action, status, hasData: !!data },
+			"Processing UI form response",
+		);
+
+		const iframeService = getIframeService();
+		await iframeService.sendUIFormResponse({
+			requestId,
+			action,
+			status,
+			data,
+		});
+
+		res.json({ success: true });
+	} catch (error) {
+		const err = error as Error;
+		logger.error(
+			{ requestId, status, error: err.message },
+			"Failed to send UI form response",
 		);
 		res.status(500).json({ success: false, error: err.message });
 	}

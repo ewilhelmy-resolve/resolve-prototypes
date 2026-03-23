@@ -28,7 +28,7 @@ export interface IframeInboundMessage {
 
 // Message types to host page
 export interface IframeOutboundMessage {
-	type: "READY" | "ACK" | "STATUS";
+	type: "READY" | "ACK" | "STATUS" | "OPEN_URL";
 	requestId?: string;
 	success?: boolean;
 	error?: string;

@@ -47,6 +47,7 @@ function extractFormProps(parsed: UISchema) {
 		submitLabel: (rootEl.props?.submitLabel as string) || "Submit",
 		cancelLabel: (rootEl.props?.cancelLabel as string) || "Cancel",
 		submitVariant: rootEl.props?.submitVariant as string | undefined,
+		isCustomSchema: rootEl.props?.isCustomSchema as boolean | undefined,
 	};
 }
 
@@ -75,18 +76,19 @@ export function InlineFormRequest({
 		submitLabel,
 		cancelLabel,
 		submitVariant,
+		isCustomSchema,
 	} = extractFormProps(parsed);
 	const rootEl = parsed.elements[parsed.root];
 	const isFormRoot = rootEl?.type === "Form";
 	const isCompleted = status === "completed";
 
-	const handleSubmit = async () => {
+	const handleSubmit = async (dataOverride?: Record<string, string>) => {
 		if (!submitAction || isCompleted) return;
 
 		setIsSubmitting(true);
 		setError(undefined);
 		try {
-			await onSubmit(requestId, submitAction, formData);
+			await onSubmit(requestId, submitAction, dataOverride || formData);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to submit form");
 			setIsSubmitting(false);
@@ -114,6 +116,13 @@ export function InlineFormRequest({
 				...prev,
 				...(payload.data as Record<string, string>),
 			}));
+		}
+		if (payload.action === "ui_form_response") {
+			const merged = {
+				...formData,
+				...(payload.data as Record<string, string>),
+			};
+			handleSubmit(merged);
 		}
 	};
 
@@ -148,7 +157,7 @@ export function InlineFormRequest({
 				{error && <div className="text-sm text-destructive">{error}</div>}
 			</CardContent>
 
-			{!isCompleted && submitAction && (
+			{!isCompleted && submitAction && !isCustomSchema && (
 				<CardFooter className="flex justify-end gap-2 pt-0">
 					{onCancel && (
 						<Button
@@ -170,7 +179,7 @@ export function InlineFormRequest({
 								| "ghost") || "default"
 						}
 						size="sm"
-						onClick={handleSubmit}
+						onClick={() => handleSubmit()}
 						disabled={isSubmitting}
 					>
 						{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
