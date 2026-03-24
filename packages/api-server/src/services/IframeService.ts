@@ -369,6 +369,22 @@ export class IframeService {
 	}
 
 	/**
+	 * Verify that a conversation belongs to the given user and organization.
+	 * Returns true if the user owns the conversation, false otherwise.
+	 */
+	async verifyConversationOwnership(
+		conversationId: string,
+		organizationId: string,
+		userId: string,
+	): Promise<boolean> {
+		const result = await pool.query(
+			"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+			[conversationId, organizationId, userId],
+		);
+		return result.rows.length > 0;
+	}
+
+	/**
 	 * Delete a conversation by ID
 	 * Messages cascade delete via FK constraint
 	 */
