@@ -213,63 +213,39 @@ describe("IframeService", () => {
 					// resolveRitaOrg: check if exists (includes name for comparison)
 					.mockResolvedValueOnce({
 						rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
-					})
-					// NO org update since name matches
-					// findConversationByActivityId: check activity_contexts (payload has activityId: 2209)
-					.mockResolvedValueOnce({
-						rows: activityConvExists
-							? [{ conversation_id: "existing-activity-conv" }]
-							: [],
-					})
-					// resolveRitaUser: check if exists by keycloak_id
-					.mockResolvedValueOnce({
-						rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [],
 					});
-				if (!userExists) {
-					mockPool.query
-						// resolveRitaUser: insert new user
-						.mockResolvedValueOnce({
-							rows: [{ user_id: validValkeyPayload.userGuid }],
-						});
-				} else {
-					mockPool.query
-						// resolveRitaUser: update existing user
-						.mockResolvedValueOnce({ rows: [] });
-				}
-				mockPool.query
-					// ensureOrgMembership
-					.mockResolvedValueOnce({ rows: [] });
+				// NO org update since name matches
 			} else {
 				mockPool.query
 					// resolveRitaOrg: check if exists (not found)
 					.mockResolvedValueOnce({ rows: [] })
 					// resolveRitaOrg: insert new org
-					.mockResolvedValueOnce({ rows: [] })
-					// findConversationByActivityId: check activity_contexts (payload has activityId: 2209)
-					.mockResolvedValueOnce({
-						rows: activityConvExists
-							? [{ conversation_id: "existing-activity-conv" }]
-							: [],
-					})
-					// resolveRitaUser: check if exists by keycloak_id
-					.mockResolvedValueOnce({
-						rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [],
-					});
-				if (!userExists) {
-					mockPool.query
-						// resolveRitaUser: insert new user
-						.mockResolvedValueOnce({
-							rows: [{ user_id: validValkeyPayload.userGuid }],
-						});
-				} else {
-					mockPool.query
-						// resolveRitaUser: update existing user
-						.mockResolvedValueOnce({ rows: [] });
-				}
-				mockPool.query
-					// ensureOrgMembership
 					.mockResolvedValueOnce({ rows: [] });
 			}
+			// resolveRitaUser: check if exists by keycloak_id
+			mockPool.query.mockResolvedValueOnce({
+				rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [],
+			});
+			if (!userExists) {
+				mockPool.query
+					// resolveRitaUser: insert new user
+					.mockResolvedValueOnce({
+						rows: [{ user_id: validValkeyPayload.userGuid }],
+					});
+			} else {
+				mockPool.query
+					// resolveRitaUser: update existing user
+					.mockResolvedValueOnce({ rows: [] });
+			}
+			mockPool.query
+				// ensureOrgMembership
+				.mockResolvedValueOnce({ rows: [] })
+				// findConversationByActivityId: check activity_contexts (payload has activityId: 2209)
+				.mockResolvedValueOnce({
+					rows: activityConvExists
+						? [{ conversation_id: "existing-activity-conv" }]
+						: [],
+				});
 		};
 
 		it("should reject missing sessionKey", async () => {
@@ -448,12 +424,12 @@ describe("IframeService", () => {
 				.mockResolvedValueOnce({
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists with same name
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership (always called)
+				.mockResolvedValueOnce({ rows: [] }) // membership (always called)
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			// Mock conversation creation
 			mockWithOrgContext.mockImplementation(
@@ -471,7 +447,7 @@ describe("IframeService", () => {
 
 			expect(result.valid).toBe(true);
 
-			// 6 pool.query calls: org check + activity lookup + user check + user update + membership + activity link
+			// 6 pool.query calls: org check + user check + user update + membership + activity lookup + activity link
 			expect(mockPool.query).toHaveBeenCalledTimes(6);
 		});
 
@@ -531,15 +507,15 @@ describe("IframeService", () => {
 			const orgCheckQuery = mockPool.query.mock.calls[0][0];
 			expect(orgCheckQuery).toContain("SELECT id, name FROM organizations");
 
-			// Call 2: activity_contexts lookup (since payload has activityId)
-			const activityQuery = mockPool.query.mock.calls[2][0];
+			// Call 2: user check query (after org insert, before activity lookup)
+			const userCheckQuery = mockPool.query.mock.calls[2][0];
+			expect(userCheckQuery).toContain("SELECT user_id FROM user_profiles");
+
+			// Call 5: activity_contexts lookup (after user resolution + membership)
+			const activityQuery = mockPool.query.mock.calls[5][0];
 			expect(activityQuery).toContain(
 				"SELECT conversation_id FROM activity_contexts",
 			);
-
-			// Call 3: user check query (after org insert and activity lookup)
-			const userCheckQuery = mockPool.query.mock.calls[3][0];
-			expect(userCheckQuery).toContain("SELECT user_id FROM user_profiles");
 		});
 
 		it("should handle legacy users with old UUID", async () => {
@@ -551,10 +527,10 @@ describe("IframeService", () => {
 			mockPool.query
 				.mockResolvedValueOnce({ rows: [] }) // org doesn't exist
 				.mockResolvedValueOnce({ rows: [] }) // insert org
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({ rows: [{ user_id: legacyUserId }] }) // user exists with legacy UUID
 				.mockResolvedValueOnce({ rows: [] }) // update user
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			// Mock conversation creation
 			mockWithOrgContext.mockImplementation(
@@ -594,12 +570,12 @@ describe("IframeService", () => {
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists with name
 				// no org update since name matches
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership (expected to be called)
+				.mockResolvedValueOnce({ rows: [] }) // membership (expected to be called)
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -700,12 +676,12 @@ describe("IframeService", () => {
 				.mockResolvedValueOnce({
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists with same name
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -736,12 +712,12 @@ describe("IframeService", () => {
 					rows: [{ id: validValkeyPayload.tenantId, name: "old-tenant-name" }],
 				})
 				.mockResolvedValueOnce({ rows: [] }) // org update (when name changed)
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -841,12 +817,12 @@ describe("IframeService", () => {
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists (same name)
 				// No org update since name matches
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // update user
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -948,12 +924,12 @@ describe("IframeService", () => {
 				.mockResolvedValueOnce({
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -1474,12 +1450,12 @@ describe("IframeService", () => {
 				.mockResolvedValueOnce({
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				})
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				})
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {

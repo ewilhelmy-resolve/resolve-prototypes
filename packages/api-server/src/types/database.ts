@@ -31,6 +31,7 @@ export interface ActivityContexts {
 	created_at: Generated<Timestamp | null>;
 	id: Generated<string>;
 	organization_id: string;
+	user_id: string;
 }
 
 export interface Agents {

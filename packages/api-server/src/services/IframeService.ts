@@ -309,11 +309,12 @@ export class IframeService {
 	async findConversationByActivityId(
 		activityId: number,
 		orgId: string,
+		userId: string,
 	): Promise<string | null> {
 		const result = await pool.query(
 			`SELECT conversation_id FROM activity_contexts
-			 WHERE activity_id = $1 AND organization_id = $2`,
-			[activityId, orgId],
+			 WHERE activity_id = $1 AND organization_id = $2 AND user_id = $3`,
+			[activityId, orgId, userId],
 		);
 		return result.rows[0]?.conversation_id || null;
 	}
@@ -326,12 +327,13 @@ export class IframeService {
 		activityId: number,
 		orgId: string,
 		conversationId: string,
+		userId: string,
 	): Promise<void> {
 		await pool.query(
-			`INSERT INTO activity_contexts (activity_id, organization_id, conversation_id)
-			 VALUES ($1, $2, $3)
-			 ON CONFLICT (activity_id, organization_id) DO UPDATE SET conversation_id = $3`,
-			[activityId, orgId, conversationId],
+			`INSERT INTO activity_contexts (activity_id, organization_id, conversation_id, user_id)
+			 VALUES ($1, $2, $3, $4)
+			 ON CONFLICT (activity_id, organization_id, user_id) DO UPDATE SET conversation_id = $3`,
+			[activityId, orgId, conversationId, userId],
 		);
 		logger.info(
 			{ activityId, orgId, conversationId },
@@ -576,6 +578,7 @@ export class IframeService {
 		config: IframeWebhookConfig,
 		intentEid?: string,
 		preResolvedOrgId?: string,
+		preResolvedUserId?: string,
 	): Promise<{
 		conversationId: string;
 		ritaOrgId: string;
@@ -586,14 +589,15 @@ export class IframeService {
 			preResolvedOrgId ||
 			(await this.resolveRitaOrg(config.tenantId, config.tenantName)).ritaOrgId;
 
-		// 2. Resolve Rita user from Jarvis GUID
-		const { ritaUserId } = await this.resolveRitaUser(
-			config.userGuid,
-			ritaOrgId,
-		);
+		// 2. Use pre-resolved user or resolve from Jarvis GUID
+		const ritaUserId =
+			preResolvedUserId ||
+			(await this.resolveRitaUser(config.userGuid, ritaOrgId)).ritaUserId;
 
 		// 3. Always ensure org membership (ON CONFLICT DO NOTHING handles idempotency)
-		await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+		if (!preResolvedUserId) {
+			await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+		}
 
 		// 4. Create conversation with Rita IDs (using org context for RLS)
 		const result = await withOrgContext(
@@ -723,26 +727,45 @@ export class IframeService {
 		let ritaOrgId: string;
 		let ritaUserId: string;
 
-		// Resolve Rita org early (needed for activityId lookup)
+		// Resolve Rita org and user early (needed for activity lookup scoped by user)
 		const { ritaOrgId: resolvedOrgId } = await this.resolveRitaOrg(
 			config.tenantId,
 			config.tenantName,
 		);
 		ritaOrgId = resolvedOrgId;
 
+		const { ritaUserId: resolvedUserId } = await this.resolveRitaUser(
+			config.userGuid,
+			ritaOrgId,
+		);
+		ritaUserId = resolvedUserId;
+		await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+
 		// Extract activityId from context if available
 		const activityId = config.context?.activityId as number | undefined;
 
-		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) activityId lookup, 4) sessionKey lookup, 5) create new
+		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) activityId lookup, 4) create new
 		let resolvedExistingConversationId =
 			existingConversationId || config.conversationId;
 
-		// If no conversation ID provided, check by activityId first (activity-based chat)
+		// Track where the conversationId came from for error handling
+		let conversationIdSource: string | undefined;
+		if (existingConversationId) {
+			conversationIdSource = "frontend_param";
+		} else if (config.conversationId) {
+			conversationIdSource = "valkey_config";
+		}
+
+		// If no conversation ID provided, check by activityId (now scoped per-user)
 		if (!resolvedExistingConversationId && activityId) {
 			resolvedExistingConversationId =
-				(await this.findConversationByActivityId(activityId, ritaOrgId)) ||
-				undefined;
+				(await this.findConversationByActivityId(
+					activityId,
+					ritaOrgId,
+					ritaUserId,
+				)) || undefined;
 			if (resolvedExistingConversationId) {
+				conversationIdSource = "activity_lookup";
 				logger.info(
 					{
 						activityId,
@@ -753,59 +776,58 @@ export class IframeService {
 			}
 		}
 
-		// No activityId = no context to tie conversation to, always create new
-		// (sessionKey is stored for tracking but not used for lookup)
-
 		if (resolvedExistingConversationId) {
-			// Existing conversation - resolve user (org already resolved above)
-			const { ritaUserId: userId } = await this.resolveRitaUser(
-				config.userGuid,
-				ritaOrgId,
-			);
-			ritaUserId = userId;
-
-			// Always ensure membership for existing conversation path
-			await this.ensureOrgMembership(ritaOrgId, ritaUserId);
-
 			// Verify conversation ownership before using it
 			const convCheck = await pool.query(
 				`SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3`,
 				[resolvedExistingConversationId, ritaOrgId, ritaUserId],
 			);
 			if (convCheck.rows.length === 0) {
-				const source = existingConversationId
-					? "frontend_param"
-					: config.conversationId
-						? "valkey_config"
-						: "activity_lookup";
+				// activity_lookup failures are non-fatal — fall through to create new conversation
+				if (conversationIdSource === "activity_lookup") {
+					logger.warn(
+						{
+							conversationId: resolvedExistingConversationId,
+							conversationIdSource,
+							ritaOrgId,
+							ritaUserId,
+						},
+						"Activity lookup returned stale conversation — creating new one",
+					);
+					resolvedExistingConversationId = undefined;
+				} else {
+					logger.warn(
+						{
+							conversationId: resolvedExistingConversationId,
+							conversationIdSource,
+							ritaOrgId,
+							ritaUserId,
+						},
+						"Conversation not found in DB — stale reference",
+					);
 
-				logger.warn(
-					{
-						conversationId: resolvedExistingConversationId,
-						conversationIdSource: source,
-						ritaOrgId,
-						ritaUserId,
-					},
-					"Conversation not found in DB — stale reference",
-				);
-
-				return {
-					valid: false,
-					error: "Conversation not found or access denied",
-					debug: {
-						reason: "conversation_not_in_db",
-						conversationId: resolvedExistingConversationId,
-						source,
-					},
-				};
+					return {
+						valid: false,
+						error: "Conversation not found or access denied",
+						debug: {
+							reason: "conversation_not_in_db",
+							conversationId: resolvedExistingConversationId,
+							source: conversationIdSource,
+						},
+					};
+				}
 			}
+		}
+
+		if (resolvedExistingConversationId) {
 			conversationId = resolvedExistingConversationId;
 		} else {
-			// New conversation - pass pre-resolved org to avoid duplicate lookup
+			// New conversation - pass pre-resolved org+user to avoid duplicate lookup
 			const result = await this.createIframeConversation(
 				config,
 				intentEid,
 				ritaOrgId,
+				ritaUserId,
 			);
 			conversationId = result.conversationId;
 			ritaOrgId = result.ritaOrgId;
@@ -817,6 +839,7 @@ export class IframeService {
 					activityId,
 					ritaOrgId,
 					conversationId,
+					ritaUserId,
 				);
 			}
 		}
