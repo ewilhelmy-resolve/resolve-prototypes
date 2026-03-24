@@ -228,14 +228,6 @@ router.post("/validate-instantiation", async (req, res) => {
 			res.status(401).json({
 				valid: false,
 				error: result.error,
-				debug: {
-					...result.debug,
-					valkeyStatus: getValkeyStatus(),
-					sessionKeyProvided: !!sessionKey,
-					sessionKeyReceived: sessionKey || null,
-					valkeyKeyUsed: sessionKey ? `rita:session:${sessionKey}` : null,
-					durationMs: duration,
-				},
 			});
 			return;
 		}
