@@ -542,11 +542,15 @@ describe("WebhookService", () => {
 			},
 		};
 
+		// Each sendTenantMessageEvent sends 2 webhooks: message_created + workflow_trigger
+		const mockTwoWebhookCalls = () => {
+			mockedAxios.post
+				.mockResolvedValueOnce({ status: 200, data: { success: true } })
+				.mockResolvedValueOnce({ status: 200, data: { success: true } });
+		};
+
 		it("should include snake_case routing fields for RabbitMQ", async () => {
-			mockedAxios.post.mockResolvedValueOnce({
-				status: 200,
-				data: { success: true },
-			});
+			mockTwoWebhookCalls();
 
 			await webhookService.sendTenantMessageEvent({
 				organizationId: "rita-org-id",
@@ -574,10 +578,7 @@ describe("WebhookService", () => {
 		});
 
 		it("should preserve camelCase fields from Valkey for Actions API", async () => {
-			mockedAxios.post.mockResolvedValueOnce({
-				status: 200,
-				data: { success: true },
-			});
+			mockTwoWebhookCalls();
 
 			await webhookService.sendTenantMessageEvent({
 				organizationId: "rita-org-id",
@@ -616,10 +617,7 @@ describe("WebhookService", () => {
 		});
 
 		it("should include uiConfig in camelCase for Actions API", async () => {
-			mockedAxios.post.mockResolvedValueOnce({
-				status: 200,
-				data: { success: true },
-			});
+			mockTwoWebhookCalls();
 
 			await webhookService.sendTenantMessageEvent({
 				organizationId: "rita-org-id",
@@ -647,10 +645,7 @@ describe("WebhookService", () => {
 		});
 
 		it("should use correct source (rita-chat-iframe) and action", async () => {
-			mockedAxios.post.mockResolvedValueOnce({
-				status: 200,
-				data: { success: true },
-			});
+			mockTwoWebhookCalls();
 
 			await webhookService.sendTenantMessageEvent({
 				organizationId: "rita-org-id",
@@ -661,22 +656,33 @@ describe("WebhookService", () => {
 				iframeConfig: canonicalIframeConfig,
 			});
 
-			const calledPayload = mockedAxios.post.mock.calls[0][1] as Record<
+			// Wait for fire-and-forget workflow_trigger to complete
+			await new Promise((r) => setTimeout(r, 10));
+
+			// First call: message_created
+			const messagePayload = mockedAxios.post.mock.calls[0][1] as Record<
 				string,
 				unknown
 			>;
+			expect(messagePayload.source).toBe("rita-chat-iframe");
+			expect(messagePayload.action).toBe("message_created");
+			expect(messagePayload.customer_message).toBe("Hello");
+			expect(messagePayload.timestamp).toBeDefined();
 
-			expect(calledPayload.source).toBe("rita-chat-iframe");
-			expect(calledPayload.action).toBe("message_created");
-			expect(calledPayload.customer_message).toBe("Hello");
-			expect(calledPayload.timestamp).toBeDefined();
+			// Second call: workflow_trigger (for Actions Platform event listener)
+			const workflowPayload = mockedAxios.post.mock.calls[1][1] as Record<
+				string,
+				unknown
+			>;
+			expect(workflowPayload.source).toBe("rita-chat-iframe");
+			expect(workflowPayload.action).toBe("workflow_trigger");
+			expect(workflowPayload.customer_message).toBe("Hello");
+			expect(workflowPayload.conversation_id).toBe("conv-123");
+			expect(workflowPayload.message_id).toBe("msg-456");
 		});
 
 		it("should call tenant-specific webhook URL with Basic auth", async () => {
-			mockedAxios.post.mockResolvedValueOnce({
-				status: 200,
-				data: { success: true },
-			});
+			mockTwoWebhookCalls();
 
 			await webhookService.sendTenantMessageEvent({
 				organizationId: "rita-org-id",
@@ -780,10 +786,9 @@ describe("WebhookService", () => {
 		};
 
 		it("should include both Valkey config (camelCase) and Rita routing fields (snake_case)", async () => {
-			mockedAxios.post.mockResolvedValueOnce({
-				status: 200,
-				data: { success: true },
-			});
+			mockedAxios.post
+				.mockResolvedValueOnce({ status: 200, data: { success: true } })
+				.mockResolvedValueOnce({ status: 200, data: { success: true } });
 
 			await webhookService.sendTenantMessageEvent({
 				organizationId: "rita-org-id",
@@ -823,10 +828,9 @@ describe("WebhookService", () => {
 		});
 
 		it("should call tenant-specific webhook URL with Basic auth", async () => {
-			mockedAxios.post.mockResolvedValueOnce({
-				status: 200,
-				data: { success: true },
-			});
+			mockedAxios.post
+				.mockResolvedValueOnce({ status: 200, data: { success: true } })
+				.mockResolvedValueOnce({ status: 200, data: { success: true } });
 
 			await webhookService.sendTenantMessageEvent({
 				organizationId: "rita-org-id",
