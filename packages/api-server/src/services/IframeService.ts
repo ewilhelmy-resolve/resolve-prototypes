@@ -744,37 +744,11 @@ export class IframeService {
 		// Extract activityId from context if available
 		const activityId = config.context?.activityId as number | undefined;
 
-		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) activityId lookup, 4) create new
-		let resolvedExistingConversationId =
+		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) create new
+		// Note: activity_contexts lookup removed (JAR-106) — each activity open creates
+		// a fresh conversation. Closing the activity tab discards conversation state.
+		const resolvedExistingConversationId =
 			existingConversationId || config.conversationId;
-
-		// Track where the conversationId came from for error handling
-		let conversationIdSource: string | undefined;
-		if (existingConversationId) {
-			conversationIdSource = "frontend_param";
-		} else if (config.conversationId) {
-			conversationIdSource = "valkey_config";
-		}
-
-		// If no conversation ID provided, check by activityId (now scoped per-user)
-		if (!resolvedExistingConversationId && activityId) {
-			resolvedExistingConversationId =
-				(await this.findConversationByActivityId(
-					activityId,
-					ritaOrgId,
-					ritaUserId,
-				)) || undefined;
-			if (resolvedExistingConversationId) {
-				conversationIdSource = "activity_lookup";
-				logger.info(
-					{
-						activityId,
-						conversationId: resolvedExistingConversationId,
-					},
-					"Reusing existing conversation for activityId",
-				);
-			}
-		}
 
 		if (resolvedExistingConversationId) {
 			// Verify conversation ownership before using it
@@ -783,43 +757,30 @@ export class IframeService {
 				[resolvedExistingConversationId, ritaOrgId, ritaUserId],
 			);
 			if (convCheck.rows.length === 0) {
-				// activity_lookup failures are non-fatal — fall through to create new conversation
-				if (conversationIdSource === "activity_lookup") {
-					logger.warn(
-						{
-							conversationId: resolvedExistingConversationId,
-							conversationIdSource,
-							ritaOrgId,
-							ritaUserId,
-						},
-						"Activity lookup returned stale conversation — creating new one",
-					);
-					resolvedExistingConversationId = undefined;
-				} else {
-					logger.warn(
-						{
-							conversationId: resolvedExistingConversationId,
-							conversationIdSource,
-							ritaOrgId,
-							ritaUserId,
-						},
-						"Conversation not found in DB — stale reference",
-					);
+				const source = existingConversationId
+					? "frontend_param"
+					: "valkey_config";
 
-					return {
-						valid: false,
-						error: "Conversation not found or access denied",
-						debug: {
-							reason: "conversation_not_in_db",
-							conversationId: resolvedExistingConversationId,
-							source: conversationIdSource,
-						},
-					};
-				}
+				logger.warn(
+					{
+						conversationId: resolvedExistingConversationId,
+						conversationIdSource: source,
+						ritaOrgId,
+						ritaUserId,
+					},
+					"Conversation not found in DB — stale reference",
+				);
+
+				return {
+					valid: false,
+					error: "Conversation not found or access denied",
+					debug: {
+						reason: "conversation_not_in_db",
+						conversationId: resolvedExistingConversationId,
+						source,
+					},
+				};
 			}
-		}
-
-		if (resolvedExistingConversationId) {
 			conversationId = resolvedExistingConversationId;
 		} else {
 			// New conversation - pass pre-resolved org+user to avoid duplicate lookup
