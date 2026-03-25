@@ -40,7 +40,7 @@ env:
 
 permissions:
   contents: read
-  packages: read
+  packages: write
 
 jobs:
   validate-inputs:

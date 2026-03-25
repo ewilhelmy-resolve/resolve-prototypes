@@ -21,7 +21,7 @@ env:
 
 permissions:
   contents: read
-  packages: read
+  packages: write
 
 jobs:
   call_match_tenant:
