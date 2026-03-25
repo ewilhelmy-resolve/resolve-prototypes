@@ -336,6 +336,45 @@ describe("WorkflowExecutionService", () => {
 			expect(result.debug.totalDurationMs).toBeDefined();
 			expect(result.debug.totalDurationMs).toBeGreaterThanOrEqual(25);
 		});
+
+		describe("SSRF prevention", () => {
+			const ssrfUrls = [
+				["localhost", "http://localhost:3000"],
+				["127.0.0.1 (loopback)", "http://127.0.0.1"],
+				["10.x.x.x (RFC1918)", "http://10.0.0.1"],
+				["172.16.x.x (RFC1918)", "http://172.16.0.1"],
+				["192.168.x.x (RFC1918)", "http://192.168.1.1"],
+				["169.254.169.254 (AWS metadata)", "http://169.254.169.254"],
+				["file:// protocol", "file:///etc/passwd"],
+			];
+
+			it.each(ssrfUrls)(
+				"rejects SSRF actionsApiBaseUrl: %s",
+				async (_label, url) => {
+					const ssrfConfig = { ...validValkeyConfig, actionsApiBaseUrl: url };
+					const debug = { valkeyStatus: mockGetValkeyStatus() };
+
+					const result = await service.executeWorkflow(ssrfConfig, debug);
+
+					expect(result.success).toBe(false);
+					expect(result.error).toBeDefined();
+					expect(mockedAxios.post).not.toHaveBeenCalled();
+				},
+			);
+
+			it("does not block valid public actionsApiBaseUrl", async () => {
+				mockedAxios.post.mockResolvedValueOnce({
+					status: 200,
+					data: { eventId: "event-ok" },
+				});
+				const debug = { valkeyStatus: mockGetValkeyStatus() };
+
+				const result = await service.executeWorkflow(validValkeyConfig, debug);
+
+				expect(result.success).toBe(true);
+				expect(mockedAxios.post).toHaveBeenCalled();
+			});
+		});
 	});
 
 	describe("executeFromHashkey", () => {

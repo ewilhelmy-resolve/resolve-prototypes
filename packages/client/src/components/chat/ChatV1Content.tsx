@@ -248,6 +248,7 @@ function GroupedMessage({
 
 	return (
 		<Message from={message.role} className={reasoningOnly ? "py-1" : ""}>
+			{/* biome-ignore lint/a11y/useSemanticElements: fieldset breaks flex layout */}
 			<div
 				role="group"
 				className="flex flex-col w-full"
@@ -396,6 +397,10 @@ function GroupedMessage({
 	);
 }
 
+/** Dev/mock test commands sent via iframe dev controls (not user-visible) */
+const isDevTestCommand = (msg: SimpleChatMessage) =>
+	msg.role === "user" && msg.message.startsWith("testcustom:");
+
 // Component for simple standalone messages
 function SimpleMessage({
 	message,
@@ -467,7 +472,7 @@ function SimpleMessage({
 				submitVariant:
 					submitVariant === "destructive" ? "destructive" : "default",
 				onSubmit: (data) => {
-					onFormSubmit?.(message.metadata!.request_id, submitAction, data);
+					onFormSubmit?.(message.metadata?.request_id, submitAction, data);
 				},
 				onCancel: () => {
 					// Just close — don't cancel the request so user can reopen
@@ -525,8 +530,11 @@ function SimpleMessage({
 		triggerHostModal();
 	}, [isInterruptForm, isFormAnswered, triggerHostModal]);
 
+	if (isDevTestCommand(message)) return null;
+
 	return (
 		<Message from={message.role}>
+			{/* biome-ignore lint/a11y/useSemanticElements: fieldset breaks flex layout */}
 			<div
 				role="group"
 				className="flex flex-col"
@@ -864,7 +872,7 @@ export default function ChatV1Content({
 	onFormSubmit: propsFormSubmit,
 	onFormCancel: propsFormCancel,
 }: ChatV1ContentProps) {
-	const { t } = useTranslation(["chat", "toast"]);
+	const { t } = useTranslation(["chat", "toast", "kbs"]);
 	// Copy state tracking for icon feedback
 	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
@@ -911,12 +919,18 @@ export default function ChatV1Content({
 
 			// Upload each file to knowledge base
 			Array.from(files).forEach((file) => {
-				// Validate file type before upload
+				// Validate file before upload
 				const validation = validateFileForUpload(file);
-				if (!validation.isValid && validation.error) {
+				if (!validation.isValid && validation.errorCode) {
 					ritaToast.error({
-						title: validation.error.title,
-						description: validation.error.description,
+						title: t(
+							`kbs:errors.${validation.errorCode}.title`,
+							validation.errorParams,
+						),
+						description: t(
+							`kbs:errors.${validation.errorCode}.description`,
+							validation.errorParams,
+						),
 					});
 					return;
 				}

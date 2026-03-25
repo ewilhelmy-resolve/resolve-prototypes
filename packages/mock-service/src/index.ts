@@ -15,7 +15,9 @@ import {
 	PerformanceTimer,
 	webhookLogger,
 } from "./config/logger.js";
+import { syncConfluenceData } from "./confluence-sync.js";
 import { emailService } from "./email-service.js";
+import { syncFreshserviceData } from "./freshservice-sync.js";
 import { syncServiceNowData } from "./servicenow-sync.js";
 import { getRabbitMQService } from "./services/rabbitmq.js";
 
@@ -36,8 +38,14 @@ const MOCK_CONFIG = {
 	defaultScenario: process.env.MOCK_SCENARIO || "success",
 	// Response delays in milliseconds
 	responseDelay: parseInt(process.env.MOCK_DELAY || "2000", 10),
-	// Success rate (0-100)
-	successRate: parseInt(process.env.MOCK_SUCCESS_RATE || "90", 10),
+	// Success rate (0-100) — defaults to 100 in deterministic mode
+	successRate: parseInt(
+		process.env.MOCK_SUCCESS_RATE ||
+			(process.env.MOCK_DETERMINISTIC === "true" ? "100" : "90"),
+		10,
+	),
+	// Deterministic mode: no random values, consistent responses
+	deterministic: process.env.MOCK_DETERMINISTIC === "true",
 	// RabbitMQ configuration
 	queueName: process.env.QUEUE_NAME || "chat.responses",
 	rabbitUrl: process.env.RABBITMQ_URL || "amqp://guest:guest@localhost:5672",
@@ -1615,7 +1623,9 @@ The system is performing well overall but requires attention to the identified s
 	} else {
 		// Default scenario - fall back to original logic
 		const useScenario = scenario || MOCK_CONFIG.defaultScenario;
-		const isSuccess = Math.random() * 100 < MOCK_CONFIG.successRate;
+		const isSuccess = MOCK_CONFIG.deterministic
+			? true
+			: Math.random() * 100 < MOCK_CONFIG.successRate;
 
 		switch (useScenario) {
 			case "success":
@@ -1636,7 +1646,7 @@ I've successfully processed your request: **"${content}"**
 ### Summary
 - **Documents processed**: ${documentCount}
 - **Status**: ✅ Completed successfully
-- **Response time**: ~${Math.floor(Math.random() * 3) + 1} seconds
+- **Response time**: ~${MOCK_CONFIG.deterministic ? 1 : Math.floor(Math.random() * 3) + 1} seconds
 
 ### Key Findings
 1. **System health check** passed
@@ -1998,6 +2008,20 @@ app.get("/health", (_req, res) => {
 		service: "rita-mock-automation",
 		timestamp: new Date().toISOString(),
 		config: MOCK_CONFIG,
+	});
+});
+
+// Test reset endpoint — clears all in-memory state
+app.post("/test/reset", (_req, res) => {
+	cancelledSyncConnections.clear();
+	keycloakAdminToken = null;
+	tokenExpiresAt = 0;
+
+	logger.info("Mock service state reset via /test/reset");
+
+	res.json({
+		success: true,
+		message: "Mock service state reset",
 	});
 });
 
@@ -2676,7 +2700,7 @@ app.post("/webhook", async (req, res) => {
 				// Delete primary user from Keycloak
 				// NOTE: Only pass email - let deleteKeycloakUser search Keycloak by email
 				// deletePayload.user_id is Rita's database user_id, not Keycloak's user ID
-				await deleteKeycloakUser(deletePayload.user_email!);
+				await deleteKeycloakUser(deletePayload.user_email as string);
 
 				// Delete additional users if provided (for organization deletion)
 				const additionalEmails = deletePayload.additional_emails || [];
@@ -2861,7 +2885,7 @@ app.post("/webhook", async (req, res) => {
 
 						// Send success email directly to owner if verification succeeded
 						if (isSuccess && verifyPayload.settings?.owner_email) {
-							const { owner_email, delegated_success_url, organization_name } =
+							const { owner_email, delegated_success_url } =
 								verifyPayload.settings;
 							try {
 								await emailService.sendDelegationSuccess(
@@ -2993,52 +3017,176 @@ app.post("/webhook", async (req, res) => {
 				"Received data source sync trigger webhook",
 			);
 
-			// Publish sync_completed message to RabbitMQ after 20 second delay
-			setTimeout(async () => {
-				try {
-					// Check if sync was cancelled before sending sync_completed
-					if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+			// Simulate credential/permission errors during sync
+			// Triggered by magic username/email values in settings (same pattern as mock-threshold for sync_tickets)
+			// Confluence uses settings.email, ITSM types use settings.username
+			const syncIdentity = (
+				syncPayload.settings?.username ||
+				syncPayload.settings?.email ||
+				""
+			)
+				.toString()
+				.toLowerCase();
+			const isAuthError = syncIdentity.startsWith("mock-auth-error");
+			const isPermissionError = syncIdentity.startsWith(
+				"mock-permission-denied",
+			);
+
+			if (isAuthError || isPermissionError) {
+				const errorCode = isAuthError
+					? "authentication_failed"
+					: "permission_denied";
+
+				(async () => {
+					try {
+						// Short delay to simulate connection attempt
+						await new Promise((resolve) => setTimeout(resolve, 2000));
+
+						const rabbitmqService = getRabbitMQService();
+						await rabbitmqService.publishToQueue("data_source_status", {
+							type: "sync",
+							connection_id: syncPayload.connection_id,
+							tenant_id: syncPayload.tenant_id,
+							status: "sync_failed",
+							error_message: errorCode,
+							timestamp: new Date().toISOString(),
+						});
+
 						contextLogger.info(
 							{
 								connectionId: syncPayload.connection_id,
+								errorCode,
 							},
-							"Sync was cancelled - skipping sync_completed message",
+							"Published sync_failed for credential/permission error simulation",
 						);
-						// Remove from cancelled set after skipping
-						cancelledSyncConnections.delete(syncPayload.connection_id);
-						return;
+					} catch (error) {
+						contextLogger.error(
+							{ error },
+							"Failed to publish sync_failed for credential error",
+						);
 					}
+				})();
 
-					const rabbitmqService = getRabbitMQService();
+				res.status(200).json({
+					success: true,
+					message: "Sync triggered successfully",
+				});
+				return;
+			}
 
-					const syncMessage = {
-						type: "sync",
-						connection_id: syncPayload.connection_id,
-						tenant_id: syncPayload.tenant_id,
-						status: "sync_completed",
-						documents_processed: 42,
-						timestamp: new Date().toISOString(),
-					};
+			if (syncPayload.connection_type === "confluence") {
+				// Confluence: insert actual document data into the database
+				(async () => {
+					try {
+						if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+							contextLogger.info(
+								{ connectionId: syncPayload.connection_id },
+								"Sync was cancelled - skipping confluence sync",
+							);
+							cancelledSyncConnections.delete(syncPayload.connection_id);
+							return;
+						}
 
-					await rabbitmqService.publishToQueue(
-						"data_source_status",
-						syncMessage,
-					);
+						const userId =
+							syncPayload.user_id || "f046b616-a717-4bde-8bd9-517486b17c5d";
+						const syncResult = await syncConfluenceData(
+							syncPayload.tenant_id,
+							syncPayload.connection_id,
+							userId,
+						);
 
-					contextLogger.info(
-						{
-							connectionId: syncPayload.connection_id,
-							documentsProcessed: 42,
-						},
-						"Published sync_completed message to RabbitMQ",
-					);
-				} catch (error) {
-					contextLogger.error(
-						{ error },
-						"Failed to publish sync_completed message",
-					);
-				}
-			}, 20000);
+						contextLogger.info(
+							{ documentsCreated: syncResult.documentsCreated },
+							"Confluence data sync completed",
+						);
+
+						if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+							cancelledSyncConnections.delete(syncPayload.connection_id);
+							return;
+						}
+
+						const rabbitmqService = getRabbitMQService();
+						await rabbitmqService.publishToQueue("data_source_status", {
+							type: "sync",
+							connection_id: syncPayload.connection_id,
+							tenant_id: syncPayload.tenant_id,
+							status: "sync_completed",
+							documents_processed: syncResult.documentsCreated,
+							timestamp: new Date().toISOString(),
+						});
+
+						contextLogger.info(
+							{
+								connectionId: syncPayload.connection_id,
+								documentsProcessed: syncResult.documentsCreated,
+							},
+							"Published sync_completed for Confluence",
+						);
+					} catch (error) {
+						contextLogger.error({ error }, "Failed Confluence sync");
+						try {
+							const rabbitmqService = getRabbitMQService();
+							await rabbitmqService.publishToQueue("data_source_status", {
+								type: "sync",
+								connection_id: syncPayload.connection_id,
+								tenant_id: syncPayload.tenant_id,
+								status: "sync_failed",
+								error_message:
+									error instanceof Error ? error.message : String(error),
+								timestamp: new Date().toISOString(),
+							});
+						} catch (publishError) {
+							contextLogger.error(
+								{ publishError },
+								"Failed to publish sync_failed",
+							);
+						}
+					}
+				})();
+			} else {
+				// Other data sources: generic 20-second delay with hardcoded count
+				setTimeout(async () => {
+					try {
+						if (cancelledSyncConnections.has(syncPayload.connection_id)) {
+							contextLogger.info(
+								{ connectionId: syncPayload.connection_id },
+								"Sync was cancelled - skipping sync_completed message",
+							);
+							cancelledSyncConnections.delete(syncPayload.connection_id);
+							return;
+						}
+
+						const rabbitmqService = getRabbitMQService();
+
+						const syncMessage = {
+							type: "sync",
+							connection_id: syncPayload.connection_id,
+							tenant_id: syncPayload.tenant_id,
+							status: "sync_completed",
+							documents_processed: 42,
+							timestamp: new Date().toISOString(),
+						};
+
+						await rabbitmqService.publishToQueue(
+							"data_source_status",
+							syncMessage,
+						);
+
+						contextLogger.info(
+							{
+								connectionId: syncPayload.connection_id,
+								documentsProcessed: 42,
+							},
+							"Published sync_completed message to RabbitMQ",
+						);
+					} catch (error) {
+						contextLogger.error(
+							{ error },
+							"Failed to publish sync_completed message",
+						);
+					}
+				}, 20000);
+			}
 
 			res.status(200).json({
 				success: true,
@@ -3068,23 +3216,104 @@ app.post("/webhook", async (req, res) => {
 				"Received sync_tickets webhook",
 			);
 
-			// For ServiceNow ITSM and Ivanti ITSM, insert actual test data into the database
+			// For ServiceNow ITSM, Ivanti ITSM, and Freshservice, insert actual test data into the database
 			const isServiceNow = ticketsPayload.connection_type === "servicenow_itsm";
 			const isIvanti = ticketsPayload.connection_type === "ivanti_itsm";
-			const useRealData = isServiceNow || isIvanti;
+			const isFreshservice =
+				ticketsPayload.connection_type === "freshservice_itsm";
+			const useRealData = isServiceNow || isIvanti || isFreshservice;
 
 			// Start async data sync and progress reporting
 			(async () => {
 				try {
 					const rabbitmqService = getRabbitMQService();
 
+					// Simulate credential/permission errors during ticket sync
+					// Uses same magic username pattern as trigger_sync
+					const syncUsername = ticketsPayload.settings?.username
+						?.toString()
+						.toLowerCase();
+					const isTicketAuthError = syncUsername?.startsWith("mock-auth-error");
+					const isTicketPermError = syncUsername?.startsWith(
+						"mock-permission-denied",
+					);
+
+					if (isTicketAuthError || isTicketPermError) {
+						await new Promise((resolve) => setTimeout(resolve, 2000));
+						const errorCode = isTicketAuthError
+							? "authentication_failed"
+							: "permission_denied";
+						const authErrorMessage = {
+							type: "ticket_ingestion",
+							tenant_id: ticketsPayload.tenant_id,
+							user_id: ticketsPayload.user_id,
+							ingestion_run_id: ticketsPayload.ingestion_run_id,
+							connection_id: ticketsPayload.connection_id,
+							status: "failed",
+							records_processed: 0,
+							records_failed: 0,
+							error_message: errorCode,
+							timestamp: new Date().toISOString(),
+						};
+						await rabbitmqService.publishToQueue(
+							"data_source_status",
+							authErrorMessage,
+						);
+						contextLogger.info(
+							{ errorCode },
+							"Simulated credential/permission error for ticket sync",
+						);
+						return;
+					}
+
+					// Simulate tickets_below_threshold error
+					// Triggered deterministically by username "mock-threshold" or 10% random chance
+					const simulateBelowThreshold =
+						syncUsername === "mock-threshold" ||
+						(!syncUsername?.startsWith("mock-") && Math.random() < 0.1); // 10% chance for non-mock usernames, modify as needed for testing
+
+					if (simulateBelowThreshold) {
+						await new Promise((resolve) => setTimeout(resolve, 1500));
+						const currentTickets = Math.floor(Math.random() * 80) + 5; // 5-84
+						const belowThresholdMessage = {
+							type: "ticket_ingestion",
+							tenant_id: ticketsPayload.tenant_id,
+							user_id: ticketsPayload.user_id,
+							ingestion_run_id: ticketsPayload.ingestion_run_id,
+							connection_id: ticketsPayload.connection_id,
+							status: "failed",
+							records_processed: 0,
+							records_failed: 0,
+							error_message: "tickets_below_threshold",
+							error_detail: {
+								current_total_tickets: currentTickets,
+								needed_total_tickets: 100,
+							},
+							timestamp: new Date().toISOString(),
+						};
+						await rabbitmqService.publishToQueue(
+							"data_source_status",
+							belowThresholdMessage,
+						);
+						contextLogger.info(
+							{ currentTickets, needed: 100 },
+							"Simulated tickets_below_threshold error",
+						);
+						return;
+					}
+
 					let totalTickets: number;
 					let ticketsCreated = 0;
 
 					if (useRealData) {
-						// Insert actual data for ServiceNow/Ivanti ITSM
+						// Insert actual data for ServiceNow/Ivanti/Freshservice ITSM
+						const providerName = isFreshservice
+							? "Freshservice"
+							: isServiceNow
+								? "ServiceNow"
+								: "Ivanti";
 						contextLogger.info(
-							`Inserting ${isServiceNow ? "ServiceNow" : "Ivanti"} test data into database...`,
+							`Inserting ${providerName} test data into database...`,
 						);
 
 						// Send initial progress message
@@ -3106,13 +3335,19 @@ app.post("/webhook", async (req, res) => {
 						);
 
 						// Perform actual data insertion
-						// Pass settings to enable username-based training state scenarios
-						const syncResult = await syncServiceNowData(
-							ticketsPayload.tenant_id,
-							ticketsPayload.connection_id,
-							ticketsPayload.ingestion_run_id,
-							ticketsPayload.settings,
-						);
+						const syncResult = isFreshservice
+							? await syncFreshserviceData(
+									ticketsPayload.tenant_id,
+									ticketsPayload.connection_id,
+									ticketsPayload.ingestion_run_id,
+									ticketsPayload.settings,
+								)
+							: await syncServiceNowData(
+									ticketsPayload.tenant_id,
+									ticketsPayload.connection_id,
+									ticketsPayload.ingestion_run_id,
+									ticketsPayload.settings,
+								);
 
 						totalTickets = syncResult.ticketsCreated;
 						ticketsCreated = syncResult.ticketsCreated;
@@ -3123,7 +3358,7 @@ app.post("/webhook", async (req, res) => {
 								clustersCreated: syncResult.clustersCreated,
 								ticketsCreated: syncResult.ticketsCreated,
 							},
-							"ServiceNow data inserted successfully",
+							`${providerName} data inserted successfully`,
 						);
 
 						// Simulate realistic sync time with partial progress updates
@@ -3534,7 +3769,7 @@ app.post("/webhook", async (req, res) => {
 
 				// Send verification email via Mailpit
 				await emailService.sendSignupVerification(
-					signupPayload.user_email!,
+					signupPayload.user_email as string,
 					`${signupPayload.first_name} ${signupPayload.last_name}`,
 					signupPayload.verification_url,
 				);

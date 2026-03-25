@@ -241,6 +241,8 @@ jobs:
                    CONSUL_HTTP_ADDR: ${{ secrets.DEV_CONSUL_HTTP_ADDR }}
                    CONSUL_HTTP_TOKEN: ${{ secrets.DEV_CONSUL_HTTP_TOKEN }}
                    VALKEY_URL: ${{ secrets.VALKEY_URL_DEV }}
+                   ROLLBAR_ACCESS_TOKEN: ${{ secrets.ROLLBAR_ACCESS_TOKEN }}
+                   ROLLBAR_HASH_SALT: ${{ secrets.ROLLBAR_HASH_SALT }}
                  healthcheck:
                    test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
                    interval: 30s

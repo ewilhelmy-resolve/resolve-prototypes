@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import ConfluenceConfiguration from "@/components/connection-sources/connection-details/ConfluenceConfiguration";
-import FreshdeskItsmConfiguration from "@/components/connection-sources/connection-details/FreshdeskItsmConfiguration";
+import FreshserviceItsmConfiguration from "@/components/connection-sources/connection-details/FreshserviceItsmConfiguration";
 import IvantiItsmConfiguration from "@/components/connection-sources/connection-details/IvantiItsmConfiguration";
 import JiraItsmConfiguration from "@/components/connection-sources/connection-details/JiraItsmConfiguration";
 import ServiceNowItsmConfiguration from "@/components/connection-sources/connection-details/ServiceNowItsmConfiguration";
@@ -12,7 +12,7 @@ import SharePointConfiguration from "@/components/connection-sources/connection-
 import WebSearchConfiguration from "@/components/connection-sources/connection-details/WebSearchConfiguration";
 import {
 	ConfluenceForm,
-	FreshdeskForm,
+	FreshserviceForm,
 	IvantiForm,
 	JiraForm,
 	ServiceNowForm,
@@ -50,7 +50,7 @@ const FORM_REGISTRY: Record<
 	[SOURCES.SERVICENOW_ITSM]: ServiceNowForm,
 	[SOURCES.WEB_SEARCH]: WebSearchForm,
 	[SOURCES.JIRA_ITSM]: JiraForm,
-	[SOURCES.FRESHDESK]: FreshdeskForm,
+	[SOURCES.FRESHSERVICE]: FreshserviceForm,
 	[SOURCES.IVANTI_ITSM]: IvantiForm,
 };
 
@@ -72,7 +72,7 @@ const ITSM_CONFIGURATION_REGISTRY: Record<
 > = {
 	[SOURCES.SERVICENOW_ITSM]: ServiceNowItsmConfiguration,
 	[SOURCES.JIRA_ITSM]: JiraItsmConfiguration,
-	[SOURCES.FRESHDESK]: FreshdeskItsmConfiguration,
+	[SOURCES.FRESHSERVICE]: FreshserviceItsmConfiguration,
 	[SOURCES.IVANTI_ITSM]: IvantiItsmConfiguration,
 };
 

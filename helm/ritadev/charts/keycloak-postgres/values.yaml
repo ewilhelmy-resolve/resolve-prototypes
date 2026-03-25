@@ -1,0 +1,46 @@
+namespace: rita-dev
+
+image:
+  repository: postgres
+  tag: "15"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 5432
+  targetPort: 5432
+  name: keycloak-postgres
+
+# Database configuration
+database:
+  name: keycloak
+  user: keycloak
+  password: ""  # Set via helmfile from secret
+
+# Storage configuration
+persistence:
+  enabled: true
+  storageClassName: kops-csi-1-21
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Backup configuration
+backup:
+  enabled: false  # Enable for production, disable for dev
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  s3Bucket: ""  # Set via environment values
+  retentionDays: 30
+
+# Velero backup configuration (alternative to pg_dump)
+velero:
+  enabled: false  # Enable for production
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  ttl: 720h  # 30 days retention

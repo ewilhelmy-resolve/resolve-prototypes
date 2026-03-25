@@ -56,9 +56,9 @@
 			"title": "Jira",
 			"description": "Import tickets from Jira for Autopilot clustering."
 		},
-		"freshdesk": {
-			"title": "Freshdesk",
-			"description": "Import tickets from Freshdesk for autopilot clustering."
+		"freshservice_itsm": {
+			"title": "Freshservice",
+			"description": "Import tickets from Freshservice for autopilot clustering."
 		},
 		"ivanti_itsm": {
 			"title": "Ivanti",
@@ -81,7 +81,7 @@
 			"clientId": "Client ID",
 			"clientSecret": "Client Secret",
 			"siteUrl": "Site URL",
-			"freshdeskDomain": "Freshdesk Domain",
+			"freshserviceDomain": "Freshservice Domain",
 			"apiKey": "API Key",
 			"jiraUrl": "Jira URL"
 		},
@@ -96,7 +96,7 @@
 			"clientId": "your-client-id",
 			"secret": "••••••••",
 			"sharePointUrl": "https://your-company.sharepoint.com",
-			"freshdeskDomain": "https://your-company.freshdesk.com",
+			"freshserviceDomain": "https://your-company.freshservice.com",
 			"apiKey": "Enter your API key",
 			"jiraUrl": "https://your-company.atlassian.net"
 		},
@@ -113,7 +113,9 @@
 			"tenantIdRequired": "Tenant ID is required",
 			"clientIdRequired": "Client ID is required",
 			"clientSecretRequired": "Client Secret is required",
-			"siteUrlRequired": "Site URL is required"
+			"siteUrlRequired": "Site URL is required",
+			"domainRequired": "Domain is required",
+			"apiKeyRequired": "API key is required"
 		},
 		"buttons": {
 			"connect": "Connect",
@@ -126,7 +128,7 @@
 			"connectionMayTakeTime": "Connection may take time",
 			"canLeavePage": "You can leave this page while it is connecting",
 			"comingSoon": "Coming Soon",
-			"freshdeskNotReady": "Freshdesk integration is not yet available. Stay tuned for updates."
+			"freshserviceNotReady": "Freshservice integration is not yet available. Stay tuned for updates."
 		},
 		"descriptions": {
 			"webSearchHelp": "Enable web search to supplement answers when knowledge isn't found in your connected sources."
@@ -155,7 +157,7 @@
 			"jiraItsm": "Jira ITSM configuration",
 			"sharepoint": "SharePoint",
 			"websearch": "Web Search",
-			"freshdeskItsm": "Freshdesk ITSM configuration",
+			"freshserviceItsm": "Freshservice ITSM configuration",
 			"ivantiItsm": "Ivanti ITSM configuration"
 		},
 		"sync": {
@@ -219,6 +221,7 @@
 			"syncStartedServiceNowKb": "Your ServiceNow knowledge articles are being synced",
 			"syncStartedServiceNowItsm": "Your ServiceNow tickets are being synced",
 			"syncStartedJiraItsm": "Your Jira tickets are being synced",
+			"syncStartedFreshservice": "Your Freshservice tickets are being synced",
 			"syncStartedIvantiItsm": "Your Ivanti tickets are being synced",
 			"syncFailed": "Sync Failed",
 			"syncFailedDefault": "Failed to start sync",
@@ -227,6 +230,16 @@
 			"cancelFailed": "Cancel Failed",
 			"cancelFailedDefault": "Failed to cancel sync"
 		}
+	},
+	"syncError": {
+		"credentialFailedTitle": "Sync failed due to credential issue",
+		"reVerifyCredentials": "Re-verify credentials",
+		"syncFailedTitle": "Sync failed",
+		"ingestionFailedTitle": "Ticket import failed",
+		"authentication_failed": "Invalid or expired credentials. Please re-verify your connection credentials.",
+		"permission_denied": "The service account does not have sufficient permissions to read the requested resources.",
+		"noDocumentsTitle": "No documents found",
+		"noDocumentsDescription": "Sync completed successfully, but no documents were found. Check your source configuration and ensure there is content available to sync."
 	},
 	"servicenow": {
 		"applyToRelated": "Apply credentials to {{target}} connection",

@@ -43,6 +43,7 @@ coverage/
 
 # Test artifacts
 playwright-report/
+.playwright-cli/
 test-results/
 
 # Dependency directories
@@ -130,3 +131,4 @@ keycloak/themes/rita-theme/login/resources/css/styles.css
 tmux-dev.sh
 
 .pi-plans/
+.pi/

@@ -41,8 +41,7 @@ interface UseClustersOptions extends ClustersQueryParams {
 /**
  * Options for useInfiniteClusters hook
  */
-interface UseInfiniteClustersOptions
-	extends Omit<ClustersQueryParams, "cursor"> {
+interface UseInfiniteClustersOptions extends ClustersQueryParams {
 	/** Whether the query should be enabled (default: true) */
 	enabled?: boolean;
 }
@@ -80,14 +79,14 @@ export function useInfiniteClusters(options?: UseInfiniteClustersOptions) {
 		queryFn: async ({ pageParam }) => {
 			const response = await clustersApi.list({
 				...params,
-				cursor: pageParam,
+				offset: pageParam,
 			});
 			return response;
 		},
-		initialPageParam: undefined as string | undefined,
+		initialPageParam: 0,
 		getNextPageParam: (lastPage) =>
 			lastPage.pagination.has_more
-				? lastPage.pagination.next_cursor
+				? lastPage.pagination.offset + lastPage.pagination.limit
 				: undefined,
 		staleTime: 30000,
 		enabled,
@@ -101,9 +100,9 @@ export function useInfiniteClusters(options?: UseInfiniteClustersOptions) {
  */
 export function useClusterDetails(id: string | undefined) {
 	return useQuery({
-		queryKey: clusterKeys.detail(id!),
+		queryKey: clusterKeys.detail(id as string),
 		queryFn: async () => {
-			const response = await clustersApi.getDetails(id!);
+			const response = await clustersApi.getDetails(id as string);
 			return response.data;
 		},
 		enabled: !!id,
@@ -111,24 +110,31 @@ export function useClusterDetails(id: string | undefined) {
 	});
 }
 
+interface UseClusterTicketsOptions {
+	keepPrevious?: boolean;
+}
+
 /**
  * Get paginated tickets for a cluster
  * @param id - Cluster UUID
- * @param params - Query params (tab, cursor, limit)
+ * @param params - Query params (tab, offset, limit, sort, sort_dir, search)
+ * @param options - Hook options (keepPrevious to retain data while refetching)
  * @returns Query with tickets and pagination info
  */
 export function useClusterTickets(
 	id: string | undefined,
 	params?: ClusterTicketsQueryParams,
+	options?: UseClusterTicketsOptions,
 ) {
 	return useQuery({
-		queryKey: clusterKeys.ticketList(id!, params),
+		queryKey: clusterKeys.ticketList(id as string, params),
 		queryFn: async () => {
-			const response = await clustersApi.getTickets(id!, params);
+			const response = await clustersApi.getTickets(id as string, params);
 			return response;
 		},
 		enabled: !!id,
 		staleTime: 30000,
+		...(options?.keepPrevious && { placeholderData: keepPreviousData }),
 	});
 }
 
@@ -139,12 +145,26 @@ export function useClusterTickets(
  */
 export function useClusterKbArticles(id: string | undefined) {
 	return useQuery({
-		queryKey: clusterKeys.kbArticleList(id!),
+		queryKey: clusterKeys.kbArticleList(id as string),
 		queryFn: async () => {
-			const response = await clustersApi.getKbArticles(id!);
+			const response = await clustersApi.getKbArticles(id as string);
 			return response.data;
 		},
 		enabled: !!id,
+		staleTime: 30000,
+	});
+}
+
+/**
+ * Get cluster actions map (whether each cluster has a linked Resolve Action workflow)
+ * TODO: wire to real actions API when available
+ */
+export function useClusterActions() {
+	return useQuery({
+		queryKey: ["cluster-actions"],
+		queryFn: async () => {
+			return {} as Record<string, boolean>;
+		},
 		staleTime: 30000,
 	});
 }
@@ -156,9 +176,9 @@ export function useClusterKbArticles(id: string | undefined) {
  */
 export function useTicket(id: string | undefined) {
 	return useQuery({
-		queryKey: ticketKeys.detail(id!),
+		queryKey: ticketKeys.detail(id as string),
 		queryFn: async () => {
-			const response = await ticketsApi.getById(id!);
+			const response = await ticketsApi.getById(id as string);
 			return response.data;
 		},
 		enabled: !!id,

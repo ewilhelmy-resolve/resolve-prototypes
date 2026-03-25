@@ -6,6 +6,7 @@ import {
 	type CreateSessionData,
 	getSessionStore,
 	type IframeWebhookConfig,
+	type Session,
 } from "./sessionStore.js";
 
 // Valkey key prefix - keys stored as rita:session:{guid}
@@ -310,11 +311,12 @@ export class IframeService {
 	async findConversationByActivityId(
 		activityId: number,
 		orgId: string,
+		userId: string,
 	): Promise<string | null> {
 		const result = await pool.query(
 			`SELECT conversation_id FROM activity_contexts
-			 WHERE activity_id = $1 AND organization_id = $2`,
-			[activityId, orgId],
+			 WHERE activity_id = $1 AND organization_id = $2 AND user_id = $3`,
+			[activityId, orgId, userId],
 		);
 		return result.rows[0]?.conversation_id || null;
 	}
@@ -327,12 +329,13 @@ export class IframeService {
 		activityId: number,
 		orgId: string,
 		conversationId: string,
+		userId: string,
 	): Promise<void> {
 		await pool.query(
-			`INSERT INTO activity_contexts (activity_id, organization_id, conversation_id)
-			 VALUES ($1, $2, $3)
-			 ON CONFLICT (activity_id, organization_id) DO UPDATE SET conversation_id = $3`,
-			[activityId, orgId, conversationId],
+			`INSERT INTO activity_contexts (activity_id, organization_id, conversation_id, user_id)
+			 VALUES ($1, $2, $3, $4)
+			 ON CONFLICT (activity_id, organization_id, user_id) DO UPDATE SET conversation_id = $3`,
+			[activityId, orgId, conversationId, userId],
 		);
 		logger.info(
 			{ activityId, orgId, conversationId },
@@ -367,6 +370,22 @@ export class IframeService {
 				"Failed to store conversationId in Valkey",
 			);
 		}
+	}
+
+	/**
+	 * Verify that a conversation belongs to the given user and organization.
+	 * Returns true if the user owns the conversation, false otherwise.
+	 */
+	async verifyConversationOwnership(
+		conversationId: string,
+		organizationId: string,
+		userId: string,
+	): Promise<boolean> {
+		const result = await pool.query(
+			"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+			[conversationId, organizationId, userId],
+		);
+		return result.rows.length > 0;
 	}
 
 	/**
@@ -516,13 +535,21 @@ export class IframeService {
 				"UI form response stored in message metadata",
 			);
 
-			// 3. Get webhook config from session (lookup by conversation if available)
+			// 3. Get webhook config from session (re-read Valkey for Actions Platform updates)
 			let webhookConfig: IframeWebhookConfig | null = null;
 			if (msg.conversation_id) {
 				const session = await this.sessionStore.getSessionByConversationId(
 					msg.conversation_id,
 				);
-				webhookConfig = session?.iframeWebhookConfig || null;
+				if (session?.valkeySessionKey) {
+					await this.refreshSessionFromValkey(session.sessionId);
+					const refreshed = await this.sessionStore.getSessionByConversationId(
+						msg.conversation_id,
+					);
+					webhookConfig = refreshed?.iframeWebhookConfig || null;
+				} else {
+					webhookConfig = session?.iframeWebhookConfig || null;
+				}
 			}
 
 			// 4. Send webhook to Platform if we have config
@@ -601,85 +628,6 @@ export class IframeService {
 	}
 
 	/**
-	 * Send custom schema UI action to platform via webhook
-	 * Used for server-side actions that need webhook delivery without form metadata updates
-	 * Gets session directly via conversationId — no messageId needed
-	 */
-	async sendCustomSchemaUI(payload: {
-		action: string;
-		conversationId: string;
-		data?: Record<string, unknown>;
-		status: "submitted" | "cancelled";
-	}): Promise<void> {
-		const { action, conversationId, data } = payload;
-		const timestamp = new Date().toISOString();
-
-		// 1. Get webhook config from session via conversationId
-		const session =
-			await this.sessionStore.getSessionByConversationId(conversationId);
-		const webhookConfig = session?.iframeWebhookConfig || null;
-
-		// 2. Send webhook to Platform if we have config
-		if (
-			webhookConfig?.actionsApiBaseUrl &&
-			webhookConfig?.clientId &&
-			webhookConfig?.clientKey
-		) {
-			const baseUrl = webhookConfig.actionsApiBaseUrl.replace(/\/$/, "");
-			const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${webhookConfig.tenantId}`;
-			const authHeader = `Basic ${Buffer.from(
-				`${webhookConfig.clientId}:${webhookConfig.clientKey}`,
-			).toString("base64")}`;
-
-			const webhookPayload = {
-				source: "rita-chat-iframe" as const,
-				action,
-				tenant_id: webhookConfig.tenantId,
-				user_id: webhookConfig.userGuid,
-				conversation_id: conversationId,
-				data: data || {},
-				timestamp,
-				status,
-			};
-
-			try {
-				const axios = (await import("axios")).default;
-				await axios.post(webhookUrl, webhookPayload, {
-					headers: {
-						Authorization: authHeader,
-						"Content-Type": "application/json",
-					},
-					timeout: 10000,
-				});
-
-				logger.info(
-					{ action, conversationId, webhookUrl },
-					"Custom schema UI webhook sent to platform",
-				);
-			} catch (webhookError) {
-				const errMsg =
-					webhookError instanceof Error
-						? webhookError.message
-						: String(webhookError);
-				logger.warn(
-					{ action, conversationId, webhookUrl, error: errMsg },
-					"Custom schema UI webhook failed (non-fatal)",
-				);
-			}
-		} else {
-			logger.warn(
-				{
-					action,
-					conversationId,
-					hasSession: !!session,
-					hasWebhookConfig: !!webhookConfig,
-				},
-				"No webhook config available for custom schema UI action",
-			);
-		}
-	}
-
-	/**
 	 * Create a conversation for iframe user
 	 * Uses JIT provisioning to map Jarvis IDs → Rita IDs
 	 * Conversation reuse is via activityId (activity_contexts table), not sessionKey
@@ -688,6 +636,7 @@ export class IframeService {
 		config: IframeWebhookConfig,
 		intentEid?: string,
 		preResolvedOrgId?: string,
+		preResolvedUserId?: string,
 	): Promise<{
 		conversationId: string;
 		ritaOrgId: string;
@@ -698,14 +647,15 @@ export class IframeService {
 			preResolvedOrgId ||
 			(await this.resolveRitaOrg(config.tenantId, config.tenantName)).ritaOrgId;
 
-		// 2. Resolve Rita user from Jarvis GUID
-		const { ritaUserId } = await this.resolveRitaUser(
-			config.userGuid,
-			ritaOrgId,
-		);
+		// 2. Use pre-resolved user or resolve from Jarvis GUID
+		const ritaUserId =
+			preResolvedUserId ||
+			(await this.resolveRitaUser(config.userGuid, ritaOrgId)).ritaUserId;
 
 		// 3. Always ensure org membership (ON CONFLICT DO NOTHING handles idempotency)
-		await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+		if (!preResolvedUserId) {
+			await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+		}
 
 		// 4. Create conversation with Rita IDs (using org context for RLS)
 		const result = await withOrgContext(
@@ -738,6 +688,43 @@ export class IframeService {
 	}
 
 	/**
+	 * Re-read Valkey payload and merge fresh context into session
+	 * Actions Platform updates Valkey mid-session (e.g. adds runId, activityId after workflow runs)
+	 * Rita re-reads before every webhook so payloads to Actions Platform contain latest context
+	 */
+	async refreshSessionFromValkey(sessionId: string): Promise<Session | null> {
+		const session = await this.sessionStore.getSession(sessionId);
+		if (!session?.valkeySessionKey || !session.iframeWebhookConfig) {
+			return session;
+		}
+
+		try {
+			const { config } = await this.fetchValkeyPayloadWithDebug(
+				session.valkeySessionKey,
+			);
+			if (!config?.context) return session;
+
+			const updatedConfig = {
+				...session.iframeWebhookConfig,
+				context: { ...session.iframeWebhookConfig.context, ...config.context },
+			};
+
+			return this.sessionStore.updateSession(sessionId, {
+				iframeWebhookConfig: updatedConfig,
+			});
+		} catch (error) {
+			logger.error(
+				{
+					sessionId,
+					error: (error as Error).message,
+				},
+				"Failed to refresh session from Valkey",
+			);
+			return session;
+		}
+	}
+
+	/**
 	 * Validate instantiation and setup iframe session + conversation
 	 * Requires valid Valkey config (sessionKey).
 	 * Session uses Rita internal IDs (resolved from Jarvis IDs) for SSE routing.
@@ -765,6 +752,8 @@ export class IframeService {
 		};
 		/** Full Valkey payload for dev tools (sensitive fields redacted) */
 		valkeyPayload?: Record<string, unknown>;
+		/** Debug info for diagnosing validation failures (server-side only) */
+		debug?: Record<string, unknown>;
 	}> {
 		// SessionKey (Valkey hashkey) required
 		if (!sessionKey) {
@@ -772,17 +761,23 @@ export class IframeService {
 			return { valid: false, error: "sessionKey required" };
 		}
 
-		// Fetch config from Valkey (dev mode handled in getDevMockPayload)
-		const config = await this.fetchValkeyPayload(sessionKey);
+		// Fetch config from Valkey with debug info (dev mode handled in getDevMockPayload)
+		const { config, debug: valkeyDebug } =
+			await this.fetchValkeyPayloadWithDebug(sessionKey);
 
 		if (!config) {
+			const errorDetail = valkeyDebug?.error || "unknown";
 			logger.warn(
-				{ sessionKey: `${sessionKey.substring(0, 8)}...` },
-				"Invalid or missing Valkey config",
+				{
+					sessionKey: `${sessionKey.substring(0, 8)}...`,
+					valkeyDebug,
+				},
+				"Valkey config unavailable",
 			);
 			return {
 				valid: false,
 				error: "Invalid or missing Valkey configuration",
+				debug: { reason: errorDetail },
 			};
 		}
 
@@ -790,26 +785,45 @@ export class IframeService {
 		let ritaOrgId: string;
 		let ritaUserId: string;
 
-		// Resolve Rita org early (needed for activityId lookup)
+		// Resolve Rita org and user early (needed for activity lookup scoped by user)
 		const { ritaOrgId: resolvedOrgId } = await this.resolveRitaOrg(
 			config.tenantId,
 			config.tenantName,
 		);
 		ritaOrgId = resolvedOrgId;
 
+		const { ritaUserId: resolvedUserId } = await this.resolveRitaUser(
+			config.userGuid,
+			ritaOrgId,
+		);
+		ritaUserId = resolvedUserId;
+		await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+
 		// Extract activityId from context if available
 		const activityId = config.context?.activityId as number | undefined;
 
-		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) activityId lookup, 4) sessionKey lookup, 5) create new
+		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) activityId lookup, 4) create new
 		let resolvedExistingConversationId =
 			existingConversationId || config.conversationId;
 
-		// If no conversation ID provided, check by activityId first (activity-based chat)
+		// Track where the conversationId came from for error handling
+		let conversationIdSource: string | undefined;
+		if (existingConversationId) {
+			conversationIdSource = "frontend_param";
+		} else if (config.conversationId) {
+			conversationIdSource = "valkey_config";
+		}
+
+		// If no conversation ID provided, check by activityId (now scoped per-user)
 		if (!resolvedExistingConversationId && activityId) {
 			resolvedExistingConversationId =
-				(await this.findConversationByActivityId(activityId, ritaOrgId)) ||
-				undefined;
+				(await this.findConversationByActivityId(
+					activityId,
+					ritaOrgId,
+					ritaUserId,
+				)) || undefined;
 			if (resolvedExistingConversationId) {
+				conversationIdSource = "activity_lookup";
 				logger.info(
 					{
 						activityId,
@@ -820,46 +834,58 @@ export class IframeService {
 			}
 		}
 
-		// No activityId = no context to tie conversation to, always create new
-		// (sessionKey is stored for tracking but not used for lookup)
-
 		if (resolvedExistingConversationId) {
-			// Existing conversation - resolve user (org already resolved above)
-			const { ritaUserId: userId } = await this.resolveRitaUser(
-				config.userGuid,
-				ritaOrgId,
-			);
-			ritaUserId = userId;
-
-			// Always ensure membership for existing conversation path
-			await this.ensureOrgMembership(ritaOrgId, ritaUserId);
-
 			// Verify conversation ownership before using it
 			const convCheck = await pool.query(
 				`SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3`,
 				[resolvedExistingConversationId, ritaOrgId, ritaUserId],
 			);
 			if (convCheck.rows.length === 0) {
-				logger.warn(
-					{
-						existingConversationId: resolvedExistingConversationId,
-						ritaOrgId,
-						ritaUserId,
-					},
-					"Conversation not found or not owned by user",
-				);
-				return {
-					valid: false,
-					error: "Conversation not found or access denied",
-				};
+				// activity_lookup failures are non-fatal — fall through to create new conversation
+				if (conversationIdSource === "activity_lookup") {
+					logger.warn(
+						{
+							conversationId: resolvedExistingConversationId,
+							conversationIdSource,
+							ritaOrgId,
+							ritaUserId,
+						},
+						"Activity lookup returned stale conversation — creating new one",
+					);
+					resolvedExistingConversationId = undefined;
+				} else {
+					logger.warn(
+						{
+							conversationId: resolvedExistingConversationId,
+							conversationIdSource,
+							ritaOrgId,
+							ritaUserId,
+						},
+						"Conversation not found in DB — stale reference",
+					);
+
+					return {
+						valid: false,
+						error: "Conversation not found or access denied",
+						debug: {
+							reason: "conversation_not_in_db",
+							conversationId: resolvedExistingConversationId,
+							source: conversationIdSource,
+						},
+					};
+				}
 			}
+		}
+
+		if (resolvedExistingConversationId) {
 			conversationId = resolvedExistingConversationId;
 		} else {
-			// New conversation - pass pre-resolved org to avoid duplicate lookup
+			// New conversation - pass pre-resolved org+user to avoid duplicate lookup
 			const result = await this.createIframeConversation(
 				config,
 				intentEid,
 				ritaOrgId,
+				ritaUserId,
 			);
 			conversationId = result.conversationId;
 			ritaOrgId = result.ritaOrgId;
@@ -871,6 +897,7 @@ export class IframeService {
 					activityId,
 					ritaOrgId,
 					conversationId,
+					ritaUserId,
 				);
 			}
 		}
@@ -888,9 +915,10 @@ export class IframeService {
 		const session = await this.sessionStore.createSession(sessionData);
 		const cookie = this.sessionService.generateSessionCookie(session.sessionId);
 
-		// Store conversationId in session for /execute endpoint to use
+		// Store conversationId and valkeySessionKey in session
 		await this.sessionStore.updateSession(session.sessionId, {
 			conversationId,
+			valkeySessionKey: sessionKey,
 		});
 
 		// Write conversationId back to Valkey for Platform Activity lookup (JAR-95)

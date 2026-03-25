@@ -743,6 +743,112 @@ describe("SchemaRenderer", () => {
 		});
 	});
 
+	describe("Real-World Stack Schema (Card + Stack + on.press)", () => {
+		it("renders Card with Stack children and Button with on.press action", async () => {
+			const user = userEvent.setup();
+			const onAction = vi.fn();
+			const s = {
+				root: "form-container",
+				elements: {
+					"form-container": {
+						type: "Card",
+						props: {
+							title: "API Configuration",
+							description: "Enter your credentials to connect to the server",
+						},
+						children: ["form-stack"],
+					},
+					"form-stack": {
+						type: "Stack",
+						props: { direction: "vertical", gap: "md" },
+						children: [
+							"api-key-input",
+							"username-input",
+							"server-input",
+							"submit-button",
+						],
+					},
+					"api-key-input": {
+						type: "Input",
+						props: {
+							label: "API Key",
+							name: "apiKey",
+							type: "password",
+							placeholder: "Enter your API key",
+						},
+					},
+					"username-input": {
+						type: "Input",
+						props: {
+							label: "Username",
+							name: "username",
+							type: "text",
+							placeholder: "Enter your username",
+						},
+					},
+					"server-input": {
+						type: "Input",
+						props: {
+							label: "Server",
+							name: "server",
+							type: "text",
+							placeholder: "e.g., https://api.example.com",
+						},
+					},
+					"submit-button": {
+						type: "Button",
+						props: { label: "Connect", variant: "primary" },
+						on: { press: { action: "formSubmit", params: {} } },
+					},
+				},
+				state: { apiKey: "", username: "", server: "" },
+			};
+
+			render(
+				<SchemaRenderer schema={s} {...defaultProps} onAction={onAction} />,
+			);
+
+			// Card renders title and description
+			expect(screen.getByText("API Configuration")).toBeInTheDocument();
+			expect(
+				screen.getByText("Enter your credentials to connect to the server"),
+			).toBeInTheDocument();
+
+			// All inputs render with labels
+			expect(screen.getByLabelText("API Key")).toBeInTheDocument();
+			expect(screen.getByLabelText("Username")).toBeInTheDocument();
+			expect(screen.getByLabelText("Server")).toBeInTheDocument();
+
+			// Input type=password works via type prop fallback
+			expect(screen.getByLabelText("API Key")).toHaveAttribute(
+				"type",
+				"password",
+			);
+
+			// Button renders with primary→default mapping
+			const btn = screen.getByRole("button", { name: "Connect" });
+			expect(btn).toBeInTheDocument();
+
+			// on.press.action fires correctly
+			await user.click(btn);
+			expect(onAction).toHaveBeenCalledWith(
+				expect.objectContaining({ action: "formSubmit" }),
+			);
+		});
+
+		it("strips unknown top-level keys like state via Zod", () => {
+			const s = {
+				root: "main",
+				elements: {
+					main: { type: "Text", props: { text: "Still works" } },
+				},
+				state: { foo: "bar" },
+			};
+			render(<SchemaRenderer schema={s} {...defaultProps} />);
+			expect(screen.getByText("Still works")).toBeInTheDocument();
+		});
+	});
+
 	describe("String Gap Values", () => {
 		it("applies numeric gap from string label", () => {
 			const s = schema({

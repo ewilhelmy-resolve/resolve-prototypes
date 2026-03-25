@@ -22,6 +22,24 @@ const flagCache = new LRUCache<string, boolean>({
 	ttl: CACHE_TTL_MS, // TTL from env (default 5 min)
 });
 
+// ── Test overrides (dev/test only) ─────────────────────────────────────────────
+// Set via POST /test/feature-flags, cleared via DELETE /test/feature-flags
+const testFlagOverrides = new Map<string, boolean>();
+
+export function setTestFlagOverrides(flags: Record<string, boolean>): void {
+	for (const [name, value] of Object.entries(flags)) {
+		testFlagOverrides.set(name, value);
+	}
+}
+
+export function clearTestFlagOverrides(): void {
+	testFlagOverrides.clear();
+}
+
+export function getTestFlagOverrides(): Record<string, boolean> {
+	return Object.fromEntries(testFlagOverrides);
+}
+
 // Client flag names → Platform flag names
 const CLIENT_TO_PLATFORM_FLAG_MAP: Record<string, string> = {
 	ENABLE_AUTO_PILOT: "auto-pilot",
@@ -62,6 +80,16 @@ export class FeatureFlagService {
 	 * Check if a feature flag is enabled (cache-first)
 	 */
 	async isEnabled(flagName: string, tenantId: string): Promise<boolean> {
+		// Check test overrides first (dev/test only)
+		const override = testFlagOverrides.get(flagName);
+		if (override !== undefined) {
+			logger.debug(
+				{ flagName, tenantId, override, source: "test-override" },
+				"Feature flag from test override",
+			);
+			return override;
+		}
+
 		const cacheKey = getCacheKey(flagName, PLATFORM_ENV, tenantId);
 
 		try {

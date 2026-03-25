@@ -16,6 +16,8 @@ const { mockWithOrgContext, mockPool, mockSessionStore, mockValkeyClient } =
 		},
 		mockSessionStore: {
 			createSession: vi.fn(),
+			getSession: vi.fn(),
+			getSessionByConversationId: vi.fn(),
 			updateSession: vi.fn(),
 		},
 		mockValkeyClient: {
@@ -211,63 +213,39 @@ describe("IframeService", () => {
 					// resolveRitaOrg: check if exists (includes name for comparison)
 					.mockResolvedValueOnce({
 						rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
-					})
-					// NO org update since name matches
-					// findConversationByActivityId: check activity_contexts (payload has activityId: 2209)
-					.mockResolvedValueOnce({
-						rows: activityConvExists
-							? [{ conversation_id: "existing-activity-conv" }]
-							: [],
-					})
-					// resolveRitaUser: check if exists by keycloak_id
-					.mockResolvedValueOnce({
-						rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [],
 					});
-				if (!userExists) {
-					mockPool.query
-						// resolveRitaUser: insert new user
-						.mockResolvedValueOnce({
-							rows: [{ user_id: validValkeyPayload.userGuid }],
-						});
-				} else {
-					mockPool.query
-						// resolveRitaUser: update existing user
-						.mockResolvedValueOnce({ rows: [] });
-				}
-				mockPool.query
-					// ensureOrgMembership
-					.mockResolvedValueOnce({ rows: [] });
+				// NO org update since name matches
 			} else {
 				mockPool.query
 					// resolveRitaOrg: check if exists (not found)
 					.mockResolvedValueOnce({ rows: [] })
 					// resolveRitaOrg: insert new org
-					.mockResolvedValueOnce({ rows: [] })
-					// findConversationByActivityId: check activity_contexts (payload has activityId: 2209)
-					.mockResolvedValueOnce({
-						rows: activityConvExists
-							? [{ conversation_id: "existing-activity-conv" }]
-							: [],
-					})
-					// resolveRitaUser: check if exists by keycloak_id
-					.mockResolvedValueOnce({
-						rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [],
-					});
-				if (!userExists) {
-					mockPool.query
-						// resolveRitaUser: insert new user
-						.mockResolvedValueOnce({
-							rows: [{ user_id: validValkeyPayload.userGuid }],
-						});
-				} else {
-					mockPool.query
-						// resolveRitaUser: update existing user
-						.mockResolvedValueOnce({ rows: [] });
-				}
-				mockPool.query
-					// ensureOrgMembership
 					.mockResolvedValueOnce({ rows: [] });
 			}
+			// resolveRitaUser: check if exists by keycloak_id
+			mockPool.query.mockResolvedValueOnce({
+				rows: userExists ? [{ user_id: validValkeyPayload.userGuid }] : [],
+			});
+			if (!userExists) {
+				mockPool.query
+					// resolveRitaUser: insert new user
+					.mockResolvedValueOnce({
+						rows: [{ user_id: validValkeyPayload.userGuid }],
+					});
+			} else {
+				mockPool.query
+					// resolveRitaUser: update existing user
+					.mockResolvedValueOnce({ rows: [] });
+			}
+			mockPool.query
+				// ensureOrgMembership
+				.mockResolvedValueOnce({ rows: [] })
+				// findConversationByActivityId: check activity_contexts (payload has activityId: 2209)
+				.mockResolvedValueOnce({
+					rows: activityConvExists
+						? [{ conversation_id: "existing-activity-conv" }]
+						: [],
+				});
 		};
 
 		it("should reject missing sessionKey", async () => {
@@ -400,10 +378,13 @@ describe("IframeService", () => {
 
 			await iframeService.validateAndSetup("my-session-key");
 
-			// Verify updateSession was called with conversationId
+			// Verify updateSession was called with conversationId and valkeySessionKey
 			expect(mockSessionStore.updateSession).toHaveBeenCalledWith(
 				"mock-session-id",
-				{ conversationId: "created-conv-123" },
+				{
+					conversationId: "created-conv-123",
+					valkeySessionKey: "my-session-key",
+				},
 			);
 		});
 
@@ -443,12 +424,12 @@ describe("IframeService", () => {
 				.mockResolvedValueOnce({
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists with same name
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership (always called)
+				.mockResolvedValueOnce({ rows: [] }) // membership (always called)
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			// Mock conversation creation
 			mockWithOrgContext.mockImplementation(
@@ -466,7 +447,7 @@ describe("IframeService", () => {
 
 			expect(result.valid).toBe(true);
 
-			// 6 pool.query calls: org check + activity lookup + user check + user update + membership + activity link
+			// 6 pool.query calls: org check + user check + user update + membership + activity lookup + activity link
 			expect(mockPool.query).toHaveBeenCalledTimes(6);
 		});
 
@@ -526,15 +507,15 @@ describe("IframeService", () => {
 			const orgCheckQuery = mockPool.query.mock.calls[0][0];
 			expect(orgCheckQuery).toContain("SELECT id, name FROM organizations");
 
-			// Call 2: activity_contexts lookup (since payload has activityId)
-			const activityQuery = mockPool.query.mock.calls[2][0];
+			// Call 2: user check query (after org insert, before activity lookup)
+			const userCheckQuery = mockPool.query.mock.calls[2][0];
+			expect(userCheckQuery).toContain("SELECT user_id FROM user_profiles");
+
+			// Call 5: activity_contexts lookup (after user resolution + membership)
+			const activityQuery = mockPool.query.mock.calls[5][0];
 			expect(activityQuery).toContain(
 				"SELECT conversation_id FROM activity_contexts",
 			);
-
-			// Call 3: user check query (after org insert and activity lookup)
-			const userCheckQuery = mockPool.query.mock.calls[3][0];
-			expect(userCheckQuery).toContain("SELECT user_id FROM user_profiles");
 		});
 
 		it("should handle legacy users with old UUID", async () => {
@@ -546,10 +527,10 @@ describe("IframeService", () => {
 			mockPool.query
 				.mockResolvedValueOnce({ rows: [] }) // org doesn't exist
 				.mockResolvedValueOnce({ rows: [] }) // insert org
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({ rows: [{ user_id: legacyUserId }] }) // user exists with legacy UUID
 				.mockResolvedValueOnce({ rows: [] }) // update user
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			// Mock conversation creation
 			mockWithOrgContext.mockImplementation(
@@ -589,12 +570,12 @@ describe("IframeService", () => {
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists with name
 				// no org update since name matches
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership (expected to be called)
+				.mockResolvedValueOnce({ rows: [] }) // membership (expected to be called)
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -695,12 +676,12 @@ describe("IframeService", () => {
 				.mockResolvedValueOnce({
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists with same name
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -731,12 +712,12 @@ describe("IframeService", () => {
 					rows: [{ id: validValkeyPayload.tenantId, name: "old-tenant-name" }],
 				})
 				.mockResolvedValueOnce({ rows: [] }) // org update (when name changed)
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -836,12 +817,12 @@ describe("IframeService", () => {
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists (same name)
 				// No org update since name matches
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // update user
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -943,12 +924,12 @@ describe("IframeService", () => {
 				.mockResolvedValueOnce({
 					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
 				}) // org exists
-				.mockResolvedValueOnce({ rows: [] }) // activity_contexts lookup (not found)
 				.mockResolvedValueOnce({
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }); // membership
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -1161,6 +1142,342 @@ describe("IframeService", () => {
 		});
 	});
 
-	// Note: sessionKey-based conversation reuse tests removed (JAR-71 deprecated)
-	// Conversation reuse is now via activityId in activity_contexts table
+	describe("refreshSessionFromValkey", () => {
+		it("should merge fresh Valkey context into session", async () => {
+			// Session has valkeySessionKey and existing context
+			mockSessionStore.getSession = vi.fn().mockResolvedValue({
+				sessionId: "sess-1",
+				valkeySessionKey: "valkey-key-123",
+				iframeWebhookConfig: {
+					tenantId: "tenant-1",
+					userGuid: "user-1",
+					context: { designer: "activity", activityId: 2209 },
+				},
+			});
+
+			// Valkey returns updated context with runId
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify({
+					tenantId: "tenant-1",
+					userGuid: "user-1",
+					context: {
+						designer: "activity",
+						activityId: 2209,
+						runId: 5001,
+					},
+				}),
+			);
+
+			mockSessionStore.updateSession.mockResolvedValue({
+				sessionId: "sess-1",
+				iframeWebhookConfig: {
+					tenantId: "tenant-1",
+					userGuid: "user-1",
+					context: { designer: "activity", activityId: 2209, runId: 5001 },
+				},
+			});
+
+			const result = await iframeService.refreshSessionFromValkey("sess-1");
+
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith("sess-1", {
+				iframeWebhookConfig: expect.objectContaining({
+					context: expect.objectContaining({
+						designer: "activity",
+						activityId: 2209,
+						runId: 5001,
+					}),
+				}),
+			});
+			expect(result?.iframeWebhookConfig?.context).toEqual({
+				designer: "activity",
+				activityId: 2209,
+				runId: 5001,
+			});
+		});
+
+		it("should return null when session not found", async () => {
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(null);
+
+			const result = await iframeService.refreshSessionFromValkey("missing");
+
+			expect(result).toBeNull();
+			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+
+		it("should return session unchanged when no valkeySessionKey", async () => {
+			const session = {
+				sessionId: "sess-2",
+				iframeWebhookConfig: { tenantId: "t", userGuid: "u" },
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-2");
+
+			expect(result).toBe(session);
+			expect(mockValkeyClient.hget).not.toHaveBeenCalled();
+		});
+
+		it("should return session unchanged when no iframeWebhookConfig", async () => {
+			const session = {
+				sessionId: "sess-3",
+				valkeySessionKey: "key-123",
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-3");
+
+			expect(result).toBe(session);
+			expect(mockValkeyClient.hget).not.toHaveBeenCalled();
+		});
+
+		it("should return session unchanged when Valkey returns null", async () => {
+			const session = {
+				sessionId: "sess-4",
+				valkeySessionKey: "expired-key",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					context: { existing: true },
+				},
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+			mockValkeyClient.hget.mockResolvedValueOnce(null);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-4");
+
+			expect(result).toBe(session);
+			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+
+		it("should return session unchanged when Valkey context is empty", async () => {
+			const session = {
+				sessionId: "sess-5",
+				valkeySessionKey: "key-5",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					context: { existing: true },
+				},
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify({ tenantId: "t", userGuid: "u" }),
+			);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-5");
+
+			expect(result).toBe(session);
+			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+
+		it("should preserve existing context fields when merging", async () => {
+			mockSessionStore.getSession = vi.fn().mockResolvedValue({
+				sessionId: "sess-6",
+				valkeySessionKey: "key-6",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					actionsApiBaseUrl: "https://api.example.com",
+					context: {
+						designer: "activity",
+						activityId: 100,
+						existingField: "keep",
+					},
+				},
+			});
+
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify({
+					tenantId: "t",
+					userGuid: "u",
+					context: { activityId: 100, runId: 200, newField: "added" },
+				}),
+			);
+
+			mockSessionStore.updateSession.mockImplementation(
+				async (_id, updates) => ({
+					sessionId: "sess-6",
+					...updates,
+				}),
+			);
+
+			await iframeService.refreshSessionFromValkey("sess-6");
+
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith("sess-6", {
+				iframeWebhookConfig: expect.objectContaining({
+					tenantId: "t",
+					userGuid: "u",
+					actionsApiBaseUrl: "https://api.example.com",
+					context: {
+						designer: "activity",
+						activityId: 100,
+						existingField: "keep",
+						runId: 200,
+						newField: "added",
+					},
+				}),
+			});
+		});
+
+		it("should handle Valkey connection error gracefully", async () => {
+			const session = {
+				sessionId: "sess-7",
+				valkeySessionKey: "key-7",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					context: { existing: true },
+				},
+			};
+			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+			mockValkeyClient.hget.mockRejectedValueOnce(
+				new Error("Connection refused"),
+			);
+
+			const result = await iframeService.refreshSessionFromValkey("sess-7");
+
+			expect(result).toBe(session);
+			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+	});
+
+	/**
+	 * JAR-104: Debug info for stale conversation references
+	 *
+	 * When a conversationId is resolved but not found in the DB,
+	 * the error response includes debug info with the source of the stale ID.
+	 */
+	describe("validateAndSetup - debug info for stale references (JAR-104)", () => {
+		it("should return debug source 'frontend_param' when existingConversationId from param not in DB", async () => {
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify(validValkeyPayload),
+			);
+			mockPool.query
+				.mockResolvedValueOnce({
+					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
+				}) // org exists
+				.mockResolvedValueOnce({
+					rows: [{ user_id: validValkeyPayload.userGuid }],
+				}) // user exists
+				.mockResolvedValueOnce({ rows: [] }) // user update
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // conversation NOT found
+
+			const result = await iframeService.validateAndSetup(
+				"my-session-key",
+				undefined,
+				"stale-frontend-conv-id",
+			);
+
+			expect(result.valid).toBe(false);
+			expect(result.error).toBe("Conversation not found or access denied");
+			expect(result.debug).toEqual({
+				reason: "conversation_not_in_db",
+				conversationId: "stale-frontend-conv-id",
+				source: "frontend_param",
+			});
+		});
+
+		it("should return debug source 'valkey_config' when conversationId from Valkey not in DB", async () => {
+			const payloadWithConvId = {
+				...validValkeyPayload,
+				conversationId: "stale-valkey-conv-id",
+			};
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify(payloadWithConvId),
+			);
+			mockPool.query
+				.mockResolvedValueOnce({
+					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
+				}) // org exists
+				.mockResolvedValueOnce({
+					rows: [{ user_id: validValkeyPayload.userGuid }],
+				}) // user exists
+				.mockResolvedValueOnce({ rows: [] }) // user update
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // conversation NOT found
+
+			const result = await iframeService.validateAndSetup("my-session-key");
+
+			expect(result.valid).toBe(false);
+			expect(result.error).toBe("Conversation not found or access denied");
+			expect(result.debug).toEqual({
+				reason: "conversation_not_in_db",
+				conversationId: "stale-valkey-conv-id",
+				source: "valkey_config",
+			});
+		});
+
+		it("should return debug reason from Valkey when sessionKey has no entry", async () => {
+			mockValkeyClient.hget.mockResolvedValueOnce(null);
+
+			const result = await iframeService.validateAndSetup("missing-key");
+
+			expect(result.valid).toBe(false);
+			expect(result.error).toBe("Invalid or missing Valkey configuration");
+			expect(result.debug).toEqual({
+				reason: "No data found at key",
+			});
+		});
+
+		it("should return debug reason from Valkey when entry missing required fields", async () => {
+			const incompletePayload = {
+				tenantName: "Test Tenant",
+				accessToken: "token",
+			};
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify(incompletePayload),
+			);
+
+			const result = await iframeService.validateAndSetup("incomplete-key");
+
+			expect(result.valid).toBe(false);
+			expect(result.error).toBe("Invalid or missing Valkey configuration");
+			expect(result.debug).toEqual({
+				reason: "Missing required fields: tenantId, userGuid",
+			});
+		});
+	});
+
+	describe("validateAndSetup - stores valkeySessionKey", () => {
+		it("should store valkeySessionKey in session during setup", async () => {
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify(validValkeyPayload),
+			);
+
+			// Org exists with same name
+			mockPool.query
+				.mockResolvedValueOnce({
+					rows: [{ id: validValkeyPayload.tenantId, name: "staging" }],
+				})
+				.mockResolvedValueOnce({
+					rows: [{ user_id: validValkeyPayload.userGuid }],
+				})
+				.mockResolvedValueOnce({ rows: [] }) // user update
+				.mockResolvedValueOnce({ rows: [] }) // membership
+				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup
+
+			mockWithOrgContext.mockImplementation(
+				async (_userId, _orgId, callback) => {
+					const mockClient = {
+						query: vi.fn().mockResolvedValue({
+							rows: [{ id: "conv-id" }],
+						}),
+					};
+					return await callback(mockClient as any);
+				},
+			);
+
+			await iframeService.validateAndSetup("my-session-key-abc");
+
+			// Verify updateSession was called with valkeySessionKey
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith(
+				"mock-session-id",
+				expect.objectContaining({
+					conversationId: "conv-id",
+					valkeySessionKey: "my-session-key-abc",
+				}),
+			);
+		});
+	});
 });

@@ -1,0 +1,104 @@
+namespace: rita-dev
+
+image:
+  repository: ""  # Set via helmfile from ECR_REGISTRY env var
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  port: 8080
+  targetPort: 8080
+  name: keycloak
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+healthCheck:
+  liveness:
+    enabled: true
+    path: /health/live
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    path: /health/ready
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 5
+
+# Keycloak admin credentials
+adminUser: admin
+adminPassword: ""  # Set via helmfile from secret
+
+# Database configuration (connects to keycloak-postgres service)
+database:
+  vendor: postgres
+  host: keycloak-postgres
+  port: 5432
+  name: keycloak
+  user: keycloak
+  password: ""  # Set via helmfile from secret
+
+# Realm configuration
+realm:
+  enabled: true
+  import: true
+  clientSecret: ""  # Set via helmfile (rita-go-auth-client secret)
+  smtp:
+    host: "mailpit"
+    port: "1025"
+    from: "noreply@rita.local"
+    fromDisplayName: "Rita"
+    auth: "false"
+    user: ""
+    password: ""
+    starttls: "false"
+    ssl: "false"
+
+# Domain for tenant URLs
+domain: resolve.io
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '10'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+    alb.ingress.kubernetes.io/success-codes: '200,302,303,307'
+  host: ""  # Set via environment values (e.g., rita-dev-auth.resolve.io)
+  certificateArn: ""  # Set via environment values (wildcard *.resolve.io)
+
+# Keycloak configuration
+config:
+  httpEnabled: true
+  httpPort: 8080
+  hostname: ""  # Set via environment values
+  hostnameStrict: false
+  hostnameStrictHttps: false
+  proxyHeaders: xforwarded
+
+# Deployment strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0

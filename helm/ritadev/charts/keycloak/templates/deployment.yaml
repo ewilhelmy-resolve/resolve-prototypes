@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keycloak.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "keycloak.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "keycloak.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- if .Values.realm.enabled }}
+        checksum/realm: {{ include (print $.Template.BasePath "/realm-configmap.yaml") . | sha256sum }}
+        {{- end }}
+    spec:
+      containers:
+      - name: keycloak
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - start
+        - --optimized
+        - --http-enabled={{ .Values.config.httpEnabled }}
+        - --http-port={{ .Values.config.httpPort }}
+        - --hostname={{ .Values.config.hostname }}
+        - --hostname-strict={{ .Values.config.hostnameStrict }}
+        - --hostname-strict-https={{ .Values.config.hostnameStrictHttps }}
+        - --proxy-headers={{ .Values.config.proxyHeaders }}
+        {{- if and .Values.realm.enabled .Values.realm.import }}
+        - --import-realm
+        {{- end }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: KEYCLOAK_ADMIN
+          value: {{ .Values.adminUser | quote }}
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          value: {{ .Values.adminPassword | quote }}
+        - name: KC_DB
+          value: {{ .Values.database.vendor }}
+        - name: KC_DB_URL_HOST
+          value: {{ .Values.database.host }}
+        - name: KC_DB_URL_PORT
+          value: {{ .Values.database.port | quote }}
+        - name: KC_DB_URL_DATABASE
+          value: {{ .Values.database.name }}
+        - name: KC_DB_USERNAME
+          value: {{ .Values.database.user }}
+        - name: KC_DB_PASSWORD
+          value: {{ .Values.database.password }}
+        - name: KC_HEALTH_ENABLED
+          value: "true"
+        - name: KC_HTTP_MANAGEMENT_HEALTH_ENABLED
+          value: "true"
+        {{- if and .Values.realm.enabled .Values.realm.import }}
+        volumeMounts:
+        - name: realm-config
+          mountPath: /opt/keycloak/data/import
+          readOnly: true
+        {{- end }}
+        {{- if .Values.healthCheck.liveness.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.healthCheck.liveness.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.healthCheck.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.healthCheck.liveness.periodSeconds }}
+          failureThreshold: {{ .Values.healthCheck.liveness.failureThreshold }}
+        {{- end }}
+        {{- if .Values.healthCheck.readiness.enabled }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.healthCheck.readiness.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.healthCheck.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.healthCheck.readiness.periodSeconds }}
+          failureThreshold: {{ .Values.healthCheck.readiness.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      {{- if and .Values.realm.enabled .Values.realm.import }}
+      volumes:
+      - name: realm-config
+        configMap:
+          name: {{ include "keycloak.fullname" . }}-realm-config
+      {{- end }}

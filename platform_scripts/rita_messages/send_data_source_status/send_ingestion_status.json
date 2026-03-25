@@ -1,0 +1,135 @@
+{
+	"innerCode": 200,
+	"data": {
+		"name": "Data Source Ticket Ingestion Status",
+		"description": "Sends ticket ingestion status updates (running, completed, failed) to Rita via RabbitMQ. Used by ITSM integrations for ticket sync.",
+		"Timeout": null,
+		"class": [],
+		"rootSettings": {
+			"isCollapse": false,
+			"activitySettings": [
+				{
+					"value": "%rita_rabbitmq_url%",
+					"required": true,
+					"key": "rabbitmq_url",
+					"label": "RabbitMQ URL",
+					"labelKey": "rabbitmq_url",
+					"baseType": "control",
+					"controlType": "hidden"
+				},
+				{
+					"value": "%rita_data_source_status_queue_name%",
+					"required": true,
+					"key": "queue_name",
+					"label": "Queue Name",
+					"labelKey": "queue_name",
+					"baseType": "control",
+					"controlType": "hidden"
+				},
+				{
+					"value": "ticket_ingestion",
+					"required": true,
+					"key": "message_type",
+					"label": "Message Type",
+					"labelKey": "message_type",
+					"baseType": "control",
+					"controlType": "hidden"
+				},
+				{
+					"value": "%connection_id%",
+					"required": true,
+					"key": "connection_id",
+					"label": "Connection ID",
+					"labelKey": "connection_id",
+					"baseType": "control",
+					"controlType": "hidden"
+				},
+				{
+					"value": "%tenant_id%",
+					"required": true,
+					"key": "tenant_id",
+					"label": "Tenant ID",
+					"labelKey": "tenant_id",
+					"baseType": "control",
+					"controlType": "hidden"
+				},
+				{
+					"value": "%user_id%",
+					"required": true,
+					"key": "user_id",
+					"label": "User ID",
+					"labelKey": "user_id",
+					"baseType": "control",
+					"controlType": "hidden"
+				},
+				{
+					"value": "%ingestion_run_id%",
+					"required": true,
+					"key": "ingestion_run_id",
+					"label": "Ingestion Run ID",
+					"labelKey": "ingestion_run_id",
+					"baseType": "control",
+					"controlType": "hidden"
+				},
+				{
+					"value": "%ingestion_status%",
+					"required": true,
+					"key": "status",
+					"label": "Ingestion Status (running | completed | failed)",
+					"labelKey": "status",
+					"baseType": "control",
+					"controlType": "textbox"
+				},
+				{
+					"value": "%records_processed%",
+					"required": false,
+					"key": "records_processed",
+					"label": "Records Processed",
+					"labelKey": "records_processed",
+					"baseType": "control",
+					"controlType": "textbox"
+				},
+				{
+					"value": "%records_failed%",
+					"required": false,
+					"key": "records_failed",
+					"label": "Records Failed",
+					"labelKey": "records_failed",
+					"baseType": "control",
+					"controlType": "textbox"
+				},
+				{
+					"value": "%total_estimated%",
+					"required": false,
+					"key": "total_estimated",
+					"label": "Total Estimated (for progress)",
+					"labelKey": "total_estimated",
+					"baseType": "control",
+					"controlType": "textbox"
+				},
+				{
+					"value": "%ingestion_error%",
+					"required": false,
+					"key": "error_message",
+					"label": "Error Message (for failed status)",
+					"labelKey": "error_message",
+					"baseType": "control",
+					"controlType": "textbox"
+				},
+				{
+					"value": "%ingestion_error_detail%",
+					"required": false,
+					"key": "error_detail",
+					"label": "Error Detail JSON (for failed status)",
+					"labelKey": "error_detail",
+					"baseType": "control",
+					"controlType": "textbox"
+				}
+			],
+			"index": "1",
+			"label": "main",
+			"labelKey": null
+		}
+	},
+	"message": "SUCCESS"
+}

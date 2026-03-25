@@ -21,6 +21,8 @@ export type JsonPrimitive = boolean | number | string | null;
 
 export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
+export type Numeric = ColumnType<string, number | string, number | string>;
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface ActivityContexts {
@@ -29,6 +31,14 @@ export interface ActivityContexts {
 	created_at: Generated<Timestamp | null>;
 	id: Generated<string>;
 	organization_id: string;
+	user_id: string;
+}
+
+export interface Agents {
+	created_at: Generated<Timestamp>;
+	id: Generated<string>;
+	name: string;
+	updated_at: Generated<Timestamp>;
 }
 
 export interface AuditLogs {
@@ -40,6 +50,29 @@ export interface AuditLogs {
 	resource_id: string | null;
 	resource_type: string;
 	user_id: string | null;
+}
+
+export interface AutopilotSettings {
+	/**
+	 * Average time per ticket in minutes, used for time-saved calculations
+	 */
+	avg_time_per_ticket_minutes: Generated<number>;
+	/**
+	 * Average cost per ticket in USD, used for savings calculations
+	 */
+	cost_per_ticket: Generated<Numeric>;
+	created_at: Generated<Timestamp | null>;
+	id: Generated<string>;
+	organization_id: string;
+	/**
+	 * Overflow JSONB for future settings (freeform, no schema validation)
+	 */
+	settings_json: Generated<Json>;
+	updated_at: Generated<Timestamp | null>;
+	/**
+	 * Last user who modified settings
+	 */
+	updated_by: string | null;
 }
 
 export interface BlobMetadata {
@@ -65,6 +98,30 @@ export interface Blobs {
 	blob_id: Generated<string>;
 	data: Buffer;
 	digest: string;
+}
+
+export interface ClusterDiscovery {
+	/**
+	 * Whether discovery has been reviewed and approved
+	 */
+	approved: Generated<boolean>;
+	/**
+	 * Proposed cluster name (no FK — discovery precedes cluster creation)
+	 */
+	cluster_name: string;
+	/**
+	 * Whether approved discovery has been committed to clusters table
+	 */
+	committed: Generated<boolean>;
+	created_at: Generated<Timestamp>;
+	id: Generated<string>;
+	/**
+	 * Freeform JSONB for discovery context and scoring data
+	 */
+	metadata: Generated<Json | null>;
+	organization_id: string;
+	ticket_id: string;
+	updated_at: Generated<Timestamp>;
 }
 
 export interface ClusterKbLinks {
@@ -207,6 +264,31 @@ export interface IngestionRuns {
 	started_by: string;
 	status: Generated<string | null>;
 	updated_at: Generated<Timestamp | null>;
+}
+
+export interface ItsmFieldMappings {
+	created_at: Generated<Timestamp>;
+	created_by: string | null;
+	data_source_connection_id: string;
+	/**
+	 * Rita field being mapped: priority, status
+	 */
+	field_name: string;
+	id: Generated<string>;
+	/**
+	 * Denormalized from data_source_connections for RLS org isolation
+	 */
+	organization_id: string;
+	/**
+	 * Value from external ITSM system (e.g., 1 - Critical)
+	 */
+	source_value: string;
+	/**
+	 * Mapped Rita value (e.g., Critical)
+	 */
+	target_value: string;
+	updated_at: Generated<Timestamp>;
+	updated_by: string | null;
 }
 
 export interface MessageProcessingFailures {
@@ -456,6 +538,10 @@ export interface Tickets {
 	 */
 	cluster_id: string | null;
 	/**
+	 * Clustering similarity/relevance score (0.0–1.0)
+	 */
+	cluster_score: number | null;
+	/**
 	 * Text used for classification (set by ingestion, used by classification workflow)
 	 */
 	cluster_text: string | null;
@@ -487,6 +573,27 @@ export interface Tickets {
 	updated_at: Generated<Timestamp | null>;
 }
 
+export interface TicketsLog {
+	agent_id: string | null;
+	created_at: Generated<Timestamp>;
+	/**
+	 * When event occurred in external ITSM platform
+	 */
+	event_date: Timestamp;
+	/**
+	 * Event types: ingested, clustered, agent_start, agent_end, agent_fail, user_recluster
+	 */
+	event_type: Generated<string>;
+	id: Generated<string>;
+	metadata: Generated<Json | null>;
+	/**
+	 * Denormalized from tickets for RLS org isolation
+	 */
+	organization_id: string;
+	ticket_id: string;
+	updated_at: Generated<Timestamp>;
+}
+
 export interface UserProfiles {
 	active_organization_id: string | null;
 	created_at: Generated<Timestamp | null>;
@@ -512,15 +619,19 @@ export interface UserProfiles {
 
 export interface DB {
 	activity_contexts: ActivityContexts;
+	agents: Agents;
 	audit_logs: AuditLogs;
+	autopilot_settings: AutopilotSettings;
 	blob_metadata: BlobMetadata;
 	blobs: Blobs;
+	cluster_discovery: ClusterDiscovery;
 	cluster_kb_links: ClusterKbLinks;
 	clusters: Clusters;
 	conversations: Conversations;
 	credential_delegation_tokens: CredentialDelegationTokens;
 	data_source_connections: DataSourceConnections;
 	ingestion_runs: IngestionRuns;
+	itsm_field_mappings: ItsmFieldMappings;
 	message_processing_failures: MessageProcessingFailures;
 	messages: Messages;
 	migration_history: MigrationHistory;
@@ -533,5 +644,6 @@ export interface DB {
 	rag_webhook_failures: RagWebhookFailures;
 	sync_cancellation_requests: SyncCancellationRequests;
 	tickets: Tickets;
+	tickets_log: TicketsLog;
 	user_profiles: UserProfiles;
 }

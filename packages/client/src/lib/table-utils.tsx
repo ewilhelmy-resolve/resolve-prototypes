@@ -1,20 +1,6 @@
 import { ArrowUpDown, MoveDown, MoveUp } from "lucide-react";
 
-/**
- * Format a date string into a human-readable format
- * @param dateString - ISO 8601 date string
- * @returns Formatted date string (e.g., "03 Sep, 2025 18:07")
- */
-export function formatDate(dateString: string): string {
-	const date = new Date(dateString);
-	return date.toLocaleDateString("en-US", {
-		day: "2-digit",
-		month: "short",
-		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
+export { formatDate } from "@/lib/date-utils";
 
 /**
  * Render a sort icon based on the sort state
@@ -36,22 +22,4 @@ export function renderSortIcon(
 	) : (
 		<MoveDown className="h-4 w-4" />
 	);
-}
-
-/**
- * Get the sort icon type for a column
- * @param currentColumn - The column currently being sorted
- * @param targetColumn - The column to check
- * @param sortOrder - Current sort order ('asc' or 'desc')
- * @returns Icon type ('default', 'asc', or 'desc')
- */
-export function getSortIconType(
-	currentColumn: string,
-	targetColumn: string,
-	sortOrder: "asc" | "desc",
-): "default" | "asc" | "desc" {
-	if (currentColumn !== targetColumn) {
-		return "default";
-	}
-	return sortOrder;
 }

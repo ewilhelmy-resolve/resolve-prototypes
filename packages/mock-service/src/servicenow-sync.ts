@@ -1,13 +1,20 @@
-import type pg from "pg";
-import pino from "pino";
-import { withTransaction } from "./database.js";
+import {
+	type ProviderConfig,
+	syncProviderData,
+	type TrainingScenario,
+} from "./sync-common.js";
 
-const logger = pino({
-	name: "servicenow-sync",
-	level: process.env.LOG_LEVEL || "info",
-});
+export type { SyncResult } from "./sync-common.js";
 
-// Realistic IT cluster names from ServiceNow
+export interface SyncSettings {
+	username?: string;
+	instanceUrl?: string;
+	time_range_days?: number;
+	[key: string]: unknown;
+}
+
+// --- ServiceNow-specific data ---
+
 const CLUSTER_NAMES = [
 	"Testing",
 	"Network and Connectivity Issues",
@@ -38,7 +45,6 @@ const CLUSTER_NAMES = [
 	"Laptop Screen Issues",
 ];
 
-// Subject templates by cluster type
 const SUBJECT_TEMPLATES: Record<string, string[]> = {
 	"Network and Connectivity Issues": [
 		"Cannot connect to corporate network",
@@ -161,14 +167,6 @@ const SUBJECT_TEMPLATES: Record<string, string[]> = {
 	],
 };
 
-function getRandomSubject(clusterName: string): string {
-	const templates = SUBJECT_TEMPLATES[clusterName];
-	if (templates && templates.length > 0) {
-		return templates[Math.floor(Math.random() * templates.length)];
-	}
-	return `General support request for ${clusterName}`;
-}
-
 const DESCRIPTION_PREFIXES = [
 	"Hi, I need help with this issue: ",
 	"This started happening today. ",
@@ -187,19 +185,6 @@ const DESCRIPTION_SUFFIXES = [
 	" Any help appreciated.",
 ];
 
-function generateDescription(subject: string): string {
-	const prefix =
-		DESCRIPTION_PREFIXES[
-			Math.floor(Math.random() * DESCRIPTION_PREFIXES.length)
-		];
-	const suffix =
-		DESCRIPTION_SUFFIXES[
-			Math.floor(Math.random() * DESCRIPTION_SUFFIXES.length)
-		];
-	return `${prefix}${subject}${suffix}`;
-}
-
-// Realistic requester identities
 const REQUESTERS = [
 	"adams@acme.com",
 	"jsmith@acme.com",
@@ -213,7 +198,6 @@ const REQUESTERS = [
 	"emma.taylor@acme.com",
 ];
 
-// Realistic assigned-to agents (some empty to simulate unassigned)
 const ASSIGNED_TO_AGENTS = [
 	"IT Help Desk",
 	"John Support",
@@ -224,30 +208,6 @@ const ASSIGNED_TO_AGENTS = [
 	"",
 	"",
 ];
-
-// Priority values matching ServiceNow convention
-const PRIORITIES = ["Low", "Medium", "High", "Critical"];
-const PRIORITY_WEIGHTS = [0.2, 0.5, 0.2, 0.1]; // weighted distribution
-
-function getRandomRequester(): string {
-	return REQUESTERS[Math.floor(Math.random() * REQUESTERS.length)];
-}
-
-function getRandomAssignedTo(): string {
-	return ASSIGNED_TO_AGENTS[
-		Math.floor(Math.random() * ASSIGNED_TO_AGENTS.length)
-	];
-}
-
-function getRandomPriority(): string {
-	const rand = Math.random();
-	let cumulative = 0;
-	for (let i = 0; i < PRIORITIES.length; i++) {
-		cumulative += PRIORITY_WEIGHTS[i];
-		if (rand < cumulative) return PRIORITIES[i];
-	}
-	return "Medium";
-}
 
 function generateSourceMetadata(
 	ticketNum: number,
@@ -267,7 +227,10 @@ function generateSourceMetadata(
 		active: { value: "true", display_value: "true" },
 		impact: { value: "3", display_value: "3 - Low" },
 		notify: { value: "1", display_value: "Do Not Notify" },
-		number: { value: `INC00${ticketNum}`, display_value: `INC00${ticketNum}` },
+		number: {
+			value: `INC00${ticketNum}`,
+			display_value: `INC00${ticketNum}`,
+		},
 		parent: { value: "", display_value: "" },
 		skills: { value: "", display_value: "" },
 		sys_id: { value: sysId, display_value: sysId },
@@ -279,7 +242,10 @@ function generateSourceMetadata(
 		},
 		sla_due: { value: "", display_value: "UNKNOWN" },
 		urgency: { value: "3", display_value: "3 - Low" },
-		approval: { value: "not requested", display_value: "Not Yet Requested" },
+		approval: {
+			value: "not requested",
+			display_value: "Not Yet Requested",
+		},
 		category: { value: "inquiry", display_value: "Inquiry / Help" },
 		comments: { value: "", display_value: "" },
 		contract: { value: "", display_value: "" },
@@ -320,7 +286,10 @@ function generateSourceMetadata(
 		watch_list: { value: "", display_value: "" },
 		work_notes: { value: "", display_value: "" },
 		work_start: { value: "", display_value: "" },
-		assigned_to: { value: assignedTo || "", display_value: assignedTo || "" },
+		assigned_to: {
+			value: assignedTo || "",
+			display_value: assignedTo || "",
+		},
 		close_notes: { value: "", display_value: "" },
 		description: { value: subject, display_value: subject },
 		hold_reason: { value: "", display_value: "" },
@@ -329,7 +298,10 @@ function generateSourceMetadata(
 		resolved_by: { value: "", display_value: "" },
 		subcategory: { value: "", display_value: null },
 		time_worked: { value: "", display_value: "" },
-		upon_reject: { value: "cancel", display_value: "Cancel all future Tasks" },
+		upon_reject: {
+			value: "cancel",
+			display_value: "Cancel all future Tasks",
+		},
 		activity_due: { value: "", display_value: "UNKNOWN" },
 		approval_set: { value: "", display_value: "" },
 		business_stc: { value: "", display_value: "" },
@@ -340,14 +312,23 @@ function generateSourceMetadata(
 		route_reason: { value: "", display_value: "" },
 		reopened_time: { value: "", display_value: "" },
 		sys_mod_count: { value: "0", display_value: "0" },
-		upon_approval: { value: "proceed", display_value: "Proceed to Next Task" },
+		upon_approval: {
+			value: "proceed",
+			display_value: "Proceed to Next Task",
+		},
 		correlation_id: { value: "", display_value: "" },
 		expected_start: { value: "", display_value: "" },
 		incident_state: { value: "1", display_value: "New" },
 		sys_class_name: { value: "incident", display_value: "Incident" },
-		sys_created_by: { value: "mock-service", display_value: "mock-service" },
+		sys_created_by: {
+			value: "mock-service",
+			display_value: "mock-service",
+		},
 		sys_created_on: { value: now, display_value: now },
-		sys_updated_by: { value: "mock-service", display_value: "mock-service" },
+		sys_updated_by: {
+			value: "mock-service",
+			display_value: "mock-service",
+		},
 		sys_updated_on: { value: now, display_value: now },
 		business_impact: { value: "", display_value: "" },
 		child_incidents: { value: "0", display_value: "0" },
@@ -374,63 +355,44 @@ function generateSourceMetadata(
 	};
 }
 
-export interface SyncResult {
-	modelId: string | null;
-	clustersCreated: number;
-	ticketsCreated: number;
-}
-
-export interface SyncSettings {
-	username?: string;
-	instanceUrl?: string;
-	time_range_days?: number;
-	[key: string]: unknown;
-}
-
-// Training state scenarios based on username convention
-type TrainingScenario = "null" | "failed" | "progress" | "complete";
-
-// Delay before transitioning from in_progress to complete (ms)
-const TRAINING_COMPLETE_DELAY = 15000; // 15 seconds
-
-/**
- * Determine training scenario from username
- * - mock-null: Don't create ml_model
- * - mock-failed: Create with training_state: "failed"
- * - mock-progress: Create with training_state: "in_progress" (stays there)
- * - (default): Create with in_progress, transition to complete after delay
- */
-function getTrainingScenario(username: string | undefined): TrainingScenario {
-	if (!username) return "complete";
-
-	const lowerUsername = username.toLowerCase();
-	if (lowerUsername === "mock-null") return "null";
-	if (lowerUsername === "mock-failed") return "failed";
-	if (lowerUsername === "mock-progress") return "progress";
+function matchServiceNowScenario(username: string): TrainingScenario {
+	const lower = username.toLowerCase();
+	if (lower === "mock-null") return "null";
+	if (lower === "mock-failed") return "failed";
+	if (lower === "mock-progress") return "progress";
 	return "complete";
 }
 
-/**
- * Update ML model training state (used for delayed transitions)
- */
-async function updateModelTrainingState(
-	organizationId: string,
-	modelId: string,
-	state: string,
-): Promise<void> {
-	const { query } = await import("./database.js");
-	const metadata = JSON.stringify({ training_state: state });
+export const servicenowConfig: ProviderConfig = {
+	name: "servicenow",
+	loggerName: "servicenow-sync",
+	modelName: "ServiceNow ITSM Model",
+	externalModelIdPrefix: "mock-model-",
+	externalIdPrefix: "INC00",
+	externalStatus: "New",
+	ticketNumStart: 10001,
+	clusterNames: CLUSTER_NAMES,
+	subjectTemplates: SUBJECT_TEMPLATES,
+	descriptionPrefixes: DESCRIPTION_PREFIXES,
+	descriptionSuffixes: DESCRIPTION_SUFFIXES,
+	requesters: REQUESTERS,
+	agents: ASSIGNED_TO_AGENTS,
+	priorities: ["low", "medium", "high", "critical"],
+	priorityWeights: [0.2, 0.5, 0.2, 0.1],
+	kbStatusWeights: [0.2, 0.5, 0.3],
+	dateDistribution: [0.3, 0.5, 0.75, 1.0],
+	dateRanges: [
+		[0, 30],
+		[30, 90],
+		[90, 180],
+		[180, 365],
+	],
+	generateMetadata: generateSourceMetadata,
+	getScenarioKey: (settings) => (settings?.username as string) || undefined,
+	matchScenario: matchServiceNowScenario,
+};
 
-	await query(
-		`UPDATE ml_models SET metadata = $1::jsonb, updated_at = NOW() WHERE id = $2 AND organization_id = $3`,
-		[metadata, modelId, organizationId],
-	);
-
-	logger.info(
-		{ modelId, organizationId, state },
-		"Updated ML model training state",
-	);
-}
+// --- Public API (backward-compatible signatures) ---
 
 /**
  * Simulate ServiceNow ITSM sync by inserting realistic test data
@@ -446,211 +408,12 @@ export async function syncServiceNowData(
 	connectionId: string,
 	ingestionRunId: string,
 	settings?: SyncSettings,
-): Promise<SyncResult> {
-	const username = settings?.username;
-	const scenario = getTrainingScenario(username);
-
-	logger.info(
-		{
-			organizationId,
-			connectionId,
-			ingestionRunId,
-			username,
-			scenario,
-		},
-		"Starting ServiceNow data sync",
+): Promise<import("./sync-common.js").SyncResult> {
+	return syncProviderData(
+		servicenowConfig,
+		organizationId,
+		connectionId,
+		ingestionRunId,
+		settings,
 	);
-
-	// Handle mock-null scenario: clean up existing data but don't create model
-	if (scenario === "null") {
-		const { query } = await import("./database.js");
-
-		// Clean up existing tickets, clusters, and models
-		await query(`DELETE FROM tickets WHERE organization_id = $1`, [
-			organizationId,
-		]);
-		await query(`DELETE FROM clusters WHERE organization_id = $1`, [
-			organizationId,
-		]);
-		await query(`DELETE FROM ml_models WHERE organization_id = $1`, [
-			organizationId,
-		]);
-
-		logger.info(
-			{ scenario, organizationId },
-			"Mock-null scenario: cleaned up data, skipping model creation",
-		);
-		return {
-			modelId: null,
-			clustersCreated: 0,
-			ticketsCreated: 0,
-		};
-	}
-
-	// Determine initial training state
-	const initialState =
-		scenario === "failed"
-			? "failed"
-			: scenario === "progress"
-				? "in_progress"
-				: "in_progress"; // complete scenario starts as in_progress
-
-	return withTransaction(async (client: pg.PoolClient) => {
-		// 0. Clean up existing tickets and clusters for this organization
-		// This ensures consistent behavior on repeated syncs
-		await client.query(`DELETE FROM tickets WHERE organization_id = $1`, [
-			organizationId,
-		]);
-		await client.query(`DELETE FROM clusters WHERE organization_id = $1`, [
-			organizationId,
-		]);
-		logger.debug(
-			{ organizationId },
-			"Cleaned up existing tickets and clusters",
-		);
-
-		// 1. Create/update ml_model with appropriate training state
-		const externalModelId = `mock-model-${organizationId.substring(0, 8)}`;
-		const modelMetadata = JSON.stringify({ training_state: initialState });
-		const modelResult = await client.query<{ id: string }>(
-			`INSERT INTO ml_models (organization_id, external_model_id, model_name, active, metadata)
-       VALUES ($1, $2, 'ServiceNow ITSM Model', true, $3::jsonb)
-       ON CONFLICT (organization_id, external_model_id)
-       DO UPDATE SET active = true, metadata = $3::jsonb, updated_at = NOW()
-       RETURNING id`,
-			[organizationId, externalModelId, modelMetadata],
-		);
-		const modelId = modelResult.rows[0].id;
-		logger.debug({ modelId, initialState }, "ML model created/updated");
-
-		// 2. Create clusters
-		const clusterMap = new Map<string, string>();
-		for (const clusterName of CLUSTER_NAMES) {
-			const clusterResult = await client.query<{ id: string }>(
-				`INSERT INTO clusters (organization_id, model_id, name, subcluster_name, config, kb_status)
-         VALUES ($1, $2, $3, NULL, '{}', 'PENDING')
-         ON CONFLICT (organization_id, model_id, name, COALESCE(subcluster_name, ''))
-         DO UPDATE SET updated_at = NOW()
-         RETURNING id`,
-				[organizationId, modelId, clusterName],
-			);
-			clusterMap.set(clusterName, clusterResult.rows[0].id);
-		}
-		logger.debug({ clusterCount: clusterMap.size }, "Clusters created/updated");
-
-		// 3. Create tickets with weighted distribution (5-15 per cluster)
-		// Spread tickets across different time periods for testing filters
-		let ticketNum = 10001;
-		let ticketsCreated = 0;
-
-		// Date ranges for testing period filters
-		const getRandomCreatedAt = (): Date => {
-			const now = new Date();
-			const rand = Math.random();
-			if (rand < 0.3) {
-				// 30% in last 30 days
-				return new Date(
-					now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000,
-				);
-			} else if (rand < 0.5) {
-				// 20% in 30-90 days ago
-				return new Date(
-					now.getTime() - (30 + Math.random() * 60) * 24 * 60 * 60 * 1000,
-				);
-			} else if (rand < 0.75) {
-				// 25% in 90 days - 6 months ago
-				return new Date(
-					now.getTime() - (90 + Math.random() * 90) * 24 * 60 * 60 * 1000,
-				);
-			} else {
-				// 25% in 6 months - 1 year ago
-				return new Date(
-					now.getTime() - (180 + Math.random() * 185) * 24 * 60 * 60 * 1000,
-				);
-			}
-		};
-
-		for (const [clusterName, clusterId] of clusterMap) {
-			const ticketsPerCluster = 5 + Math.floor(Math.random() * 11); // 5-15
-
-			for (let i = 0; i < ticketsPerCluster; i++) {
-				const subject = getRandomSubject(clusterName);
-				const externalId = `INC00${ticketNum}`;
-				const requester = getRandomRequester();
-				const assignedTo = getRandomAssignedTo();
-				const priority = getRandomPriority();
-				const sourceMetadata = generateSourceMetadata(
-					ticketNum,
-					subject,
-					requester,
-					assignedTo,
-					priority,
-				);
-				const createdAt = getRandomCreatedAt();
-
-				const description = generateDescription(subject);
-				const insertResult = await client.query(
-					`INSERT INTO tickets (
-            organization_id, cluster_id, data_source_connection_id,
-            external_id, subject, description, external_status, rita_status, source_metadata, created_at,
-            requester, assigned_to, priority
-          ) VALUES ($1, $2, $3, $4, $5, $6, 'New', 'NEEDS_RESPONSE', $7, $8, $9, $10, $11)
-          ON CONFLICT (organization_id, external_id) DO NOTHING`,
-					[
-						organizationId,
-						clusterId,
-						connectionId,
-						externalId,
-						subject,
-						description,
-						JSON.stringify(sourceMetadata),
-						createdAt,
-						requester,
-						assignedTo || null,
-						priority,
-					],
-				);
-
-				if (insertResult.rowCount && insertResult.rowCount > 0) {
-					ticketsCreated++;
-				}
-				ticketNum++;
-			}
-		}
-
-		logger.info(
-			{
-				modelId,
-				clustersCreated: clusterMap.size,
-				ticketsCreated,
-				initialState,
-				scenario,
-			},
-			"ServiceNow data sync completed",
-		);
-
-		// Schedule delayed transition to complete for default scenario
-		if (scenario === "complete") {
-			setTimeout(async () => {
-				try {
-					await updateModelTrainingState(organizationId, modelId, "complete");
-					logger.info(
-						{ modelId, delay: TRAINING_COMPLETE_DELAY },
-						"Training state transitioned to complete after delay",
-					);
-				} catch (error) {
-					logger.error(
-						{ error, modelId },
-						"Failed to transition training state to complete",
-					);
-				}
-			}, TRAINING_COMPLETE_DELAY);
-		}
-
-		return {
-			modelId,
-			clustersCreated: clusterMap.size,
-			ticketsCreated,
-		};
-	});
 }

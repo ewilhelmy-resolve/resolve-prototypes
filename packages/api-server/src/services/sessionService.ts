@@ -19,6 +19,8 @@ const JWKS = jose.createRemoteJWKSet(
 	),
 );
 
+const DEFAULT_SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export class SessionService {
 	private sessionStore = getSessionStore();
 
@@ -56,7 +58,10 @@ export class SessionService {
 			};
 
 			const session = await this.sessionStore.createSession(sessionData);
-			const cookie = this.generateSessionCookie(session.sessionId);
+			const cookie = this.generateSessionCookie(
+				session.sessionId,
+				sessionDurationMs,
+			);
 
 			logger.info(
 				{ sessionId: session.sessionId, userId: user.id },
@@ -96,31 +101,39 @@ export class SessionService {
 		if (existingUser) {
 			const user = existingUser;
 
-			// Backfill names for existing users created before first and last names were added
-			if (!user.first_name || !user.last_name) {
-				if (firstName || lastName) {
-					await db
-						.updateTable("user_profiles")
-						.set({ first_name: firstName, last_name: lastName })
-						.where("user_id", "=", user.user_id)
-						.execute();
+			// Backfill only missing names — never overwrite existing values
+			const nameUpdates: Record<string, string> = {};
+			if (!user.first_name && firstName) {
+				nameUpdates.first_name = firstName;
+			}
+			if (!user.last_name && lastName) {
+				nameUpdates.last_name = lastName;
+			}
+			if (Object.keys(nameUpdates).length > 0) {
+				await db
+					.updateTable("user_profiles")
+					.set(nameUpdates)
+					.where("user_id", "=", user.user_id)
+					.execute();
 
-					logger.info(
-						{
-							userId: user.user_id,
-							email: user.email,
-							hadFirstName: !!user.first_name,
-							hadLastName: !!user.last_name,
-						},
-						"Backfilled user names from Keycloak token",
-					);
-				}
+				logger.info(
+					{
+						userId: user.user_id,
+						email: user.email,
+						backfilledFields: Object.keys(nameUpdates),
+					},
+					"Backfilled user names from Keycloak token",
+				);
+			}
+
+			if (!user.active_organization_id) {
+				throw new Error(`User ${user.user_id} has no active organization`);
 			}
 
 			return {
 				id: user.user_id,
 				email: user.email as string,
-				activeOrganizationId: user.active_organization_id as string,
+				activeOrganizationId: user.active_organization_id,
 			};
 		}
 
@@ -297,14 +310,15 @@ export class SessionService {
 		return deletedCount;
 	}
 
-	generateSessionCookie(sessionId: string): string {
+	generateSessionCookie(sessionId: string, sessionDurationMs?: number): string {
 		const isProduction = process.env.NODE_ENV === "production";
 		const domain = process.env.COOKIE_DOMAIN || undefined;
-		const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+		const durationMs = sessionDurationMs || DEFAULT_SESSION_DURATION_MS;
+		const maxAgeSeconds = Math.floor(durationMs / 1000);
 
 		const cookieOptions = [
 			`rita_session=${sessionId}`,
-			`Max-Age=${maxAge}`,
+			`Max-Age=${maxAgeSeconds}`,
 			"Path=/",
 			"HttpOnly",
 			"SameSite=Lax",

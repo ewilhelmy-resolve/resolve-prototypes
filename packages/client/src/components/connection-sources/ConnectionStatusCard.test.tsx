@@ -366,6 +366,46 @@ describe("ConnectionStatusCard", () => {
 			);
 			expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
 		});
+
+		it("should show domain instead of url for Freshservice connection", () => {
+			const source = createMockSource({
+				type: "freshservice_itsm",
+				title: "Freshservice",
+				settings: {
+					domain: "https://acme.freshservice.com",
+				},
+			});
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+			expect(
+				screen.getByText("https://acme.freshservice.com"),
+			).toBeInTheDocument();
+		});
+
+		it("should not show email field for Freshservice connection", () => {
+			const source = createMockSource({
+				type: "freshservice_itsm",
+				title: "Freshservice",
+				settings: {
+					domain: "https://acme.freshservice.com",
+				},
+			});
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+			expect(
+				screen.queryByText("statusCard.labels.email"),
+			).not.toBeInTheDocument();
+		});
+
+		it("should show API Key label for Freshservice connection", () => {
+			const source = createMockSource({
+				type: "freshservice_itsm",
+				title: "Freshservice",
+				settings: {
+					domain: "https://acme.freshservice.com",
+				},
+			});
+			renderWithRouter(<ConnectionStatusCard source={source} />);
+			expect(screen.getByText("statusCard.labels.apiKey")).toBeInTheDocument();
+		});
 	});
 
 	describe("Ticket Sync Info", () => {

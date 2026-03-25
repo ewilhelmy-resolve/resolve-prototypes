@@ -23,31 +23,40 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
+export interface TicketSettingsValues {
+	blendedRatePerHour: number;
+	avgMinutesPerTicket: number;
+}
+
 interface TicketSettingsDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	defaultValues?: TicketSettingsValues;
+	onSave: (values: TicketSettingsValues) => void;
 }
 
 const FORM_ID = "ticket-settings-form";
 
-const defaultValues = {
-	costPerTicket: 30,
-	avgTimePerTicket: 12,
-	timeUnit: "minutes" as const,
+const FORM_DEFAULTS: TicketSettingsValues & { timeUnit: "minutes" } = {
+	blendedRatePerHour: 30,
+	avgMinutesPerTicket: 12,
+	timeUnit: "minutes",
 };
 
 export default function TicketSettingsDialog({
 	open,
 	onOpenChange,
+	defaultValues,
+	onSave,
 }: TicketSettingsDialogProps) {
 	const { t } = useTranslation("tickets");
 	const { t: tCommon } = useTranslation("common");
 
 	const ticketSettingsSchema = z.object({
-		costPerTicket: z.number().positive({
+		blendedRatePerHour: z.number().positive({
 			message: t("ticketSettings.validation.costMustBePositive"),
 		}),
-		avgTimePerTicket: z.number().positive({
+		avgMinutesPerTicket: z.number().positive({
 			message: t("ticketSettings.validation.timeMustBePositive"),
 		}),
 		timeUnit: z.enum(["minutes"]),
@@ -64,23 +73,49 @@ export default function TicketSettingsDialog({
 		formState: { errors, isDirty },
 	} = useForm<TicketSettingsForm>({
 		resolver: zodResolver(ticketSettingsSchema),
-		defaultValues,
+		defaultValues: {
+			blendedRatePerHour:
+				defaultValues?.blendedRatePerHour ?? FORM_DEFAULTS.blendedRatePerHour,
+			avgMinutesPerTicket:
+				defaultValues?.avgMinutesPerTicket ?? FORM_DEFAULTS.avgMinutesPerTicket,
+			timeUnit: FORM_DEFAULTS.timeUnit,
+		},
 		mode: "onChange",
 	});
 
 	useEffect(() => {
 		if (!open) {
 			const timeout = setTimeout(() => {
-				reset(defaultValues);
+				reset({
+					blendedRatePerHour:
+						defaultValues?.blendedRatePerHour ??
+						FORM_DEFAULTS.blendedRatePerHour,
+					avgMinutesPerTicket:
+						defaultValues?.avgMinutesPerTicket ??
+						FORM_DEFAULTS.avgMinutesPerTicket,
+					timeUnit: FORM_DEFAULTS.timeUnit,
+				});
 			}, 300);
 			return () => clearTimeout(timeout);
 		}
-	}, [open, reset]);
+	}, [
+		open,
+		reset,
+		defaultValues?.blendedRatePerHour,
+		defaultValues?.avgMinutesPerTicket,
+	]);
 
 	const onSubmit = (data: TicketSettingsForm) => {
-		console.log("Ticket settings saved:", data);
+		onSave({
+			blendedRatePerHour: data.blendedRatePerHour,
+			avgMinutesPerTicket: data.avgMinutesPerTicket,
+		});
 		onOpenChange(false);
 	};
+
+	const rate = watch("blendedRatePerHour") || 0;
+	const minutes = watch("avgMinutesPerTicket") || 0;
+	const perTicketCost = rate * (minutes / 60);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -102,8 +137,8 @@ export default function TicketSettingsDialog({
 					<div className="flex flex-col gap-4">
 						<p className="text-base">{t("ticketSettings.savingsSection")}</p>
 						<div className="grid gap-2">
-							<Label htmlFor="costPerTicket">
-								{t("ticketSettings.costPerTicket")}
+							<Label htmlFor="blendedRatePerHour">
+								{t("ticketSettings.blendedRatePerHour")}
 							</Label>
 							<div className="relative">
 								<span
@@ -113,29 +148,29 @@ export default function TicketSettingsDialog({
 									$
 								</span>
 								<Input
-									id="costPerTicket"
+									id="blendedRatePerHour"
 									type="number"
-									step="0.01"
+									step="0.5"
 									min="0"
 									className="pl-7"
-									aria-invalid={!!errors.costPerTicket}
-									aria-describedby="costPerTicket-error costPerTicket-help"
-									{...register("costPerTicket", {
+									aria-invalid={!!errors.blendedRatePerHour}
+									aria-describedby="blendedRatePerHour-error blendedRatePerHour-help"
+									{...register("blendedRatePerHour", {
 										valueAsNumber: true,
 									})}
 								/>
 							</div>
-							{errors.costPerTicket && (
+							{errors.blendedRatePerHour && (
 								<p
-									id="costPerTicket-error"
+									id="blendedRatePerHour-error"
 									className="text-sm text-destructive"
 									role="alert"
 								>
-									{errors.costPerTicket.message}
+									{errors.blendedRatePerHour.message}
 								</p>
 							)}
 							<p
-								id="costPerTicket-help"
+								id="blendedRatePerHour-help"
 								className="text-sm text-muted-foreground"
 							>
 								{t("ticketSettings.costHelper")}
@@ -146,19 +181,19 @@ export default function TicketSettingsDialog({
 					<div className="flex flex-col gap-4">
 						<p className="text-base">{t("ticketSettings.timeSavedSection")}</p>
 						<div className="grid gap-2">
-							<Label htmlFor="avgTimePerTicket">
-								{t("ticketSettings.avgTimePerTicket")}
+							<Label htmlFor="avgMinutesPerTicket">
+								{t("ticketSettings.avgMinutesPerTicket")}
 							</Label>
 							<div className="flex gap-2.5">
 								<Input
-									id="avgTimePerTicket"
+									id="avgMinutesPerTicket"
 									type="number"
 									step="1"
 									min="0"
 									className="flex-1"
-									aria-invalid={!!errors.avgTimePerTicket}
-									aria-describedby="avgTimePerTicket-error avgTimePerTicket-help"
-									{...register("avgTimePerTicket", {
+									aria-invalid={!!errors.avgMinutesPerTicket}
+									aria-describedby="avgMinutesPerTicket-error avgMinutesPerTicket-help"
+									{...register("avgMinutesPerTicket", {
 										valueAsNumber: true,
 									})}
 								/>
@@ -172,7 +207,7 @@ export default function TicketSettingsDialog({
 								>
 									<SelectTrigger
 										className="w-[130px]"
-										aria-label={t("ticketSettings.avgTimePerTicket")}
+										aria-label={t("ticketSettings.avgMinutesPerTicket")}
 									>
 										<SelectValue />
 									</SelectTrigger>
@@ -183,17 +218,17 @@ export default function TicketSettingsDialog({
 									</SelectContent>
 								</Select>
 							</div>
-							{errors.avgTimePerTicket && (
+							{errors.avgMinutesPerTicket && (
 								<p
-									id="avgTimePerTicket-error"
+									id="avgMinutesPerTicket-error"
 									className="text-sm text-destructive"
 									role="alert"
 								>
-									{errors.avgTimePerTicket.message}
+									{errors.avgMinutesPerTicket.message}
 								</p>
 							)}
 							<p
-								id="avgTimePerTicket-help"
+								id="avgMinutesPerTicket-help"
 								className="text-sm text-muted-foreground"
 							>
 								{t("ticketSettings.timeHelper")}
@@ -201,6 +236,38 @@ export default function TicketSettingsDialog({
 						</div>
 					</div>
 				</form>
+
+				<Separator />
+
+				<div className="rounded-md bg-muted/50 px-4 py-3 space-y-3">
+					<div>
+						<p className="text-sm font-medium mb-1">
+							{t("ticketSettings.estMoneySaved")}
+						</p>
+						<p className="text-xs text-muted-foreground">
+							{t("ticketSettings.calculatorFormula", {
+								rate: rate.toLocaleString(undefined, {
+									maximumFractionDigits: 2,
+								}),
+								time: minutes,
+								perTicket: perTicketCost.toLocaleString(undefined, {
+									maximumFractionDigits: 2,
+								}),
+							})}
+						</p>
+					</div>
+					<div>
+						<p className="text-sm font-medium mb-1">
+							{t("ticketSettings.estTimeSaved")}
+						</p>
+						<p className="text-xs text-muted-foreground">
+							{t("ticketSettings.timeFormula", { time: minutes })}
+						</p>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						{t("ticketSettings.calculatorNote")}
+					</p>
+				</div>
 
 				<DialogFooter>
 					<Button variant="outline" onClick={() => onOpenChange(false)}>

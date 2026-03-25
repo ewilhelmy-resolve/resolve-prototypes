@@ -1,13 +1,18 @@
 {
 	"header": {
 		"description": "RITA learned from <strong>{{ticketCount}}</strong> tickets for <strong>{{period}}</strong>",
+		"lastSynced": "Last synced {{time}}",
 		"stats": {
 			"totalTickets": "Total tickets",
 			"ticketsLast7Days": "Tickets last 7 days",
 			"totalTicketsAutomated": "Total Tickets Automated",
 			"automationPercentage": "Automation %",
 			"moneySaved": "Money Saved",
-			"timeSaved": "Time Saved"
+			"timeSaved": "Time Saved",
+			"estMoneySaved": "Est. Money Saved",
+			"estTimeSaved": "Est. Time Saved",
+			"mttr": "Mean Time to Resolution",
+			"avgReassignmentRate": "Avg. Reassignment Rate"
 		}
 	},
 	"page": {
@@ -25,15 +30,27 @@
 		"importingProgress": "{{processed}} of {{total}} tickets",
 		"trainingInProgress": "Model training in progress",
 		"trainingDescription": "Ticket groups will appear when training completes. This usually takes a few minutes.",
+		"ticketsBelowThreshold": "Not enough tickets",
+		"ticketsBelowThresholdDescription": "There are {{count}} tickets in your instance but at least {{minimum}} are required to train a model. Add more tickets and sync again.",
 		"trainingFailed": "Training failed",
 		"trainingFailedDescription": "There was an issue analyzing your tickets. Please check your ITSM connection and try syncing again.",
 		"goToItsmConnections": "Go to ITSM Connections",
+		"filter": "Filter",
 		"filterBy": "Filter by",
-		"searchPlaceholder": "Search by topic name...",
+		"clearFilters": "Clear",
+		"sortBy": "Sort by",
+		"sortOptions": {
+			"volume": "Highest Volume",
+			"cost": "Highest Cost",
+			"mttr": "Longest MTTR",
+			"time": "Calculated Time Taken"
+		},
+		"searchPlaceholder": "Search by ticket group...",
 		"filterOptions": {
 			"all": "All",
 			"knowledgeFound": "Knowledge found",
 			"knowledgeGap": "Knowledge gap",
+			"automationGap": "Automation gap",
 			"pending": "Pending"
 		},
 		"periods": {
@@ -44,13 +61,15 @@
 		},
 		"pagination": {
 			"previous": "Previous",
-			"next": "Next"
+			"next": "Next",
+			"showing": "Showing {{from}}–{{to}} of {{total}}"
 		}
 	},
 	"navigation": {
 		"backToCluster": "Back to cluster",
 		"nextTicket": "Next ticket",
-		"previousTicket": "Previous ticket"
+		"previousTicket": "Previous ticket",
+		"positionOf": "{{current}} of {{total}}"
 	},
 	"details": {
 		"description": "Description",
@@ -181,6 +200,14 @@
 			"open": "{{count}} open",
 			"kbArticles": "{{count}} KB articles"
 		},
+		"stats": {
+			"totalTickets": "Total Tickets",
+			"openTickets": "Open Tickets",
+			"estMoneySaved": "Est. Money Saved",
+			"estTimeSaved": "Est. Time Saved",
+			"mttr": "Mean Time to Resolution",
+			"avgReassignmentRate": "Avg. Reassignment Rate"
+		},
 		"banners": {
 			"reviewSuccess": "Great job! You reviewed {{count}} responses.",
 			"reviewSuccessDesc": "{{trusted}} trusted ({{improvement}}% confidence)",
@@ -221,11 +248,16 @@
 		"searchPlaceholder": "Search tickets...",
 		"tabs": {
 			"needsResponse": "Needs Response",
-			"completed": "Completed"
+			"completed": "Completed",
+			"open": "Open",
+			"all": "All"
 		},
 		"headers": {
 			"subject": "Subject",
 			"externalId": "External ID",
+			"priority": "Priority",
+			"status": "Status",
+			"assignmentGroup": "Assignment Group",
 			"source": "Source",
 			"created": "Created"
 		},
@@ -235,7 +267,9 @@
 		},
 		"pagination": {
 			"ticketsCount": "{{count}} tickets",
+			"showing": "Showing {{from}}-{{to}} of {{total}} tickets",
 			"first": "First",
+			"previous": "Previous",
 			"next": "Next"
 		}
 	},
@@ -270,21 +304,52 @@
 		"failedToLoad": "Failed to load KB articles",
 		"noArticles": "No knowledge articles linked"
 	},
+	"prioritizationList": {
+		"presets": {
+			"highestCost": "Highest Cost Impact",
+			"longestMttr": "Longest MTTR",
+			"mostTime": "Calculated Time Taken"
+		},
+		"columns": {
+			"cluster": "Cluster",
+			"tickets": "Tickets",
+			"open": "Open",
+			"mttr": "MTTR",
+			"costImpact": "Cost Impact",
+			"timeTaken": "Time Taken",
+			"kbStatus": "Gap",
+			"updated": "Updated"
+		}
+	},
+	"gaps": {
+		"knowledgeGap": "Knowledge Gap",
+		"automationGap": "Automation Gap",
+		"noResolveAction": "No Resolve Action linked",
+		"automationComingSoon": "Create a workflow in Actions to automate this cluster."
+	},
+	"gapBanner": {
+		"knowledgeGap": "Knowledge gap — no KB articles linked"
+	},
 	"ticketSettings": {
 		"title": "Ticket settings",
 		"description": "Customize dashboard metrics",
-		"savingsSection": "How should we calculate savings?",
-		"timeSavedSection": "How should we calculate time saved?",
-		"costPerTicket": "Cost per ticket",
-		"costHelper": "Used to calculate total money saved from automated tickets.",
-		"avgTimePerTicket": "Average time per ticket",
-		"timeHelper": "Used to calculate total time saved from automated tickets.",
+		"savingsSection": "Cost calculation",
+		"timeSavedSection": "Time calculation",
+		"blendedRatePerHour": "Blended rate per hour",
+		"costHelper": "Average fully-loaded cost per hour of agent time.",
+		"avgMinutesPerTicket": "Average minutes per ticket",
+		"timeHelper": "Average minutes an agent spends resolving one ticket.",
 		"timeUnit": {
 			"minutes": "Minutes"
 		},
 		"validation": {
 			"costMustBePositive": "Cost must be greater than zero",
 			"timeMustBePositive": "Time must be greater than zero"
-		}
+		},
+		"estMoneySaved": "Est. Money Saved",
+		"estTimeSaved": "Est. Time Saved",
+		"calculatorFormula": "${{rate}}/hr × {{time}} min × # of tickets = ${{perTicket}} per ticket",
+		"timeFormula": "{{time}} min × # of tickets",
+		"calculatorNote": "# of tickets is determined by your ticket data per cluster. These settings update the Est. Money Saved and Est. Time Saved metrics on the dashboard and cluster pages."
 	}
 }

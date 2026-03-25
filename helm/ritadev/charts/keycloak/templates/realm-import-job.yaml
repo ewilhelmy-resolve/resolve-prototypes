@@ -1,0 +1,157 @@
+{{- if and .Values.realm.enabled .Values.realm.import }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "keycloak.fullname" . }}-realm-import
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: keycloak-realm-import
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "keycloak.fullname" . }}-realm-import
+      containers:
+      - name: realm-import
+        image: alpine/k8s:1.28.3
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+
+          echo "Waiting for Keycloak to be ready..."
+          MAX_WAIT=180
+          ELAPSED=0
+          until curl -sf http://{{ include "keycloak.fullname" . }}:{{ .Values.service.port }}/health/ready > /dev/null 2>&1; do
+            if [ $ELAPSED -ge $MAX_WAIT ]; then
+              echo "Timeout waiting for Keycloak"
+              exit 1
+            fi
+            echo "Keycloak not ready, waiting... ($ELAPSED/$MAX_WAIT)"
+            sleep 5
+            ELAPSED=$((ELAPSED + 5))
+          done
+          echo "Keycloak is ready!"
+
+          # Use kcadm.sh CLI tool to get admin token (bypasses SSL requirement)
+          echo "Getting admin token via kcadm.sh..."
+
+          # Configure kcadm and get token
+          kubectl exec -n {{ .Values.namespace }} deployment/{{ include "keycloak.fullname" . }} -- /opt/keycloak/bin/kcadm.sh config credentials \
+            --server http://localhost:8080 \
+            --realm master \
+            --user {{ .Values.adminUser }} \
+            --password {{ .Values.adminPassword }} \
+            --client admin-cli > /tmp/kcadm-output.txt 2>&1
+
+          if [ $? -ne 0 ]; then
+            echo "Failed to authenticate with kcadm.sh"
+            cat /tmp/kcadm-output.txt
+            exit 1
+          fi
+
+          echo "Authenticated successfully"
+
+          # Check if realm exists and force delete
+          echo "Checking if rita realm exists..."
+          kubectl exec -n {{ .Values.namespace }} deployment/{{ include "keycloak.fullname" . }} -- /opt/keycloak/bin/kcadm.sh get realms/rita > /tmp/realm-check.txt 2>&1 || true
+
+          if grep -q '"realm":"rita"' /tmp/realm-check.txt 2>/dev/null; then
+            echo "Realm exists, deleting it..."
+            kubectl exec -n {{ .Values.namespace }} deployment/{{ include "keycloak.fullname" . }} -- /opt/keycloak/bin/kcadm.sh delete realms/rita
+            echo "Realm deleted, waiting for cleanup..."
+            sleep 10
+          else
+            echo "Realm does not exist via API, attempting delete anyway..."
+            kubectl exec -n {{ .Values.namespace }} deployment/{{ include "keycloak.fullname" . }} -- /opt/keycloak/bin/kcadm.sh delete realms/rita 2>&1 || echo "Delete failed (realm may not exist)"
+            sleep 5
+          fi
+
+          # Import realm from file (try create first, then update if conflict)
+          echo "Importing realm from file..."
+          kubectl exec -n {{ .Values.namespace }} deployment/{{ include "keycloak.fullname" . }} -- /opt/keycloak/bin/kcadm.sh create realms -f /opt/keycloak/data/import/realm.json > /tmp/import-result.txt 2>&1
+
+          if [ $? -eq 0 ]; then
+            echo "Realm created successfully!"
+          else
+            echo "Create failed, checking error..."
+            cat /tmp/import-result.txt
+
+            if grep -qi "conflict\|already exists\|duplicate" /tmp/import-result.txt 2>/dev/null; then
+              echo "Realm exists, updating instead..."
+              kubectl exec -n {{ .Values.namespace }} deployment/{{ include "keycloak.fullname" . }} -- /opt/keycloak/bin/kcadm.sh update realms/rita -f /opt/keycloak/data/import/realm.json > /tmp/update-result.txt 2>&1
+
+              if [ $? -eq 0 ]; then
+                echo "Realm updated successfully!"
+              else
+                echo "Update failed:"
+                cat /tmp/update-result.txt
+                exit 1
+              fi
+            else
+              echo "Import failed with non-conflict error"
+              exit 1
+            fi
+          fi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "keycloak.fullname" . }}-realm-import
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "keycloak.fullname" . }}-realm-import
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/exec"]
+  verbs: ["get", "list", "create"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "keycloak.fullname" . }}-realm-import
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "keycloak.fullname" . }}-realm-import
+subjects:
+- kind: ServiceAccount
+  name: {{ include "keycloak.fullname" . }}-realm-import
+  namespace: {{ .Values.namespace }}
+{{- end }}

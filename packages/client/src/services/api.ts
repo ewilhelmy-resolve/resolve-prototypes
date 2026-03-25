@@ -111,7 +111,10 @@ export const conversationApi = {
 						([_, value]) =>
 							value !== undefined && value !== null && value !== "",
 					)
-					.reduce((acc, [key, value]) => ({ ...acc, [key]: String(value) }), {})
+					.reduce<Record<string, string>>((acc, [key, value]) => {
+						acc[key] = String(value);
+						return acc;
+					}, {})
 			: {};
 
 		const queryString =
@@ -265,7 +268,7 @@ export const fileApi = {
 		});
 
 		// Add optional filter parameters
-		if (search && search.trim()) {
+		if (search?.trim()) {
 			params.append("search", search.trim());
 		}
 		if (status && status.toLowerCase() !== "all") {
@@ -560,7 +563,8 @@ export const clustersApi = {
 		if (params?.sort) searchParams.append("sort", params.sort);
 		if (params?.period) searchParams.append("period", params.period);
 		if (params?.limit) searchParams.append("limit", params.limit.toString());
-		if (params?.cursor) searchParams.append("cursor", params.cursor);
+		if (params?.offset !== undefined)
+			searchParams.append("offset", params.offset.toString());
 		if (params?.kb_status) searchParams.append("kb_status", params.kb_status);
 		if (params?.search) searchParams.append("search", params.search);
 
@@ -583,12 +587,16 @@ export const clustersApi = {
 	) => {
 		const searchParams = new URLSearchParams();
 		if (params?.tab) searchParams.append("tab", params.tab);
-		if (params?.cursor) searchParams.append("cursor", params.cursor);
+		if (params?.offset != null)
+			searchParams.append("offset", params.offset.toString());
 		if (params?.limit) searchParams.append("limit", params.limit.toString());
 		if (params?.search) searchParams.append("search", params.search);
 		if (params?.sort) searchParams.append("sort", params.sort);
 		if (params?.sort_dir) searchParams.append("sort_dir", params.sort_dir);
 		if (params?.source) searchParams.append("source", params.source);
+		if (params?.priority) searchParams.append("priority", params.priority);
+		if (params?.external_status)
+			searchParams.append("external_status", params.external_status);
 
 		const queryString = searchParams.toString();
 		return apiRequest<import("../types/cluster").ClusterTicketsResponse>(
@@ -619,6 +627,36 @@ export const mlModelsApi = {
 		apiRequest<import("../types/mlModel").ActiveModelResponse>(
 			"/api/ml-models/active",
 		),
+};
+
+// Autopilot Settings API
+export interface AutopilotSettingsData {
+	id: string;
+	organization_id: string;
+	cost_per_ticket: number;
+	avg_time_per_ticket_minutes: number;
+	updated_by: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface AutopilotSettingsResponse {
+	data: AutopilotSettingsData;
+}
+
+export interface UpdateAutopilotSettingsPayload {
+	cost_per_ticket?: number;
+	avg_time_per_ticket_minutes?: number;
+}
+
+export const autopilotSettingsApi = {
+	get: () => apiRequest<AutopilotSettingsResponse>("/api/autopilot-settings"),
+
+	update: (data: UpdateAutopilotSettingsPayload) =>
+		apiRequest<AutopilotSettingsResponse>("/api/autopilot-settings", {
+			method: "PATCH",
+			body: data,
+		}),
 };
 
 export { ApiError };

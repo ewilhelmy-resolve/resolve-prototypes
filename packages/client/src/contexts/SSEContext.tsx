@@ -3,17 +3,23 @@ import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import i18n from "@/i18n";
+import { credentialErrorI18nKey } from "../components/connection-sources/utils";
 import { ritaToast } from "../components/ui/rita-toast";
 import { type FileDocument, fileKeys } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
+import { mlModelKeys } from "../hooks/useActiveModel";
+import { clusterKeys } from "../hooks/useClusters";
 import { dataSourceKeys, ingestionRunKeys } from "../hooks/useDataSources";
 import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
-import type { IngestionRun } from "../types/dataSource";
+import {
+	DEFAULT_MINIMUM_TICKETS,
+	type IngestionRun,
+} from "../types/dataSource";
 
 interface MessageUpdate {
 	messageId: string;
@@ -182,9 +188,17 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 							},
 						});
 					} else if (syncStatus === "failed") {
+						const syncError = event.data.last_sync_error;
+						const credI18nKey = syncError
+							? credentialErrorI18nKey(syncError)
+							: null;
+						const description = credI18nKey
+							? i18n.t(credI18nKey, { ns: "connections" })
+							: syncError || "An error occurred";
+
 						ritaToast.error({
 							title: `${i18n.t("error.syncFailed", { ns: "toast" })}: ${connectionType}`,
-							description: event.data.last_sync_error || "An error occurred",
+							description,
 							action: {
 								label: "View",
 								onClick: () => navigate("/settings/connections"),
@@ -441,18 +455,65 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					});
 
 					if (event.data.status === "completed") {
+						// Refresh ticket dashboard data (clusters, totals, counts)
+						queryClient.invalidateQueries({
+							queryKey: clusterKeys.all,
+						});
+						// New tickets may trigger model retraining
+						queryClient.invalidateQueries({
+							queryKey: mlModelKeys.active(),
+						});
+
+						const isOnTicketsPage =
+							window.location.pathname.startsWith("/tickets");
+
 						ritaToast.success({
 							title: i18n.t("success.ticketSyncComplete", { ns: "toast" }),
 							description: i18n.t("descriptions.ticketsProcessed", {
 								count: event.data.records_processed ?? 0,
 								ns: "toast",
 							}),
+							...(!isOnTicketsPage && {
+								action: {
+									label: i18n.t("actions.viewTickets", { ns: "toast" }),
+									onClick: () => navigate("/tickets"),
+								},
+							}),
 						});
 					} else if (event.data.status === "failed") {
-						ritaToast.error({
-							title: i18n.t("error.ticketSyncFailed", { ns: "toast" }),
-							description: event.data.error_message || "An error occurred",
-						});
+						if (event.data.error_message === "tickets_below_threshold") {
+							ritaToast.error({
+								title: i18n.t("error.ticketsBelowThreshold", {
+									ns: "toast",
+								}),
+								description: i18n.t("descriptions.ticketsBelowThreshold", {
+									count: event.data.error_detail?.current_total_tickets ?? 0,
+									minimum:
+										event.data.error_detail?.needed_total_tickets ??
+										DEFAULT_MINIMUM_TICKETS,
+									ns: "toast",
+								}),
+							});
+						} else if (event.data.error_message) {
+							const credKey = credentialErrorI18nKey(event.data.error_message);
+							if (credKey) {
+								ritaToast.error({
+									title: i18n.t("syncError.credentialFailedTitle", {
+										ns: "connections",
+									}),
+									description: i18n.t(credKey, {
+										ns: "connections",
+									}),
+								});
+							} else {
+								ritaToast.error({
+									title: i18n.t("error.ticketSyncFailed", {
+										ns: "toast",
+									}),
+									description: event.data.error_message || "An error occurred",
+								});
+							}
+						}
 					}
 				}
 			} else if (event.type === "feature_flag_update") {

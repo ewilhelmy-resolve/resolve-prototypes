@@ -1,172 +1,58 @@
 {
-	"root": "login-container",
+	"root": "main",
 	"elements": {
-		"login-container": {
-			"type": "Card",
+		"main": {
+			"type": "Form",
 			"props": {
-				"title": "Login",
-				"description": "Enter your credentials to access your account",
-				"maxWidth": "sm",
-				"centered": true
+				"title": "Customer Information",
+				"description": "Please provide the customer details",
+				"submitAction": "submit_customer_info",
+				"submitLabel": "Submit",
+				"cancelLabel": "Cancel"
 			},
-			"children": ["form-stack"]
+			"children": ["customerName", "email", "priority", "notes"]
 		},
-		"form-stack": {
-			"type": "Stack",
-			"props": {
-				"direction": "vertical",
-				"gap": "md"
-			},
-			"children": [
-				"username-input",
-				"password-input",
-				"button-group",
-				"signup-section"
-			]
-		},
-		"username-input": {
+		"customerName": {
 			"type": "Input",
 			"props": {
-				"label": "Username",
-				"name": "username",
-				"placeholder": "Enter your username",
-				"value": {
-					"$bindState": "/form/username"
-				},
-				"checks": [
-					{
-						"type": "required",
-						"message": "Username is required"
-					},
-					{
-						"type": "minLength",
-						"message": "Username must be at least 6 characters",
-						"args": {
-							"min": 6
-						}
-					}
-				]
-			},
-			"children": []
+				"name": "customerName",
+				"label": "Customer Name",
+				"placeholder": "Enter customer name",
+				"required": true
+			}
 		},
-		"password-input": {
+		"email": {
 			"type": "Input",
 			"props": {
-				"label": "Password",
-				"name": "password",
-				"type": "password",
-				"placeholder": "Enter your password",
-				"value": {
-					"$bindState": "/form/password"
-				},
-				"checks": [
-					{
-						"type": "required",
-						"message": "Password is required"
-					},
-					{
-						"type": "minLength",
-						"message": "Password must be at least 6 characters",
-						"args": {
-							"min": 6
-						}
-					}
+				"name": "email",
+				"label": "Email Address",
+				"placeholder": "customer@example.com",
+				"required": true
+			}
+		},
+		"priority": {
+			"type": "Select",
+			"props": {
+				"name": "priority",
+				"label": "Priority Level",
+				"required": true,
+				"options": [
+					{ "label": "Low", "value": "low" },
+					{ "label": "Medium", "value": "medium" },
+					{ "label": "High", "value": "high" }
 				]
-			},
-			"children": []
+			}
 		},
-		"button-group": {
-			"type": "Stack",
+		"notes": {
+			"type": "Input",
 			"props": {
-				"direction": "horizontal",
-				"gap": "md",
-				"justify": "center"
-			},
-			"children": ["send-button", "clear-button"]
-		},
-		"send-button": {
-			"type": "Button",
-			"props": {
-				"label": "Send",
-				"variant": "primary"
-			},
-			"on": {
-				"press": {
-					"action": "buttonClick",
-					"params": {
-						"message": "Login successful!"
-					}
-				}
-			},
-			"children": []
-		},
-		"clear-button": {
-			"type": "Button",
-			"props": {
-				"label": "Clear",
-				"variant": "secondary"
-			},
-			"on": {
-				"press": {
-					"action": "setState",
-					"params": {
-						"statePath": "/form",
-						"value": {
-							"username": "",
-							"password": ""
-						}
-					}
-				}
-			},
-			"children": []
-		},
-		"signup-link": {
-			"type": "Stack",
-			"props": {
-				"direction": "horizontal",
-				"gap": "sm",
-				"justify": "center"
-			},
-			"children": ["signup-text", "signup-button"]
-		},
-		"signup-text": {
-			"type": "Text",
-			"props": {
-				"text": "Don't have an account?",
-				"variant": "body"
-			},
-			"children": []
-		},
-		"signup-button": {
-			"type": "Link",
-			"props": {
-				"label": "Sign up here",
-				"href": "/signup"
-			},
-			"on": {
-				"press": {
-					"action": "linkClick",
-					"params": {
-						"message": "Navigating to sign up page"
-					}
-				}
-			},
-			"children": []
-		},
-		"signup-section": {
-			"type": "Stack",
-			"props": {
-				"direction": "horizontal",
-				"gap": "sm",
-				"justify": "center"
-			},
-			"children": ["signup-text", "signup-button"]
+				"name": "notes",
+				"label": "Additional Notes",
+				"inputType": "textarea",
+				"placeholder": "Any additional information..."
+			}
 		}
 	},
-	"state": {
-		"form": {
-			"username": "",
-			"password": ""
-		}
-	}
+	"dialogs": { "customer-form": "main" },
+	"autoOpenDialog": "customer-form"
 }

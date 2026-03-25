@@ -163,7 +163,7 @@ registry.registerPath({
  * Query params:
  *   - sort: volume | automation | recent (default: recent)
  *   - limit: number of results (default 25, max 100)
- *   - cursor: ISO timestamp for pagination
+ *   - offset: pagination offset (default 0)
  *   - kb_status: filter by KB status
  *   - search: search in name and subcluster_name
  */
@@ -178,9 +178,8 @@ router.get("/", async (req, res) => {
 			{
 				sort: query.sort,
 				period: query.period,
-				includeInactive: query.include_inactive,
 				limit: query.limit,
-				cursor: query.cursor,
+				offset: query.offset,
 				kbStatus: query.kb_status,
 				search: query.search,
 			},
@@ -234,7 +233,7 @@ router.get("/:id/details", async (req, res) => {
  * Get paginated tickets for a cluster
  * Query params:
  *   - tab: needs_response | completed (filters by rita_status)
- *   - cursor: ISO timestamp for pagination
+ *   - offset: pagination offset (default 0)
  *   - limit: number of results (default 20, max 100)
  */
 router.get("/:id/tickets", async (req, res) => {
@@ -260,12 +259,14 @@ router.get("/:id/tickets", async (req, res) => {
 			authReq.user.activeOrganizationId,
 			{
 				tab: query.tab,
-				cursor: query.cursor,
+				offset: query.offset,
 				limit: query.limit,
 				search: query.search,
 				sort: query.sort,
 				sort_dir: query.sort_dir,
 				source: query.source,
+				priority: query.priority,
+				external_status: query.external_status,
 			},
 		);
 

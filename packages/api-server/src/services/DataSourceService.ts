@@ -235,6 +235,7 @@ export class DataSourceService {
 		lastSyncStatus?: "completed" | "failed" | null,
 		updateLastSyncAt: boolean = false,
 		requireSyncingStatus: boolean = false,
+		lastSyncError?: string | null,
 	): Promise<DataSourceConnection | null> {
 		const updates = ["status = $1"];
 		const values: any[] = [status];
@@ -243,6 +244,11 @@ export class DataSourceService {
 		if (lastSyncStatus !== undefined) {
 			updates.push(`last_sync_status = $${paramIndex++}`);
 			values.push(lastSyncStatus);
+		}
+
+		if (lastSyncError !== undefined) {
+			updates.push(`last_sync_error = $${paramIndex++}`);
+			values.push(lastSyncError);
 		}
 
 		if (updateLastSyncAt) {
@@ -315,8 +321,9 @@ export class DataSourceService {
 		let paramIndex = 2;
 
 		if (status === "success") {
-			// On success: clear error, store options
+			// On success: clear error, store options, clear stale sync error
 			updates.push(`last_verification_error = NULL`);
+			updates.push(`last_sync_error = NULL`);
 
 			if (options) {
 				updates.push(`latest_options = $${paramIndex++}`);
@@ -467,6 +474,7 @@ export class DataSourceService {
 		ingestionRunId: string,
 		status: "pending" | "running" | "completed" | "failed" | "cancelled",
 		errorMessage?: string,
+		metadata?: Record<string, any>,
 	): Promise<void> {
 		const updates = ["status = $1", "updated_at = NOW()"];
 		const values: any[] = [status];
@@ -475,6 +483,13 @@ export class DataSourceService {
 		if (errorMessage) {
 			updates.push(`error_message = $${paramIndex++}`);
 			values.push(errorMessage);
+		}
+
+		if (metadata) {
+			updates.push(
+				`metadata = COALESCE(metadata, '{}'::jsonb) || $${paramIndex++}::jsonb`,
+			);
+			values.push(JSON.stringify(metadata));
 		}
 
 		if (

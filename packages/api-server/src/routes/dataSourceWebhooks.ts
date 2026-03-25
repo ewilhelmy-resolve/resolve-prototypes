@@ -1,8 +1,10 @@
 import express from "express";
 import { z } from "zod";
+import { logger } from "../config/logger.js";
 import { authenticateUser } from "../middleware/auth.js";
 import { DataSourceService } from "../services/DataSourceService.js";
 import { DataSourceWebhookService } from "../services/DataSourceWebhookService.js";
+import { scrubSensitiveFields } from "../services/WebhookService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 
 const router = express.Router();
@@ -66,13 +68,13 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 				relatedType,
 			);
 			if (!relatedDataSource) {
-				console.log(
-					"[DataSourceWebhook] No related connection found for apply_to_related:",
+				logger.info(
 					{
 						primaryType: dataSource.type,
 						relatedType,
 						organizationId: authReq.user.activeOrganizationId,
 					},
+					"[DataSourceWebhook] No related connection found for apply_to_related",
 				);
 			}
 		}
@@ -95,10 +97,15 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 		}
 
 		// Update status to 'verifying' before sending webhook
+		// Clear stale sync errors so they don't persist during re-verification
 		await dataSourceService.updateDataSourceStatus(
 			id,
 			authReq.user.activeOrganizationId,
 			"verifying" as any,
+			undefined,
+			false,
+			false,
+			null,
 		);
 
 		// Also update related connection status if apply_to_related
@@ -107,6 +114,10 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 				relatedDataSource.id,
 				authReq.user.activeOrganizationId,
 				"verifying" as any,
+				undefined,
+				false,
+				false,
+				null,
 			);
 		}
 
@@ -171,13 +182,13 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 		// Log related connection result (don't fail primary if related fails)
 		if (relatedDataSource && relatedResponse) {
 			if (!relatedResponse.success) {
-				console.warn(
-					"[DataSourceWebhook] Related connection verification failed:",
+				logger.warn(
 					{
 						relatedConnectionId: relatedDataSource.id,
 						relatedType: relatedDataSource.type,
 						error: relatedResponse.error,
 					},
+					"[DataSourceWebhook] Related connection verification failed",
 				);
 				// Revert related status on failure
 				await dataSourceService.updateDataSourceStatus(
@@ -206,22 +217,24 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 						{ settings: updatedSettings, enabled: true },
 					);
 
-					console.log(
-						"[DataSourceWebhook] Related connection settings synced:",
+					logger.info(
 						{
 							relatedConnectionId: relatedDataSource.id,
 							relatedType: relatedDataSource.type,
-							settings: updatedSettings,
+							settings: scrubSensitiveFields(
+								updatedSettings as Record<string, any>,
+							),
 						},
+						"[DataSourceWebhook] Related connection settings synced",
 					);
 				}
 
-				console.log(
-					"[DataSourceWebhook] Related connection verification started:",
+				logger.info(
 					{
 						relatedConnectionId: relatedDataSource.id,
 						relatedType: relatedDataSource.type,
 					},
+					"[DataSourceWebhook] Related connection verification started",
 				);
 			}
 		}
@@ -239,7 +252,7 @@ router.post("/:id/verify", authenticateUser, async (req, res) => {
 			});
 		}
 
-		console.error("[DataSourceWebhook] Error verifying credentials:", error);
+		logger.error({ error }, "[DataSourceWebhook] Error verifying credentials");
 		res.status(500).json({ error: "Failed to verify credentials" });
 	}
 });
@@ -328,7 +341,7 @@ router.post("/:id/sync", authenticateUser, async (req, res) => {
 			},
 		});
 	} catch (error) {
-		console.error("[DataSourceWebhook] Error triggering sync:", error);
+		logger.error({ error }, "[DataSourceWebhook] Error triggering sync");
 
 		// Try to revert status on error
 		try {
@@ -339,9 +352,9 @@ router.post("/:id/sync", authenticateUser, async (req, res) => {
 				"failed",
 			);
 		} catch (revertError) {
-			console.error(
-				"[DataSourceWebhook] Failed to revert status:",
-				revertError,
+			logger.error(
+				{ error: revertError },
+				"[DataSourceWebhook] Failed to revert status",
 			);
 		}
 
@@ -400,11 +413,14 @@ router.post("/:id/cancel-sync", authenticateUser, async (req, res) => {
 			email: dataSource.settings?.email || "",
 		});
 
-		console.log("[DataSourceWebhook] Cancellation request created:", {
-			connectionId: dataSource.id,
-			tenantId: authReq.user.activeOrganizationId,
-			connectionType: dataSource.type,
-		});
+		logger.info(
+			{
+				connectionId: dataSource.id,
+				tenantId: authReq.user.activeOrganizationId,
+				connectionType: dataSource.type,
+			},
+			"[DataSourceWebhook] Cancellation request created",
+		);
 
 		res.json({
 			success: true,
@@ -418,7 +434,7 @@ router.post("/:id/cancel-sync", authenticateUser, async (req, res) => {
 			message: "Sync cancelled successfully",
 		});
 	} catch (error) {
-		console.error("[DataSourceWebhook] Error cancelling sync:", error);
+		logger.error({ error }, "[DataSourceWebhook] Error cancelling sync");
 		res.status(500).json({ error: "Failed to cancel sync" });
 	}
 });
@@ -456,11 +472,14 @@ router.post("/:id/cancel-ingestion", authenticateUser, async (req, res) => {
 			});
 		}
 
-		console.log("[DataSourceWebhook] Ingestion run cancelled:", {
-			ingestionRunId: cancelledRun.id,
-			connectionId: id,
-			tenantId: authReq.user.activeOrganizationId,
-		});
+		logger.info(
+			{
+				ingestionRunId: cancelledRun.id,
+				connectionId: id,
+				tenantId: authReq.user.activeOrganizationId,
+			},
+			"[DataSourceWebhook] Ingestion run cancelled",
+		);
 
 		res.json({
 			success: true,
@@ -472,7 +491,7 @@ router.post("/:id/cancel-ingestion", authenticateUser, async (req, res) => {
 			message: "Ticket sync cancelled",
 		});
 	} catch (error) {
-		console.error("[DataSourceWebhook] Error cancelling ingestion:", error);
+		logger.error({ error }, "[DataSourceWebhook] Error cancelling ingestion");
 		res.status(500).json({ error: "Failed to cancel ticket sync" });
 	}
 });
@@ -509,9 +528,12 @@ router.post("/:id/sync-tickets", authenticateUser, async (req, res) => {
 
 		// Only allow ITSM-specific connection types
 		if (
-			!["servicenow_itsm", "jira_itsm", "freshdesk", "ivanti_itsm"].includes(
-				dataSource.type,
-			)
+			![
+				"servicenow_itsm",
+				"jira_itsm",
+				"freshservice_itsm",
+				"ivanti_itsm",
+			].includes(dataSource.type)
 		) {
 			return res.status(400).json({
 				error: "Invalid data source type",
@@ -584,7 +606,7 @@ router.post("/:id/sync-tickets", authenticateUser, async (req, res) => {
 			});
 		}
 
-		console.error("[DataSourceWebhook] Error triggering ticket sync:", error);
+		logger.error({ error }, "[DataSourceWebhook] Error triggering ticket sync");
 		res.status(500).json({ error: "Failed to trigger ticket sync" });
 	}
 });
@@ -617,9 +639,9 @@ router.get("/:id/ingestion-runs/latest", authenticateUser, async (req, res) => {
 
 		res.json({ data: latestRun });
 	} catch (error) {
-		console.error(
-			"[DataSourceWebhook] Error fetching latest ingestion run:",
-			error,
+		logger.error(
+			{ error },
+			"[DataSourceWebhook] Error fetching latest ingestion run",
 		);
 		res.status(500).json({ error: "Failed to fetch latest ingestion run" });
 	}

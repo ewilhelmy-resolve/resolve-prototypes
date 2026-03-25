@@ -12,6 +12,14 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	calculateEstMoneySaved,
+	calculateEstTimeSavedMinutes,
+	formatMoneySaved,
+	formatTimeSaved,
+	STAT_NOT_AVAILABLE,
+} from "@/lib/format-utils";
+import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 import type { PeriodFilter } from "@/types/cluster";
 
 interface ClustersPageHeaderProps {
@@ -21,6 +29,7 @@ interface ClustersPageHeaderProps {
 	showSkeletons: boolean;
 	hasNoModel: boolean;
 	onSettingsClick: () => void;
+	lastSynced?: string;
 }
 
 export function ClustersPageHeader({
@@ -30,8 +39,20 @@ export function ClustersPageHeader({
 	showSkeletons,
 	hasNoModel,
 	onSettingsClick,
+	lastSynced,
 }: ClustersPageHeaderProps) {
 	const { t } = useTranslation("tickets");
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
+
+	const moneySaved = calculateEstMoneySaved(
+		blendedRatePerHour,
+		avgMinutesPerTicket,
+		totalTickets,
+	);
+	const timeSavedMinutes = calculateEstTimeSavedMinutes(
+		avgMinutesPerTicket,
+		totalTickets,
+	);
 
 	const periodLabels: Record<PeriodFilter, string> = {
 		last30: t("groups.periods.last30Days"),
@@ -45,15 +66,25 @@ export function ClustersPageHeader({
 	) : hasNoModel ? (
 		""
 	) : (
-		<Trans
-			i18nKey="header.description"
-			ns="tickets"
-			values={{
-				ticketCount: totalTickets.toLocaleString(),
-				period: periodLabels[period].toLowerCase(),
-			}}
-			components={{ strong: <span className="font-semibold" /> }}
-		/>
+		<span className="flex items-center gap-2">
+			<Trans
+				i18nKey="header.description"
+				ns="tickets"
+				values={{
+					ticketCount: totalTickets.toLocaleString(),
+					period: periodLabels[period].toLowerCase(),
+				}}
+				components={{ strong: <span className="font-semibold" /> }}
+			/>
+			{lastSynced && (
+				<>
+					<span className="text-muted-foreground">·</span>
+					<span className="text-muted-foreground text-xs">
+						{t("header.lastSynced", { time: lastSynced })}
+					</span>
+				</>
+			)}
+		</span>
 	);
 
 	return (
@@ -102,24 +133,19 @@ export function ClustersPageHeader({
 						loading={showSkeletons}
 					/>
 					<StatCard
-						value="0"
-						label={t("header.stats.totalTicketsAutomated")}
+						value={formatMoneySaved(moneySaved)}
+						label={t("header.stats.estMoneySaved")}
 						loading={showSkeletons}
 					/>
 					<StatCard
-						value="0%"
-						label={t("header.stats.automationPercentage")}
+						value={formatTimeSaved(timeSavedMinutes)}
+						label={t("header.stats.estTimeSaved")}
 						loading={showSkeletons}
 					/>
+					<StatCard value={STAT_NOT_AVAILABLE} label={t("header.stats.mttr")} />
 					<StatCard
-						value="$0"
-						label={t("header.stats.moneySaved")}
-						loading={showSkeletons}
-					/>
-					<StatCard
-						value="0hr"
-						label={t("header.stats.timeSaved")}
-						loading={showSkeletons}
+						value={STAT_NOT_AVAILABLE}
+						label={t("header.stats.avgReassignmentRate")}
 					/>
 				</StatGroup>
 			}

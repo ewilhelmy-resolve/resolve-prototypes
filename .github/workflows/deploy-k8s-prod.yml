@@ -1,0 +1,254 @@
+name: Deploy to K8s Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deploy target (single customer or all)'
+        required: true
+        type: choice
+        default: 'single'
+        options:
+          - single
+          - all
+      customer:
+        description: 'Customer namespace (required if target=single)'
+        required: false
+        type: string
+      services:
+        description: 'Services to deploy (all, api-server, frontend)'
+        required: false
+        type: choice
+        default: 'all'
+        options:
+          - all
+          - api-server
+          - frontend
+      image_tag:
+        description: 'Image tag to deploy (skip build if provided)'
+        required: false
+        type: string
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 432993365903.dkr.ecr.us-east-1.amazonaws.com
+  EKS_CLUSTER_NAME: rita-prod
+
+jobs:
+  validate-inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate inputs
+        run: |
+          if [ "${{ inputs.target }}" = "single" ] && [ -z "${{ inputs.customer }}" ]; then
+            echo "::error::Customer is required when target=single"
+            exit 1
+          fi
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: validate-inputs
+    if: ${{ inputs.image_tag == '' }}
+    outputs:
+      short-sha: ${{ steps.meta.outputs.short-sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate metadata
+        id: meta
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "short-sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API Server
+        run: pnpm --filter rita-api-server build
+
+      - name: Patch Frontend for Runtime Config
+        run: |
+          cat > packages/client/src/services/keycloak.ts << 'EOF'
+          import Keycloak from 'keycloak-js';
+
+          // Runtime config from env-config.js (injected via Helm ConfigMap)
+          const envConfig = (window as any).ENV_CONFIG || {};
+
+          const keycloak = new Keycloak({
+            url: envConfig.KEYCLOAK_URL || import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080',
+            realm: envConfig.KEYCLOAK_REALM || import.meta.env.VITE_KEYCLOAK_REALM || 'rita',
+            clientId: envConfig.KEYCLOAK_CLIENT_ID || import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'onboarding-auth-client',
+          });
+
+          export default keycloak;
+          EOF
+
+      - name: Build Frontend
+        run: pnpm --filter rita-client build
+        env:
+          VITE_API_URL: ""
+
+      - name: Configure AWS Credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          aws configure set region ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Build and push images
+        env:
+          SHORT_SHA: ${{ steps.meta.outputs.short-sha }}
+        run: |
+          # API Server
+          docker build -t ${{ env.ECR_REGISTRY }}/rita-api-server:${SHORT_SHA} -f packages/api-server/Dockerfile.prod .
+          docker push ${{ env.ECR_REGISTRY }}/rita-api-server:${SHORT_SHA}
+
+          # Frontend
+          docker build -t ${{ env.ECR_REGISTRY }}/rita-frontend:${SHORT_SHA} -f packages/client/Dockerfile.prod packages/client
+          docker push ${{ env.ECR_REGISTRY }}/rita-frontend:${SHORT_SHA}
+
+  resolve-matrix:
+    runs-on: ubuntu-latest
+    needs: validate-inputs
+    outputs:
+      customers: ${{ steps.resolve.outputs.customers }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Resolve customer matrix
+        id: resolve
+        run: |
+          if [ "${{ inputs.target }}" = "single" ]; then
+            echo 'customers=["${{ inputs.customer }}"]' >> $GITHUB_OUTPUT
+          else
+            CUSTOMERS=$(cat helm/ritadev/environments/prod/customers.json)
+            echo "customers=${CUSTOMERS}" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-and-push, resolve-matrix]
+    if: ${{ always() && needs.resolve-matrix.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
+    environment: production
+    strategy:
+      matrix:
+        customer: ${{ fromJson(needs.resolve-matrix.outputs.customers) }}
+      max-parallel: 1
+      fail-fast: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: image
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ needs.build-and-push.outputs.short-sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure AWS Credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          aws configure set region ${{ env.AWS_REGION }}
+
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Install Helm and Helmfile
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+          # Install Helmfile
+          HELMFILE_VERSION=$(curl -s https://api.github.com/repos/helmfile/helmfile/releases/latest | jq -r .tag_name)
+          wget -q https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz
+          tar -xzf helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz
+          sudo mv helmfile /usr/local/bin/helmfile
+          sudo chmod +x /usr/local/bin/helmfile
+
+          helm plugin install https://github.com/databus23/helm-diff
+
+      - name: Verify cluster connectivity
+        run: |
+          echo "Testing EKS cluster connectivity..."
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Convert customer to secret key
+        id: customer-key
+        run: |
+          CUSTOMER_KEY=$(echo "${{ matrix.customer }}" | tr '[:lower:]-' '[:upper:]_')
+          echo "key=${CUSTOMER_KEY}" >> $GITHUB_OUTPUT
+
+      - name: Deploy via helmfile
+        working-directory: helm/ritadev/ops
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+          DATABASE_URL: ${{ secrets[format('PROD_{0}_DATABASE_URL', steps.customer-key.outputs.key)] }}
+          RABBITMQ_URL: ${{ secrets[format('PROD_{0}_RABBITMQ_URL', steps.customer-key.outputs.key)] || secrets.PROD_RABBITMQ_URL }}
+          CONSUL_HTTP_TOKEN: ${{ secrets.PROD_CONSUL_HTTP_TOKEN }}
+          VALKEY_URL: ${{ secrets[format('PROD_{0}_VALKEY_URL', steps.customer-key.outputs.key)] || secrets.PROD_VALKEY_URL }}
+          AUTOMATION_WEBHOOK_URL: ${{ secrets.PROD_AUTOMATION_WEBHOOK_URL }}
+          AUTOMATION_AUTH: ${{ secrets.PROD_AUTOMATION_AUTH }}
+          ROUTE53_ENABLED: "true"
+          ROUTE53_HOSTED_ZONE_ID: ${{ secrets.PROD_ROUTE53_HOSTED_ZONE_ID }}
+          RDS_ADMIN_URL: ${{ secrets.PROD_RDS_ADMIN_URL }}
+        run: |
+          SERVICES="${{ inputs.services }}"
+          NS="${{ matrix.customer }}"
+
+          if [ "$SERVICES" = "all" ]; then
+            helmfile -e prod \
+              --state-values-set namespace=${NS} \
+              apply
+          else
+            helmfile -e prod \
+              --state-values-set namespace=${NS} \
+              --selector app=${SERVICES} \
+              apply
+          fi
+
+      - name: Verify deployment
+        run: |
+          NS="${{ matrix.customer }}"
+          SERVICES="${{ inputs.services }}"
+
+          if [ "$SERVICES" = "all" ] || [ "$SERVICES" = "api-server" ]; then
+            echo "=== Verifying api-server ==="
+            kubectl rollout status deployment/api-server -n $NS --timeout=5m
+          fi
+
+          if [ "$SERVICES" = "all" ] || [ "$SERVICES" = "frontend" ]; then
+            echo "=== Verifying frontend ==="
+            kubectl rollout status deployment/frontend -n $NS --timeout=5m
+          fi
+
+          echo "=== Pod Status ==="
+          kubectl get pods -n $NS
+
+          echo "=== Services ==="
+          kubectl get svc -n $NS
+
+          echo "=== Ingress ==="
+          kubectl get ingress -n $NS

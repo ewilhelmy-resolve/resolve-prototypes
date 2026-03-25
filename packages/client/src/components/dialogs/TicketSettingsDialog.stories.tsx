@@ -9,13 +9,18 @@ const meta: Meta<typeof TicketSettingsDialog> = {
 	args: {
 		open: true,
 		onOpenChange: fn(),
+		onSave: fn(),
+		defaultValues: {
+			blendedRatePerHour: 30,
+			avgMinutesPerTicket: 12,
+		},
 	},
 	parameters: {
 		layout: "fullscreen",
 		docs: {
 			description: {
 				component:
-					"Settings dialog for configuring dashboard metric calculations (cost per ticket, average time per ticket). Save is disabled until the user modifies a value.",
+					"Reusable settings dialog for configuring dashboard metric calculations (blended rate per hour, average minutes per ticket). Returns selected values via onSave callback. Save is disabled until the user modifies a value.",
 			},
 			story: {
 				inline: false,
@@ -29,12 +34,28 @@ export default meta;
 type Story = StoryObj<typeof TicketSettingsDialog>;
 
 export const Default: Story = {
-	args: {},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Default state with pre-filled values ($30.00 cost, 12 minutes). Save button is disabled until user changes a field.",
+					"Default state with pre-filled values ($30.00/hr, 12 minutes). Save button is disabled until user changes a field.",
+			},
+		},
+	},
+};
+
+export const WithCustomValues: Story = {
+	args: {
+		defaultValues: {
+			blendedRatePerHour: 55,
+			avgMinutesPerTicket: 8,
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Dialog with custom values to demonstrate the calculator section updating in real-time.",
 			},
 		},
 	},

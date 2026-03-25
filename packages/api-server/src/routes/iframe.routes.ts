@@ -15,17 +15,20 @@ import express from "express";
 import { logger } from "../config/logger.js";
 import { getValkeyStatus } from "../config/valkey.js";
 import { registry, z } from "../docs/openapi.js";
+import { authenticateUser } from "../middleware/auth.js";
 import { ErrorResponseSchema } from "../schemas/common.js";
 import {
 	IframeDebugResponseSchema,
 	IframeDeleteConversationResponseSchema,
 	IframeExecuteRequestSchema,
 	IframeExecuteResponseSchema,
+	IframeSessionContextResponseSchema,
 	IframeValidateRequestSchema,
 	IframeValidateResponseSchema,
 } from "../schemas/iframe.js";
 import { getIframeService } from "../services/IframeService.js";
 import { getWorkflowExecutionService } from "../services/WorkflowExecutionService.js";
+import type { AuthenticatedRequest } from "../types/express.js";
 
 // ============================================================================
 // OpenAPI Documentation Registration
@@ -111,8 +114,7 @@ registry.registerPath({
 	tags: ["Iframe"],
 	summary: "Delete conversation",
 	description:
-		"Delete iframe conversation and all messages. Used for 'Clear Chat' feature.",
-	security: [],
+		"Delete iframe conversation and all messages. Used for 'Clear Chat' feature. Requires session cookie and conversation ownership.",
 	request: {
 		params: z.object({
 			conversationId: z
@@ -139,6 +141,45 @@ registry.registerPath({
 			content: {
 				"application/json": { schema: IframeDeleteConversationResponseSchema },
 			},
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/iframe/session-context",
+	tags: ["Iframe"],
+	summary: "Get fresh session context from Valkey",
+	description:
+		"Re-reads Valkey and returns fresh payload with sensitive fields redacted. Used before metadata download to get latest context (runId, activityId).",
+	security: [],
+	request: {
+		query: z.object({
+			sessionKey: z
+				.string()
+				.min(1)
+				.max(256)
+				.openapi({ description: "Valkey session key" }),
+		}),
+	},
+	responses: {
+		200: {
+			description: "Fresh session context",
+			content: {
+				"application/json": { schema: IframeSessionContextResponseSchema },
+			},
+		},
+		400: {
+			description: "Missing or invalid sessionKey",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Session not found in Valkey",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
 		},
 	},
 });
@@ -179,6 +220,7 @@ router.post("/validate-instantiation", async (req, res) => {
 			logger.warn(
 				{
 					error: result.error,
+					debug: result.debug,
 					sessionKey: sessionKey?.substring(0, 8) + "...",
 				},
 				"Iframe validation failed",
@@ -264,6 +306,50 @@ router.get("/debug", async (_req, res) => {
 		valkey: valkeyStatus,
 		environment: envVars,
 	});
+});
+
+/**
+ * Get fresh session context from Valkey
+ * GET /api/iframe/session-context
+ *
+ * Re-reads Valkey to get latest payload (Actions Platform may have
+ * updated runId/activityId mid-session). Sensitive fields redacted.
+ */
+router.get("/session-context", async (req, res) => {
+	const parsed = z
+		.object({ sessionKey: z.string().min(1).max(256) })
+		.safeParse(req.query);
+	if (!parsed.success) {
+		res.status(400).json({ error: "sessionKey required (1-256 chars)" });
+		return;
+	}
+	const { sessionKey } = parsed.data;
+
+	try {
+		const iframeService = getIframeService();
+		const { config } =
+			await iframeService.fetchValkeyPayloadWithDebug(sessionKey);
+
+		if (!config) {
+			res.status(404).json({ error: "Session not found" });
+			return;
+		}
+
+		// Redact sensitive fields (same pattern as validate-instantiation)
+		res.json({
+			...config,
+			accessToken: config.accessToken ? "[REDACTED]" : undefined,
+			refreshToken: config.refreshToken ? "[REDACTED]" : undefined,
+			clientKey: config.clientKey ? "[REDACTED]" : undefined,
+		});
+	} catch (error) {
+		const err = error as Error;
+		logger.error(
+			{ sessionKey: sessionKey.substring(0, 8) + "...", error: err.message },
+			"Failed to fetch session context",
+		);
+		res.status(500).json({ error: "Failed to fetch session context" });
+	}
 });
 
 /**
@@ -361,27 +447,46 @@ router.post("/execute", async (req, res) => {
  * Deletes conversation and all messages (cascade via FK).
  * Used by "Clear Chat" feature to start fresh.
  */
-router.delete("/conversation/:conversationId", async (req, res) => {
-	const { conversationId } = req.params;
+router.delete(
+	"/conversation/:conversationId",
+	authenticateUser,
+	async (req, res) => {
+		const authReq = req as AuthenticatedRequest;
+		const { conversationId } = req.params;
 
-	if (!conversationId) {
-		res.status(400).json({ success: false, error: "Missing conversationId" });
-		return;
-	}
+		if (!conversationId) {
+			res.status(400).json({ success: false, error: "Missing conversationId" });
+			return;
+		}
 
-	try {
-		const iframeService = getIframeService();
-		await iframeService.deleteConversation(conversationId);
-		res.json({ success: true });
-	} catch (error) {
-		const err = error as Error;
-		logger.error(
-			{ conversationId, error: err.message },
-			"Failed to delete conversation",
-		);
-		res.status(500).json({ success: false, error: "Failed to delete" });
-	}
-});
+		try {
+			const iframeService = getIframeService();
+
+			// Verify conversation belongs to authenticated user
+			const isOwner = await iframeService.verifyConversationOwnership(
+				conversationId,
+				authReq.user.activeOrganizationId,
+				authReq.user.id,
+			);
+			if (!isOwner) {
+				res
+					.status(404)
+					.json({ success: false, error: "Conversation not found" });
+				return;
+			}
+
+			await iframeService.deleteConversation(conversationId);
+			res.json({ success: true });
+		} catch (error) {
+			const err = error as Error;
+			logger.error(
+				{ conversationId, error: err.message },
+				"Failed to delete conversation",
+			);
+			res.status(500).json({ success: false, error: "Failed to delete" });
+		}
+	},
+);
 
 /**
  * Submit UI form response back to platform
@@ -390,8 +495,8 @@ router.delete("/conversation/:conversationId", async (req, res) => {
  * Used by UIFormRequestModal when user submits or cancels a form.
  * Sends webhook to Platform with form data for workflow correlation.
  */
-router.post("/ui-form-response", async (req, res) => {
-	const { requestId, action, status, data, conversationId } = req.body;
+router.post("/ui-form-response", authenticateUser, async (req, res) => {
+	const { requestId, action, status, data } = req.body;
 
 	if (!requestId || !status) {
 		res.status(400).json({
@@ -421,9 +526,9 @@ router.post("/ui-form-response", async (req, res) => {
 		);
 
 		const iframeService = getIframeService();
-		await iframeService.sendCustomSchemaUI({
+		await iframeService.sendUIFormResponse({
+			requestId,
 			action,
-			conversationId,
 			status,
 			data,
 		});
@@ -446,7 +551,8 @@ router.post("/ui-form-response", async (req, res) => {
  * Used by SchemaRenderer when user interacts with dynamic UI components.
  * Forwards action payload to platform via webhook.
  */
-router.post("/ui-action", async (req, res) => {
+router.post("/ui-action", authenticateUser, async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
 	const { action, data, messageId, conversationId, timestamp } = req.body;
 
 	if (!action || !messageId || !conversationId) {
@@ -458,6 +564,19 @@ router.post("/ui-action", async (req, res) => {
 	}
 
 	try {
+		const iframeService = getIframeService();
+
+		// Verify conversation belongs to authenticated user
+		const isOwner = await iframeService.verifyConversationOwnership(
+			conversationId,
+			authReq.user.activeOrganizationId,
+			authReq.user.id,
+		);
+		if (!isOwner) {
+			res.status(404).json({ success: false, error: "Conversation not found" });
+			return;
+		}
+
 		logger.info(
 			{
 				action,
@@ -468,7 +587,6 @@ router.post("/ui-action", async (req, res) => {
 			"Processing UI action",
 		);
 
-		const iframeService = getIframeService();
 		await iframeService.sendUIAction({
 			action,
 			data,

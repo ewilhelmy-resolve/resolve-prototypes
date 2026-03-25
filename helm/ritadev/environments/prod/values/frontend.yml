@@ -1,0 +1,48 @@
+# Production environment values for Frontend
+
+namespace: ""  # Overridden per customer via helmfile --state-values-set namespace=<customer>
+
+replicaCount: 1
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "500m"
+
+# Ingress configuration — shared ALB via IngressGroup
+ingress:
+  enabled: true
+  className: alb
+  groupName: rita-prod
+  certificateArn: arn:aws:acm:us-east-1:432993365903:certificate/f6df4a9a-bcf8-4078-ae1d-f7eeb1307ed7
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+# Route53 DNS automation
+route53:
+  enabled: true
+  hostedZoneId: Z00550801QTKF8OAESP4
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: ""  # Set to IRSA role ARN after Terraform apply
+
+# Production hardening
+networkPolicy:
+  enabled: true
+
+pdb:
+  enabled: true
+  minAvailable: 1
