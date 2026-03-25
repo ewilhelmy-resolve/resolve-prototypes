@@ -7,6 +7,7 @@ import {
 	WandSparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +38,8 @@ interface CreateKnowledgeArticleSheetProps {
 	clusterId?: string;
 	/** Ticket group name for context */
 	ticketGroupName?: string;
+	/** Number of historical tickets available for this cluster */
+	historicalTicketCount?: number;
 	/** Called when user clicks "Add knowledge" with the content */
 	onAddKnowledge?: (content: string) => void;
 	/** Called after knowledge is successfully added (for showing banners etc) */
@@ -78,10 +81,19 @@ export function CreateKnowledgeArticleSheet({
 	onOpenChange,
 	clusterId,
 	ticketGroupName = "Software Installation",
+	historicalTicketCount = 0,
 	onAddKnowledge,
 	onKnowledgeAdded,
 }: CreateKnowledgeArticleSheetProps) {
-	const [sources, setSources] = useState<KnowledgeSource[]>(INITIAL_SOURCES);
+	const { t } = useTranslation("tickets");
+	const hasHistoricalTickets = historicalTicketCount > 0;
+	const [sources, setSources] = useState<KnowledgeSource[]>(() =>
+		INITIAL_SOURCES.map((s) =>
+			s.id === "historical-tickets"
+				? { ...s, checked: hasHistoricalTickets }
+				: s,
+		),
+	);
 	const [generatedArticle, setGeneratedArticle] = useState<string>("");
 	const [isCopied, setIsCopied] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
@@ -188,7 +200,13 @@ export function CreateKnowledgeArticleSheet({
 
 	const resetState = () => {
 		setGeneratedArticle("");
-		setSources(INITIAL_SOURCES);
+		setSources(
+			INITIAL_SOURCES.map((s) =>
+				s.id === "historical-tickets"
+					? { ...s, checked: hasHistoricalTickets }
+					: s,
+			),
+		);
 		setIsCopied(false);
 		setSaveError(null);
 		store.reset();
@@ -238,28 +256,46 @@ export function CreateKnowledgeArticleSheet({
 						</div>
 
 						<div className="flex flex-col gap-2">
-							{sources.map((source) => (
-								<label
-									key={source.id}
-									htmlFor={source.id}
-									className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-								>
-									<Checkbox
-										id={source.id}
-										checked={source.checked}
-										onCheckedChange={() => handleSourceToggle(source.id)}
-										disabled={isGenerating}
-										className="mt-0.5"
-										aria-label={`Include ${source.label} as a knowledge source`}
-									/>
-									<div className="flex flex-col gap-0.5">
-										<span className="text-sm font-medium">{source.label}</span>
-										<span className="text-sm text-muted-foreground">
-											{source.description}
-										</span>
-									</div>
-								</label>
-							))}
+							{sources.map((source) => {
+								const isSourceDisabled =
+									source.id === "historical-tickets" && !hasHistoricalTickets;
+								return (
+									<label
+										key={source.id}
+										htmlFor={source.id}
+										className={`flex items-start gap-3 rounded-lg border p-4 transition-colors ${
+											isSourceDisabled
+												? "opacity-50 cursor-not-allowed"
+												: "cursor-pointer hover:bg-accent/50"
+										}`}
+									>
+										<Checkbox
+											id={source.id}
+											checked={source.checked}
+											onCheckedChange={() =>
+												!isSourceDisabled && handleSourceToggle(source.id)
+											}
+											disabled={isGenerating || isSourceDisabled}
+											className="mt-0.5"
+											aria-label={`Include ${source.label} as a knowledge source`}
+										/>
+										<div className="flex flex-col gap-0.5">
+											<span className="text-sm font-medium">
+												{source.label}
+											</span>
+											<span className="text-sm text-muted-foreground">
+												{isSourceDisabled
+													? t(
+															"createKnowledge.sources.historicalTicketsDisabled",
+														)
+													: source.id === "historical-tickets"
+														? t("createKnowledge.sources.historicalTickets")
+														: t("createKnowledge.sources.webSearch")}
+											</span>
+										</div>
+									</label>
+								);
+							})}
 						</div>
 					</div>
 

@@ -62,6 +62,7 @@ export interface ClusterDetails {
 	kb_articles_count: number;
 	ticket_count: number;
 	open_count: number;
+	historical_ticket_count: number;
 	created_at: string;
 	updated_at: string;
 }

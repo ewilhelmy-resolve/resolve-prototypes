@@ -35,6 +35,7 @@ export class ClusterService {
 			.selectFrom("clusters as c")
 			.leftJoin("cluster_kb_links as kb", "kb.cluster_id", "c.id")
 			.leftJoin("tickets as t", "t.cluster_id", "c.id")
+			.leftJoin("historical_tickets as ht", "ht.cluster_id", "c.id")
 			.select([
 				"c.id",
 				"c.organization_id",
@@ -52,6 +53,7 @@ export class ClusterService {
 				sql<number>`COALESCE(COUNT(DISTINCT t.id) FILTER (WHERE t.external_status = 'Open'), 0)`.as(
 					"open_count",
 				),
+				eb.fn.count(sql`DISTINCT ht.id`).as("historical_ticket_count"),
 			])
 			.where("c.id", "=", clusterId)
 			.where("c.organization_id", "=", organizationId)
@@ -73,6 +75,7 @@ export class ClusterService {
 			kb_articles_count: Number(result.kb_articles_count),
 			ticket_count: Number(result.ticket_count),
 			open_count: Number(result.open_count),
+			historical_ticket_count: Number(result.historical_ticket_count),
 			created_at: result.created_at as Date,
 			updated_at: result.updated_at as Date,
 		};

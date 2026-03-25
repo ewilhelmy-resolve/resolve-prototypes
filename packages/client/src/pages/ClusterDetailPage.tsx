@@ -238,6 +238,7 @@ export default function ClusterDetailPage() {
 					clusterName={title}
 					kbArticlesCount={cluster.kb_articles_count}
 					kbStatus={cluster.kb_status}
+					historicalTicketCount={cluster.historical_ticket_count}
 					onKnowledgeAdded={handleKnowledgeAdded}
 				/>
 			</div>

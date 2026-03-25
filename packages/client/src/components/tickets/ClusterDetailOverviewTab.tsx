@@ -20,6 +20,8 @@ interface ClusterDetailOverviewTabProps {
 	openTicketsCount?: number;
 	/** Knowledge base status from cluster API */
 	kbStatus?: KBStatus;
+	/** Number of historical tickets for this cluster */
+	historicalTicketCount?: number;
 	/** Called when auto-populate is enabled */
 	onAutoPopulateEnabled?: () => void;
 	/** Called when knowledge article is added */
@@ -43,6 +45,7 @@ export function ClusterDetailOverviewTab({
 	clusterName = "Cluster",
 	openTicketsCount = 0,
 	kbStatus,
+	historicalTicketCount = 0,
 	onAutoPopulateEnabled,
 	onKnowledgeAdded,
 	onAutoRespondEnabled,
@@ -116,6 +119,7 @@ export function ClusterDetailOverviewTab({
 				onOpenChange={setCreateKnowledgeSheetOpen}
 				clusterId={clusterId}
 				ticketGroupName={clusterName}
+				historicalTicketCount={historicalTicketCount}
 				onKnowledgeAdded={onKnowledgeAdded}
 			/>
 

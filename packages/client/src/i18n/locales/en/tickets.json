@@ -304,6 +304,13 @@
 		"failedToLoad": "Failed to load KB articles",
 		"noArticles": "No knowledge articles linked"
 	},
+	"createKnowledge": {
+		"sources": {
+			"historicalTickets": "Use past ticket resolutions and patterns from this cluster",
+			"historicalTicketsDisabled": "No historical tickets available for this cluster",
+			"webSearch": "Include relevant information from web sources and documentation"
+		}
+	},
 	"prioritizationList": {
 		"presets": {
 			"highestCost": "Highest Cost Impact",
