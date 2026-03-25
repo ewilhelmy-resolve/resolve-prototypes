@@ -40,7 +40,7 @@ jobs:
 
     - run: pnpm install --frozen-lockfile
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.ONBOARDING_GITHUB_TOKEN }}
 
     - name: Cache TypeScript build info
       uses: actions/cache@v4

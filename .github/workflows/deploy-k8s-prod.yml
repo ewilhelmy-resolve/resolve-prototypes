@@ -80,7 +80,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ONBOARDING_GITHUB_TOKEN }}
 
       - name: Build API Server
         run: pnpm --filter rita-api-server build
