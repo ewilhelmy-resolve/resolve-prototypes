@@ -6,7 +6,7 @@ import RitaLayout from "@/components/layouts/RitaLayout";
 import ReviewAIResponseSheet from "@/components/tickets/ReviewAIResponseSheet";
 import { TicketDetailHeader } from "@/components/tickets/TicketDetailHeader";
 import TicketDetailsCard from "@/components/tickets/TicketDetailsCard";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { useClusterTickets, useTicket } from "@/hooks/useClusters";
 import type {
 	ClusterTicketsQueryParams,
@@ -96,12 +96,13 @@ export default function TicketDetailPage() {
 			<RitaLayout activePage="tickets">
 				<div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
 					<p className="text-muted-foreground">{t("page.notFound")}</p>
-					<Button asChild variant="outline">
-						<Link to={clusterId ? `/tickets/${clusterId}` : "/tickets"}>
-							<ChevronLeft className="mr-2 h-4 w-4" />
-							{t("navigation.backToCluster")}
-						</Link>
-					</Button>
+					<Link
+						to={clusterId ? `/tickets/${clusterId}` : "/tickets"}
+						className={buttonVariants({ variant: "outline" })}
+					>
+						<ChevronLeft className="mr-2 h-4 w-4" />
+						{t("navigation.backToCluster")}
+					</Link>
 				</div>
 			</RitaLayout>
 		);
