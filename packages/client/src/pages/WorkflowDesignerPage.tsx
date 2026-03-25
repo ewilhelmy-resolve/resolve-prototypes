@@ -11,6 +11,7 @@ import {
 	FileText,
 	History,
 	MoreVertical,
+	Play,
 	Plus,
 	Upload,
 	X,
@@ -30,6 +31,7 @@ import { WorkflowCanvas } from "@/components/workflow-designer/WorkflowCanvas";
 import { WorkflowConfigPanel } from "@/components/workflow-designer/WorkflowConfigPanel";
 import { WorkflowConfigPanelV2 } from "@/components/workflow-designer/WorkflowConfigPanelV2";
 import { WorkflowJarvisPanel } from "@/components/workflow-designer/WorkflowJarvisPanel";
+import { WorkflowSkillAutoDetectDialog } from "@/components/workflow-designer/WorkflowSkillAutoDetectDialog";
 import { WorkflowSkillMetadataDialog } from "@/components/workflow-designer/WorkflowSkillMetadataDialog";
 import { WorkflowSkillVariableDialog } from "@/components/workflow-designer/WorkflowSkillVariableDialog";
 import {
@@ -46,6 +48,7 @@ import type {
 	WorkflowTab,
 } from "@/components/workflow-designer/workflowDesignerTypes";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
+import { toast } from "@/lib/toast";
 
 const DEFAULT_SKILL_METADATA: SkillMetadata = {
 	name: "",
@@ -72,6 +75,10 @@ export default function WorkflowDesignerPage() {
 		"json" | "variables" | null
 	>(null);
 	const [skillOption, setSkillOption] = useState<"json" | "variables">("json");
+	const [runDialogOpen, setRunDialogOpen] = useState(false);
+	const [workflowDescriptionMap, setWorkflowDescriptionMap] = useState<
+		Record<string, string>
+	>({});
 	const [publishedSkills, setPublishedSkills] = useState<
 		Record<string, SkillMetadata>
 	>({});
@@ -124,8 +131,16 @@ export default function WorkflowDesignerPage() {
 				setEdges([]);
 			}
 			setSelectedNodeId(null);
+			// Store template description for the active tab
+			const template = WORKFLOW_TEMPLATES.find((t) => t.id === templateId);
+			if (template) {
+				setWorkflowDescriptionMap((prev) => ({
+					...prev,
+					[activeTabId]: template.description,
+				}));
+			}
 		},
-		[setNodes, setEdges],
+		[setNodes, setEdges, activeTabId],
 	);
 
 	const handleLoadTemplate = useCallback(
@@ -171,6 +186,9 @@ export default function WorkflowDesignerPage() {
 					// ignore
 				}
 				return next;
+			});
+			toast.success("Skill published", {
+				description: `${metadata.name} is now available in the Agent Builder.`,
 			});
 		},
 		[activeTabId],
@@ -291,6 +309,16 @@ export default function WorkflowDesignerPage() {
 								)}
 							</div>
 						))}
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+							aria-label="Run workflow"
+							onClick={() => setRunDialogOpen(true)}
+							disabled={nodes.length === 0}
+						>
+							<Play className="w-4 h-4" />
+						</Button>
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button
@@ -369,6 +397,7 @@ export default function WorkflowDesignerPage() {
 								workflowName={
 									tabs.find((t) => t.id === activeTabId)?.name ?? ""
 								}
+								workflowDescription={workflowDescriptionMap[activeTabId] ?? ""}
 								skillMetadata={
 									skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA
 								}
@@ -410,6 +439,33 @@ export default function WorkflowDesignerPage() {
 					}))
 				}
 				onPublish={handlePublishSkill}
+			/>
+			<WorkflowSkillAutoDetectDialog
+				open={runDialogOpen}
+				onOpenChange={setRunDialogOpen}
+				onRun={(variableNames) => {
+					toast.success("Workflow execution started");
+					// Store detected variables so skill config can pre-populate
+					const currentMeta =
+						skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA;
+					if (variableNames.length > 0) {
+						const inputs: Record<
+							string,
+							{ type: string; description: string; activity: string }
+						> = {};
+						for (const name of variableNames) {
+							inputs[name] = { type: "string", description: "", activity: "" };
+						}
+						setSkillMetadataMap((prev) => ({
+							...prev,
+							[activeTabId]: {
+								...currentMeta,
+								inputsJson: JSON.stringify(inputs, null, 2),
+							},
+						}));
+					}
+				}}
+				nodes={nodes}
 			/>
 		</RitaLayout>
 	);
