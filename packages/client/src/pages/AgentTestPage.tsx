@@ -9,11 +9,13 @@
  * 5. Apply or skip, then test another or publish
  */
 
+import confetti from "canvas-confetti";
 import {
 	ArrowLeft,
 	BookOpen,
 	Bot,
 	BotMessageSquare,
+	Check,
 	ChevronDown,
 	ChevronUp,
 	Database,
@@ -25,6 +27,7 @@ import {
 	ShieldCheck,
 	ThumbsDown,
 	ThumbsUp,
+	X,
 	Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -169,6 +172,81 @@ export default function AgentTestPage() {
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 
+	// Demo mode
+	const [demoMode, setDemoMode] = useState(false);
+	const [demoStep, setDemoStep] = useState(0);
+
+	const DEMO_STEPS = [
+		{ label: "Send Prompt", description: "User asks a question" },
+		{ label: "Rate Poor", description: "Thumbs down the response" },
+		{ label: "Give Feedback", description: "Tell agent what's wrong" },
+		{ label: "Rate Good", description: "Approve the retry" },
+		{ label: "Apply Fix", description: "Apply suggestion to instructions" },
+		{ label: "Publish", description: "Make agent live" },
+	];
+
+	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+	const handleDemoNext = async () => {
+		switch (demoStep) {
+			case 0: {
+				// Send a test prompt
+				const prompt = starters[0] || "I need to reset my password";
+				handleStartTest(prompt);
+				setDemoStep(1);
+				break;
+			}
+			case 1: {
+				// Rate poor
+				await wait(300);
+				handleRating("poor");
+				setDemoStep(2);
+				break;
+			}
+			case 2: {
+				// Give feedback directly (bypass state since setFeedbackInput is async)
+				const demoFeedback = "Be more specific about the steps and include a timeline";
+				const newHistory = [...feedbackHistory, demoFeedback];
+				setFeedbackHistory(newHistory);
+				addMessage({ type: "user-feedback", content: demoFeedback });
+				setFeedbackInput("");
+				setIsLoading(true);
+				setPhase("processing");
+				await wait(800);
+				const { response, sources } = generateResponse(currentPrompt, config, newHistory);
+				addMessage({ type: "agent-retry", content: response, sourcesUsed: sources, iterationNumber: newHistory.length });
+				setIsLoading(false);
+				setPhase("awaiting-rating");
+				setDemoStep(3);
+				break;
+			}
+			case 3: {
+				// Rate good (triggers suggestion)
+				await wait(300);
+				handleRating("good");
+				setDemoStep(4);
+				break;
+			}
+			case 4: {
+				// Apply suggestion
+				await wait(300);
+				handleSuggestionResponse(true);
+				setDemoStep(5);
+				break;
+			}
+			case 5: {
+				// Publish
+				setShowPublishDialog(true);
+				setDemoStep(6);
+				break;
+			}
+			default:
+				setDemoMode(false);
+				setDemoStep(0);
+				break;
+		}
+	};
+
 	useEffect(() => {
 		chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages]);
@@ -259,6 +337,8 @@ export default function AgentTestPage() {
 		}
 	};
 
+	const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
+
 	const handleSuggestionResponse = (accepted: boolean) => {
 		if (accepted) {
 			const suggestionIndex = messages.findIndex(
@@ -286,12 +366,14 @@ export default function AgentTestPage() {
 			}
 			addMessage({
 				type: "system",
-				content: "Instructions updated! **Retest** with the same or a new prompt to verify the improvement. If the response is good, you can **publish** the agent to make it live for real users.",
+				content: "INSTRUCTIONS_UPDATED",
 			});
+			setShowInstructionsPreview(true);
+			setTimeout(() => setShowInstructionsPreview(false), 8000);
 		} else {
 			addMessage({
 				type: "system",
-				content: "Skipped. You can **edit the instructions** manually, then retest. When you're happy with the results, **publish** to go live.",
+				content: "Skipped. You can edit the instructions manually, then retest. When you're happy with the results, publish to go live.",
 			});
 		}
 		setPhase("idle");
@@ -398,6 +480,30 @@ export default function AgentTestPage() {
 					</Button>
 				</div>
 			</header>
+
+			{/* Instructions updated banner */}
+			{showInstructionsPreview && config.instructions && (
+				<div className="bg-muted/50 border-b border-border px-6 py-2.5 animate-in slide-in-from-top duration-300">
+					<div className="max-w-2xl mx-auto flex items-start gap-2.5">
+						<div className="size-4 rounded-full bg-foreground flex items-center justify-center shrink-0 mt-0.5">
+							<Check className="size-2.5 text-background" />
+						</div>
+						<div className="flex-1 min-w-0">
+							<p className="text-xs font-medium text-foreground mb-0.5">Instructions updated</p>
+							<p className="text-[11px] text-muted-foreground line-clamp-2 font-mono leading-relaxed whitespace-pre-wrap">
+								{config.instructions.slice(-200)}
+							</p>
+						</div>
+						<button
+							onClick={() => setShowInstructionsPreview(false)}
+							className="text-muted-foreground hover:text-foreground shrink-0"
+							aria-label="Dismiss"
+						>
+							<X className="size-3.5" />
+						</button>
+					</div>
+				</div>
+			)}
 
 			{/* Chat area */}
 			<div className="flex-1 overflow-y-auto">
@@ -582,49 +688,97 @@ export default function AgentTestPage() {
 												)}
 
 												{/* System message */}
-												{msg.type === "system" && (
+												{msg.type === "system" && msg.content !== "INSTRUCTIONS_UPDATED" && (
 													<p className="text-[11px] text-muted-foreground text-center py-2">
 														{msg.content}
+													</p>
+												)}
+												{msg.type === "system" && msg.content === "INSTRUCTIONS_UPDATED" && (
+													<p className="text-[11px] text-muted-foreground text-center py-2">
+														Instructions updated
 													</p>
 												)}
 
 												{/* Suggestion */}
 												{msg.type === "suggestion" && msg.suggestion && (
-													<div className="bg-neutral-50 rounded-md p-2">
-														<div className="flex items-start gap-[10px]">
-															<div className="flex items-start py-[7px] shrink-0">
-																<Zap className="size-[18px] text-foreground" />
+													<div className="flex gap-2.5 items-start w-full">
+														<div className="shrink-0 pt-[7px]">
+															<Zap className="size-[18px] text-foreground" />
+														</div>
+														<div className="flex-1 flex flex-col gap-2 min-w-0">
+															<div className="flex flex-col gap-1 text-foreground">
+																<p className="text-sm font-bold leading-5">
+																	Suggested improvement
+																</p>
+																<p className="text-sm leading-5">
+																	{msg.content}
+																</p>
 															</div>
-															<div className="flex-1 flex flex-col gap-2">
-																<div className="flex flex-col gap-1">
-																	<p className="text-sm font-bold text-foreground">
-																		Suggested improvement
+															<div className="bg-neutral-50 rounded-md px-2 py-2 w-full">
+																<div className="flex flex-col gap-2.5">
+																	<p className="text-sm text-muted-foreground truncate">
+																		INSTRUCTIONS UPDATE
 																	</p>
-																	<p className="text-sm text-foreground">
-																		{msg.content}
-																	</p>
-																</div>
-																<div className="bg-neutral-50 rounded-md py-2">
-																	<p className="text-sm text-foreground leading-normal">
+																	<p className="text-sm text-foreground leading-5">
 																		{msg.suggestion.updateValue}
 																	</p>
 																</div>
-																{!msg.suggestion.applied &&
-																	phase === "awaiting-suggestion-response" && (
+															</div>
+															{msg.suggestion.applied && (
+																<>
+																	<div className="flex items-center gap-1">
+																		<Check className="size-3.5 text-gray-400" />
+																		<p className="text-sm italic text-gray-400">
+																			Applied
+																		</p>
+																	</div>
+																	<p className="text-sm text-foreground leading-5">
+																		Retest to verify the improvement, or publish if you're satisfied.
+																	</p>
+																	<div className="flex items-center gap-3">
+																		<Button
+																			variant="secondary"
+																			size="sm"
+																			className="h-8 text-xs rounded-md shadow-sm"
+																			onClick={() => {
+																				if (currentPrompt) {
+																					handleStartTest(currentPrompt);
+																				}
+																			}}
+																		>
+																			Retest prompt
+																		</Button>
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			className="h-8 text-xs"
+																			onClick={() => inputRef.current?.focus()}
+																		>
+																			New prompt
+																		</Button>
+																	</div>
+																</>
+															)}
+															{!msg.suggestion.applied &&
+																phase === "awaiting-suggestion-response" && (
+																	<div className="flex items-center gap-2">
 																		<Button
 																			size="sm"
 																			onClick={() => handleSuggestionResponse(true)}
-																			className="h-8 w-fit text-xs"
+																			className="h-8 text-xs rounded-md shadow-sm"
 																		>
-																			Apply suggestion
+																			Apply to Agent Instructions
 																		</Button>
-																	)}
-																{msg.suggestion.applied && (
-																	<p className="text-xs text-emerald-600 font-medium">
-																		Applied
-																	</p>
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			onClick={() => handleSuggestionResponse(false)}
+																			className="h-8 text-xs"
+																		>
+																			Skip suggestion
+																		</Button>
+																	</div>
 																)}
-															</div>
 														</div>
 													</div>
 												)}
@@ -727,27 +881,106 @@ export default function AgentTestPage() {
 							Cancel
 						</Button>
 						<Button
-							onClick={() =>
-								navigate("/agents", {
-									state: {
-										publishedAgent: {
-											id: agentId || Date.now().toString(),
-											name: config.name,
-											description: config.description,
-											agentType: config.agentType,
-											iconId: config.iconId,
-											iconColorId: config.iconColorId,
-											skills: config.workflows,
+							onClick={() => {
+								confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+								setTimeout(() => {
+									navigate("/agents", {
+										state: {
+											publishedAgent: {
+												id: agentId || Date.now().toString(),
+												name: config.name,
+												description: config.description,
+												agentType: config.agentType,
+												iconId: config.iconId,
+												iconColorId: config.iconColorId,
+												skills: config.workflows,
+											},
 										},
-									},
-								})
-							}
+									});
+								}, 1200);
+							}}
 						>
 							Publish
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+			{/* Demo mode trigger button */}
+			{!demoMode && (
+				<button
+					type="button"
+					onClick={() => {
+						setDemoMode(true);
+						setDemoStep(0);
+						handleReset();
+					}}
+					className="fixed bottom-4 left-4 z-50 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-full shadow-lg hover:bg-violet-700 transition-colors flex items-center gap-1.5"
+				>
+					<Zap className="size-3" />
+					Demo
+				</button>
+			)}
+
+			{/* Demo stepper bar */}
+			{demoMode && (
+				<div className="fixed bottom-0 left-0 right-0 z-50 bg-violet-900 text-white px-6 py-3 flex items-center gap-4 shadow-2xl">
+					<div className="flex items-center gap-2">
+						<Zap className="size-4" />
+						<span className="text-sm font-semibold">Demo</span>
+					</div>
+					<div className="flex-1 flex items-center gap-1">
+						{DEMO_STEPS.map((s, i) => (
+							<div
+								key={s.label}
+								className={cn(
+									"flex items-center gap-1.5 px-2 py-1 rounded-full text-xs",
+									i === demoStep
+										? "bg-white/20 font-medium"
+										: i < demoStep
+											? "text-white/60"
+											: "text-white/40",
+								)}
+							>
+								<span
+									className={cn(
+										"size-5 rounded-full flex items-center justify-center text-[10px] font-bold",
+										i < demoStep
+											? "bg-emerald-500"
+											: i === demoStep
+												? "bg-white text-violet-900"
+												: "bg-white/20",
+									)}
+								>
+									{i < demoStep ? "✓" : i + 1}
+								</span>
+								{s.label}
+							</div>
+						))}
+					</div>
+					<div className="flex items-center gap-2">
+						<Button
+							size="sm"
+							variant="ghost"
+							className="text-white/70 hover:text-white hover:bg-white/10 h-7 text-xs"
+							onClick={handleDemoNext}
+							disabled={isLoading}
+						>
+							Next
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="text-white/40 hover:text-white hover:bg-white/10 h-7 text-xs"
+							onClick={() => {
+								setDemoMode(false);
+								setDemoStep(0);
+							}}
+						>
+							Exit
+						</Button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

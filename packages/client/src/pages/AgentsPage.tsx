@@ -17,6 +17,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "@/lib/toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { type Agent, AgentsTable } from "@/components/agents/AgentsTable";
 import {
@@ -119,10 +120,11 @@ export default function AgentsPage() {
 	// Dynamic agents list (includes newly published agents)
 	const [agents, setAgents] = useState<Agent[]>(mockAgents);
 
-	// Handle newly published agent from navigation state
+	// Handle newly published or unpublished agent from navigation state
 	useEffect(() => {
 		const state = location.state as {
 			publishedAgent?: PublishedAgentState;
+			unpublishedAgent?: { id: string; name: string };
 		} | null;
 		if (state?.publishedAgent) {
 			const published = state.publishedAgent;
@@ -163,7 +165,26 @@ export default function AgentsPage() {
 				return [newAgent, ...prev];
 			});
 
+			toast.success(`${published.name} published`, {
+				description: "Agent is now live and available to users.",
+			});
+
 			// Clear the state to prevent re-adding on refresh
+			window.history.replaceState({}, document.title);
+		}
+
+		if (state?.unpublishedAgent) {
+			const { id, name } = state.unpublishedAgent;
+			setAgents((prev) =>
+				prev.map((a) =>
+					a.id === id
+						? { ...a, status: "draft" as const }
+						: a,
+				),
+			);
+			toast(`${name} moved to draft`, {
+				description: "Agent is no longer available to users.",
+			});
 			window.history.replaceState({}, document.title);
 		}
 	}, [location.state]);

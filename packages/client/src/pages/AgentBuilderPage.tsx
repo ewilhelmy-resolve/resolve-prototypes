@@ -902,6 +902,69 @@ export default function AgentBuilderPage() {
 	// Description visibility toggle
 	const [showDescription, setShowDescription] = useState(false);
 
+	// Demo mode state
+	const [demoMode, setDemoMode] = useState(false);
+	const [demoStep, setDemoStep] = useState(0);
+
+	const DEMO_STEPS = [
+		{ label: "Create Agent", description: "Fill in agent details" },
+		{ label: "Add Skills", description: "Configure workflows" },
+		{ label: "Add Starters", description: "Set conversation starters" },
+		{ label: "Test Agent", description: "Navigate to test page" },
+		{ label: "Publish", description: "Make agent live" },
+	];
+
+	const handleDemoNext = () => {
+		switch (demoStep) {
+			case 0:
+				setConfig((prev) => ({
+					...prev,
+					name: "Store Hours Manager",
+					description:
+						"Updates store operating hours after manager approval",
+					agentType: "workflow" as const,
+					role: "Store Operations Manager",
+					iconId: "bot",
+					iconColorId: "emerald",
+				}));
+				setStep("done");
+				setDemoStep(1);
+				break;
+			case 1:
+				setConfig((prev) => ({
+					...prev,
+					workflows: ["Update Store Hours"],
+				}));
+				setDemoStep(2);
+				break;
+			case 2:
+				setConfig((prev) => ({
+					...prev,
+					conversationStarters: [
+						"Update store hours for location 42",
+						"Change weekend hours",
+						"Set holiday schedule",
+					],
+				}));
+				setDemoStep(3);
+				break;
+			case 3:
+				navigate("/agents/test", {
+					state: { agentConfig: config },
+				});
+				setDemoStep(4);
+				break;
+			case 4:
+				setShowPublishModal(true);
+				setDemoStep(5);
+				break;
+			default:
+				setDemoMode(false);
+				setDemoStep(0);
+				break;
+		}
+	};
+
 	// Knowledge collapsible toggle
 	const [showKnowledge, setShowKnowledge] = useState(false);
 
@@ -922,13 +985,14 @@ export default function AgentBuilderPage() {
 				};
 			});
 
-			const skillSections = skillEntries
-				.map((s) => `### ${s.name}\n${s.instructions}`)
-				.join("\n\n");
+			const skillNames = skillEntries.map((s) => s.name.toLowerCase()).join(", ");
+			const taskLines = skillEntries
+				.map((s) => `- **${s.name}**: ${s.instructions}`)
+				.join("\n");
 
 			setConfig((prev) => ({
 				...prev,
-				instructions: `## Role\nYou are a specialized assistant that helps users with ${skillEntries.map((s) => s.name.toLowerCase()).join(", ")}.\n\n## Goal\nResolve user requests efficiently by leveraging the skills below. Always verify identity before performing sensitive operations.\n\n## Skills\n${skillSections}\n\n## Guidelines\n- Be concise and professional\n- Confirm actions before executing\n- Escalate if outside your skill scope`,
+				instructions: `## Role\nYou are a specialized assistant that helps users with ${skillNames}.\n\n## Backstory\nYou have expertise in ${skillNames} and understand the importance of accurate, timely resolution for each request. You ensure that all actions are properly validated before execution.\n\n## Goal\nResolve user requests efficiently by leveraging the skills below. Always verify identity before performing sensitive operations.\n\n## Task\nAnalyze context to identify the user's request and match it to the appropriate skill:\n${taskLines}\n\nAlways confirm actions before executing and escalate if outside your skill scope.`,
 			}));
 			setInstructionsUpdatedFromSkills(true);
 			const timer = setTimeout(
@@ -2511,12 +2575,7 @@ export default function AgentBuilderPage() {
 			});
 		}, 250);
 
-		// Show success toast
-		toast.success("Agent published successfully", {
-			description: `${config.name} is now available for users.`,
-		});
-
-		// Navigate back to agents list with published agent data
+		// Navigate back to agents list with published agent data (toast shown on arrival)
 		navigate("/agents", {
 			state: {
 				publishedAgent: {
@@ -2826,37 +2885,8 @@ export default function AgentBuilderPage() {
 			<div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
 				{/* Left panel - Configure/Access */}
 				<div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
-					{/* Tabs */}
-					<div className="flex items-center justify-center px-4 pt-4 pb-2">
-						<Tabs
-							value={activeTab}
-							onValueChange={(v) => setActiveTab(v as "configure" | "access")}
-						>
-							<TabsList className="bg-muted/50">
-								<TabsTrigger value="configure" className="px-8">
-									Configure
-								</TabsTrigger>
-								<TabsTrigger value="access" className="px-8">
-									Access
-								</TabsTrigger>
-							</TabsList>
-						</Tabs>
-					</div>
-
-					{/* HIDDEN: Chat Assistant Tab - preserved for future AI-contextual features
-          {activeTab === "chat" && (
-            <>
-              {/* Chat messages *}
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-                ... chat content hidden ...
-              </div>
-            </>
-          )}
-          */}
-
-					{activeTab === "configure" ? (
-						/* Configure tab content - Clean design matching Figma */
-						<div className="flex-1 overflow-y-auto p-6">
+					{/* Configure content */}
+					<div className="flex-1 overflow-y-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-8">
 								{/* Name of agent with icon picker */}
 								<div>
@@ -3129,7 +3159,7 @@ export default function AgentBuilderPage() {
 														instructions: e.target.value,
 													}))
 												}
-												placeholder="## Role\n\n## Backstory\n\n## Goal\n\n## Task"
+												placeholder={"## Role\n\n## Backstory\n\n## Goal\n\n## Task"}
 												className="min-h-[80px] max-h-[120px] resize-none text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
 											/>
 											<button
@@ -3197,8 +3227,9 @@ export default function AgentBuilderPage() {
 														}));
 													}}
 													className="text-muted-foreground hover:text-destructive"
+													aria-label={`Remove ${starter}`}
 												>
-													<Plus className="size-3" />
+													<X className="size-3" />
 												</button>
 											</div>
 										))}
@@ -3209,19 +3240,21 @@ export default function AgentBuilderPage() {
 												placeholder="Type and press Enter to add..."
 												className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
 												onKeyDown={(e) => {
+													const input = e.currentTarget;
 													if (
 														e.key === "Enter" &&
-														e.currentTarget.value.trim()
+														input.value.trim()
 													) {
 														e.preventDefault();
+														const newStarter = input.value.trim();
 														setConfig((prev) => ({
 															...prev,
 															conversationStarters: [
 																...prev.conversationStarters,
-																e.currentTarget.value.trim(),
+																newStarter,
 															],
 														}));
-														e.currentTarget.value = "";
+														input.value = "";
 													}
 												}}
 											/>
@@ -3552,264 +3585,9 @@ export default function AgentBuilderPage() {
 								</div>
 							</div>
 						</div>
-					) : (
-						/* Access tab content - Postman-style sharing */
-						<div className="flex-1 overflow-y-auto p-6">
-							<div className="max-w-2xl mx-auto space-y-6">
-								{/* Header */}
-								<h2 className="text-base font-semibold">Share agent</h2>
-
-								{/* Add people/teams search */}
-								<div className="relative">
-									<div className="relative">
-										<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-										<Input
-											placeholder="Add people or teams..."
-											className="pl-9"
-											value={accessSearchQuery}
-											onChange={(e) => {
-												setAccessSearchQuery(e.target.value);
-												setShowAccessDropdown(e.target.value.length > 0);
-											}}
-											onFocus={() =>
-												accessSearchQuery.length > 0 &&
-												setShowAccessDropdown(true)
-											}
-											onBlur={() =>
-												setTimeout(() => setShowAccessDropdown(false), 150)
-											}
-										/>
-									</div>
-
-									{/* Search dropdown suggestions */}
-									{showAccessDropdown && (
-										<div className="absolute top-full left-0 right-0 mt-1 border rounded-lg shadow-lg bg-white p-1 z-10">
-											<p className="text-xs font-medium text-muted-foreground px-3 py-2">
-												Teams
-											</p>
-											{[
-												{
-													id: "it",
-													name: "IT",
-													color: "blue",
-													bgClass: "bg-blue-100",
-													textClass: "text-blue-600",
-												},
-												{
-													id: "hr",
-													name: "HR",
-													color: "emerald",
-													bgClass: "bg-emerald-100",
-													textClass: "text-emerald-600",
-												},
-												{
-													id: "finance",
-													name: "Finance",
-													color: "amber",
-													bgClass: "bg-amber-100",
-													textClass: "text-amber-600",
-												},
-											]
-												.filter(
-													(t) => !addedAccessItems.find((a) => a.id === t.id),
-												)
-												.map((team) => (
-													<button
-														key={team.id}
-														className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted/50 rounded-md text-left"
-														onClick={() => {
-															setAddedAccessItems((prev) => [
-																...prev,
-																{ ...team, type: "team" },
-															]);
-															setAccessSearchQuery("");
-															setShowAccessDropdown(false);
-														}}
-													>
-														<div
-															className={`size-8 rounded-full ${team.bgClass} flex items-center justify-center`}
-														>
-															<Users className={`size-4 ${team.textClass}`} />
-														</div>
-														<span className="text-sm">{team.name}</span>
-													</button>
-												))}
-											<div className="border-t my-1" />
-											<p className="text-xs font-medium text-muted-foreground px-3 py-2">
-												People
-											</p>
-											{[
-												{
-													id: "jd",
-													name: "John Doe",
-													email: "john.doe@acme.com",
-													initials: "JD",
-													color: "purple",
-													bgClass: "bg-purple-100",
-													textClass: "text-purple-600",
-												},
-												{
-													id: "js",
-													name: "Jane Smith",
-													email: "jane.smith@acme.com",
-													initials: "JS",
-													color: "rose",
-													bgClass: "bg-rose-100",
-													textClass: "text-rose-600",
-												},
-											]
-												.filter(
-													(u) => !addedAccessItems.find((a) => a.id === u.id),
-												)
-												.map((user) => (
-													<button
-														key={user.id}
-														className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted/50 rounded-md text-left"
-														onClick={() => {
-															setAddedAccessItems((prev) => [
-																...prev,
-																{ ...user, type: "user" },
-															]);
-															setAccessSearchQuery("");
-															setShowAccessDropdown(false);
-														}}
-													>
-														<div
-															className={`size-8 rounded-full ${user.bgClass} flex items-center justify-center`}
-														>
-															<span
-																className={`text-xs font-medium ${user.textClass}`}
-															>
-																{user.initials}
-															</span>
-														</div>
-														<div>
-															<p className="text-sm">{user.name}</p>
-															<p className="text-xs text-muted-foreground">
-																{user.email}
-															</p>
-														</div>
-													</button>
-												))}
-										</div>
-									)}
-								</div>
-
-								{/* Current user (owner) */}
-								<div className="flex items-center justify-between py-2">
-									<div className="flex items-center gap-3">
-										<div className="size-10 rounded-full bg-purple-100 flex items-center justify-center">
-											<span className="text-sm font-medium text-purple-600">
-												EW
-											</span>
-										</div>
-										<span className="font-medium text-sm">
-											Erica Wilhelmy (You)
-										</span>
-									</div>
-									<span className="text-sm text-muted-foreground">Owner</span>
-								</div>
-
-								{/* Added teams/users */}
-								{addedAccessItems.map((item) => (
-									<div
-										key={item.id}
-										className="flex items-center justify-between py-2"
-									>
-										<div className="flex items-center gap-3">
-											{item.type === "team" ? (
-												<div
-													className={`size-10 rounded-full ${item.bgClass} flex items-center justify-center`}
-												>
-													<Users className={`size-5 ${item.textClass}`} />
-												</div>
-											) : (
-												<div
-													className={`size-10 rounded-full ${item.bgClass} flex items-center justify-center`}
-												>
-													<span
-														className={`text-sm font-medium ${item.textClass}`}
-													>
-														{item.initials}
-													</span>
-												</div>
-											)}
-											{item.type === "team" ? (
-												<span className="font-medium text-sm">{item.name}</span>
-											) : (
-												<div>
-													<p className="font-medium text-sm">{item.name}</p>
-													<p className="text-xs text-muted-foreground">
-														{item.email}
-													</p>
-												</div>
-											)}
-										</div>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-													Can view
-													<ChevronDown className="size-4" />
-												</button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" className="w-52">
-												<DropdownMenuItem>Can edit</DropdownMenuItem>
-												<DropdownMenuItem className="flex items-center justify-between">
-													Can view
-													<Check className="size-4" />
-												</DropdownMenuItem>
-												<DropdownMenuItem
-													onClick={() =>
-														setAddedAccessItems((prev) =>
-															prev.filter((a) => a.id !== item.id),
-														)
-													}
-												>
-													Remove
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</div>
-								))}
-
-								{/* General access section */}
-								<div className="space-y-3 pt-2">
-									<h3 className="text-sm font-medium text-muted-foreground">
-										General access
-									</h3>
-
-									{/* Workspace access */}
-									<div className="flex items-center justify-between py-2">
-										<div className="flex items-center gap-3">
-											<div className="size-10 rounded-full bg-muted flex items-center justify-center">
-												<Landmark className="size-5 text-muted-foreground" />
-											</div>
-											<span className="font-medium text-sm">
-												Acme workspace
-											</span>
-										</div>
-										<DropdownMenu>
-											<DropdownMenuTrigger asChild>
-												<button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-													Can view
-													<ChevronDown className="size-4" />
-												</button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" className="w-48">
-												<DropdownMenuItem>Can edit</DropdownMenuItem>
-												<DropdownMenuItem className="flex items-center justify-between">
-													Can view
-													<Check className="size-4" />
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</div>
-								</div>
-							</div>
-						</div>
-					)}
 				</div>
 			</div>
+
 
 			{/* Change Agent Type Modal */}
 			{showChangeTypeModal && (
@@ -4081,101 +3859,83 @@ export default function AgentBuilderPage() {
 			{/* Publish Confirmation Modal */}
 			{showPublishModal && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					{/* Backdrop */}
 					<div
 						className="absolute inset-0 bg-black/50"
 						onClick={() => setShowPublishModal(false)}
 					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-8 space-y-6">
-						{/* Close button */}
+					<div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
 						<button
 							onClick={() => setShowPublishModal(false)}
-							className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+							className="absolute top-[15px] right-[15px] opacity-70 hover:opacity-100"
 						>
-							<X className="size-5" />
+							<X className="size-4" />
 						</button>
 
-						{/* Centered icon and title */}
-						<div className="flex flex-col items-center text-center pt-2">
-							<div
-								className={cn(
-									"size-20 rounded-2xl flex items-center justify-center mb-4",
-									ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg ||
-										"bg-slate-800",
-								)}
-							>
-								{(() => {
-									const IconComponent =
-										AVAILABLE_ICONS.find((i) => i.id === config.iconId)?.icon ||
-										Squirrel;
-									const colorClass =
-										ICON_COLORS.find((c) => c.id === config.iconColorId)
-											?.text || "text-white";
-									return (
-										<IconComponent className={cn("size-10", colorClass)} />
-									);
-								})()}
-							</div>
-							<h2 className="text-xl font-semibold mb-1">Ready to publish?</h2>
-							<p className="text-sm text-muted-foreground max-w-xs">
-								<span className="font-medium text-foreground">
-									{config.name}
-								</span>{" "}
-								will be available for users to interact with.
+						{/* Header */}
+						<div className="flex flex-col gap-1.5">
+							<p className="text-lg font-semibold leading-none text-foreground">
+								Publish agent
+							</p>
+							<p className="text-sm text-muted-foreground leading-5">
+								Publishing will make this agent active and available to be matched with real users in this environment.
 							</p>
 						</div>
 
-						{/* Summary stats */}
-						<div className="bg-muted/40 rounded-xl p-4 space-y-3">
-							{config.workflows.length > 0 && (
-								<div className="flex items-center justify-between text-sm">
-									<span className="text-muted-foreground">Skills</span>
-									<span className="font-medium">
-										{config.workflows.length} configured
-									</span>
+						{/* Agent card */}
+						<div className="bg-neutral-50 rounded-md px-2 py-2">
+							<div className="flex gap-2.5 items-start">
+								<div
+									className={cn(
+										"size-[38px] rounded-lg flex items-center justify-center shrink-0 overflow-clip p-2",
+										ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg || "bg-violet-200",
+									)}
+								>
+									{(() => {
+										const IconComponent = AVAILABLE_ICONS.find((i) => i.id === config.iconId)?.icon || Squirrel;
+										const colorClass = ICON_COLORS.find((c) => c.id === config.iconColorId)?.text || "text-white";
+										return <IconComponent className={cn("size-6", colorClass)} />;
+									})()}
 								</div>
-							)}
-							{config.knowledgeSources.length > 0 && (
-								<div className="flex items-center justify-between text-sm">
-									<span className="text-muted-foreground">
-										Knowledge Sources
-									</span>
-									<span className="font-medium">
-										{config.knowledgeSources.length} connected
-									</span>
+								<div className="flex-1 min-w-0 flex flex-col gap-2.5">
+									<div className="flex flex-col pb-0.5">
+										<p className="text-base font-bold text-foreground truncate leading-[22px]">
+											{config.name}
+										</p>
+										<p className="text-xs text-foreground leading-none">
+											{config.description}
+										</p>
+									</div>
+									{config.workflows.length > 0 && (
+										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
+											<span>Skills</span>
+											<span className="text-right">{config.workflows.length}</span>
+										</div>
+									)}
+									{config.knowledgeSources.length > 0 && (
+										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
+											<span>Knowledge Sources</span>
+											<span className="text-right">{config.knowledgeSources.length}</span>
+										</div>
+									)}
+									{config.guardrails.length > 0 && (
+										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
+											<span>Guardrails</span>
+											<span className="text-right">{config.guardrails.length}</span>
+										</div>
+									)}
 								</div>
-							)}
-							<div className="flex items-center justify-between text-sm">
-								<span className="text-muted-foreground">
-									Conversation Starters
-								</span>
-								<span className="font-medium">
-									{config.conversationStarters.filter((s) => s.trim()).length}{" "}
-									configured
-								</span>
 							</div>
-							{config.guardrails.length > 0 && (
-								<div className="flex items-center justify-between text-sm">
-									<span className="text-muted-foreground">Guardrails</span>
-									<span className="font-medium">
-										{config.guardrails.length} set
-									</span>
-								</div>
-							)}
 						</div>
 
-						{/* Action buttons */}
-						<div className="flex gap-3 pt-2">
+						{/* Footer */}
+						<div className="flex items-center justify-end gap-2">
 							<Button
 								variant="outline"
 								onClick={() => setShowPublishModal(false)}
-								className="flex-1"
 							>
 								Cancel
 							</Button>
-							<Button onClick={handleConfirmPublish} className="flex-1">
-								<Check className="size-4 mr-1.5" />
+							<Button onClick={handleConfirmPublish}>
 								Publish
 							</Button>
 						</div>
@@ -4246,10 +4006,15 @@ export default function AgentBuilderPage() {
 							<Button
 								variant="destructive"
 								onClick={() => {
-									console.log("Unpublishing agent:", config.name);
 									setShowUnpublishModal(false);
-									// Navigate back to agents page
-									navigate("/agents");
+									navigate("/agents", {
+										state: {
+											unpublishedAgent: {
+												id: agentId,
+												name: config.name,
+											},
+										},
+									});
 								}}
 								className="flex-1"
 							>
@@ -4263,175 +4028,84 @@ export default function AgentBuilderPage() {
 			{/* Publish Changes Modal with Diff */}
 			{showPublishChangesModal && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					{/* Backdrop */}
 					<div
 						className="absolute inset-0 bg-black/50"
 						onClick={() => setShowPublishChangesModal(false)}
 					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-5">
-						{/* Close button */}
+					<div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
 						<button
 							onClick={() => setShowPublishChangesModal(false)}
-							className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+							className="absolute top-[15px] right-[15px] opacity-70 hover:opacity-100"
 						>
-							<X className="size-5" />
+							<X className="size-4" />
 						</button>
 
 						{/* Header */}
-						<div>
-							<h2 className="text-lg font-semibold">Publish changes</h2>
-							<p className="text-sm text-muted-foreground mt-1">
-								Review the changes before publishing updates to{" "}
-								<span className="font-medium text-foreground">
-									{config.name}
-								</span>
+						<div className="flex flex-col gap-1.5">
+							<p className="text-lg font-semibold leading-none text-foreground">
+								Publish changes
+							</p>
+							<p className="text-sm text-muted-foreground leading-5">
+								Review the change{configChanges.length !== 1 ? "s" : ""} before publishing updates to <span className="font-bold text-foreground">{config.name}</span>
 							</p>
 						</div>
 
-						{/* Agent summary */}
-						<div className="bg-muted/40 rounded-xl p-4 space-y-2.5">
-							<div className="flex items-center gap-3 mb-3">
+						{/* Agent card with changes */}
+						<div className="bg-neutral-50 rounded-md px-2 py-2">
+							<div className="flex gap-2.5 items-start">
 								<div
 									className={cn(
-										"size-10 rounded-lg flex items-center justify-center",
-										ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg ||
-											"bg-slate-800",
+										"size-[38px] rounded-lg flex items-center justify-center shrink-0 overflow-clip p-2",
+										ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg || "bg-violet-200",
 									)}
 								>
 									{(() => {
-										const IconComp =
-											AVAILABLE_ICONS.find((i) => i.id === config.iconId)?.icon ||
-											Squirrel;
-										const colorCls =
-											ICON_COLORS.find((c) => c.id === config.iconColorId)
-												?.text || "text-white";
-										return <IconComp className={cn("size-5", colorCls)} />;
+										const IconComp = AVAILABLE_ICONS.find((i) => i.id === config.iconId)?.icon || Squirrel;
+										const colorCls = ICON_COLORS.find((c) => c.id === config.iconColorId)?.text || "text-white";
+										return <IconComp className={cn("size-6", colorCls)} />;
 									})()}
 								</div>
-								<div>
-									<p className="text-sm font-medium">{config.name}</p>
-									<p className="text-xs text-muted-foreground line-clamp-1">{config.description}</p>
-								</div>
-							</div>
-							{config.workflows.length > 0 && (
-								<div className="flex items-center justify-between text-xs">
-									<span className="text-muted-foreground">Skills</span>
-									<span className="font-medium">{config.workflows.length}</span>
-								</div>
-							)}
-							{config.knowledgeSources.length > 0 && (
-								<div className="flex items-center justify-between text-xs">
-									<span className="text-muted-foreground">Knowledge Sources</span>
-									<span className="font-medium">{config.knowledgeSources.length}</span>
-								</div>
-							)}
-							<div className="flex items-center justify-between text-xs">
-								<span className="text-muted-foreground">Conversation Starters</span>
-								<span className="font-medium">{config.conversationStarters.filter((s) => s.trim()).length}</span>
-							</div>
-							{config.guardrails.length > 0 && (
-								<div className="flex items-center justify-between text-xs">
-									<span className="text-muted-foreground">Guardrails</span>
-									<span className="font-medium">{config.guardrails.length}</span>
-								</div>
-							)}
-						</div>
-
-						{/* Changes list */}
-						<div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
-							{configChanges.map((change, index) => (
-								<div key={index} className="px-4 py-3 flex items-start gap-3">
-									<div
-										className={cn(
-											"size-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5",
-											change.type === "added"
-												? "bg-emerald-100"
-												: change.type === "removed"
-													? "bg-red-100"
-													: "bg-blue-100",
-										)}
-									>
-										{change.type === "added" ? (
-											<Plus className="size-3.5 text-emerald-600" />
-										) : change.type === "removed" ? (
-											<X className="size-3.5 text-red-600" />
-										) : (
-											<ArrowLeft className="size-3.5 text-blue-600 rotate-180" />
-										)}
+								<div className="flex-1 min-w-0 flex flex-col gap-2.5">
+									<div className="flex flex-col pb-0.5">
+										<p className="text-base font-bold text-foreground truncate leading-[22px]">
+											{config.name}
+										</p>
+										<p className="text-xs text-foreground leading-none">
+											{config.description}
+										</p>
 									</div>
-									<div className="flex-1 min-w-0">
-										<p className="text-sm font-medium">{change.label}</p>
-										{change.type === "changed" ? (
-											<p className="text-xs text-muted-foreground mt-0.5">
-												{change.from !== "(modified)" &&
-												change.from !== "(changed)" ? (
-													<>
-														<span className="line-through">{change.from}</span>{" "}
-														→ {change.to}
-													</>
-												) : (
-													"Content modified"
-												)}
-											</p>
-										) : change.type === "added" ? (
-											<p className="text-xs text-emerald-600 mt-0.5">
-												{change.to}
-											</p>
-										) : (
-											<p className="text-xs text-red-600 mt-0.5 line-through">
-												{change.from}
-											</p>
-										)}
+									{/* Changes list inside card */}
+									<div className="bg-neutral-100 rounded-md p-2 flex flex-col gap-2.5">
+										{configChanges.map((change, index) => (
+											<div key={index} className="flex items-center justify-between gap-2.5">
+												<p className="text-sm text-foreground leading-none h-[18px] flex items-end">
+													{change.label}
+												</p>
+												<span className="text-xs font-semibold text-foreground border border-border bg-background rounded-md px-2 py-0.5 leading-4 whitespace-nowrap">
+													{change.type === "added" ? "Added" : change.type === "removed" ? "Removed" : "Updated"}
+												</span>
+											</div>
+										))}
 									</div>
 								</div>
-							))}
+							</div>
 						</div>
 
-						{/* Summary */}
-						<div className="bg-muted/50 rounded-lg px-4 py-3">
-							<p className="text-sm text-muted-foreground">
-								{configChanges.filter((c) => c.type === "added").length > 0 && (
-									<span className="text-emerald-600 font-medium mr-3">
-										+{configChanges.filter((c) => c.type === "added").length}{" "}
-										added
-									</span>
-								)}
-								{configChanges.filter((c) => c.type === "removed").length >
-									0 && (
-									<span className="text-red-600 font-medium mr-3">
-										-{configChanges.filter((c) => c.type === "removed").length}{" "}
-										removed
-									</span>
-								)}
-								{configChanges.filter((c) => c.type === "changed").length >
-									0 && (
-									<span className="text-blue-600 font-medium">
-										{configChanges.filter((c) => c.type === "changed").length}{" "}
-										modified
-									</span>
-								)}
-							</p>
-						</div>
-
-						{/* Action buttons */}
-						<div className="flex gap-3">
+						{/* Footer */}
+						<div className="flex items-center justify-end gap-2">
 							<Button
 								variant="outline"
 								onClick={() => setShowPublishChangesModal(false)}
-								className="flex-1"
 							>
 								Cancel
 							</Button>
 							<Button
 								onClick={() => {
-									console.log("Publishing changes:", configChanges);
 									setShowPublishChangesModal(false);
 									toast.success("Changes published", {
-										description: `${configChanges.length} changes applied to ${config.name}`,
+										description: `${configChanges.length} change${configChanges.length !== 1 ? "s" : ""} applied to ${config.name}`,
 									});
 								}}
-								className="flex-1"
 							>
 								Publish changes
 							</Button>
@@ -4463,7 +4137,7 @@ export default function AgentBuilderPage() {
 										instructions: e.target.value,
 									}))
 								}
-								placeholder="## Role\n\n## Backstory\n\n## Goal\n\n## Task"
+								placeholder={"## Role\n\n## Backstory\n\n## Goal\n\n## Task"}
 								className="min-h-[400px] resize-none text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
 							/>
 						</div>
@@ -4884,6 +4558,84 @@ export default function AgentBuilderPage() {
 								Unlink & Add
 							</Button>
 						</div>
+					</div>
+				</div>
+			)}
+			{/* Demo mode trigger button */}
+			{!demoMode && (
+				<button
+					type="button"
+					onClick={() => {
+						setDemoMode(true);
+						setDemoStep(0);
+					}}
+					className="fixed bottom-4 left-4 z-50 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-full shadow-lg hover:bg-violet-700 transition-colors flex items-center gap-1.5"
+				>
+					<Play className="size-3" />
+					Demo
+				</button>
+			)}
+
+			{/* Demo stepper bar */}
+			{demoMode && (
+				<div className="fixed bottom-0 left-0 right-0 z-50 bg-violet-900 text-white px-6 py-3 flex items-center gap-4 shadow-2xl">
+					<div className="flex items-center gap-2">
+						<Play className="size-4" />
+						<span className="text-sm font-semibold">Demo Mode</span>
+					</div>
+					<div className="flex-1 flex items-center gap-1">
+						{DEMO_STEPS.map((s, i) => (
+							<div
+								key={s.label}
+								className={cn(
+									"flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs",
+									i === demoStep
+										? "bg-white/20 font-medium"
+										: i < demoStep
+											? "text-white/60"
+											: "text-white/40",
+								)}
+							>
+								<span
+									className={cn(
+										"size-5 rounded-full flex items-center justify-center text-[10px] font-bold",
+										i < demoStep
+											? "bg-emerald-500"
+											: i === demoStep
+												? "bg-white text-violet-900"
+												: "bg-white/20",
+									)}
+								>
+									{i < demoStep ? (
+										<Check className="size-3" />
+									) : (
+										i + 1
+									)}
+								</span>
+								{s.label}
+							</div>
+						))}
+					</div>
+					<div className="flex items-center gap-2">
+						<Button
+							size="sm"
+							variant="ghost"
+							className="text-white/70 hover:text-white hover:bg-white/10 h-7 text-xs"
+							onClick={handleDemoNext}
+						>
+							Next
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="text-white/40 hover:text-white hover:bg-white/10 h-7 text-xs"
+							onClick={() => {
+								setDemoMode(false);
+								setDemoStep(0);
+							}}
+						>
+							Exit Demo
+						</Button>
 					</div>
 				</div>
 			)}

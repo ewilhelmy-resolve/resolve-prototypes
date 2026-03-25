@@ -11,6 +11,7 @@ import {
 	FileText,
 	History,
 	MoreVertical,
+	Play,
 	Plus,
 	Upload,
 	X,
@@ -71,11 +72,12 @@ export default function WorkflowDesignerPage() {
 		Record<string, SkillMetadata>
 	>({});
 	const [skillDialogVariant, setSkillDialogVariant] = useState<
-		"json" | "variables" | "autodetect" | null
+		"json" | "variables" | null
 	>(null);
 	const [skillOption, setSkillOption] = useState<
-		"json" | "variables" | "autodetect"
+		"json" | "variables"
 	>("json");
+	const [runDialogOpen, setRunDialogOpen] = useState(false);
 	const [workflowDescriptionMap, setWorkflowDescriptionMap] = useState<
 		Record<string, string>
 	>({});
@@ -309,7 +311,17 @@ export default function WorkflowDesignerPage() {
 								)}
 							</div>
 						))}
-						<DropdownMenu>
+						<Button
+						variant="ghost"
+						size="icon"
+						className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+						aria-label="Run workflow"
+						onClick={() => setRunDialogOpen(true)}
+						disabled={nodes.length === 0}
+					>
+						<Play className="w-4 h-4" />
+					</Button>
+					<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button
 									variant="ghost"
@@ -366,13 +378,12 @@ export default function WorkflowDesignerPage() {
 								<span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Skill Modal</span>
 								<select
 									value={skillOption}
-									onChange={(e) => setSkillOption(e.target.value as "json" | "variables" | "autodetect")}
+									onChange={(e) => setSkillOption(e.target.value as "json" | "variables")}
 									className="text-[11px] h-5 rounded border border-slate-200 bg-white text-slate-600 px-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
 									aria-label="Skill configuration option"
 								>
 									<option value="json">Opt 1: JSON Schema</option>
 									<option value="variables">Opt 2: Variable Picker</option>
-									<option value="autodetect">Opt 3: Auto-Detect</option>
 								</select>
 							</div>
 							<WorkflowConfigPanelV2
@@ -424,16 +435,26 @@ export default function WorkflowDesignerPage() {
 				onPublish={handlePublishSkill}
 			/>
 			<WorkflowSkillAutoDetectDialog
-				open={skillDialogVariant === "autodetect"}
-				onOpenChange={(open) => !open && setSkillDialogVariant(null)}
-				value={skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA}
-				onSave={(metadata) =>
-					setSkillMetadataMap((prev) => ({
-						...prev,
-						[activeTabId]: metadata,
-					}))
-				}
-				onPublish={handlePublishSkill}
+				open={runDialogOpen}
+				onOpenChange={setRunDialogOpen}
+				onRun={(variableNames) => {
+					toast.success("Workflow execution started");
+					// Store detected variables so skill config can pre-populate
+					const currentMeta = skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA;
+					if (variableNames.length > 0) {
+						const inputs: Record<string, { type: string; description: string; activity: string }> = {};
+						for (const name of variableNames) {
+							inputs[name] = { type: "string", description: "", activity: "" };
+						}
+						setSkillMetadataMap((prev) => ({
+							...prev,
+							[activeTabId]: {
+								...currentMeta,
+								inputsJson: JSON.stringify(inputs, null, 2),
+							},
+						}));
+					}
+				}}
 				nodes={nodes}
 			/>
 		</RitaLayout>

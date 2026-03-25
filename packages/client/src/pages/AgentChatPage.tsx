@@ -10,6 +10,7 @@
 
 import {
 	AlertCircle,
+	ArrowLeft,
 	Award,
 	BookOpen,
 	Bot,
@@ -338,6 +339,10 @@ export default function AgentChatPage() {
 			<div className="flex-1 flex flex-col relative">
 				{/* Chat header - no border */}
 				<header className="flex items-center justify-between px-4 py-3 bg-white">
+					<div className="flex items-center gap-1">
+					<Button variant="ghost" size="icon" className="size-8" onClick={() => navigate("/agents")}>
+						<ArrowLeft className="size-4" />
+					</Button>
 					{/* Agent selector dropdown */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -410,6 +415,7 @@ export default function AgentChatPage() {
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+					</div>
 
 					{/* Edit button - right side of chat header */}
 					<Button
@@ -434,8 +440,8 @@ export default function AgentChatPage() {
 										<>
 											{/* Icon + name side by side */}
 											<div className="flex items-center justify-center gap-2 w-full">
-												<div className="size-[38px] rounded-lg bg-violet-200 flex items-center justify-center shrink-0">
-													<Icon className="size-6 text-violet-700" />
+												<div className={cn("size-[38px] rounded-lg flex items-center justify-center shrink-0", color.bg)}>
+													<Icon className={cn("size-6", color.text)} />
 												</div>
 												<h2 className="text-xl font-bold">{config.name}</h2>
 											</div>
