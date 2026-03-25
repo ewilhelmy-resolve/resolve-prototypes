@@ -19,6 +19,10 @@ on:
       - '.gitignore'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

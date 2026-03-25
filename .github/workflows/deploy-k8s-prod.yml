@@ -38,6 +38,10 @@ env:
   ECR_REGISTRY: 432993365903.dkr.ecr.us-east-1.amazonaws.com
   EKS_CLUSTER_NAME: rita-prod
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   validate-inputs:
     runs-on: ubuntu-latest

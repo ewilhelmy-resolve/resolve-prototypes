@@ -23,6 +23,10 @@ env:
     DEPLOY_DEV_HOST: 'ec2-52-45-128-201.compute-1.amazonaws.com'
     DEPLOY_USER: 'ec2-user'
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build-theme:
     runs-on: ubuntu-latest
