@@ -200,14 +200,9 @@ describe("IframeService", () => {
 
 	describe("validateAndSetup", () => {
 		// Helper to set up JIT provisioning mocks (check-first-then-insert pattern)
-		// Note: sessionKey lookup removed - conversation reuse is via activityId
+		// Note: activity_contexts lookup removed (JAR-106) — always creates fresh conversation
 		// Payload has tenantName: 'staging', so org with same name won't trigger update
-		// Payload has context.activityId: 2209, so findConversationByActivityId is called
-		const setupJitMocks = (
-			orgExists = false,
-			userExists = false,
-			activityConvExists = false,
-		) => {
+		const setupJitMocks = (orgExists = false, userExists = false) => {
 			if (orgExists) {
 				mockPool.query
 					// resolveRitaOrg: check if exists (includes name for comparison)
@@ -239,13 +234,7 @@ describe("IframeService", () => {
 			}
 			mockPool.query
 				// ensureOrgMembership
-				.mockResolvedValueOnce({ rows: [] })
-				// findConversationByActivityId: check activity_contexts (payload has activityId: 2209)
-				.mockResolvedValueOnce({
-					rows: activityConvExists
-						? [{ conversation_id: "existing-activity-conv" }]
-						: [],
-				});
+				.mockResolvedValueOnce({ rows: [] });
 		};
 
 		it("should reject missing sessionKey", async () => {
@@ -428,8 +417,7 @@ describe("IframeService", () => {
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }) // membership (always called)
-				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
+				.mockResolvedValueOnce({ rows: [] }); // membership (always called)
 
 			// Mock conversation creation
 			mockWithOrgContext.mockImplementation(
@@ -447,8 +435,8 @@ describe("IframeService", () => {
 
 			expect(result.valid).toBe(true);
 
-			// 6 pool.query calls: org check + user check + user update + membership + activity lookup + activity link
-			expect(mockPool.query).toHaveBeenCalledTimes(6);
+			// 5 pool.query calls: org check + user check + user update + membership + activity link
+			expect(mockPool.query).toHaveBeenCalledTimes(5);
 		});
 
 		it("should create org membership when user is new", async () => {
@@ -471,8 +459,8 @@ describe("IframeService", () => {
 
 			await iframeService.validateAndSetup("my-session-key");
 
-			// 6 pool.query calls: org check + activity lookup + user check + user insert + membership + activity link
-			expect(mockPool.query).toHaveBeenCalledTimes(6);
+			// 5 pool.query calls: org check + user check + user insert + membership + activity link
+			expect(mockPool.query).toHaveBeenCalledTimes(5);
 			// Check membership was called (order may vary due to activity linking)
 			expect(mockPool.query).toHaveBeenCalledWith(
 				expect.stringContaining("INSERT INTO organization_members"),
@@ -507,15 +495,9 @@ describe("IframeService", () => {
 			const orgCheckQuery = mockPool.query.mock.calls[0][0];
 			expect(orgCheckQuery).toContain("SELECT id, name FROM organizations");
 
-			// Call 2: user check query (after org insert, before activity lookup)
+			// Call 2: user check query (after org insert)
 			const userCheckQuery = mockPool.query.mock.calls[2][0];
 			expect(userCheckQuery).toContain("SELECT user_id FROM user_profiles");
-
-			// Call 5: activity_contexts lookup (after user resolution + membership)
-			const activityQuery = mockPool.query.mock.calls[5][0];
-			expect(activityQuery).toContain(
-				"SELECT conversation_id FROM activity_contexts",
-			);
 		});
 
 		it("should handle legacy users with old UUID", async () => {
@@ -529,8 +511,7 @@ describe("IframeService", () => {
 				.mockResolvedValueOnce({ rows: [] }) // insert org
 				.mockResolvedValueOnce({ rows: [{ user_id: legacyUserId }] }) // user exists with legacy UUID
 				.mockResolvedValueOnce({ rows: [] }) // update user
-				.mockResolvedValueOnce({ rows: [] }) // membership
-				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
+				.mockResolvedValueOnce({ rows: [] }); // membership
 
 			// Mock conversation creation
 			mockWithOrgContext.mockImplementation(
@@ -574,8 +555,7 @@ describe("IframeService", () => {
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }) // membership (expected to be called)
-				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
+				.mockResolvedValueOnce({ rows: [] }); // membership (expected to be called)
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -680,8 +660,7 @@ describe("IframeService", () => {
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }) // membership
-				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
+				.mockResolvedValueOnce({ rows: [] }); // membership
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -716,8 +695,7 @@ describe("IframeService", () => {
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }) // membership
-				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
+				.mockResolvedValueOnce({ rows: [] }); // membership
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -821,8 +799,7 @@ describe("IframeService", () => {
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // update user
-				.mockResolvedValueOnce({ rows: [] }) // membership
-				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
+				.mockResolvedValueOnce({ rows: [] }); // membership
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -928,8 +905,7 @@ describe("IframeService", () => {
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				}) // user exists
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }) // membership
-				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup (not found)
+				.mockResolvedValueOnce({ rows: [] }); // membership
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
@@ -1454,8 +1430,7 @@ describe("IframeService", () => {
 					rows: [{ user_id: validValkeyPayload.userGuid }],
 				})
 				.mockResolvedValueOnce({ rows: [] }) // user update
-				.mockResolvedValueOnce({ rows: [] }) // membership
-				.mockResolvedValueOnce({ rows: [] }); // activity_contexts lookup
+				.mockResolvedValueOnce({ rows: [] }); // membership
 
 			mockWithOrgContext.mockImplementation(
 				async (_userId, _orgId, callback) => {
