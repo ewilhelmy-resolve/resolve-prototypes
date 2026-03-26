@@ -26,9 +26,7 @@ CREATE TABLE historical_tickets (
     CONSTRAINT uq_historical_tickets_external_id_org UNIQUE (organization_id, external_id)
 );
 
-CREATE INDEX idx_historical_tickets_organization_id ON historical_tickets(organization_id);
 CREATE INDEX idx_historical_tickets_cluster_id ON historical_tickets(cluster_id);
-CREATE INDEX idx_historical_tickets_external_id ON historical_tickets(external_id);
 CREATE INDEX idx_historical_tickets_org_cluster ON historical_tickets(organization_id, cluster_id);
 
 ALTER TABLE historical_tickets ENABLE ROW LEVEL SECURITY;

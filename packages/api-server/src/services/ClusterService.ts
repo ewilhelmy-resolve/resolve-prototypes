@@ -33,9 +33,6 @@ export class ClusterService {
 	): Promise<ClusterDetails | null> {
 		const result = await db
 			.selectFrom("clusters as c")
-			.leftJoin("cluster_kb_links as kb", "kb.cluster_id", "c.id")
-			.leftJoin("tickets as t", "t.cluster_id", "c.id")
-			.leftJoin("historical_tickets as ht", "ht.cluster_id", "c.id")
 			.select([
 				"c.id",
 				"c.organization_id",
@@ -47,17 +44,22 @@ export class ClusterService {
 				"c.created_at",
 				"c.updated_at",
 			])
-			.select((eb) => [
-				eb.fn.count(sql`DISTINCT kb.id`).as("kb_articles_count"),
-				eb.fn.count(sql`DISTINCT t.id`).as("ticket_count"),
-				sql<number>`COALESCE(COUNT(DISTINCT t.id) FILTER (WHERE t.external_status = 'Open'), 0)`.as(
+			.select([
+				sql<number>`(SELECT COUNT(*) FROM cluster_kb_links WHERE cluster_id = c.id)`.as(
+					"kb_articles_count",
+				),
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id)`.as(
+					"ticket_count",
+				),
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND external_status = 'Open')`.as(
 					"open_count",
 				),
-				eb.fn.count(sql`DISTINCT ht.id`).as("historical_ticket_count"),
+				sql<number>`(SELECT COUNT(*) FROM historical_tickets WHERE cluster_id = c.id)`.as(
+					"historical_ticket_count",
+				),
 			])
 			.where("c.id", "=", clusterId)
 			.where("c.organization_id", "=", organizationId)
-			.groupBy("c.id")
 			.executeTakeFirst();
 
 		if (!result) {

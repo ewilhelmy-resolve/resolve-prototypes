@@ -288,9 +288,9 @@ export function CreateKnowledgeArticleSheet({
 													? t(
 															"createKnowledge.sources.historicalTicketsDisabled",
 														)
-													: source.id === "historical-tickets"
-														? t("createKnowledge.sources.historicalTickets")
-														: t("createKnowledge.sources.webSearch")}
+													: t(`createKnowledge.sources.${source.id}`, {
+															defaultValue: source.description,
+														})}
 											</span>
 										</div>
 									</label>

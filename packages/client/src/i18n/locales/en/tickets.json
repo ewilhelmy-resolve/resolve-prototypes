@@ -306,9 +306,9 @@
 	},
 	"createKnowledge": {
 		"sources": {
-			"historicalTickets": "Use past ticket resolutions and patterns from this cluster",
+			"historical-tickets": "Use past ticket resolutions and patterns from this cluster",
 			"historicalTicketsDisabled": "No historical tickets available for this cluster",
-			"webSearch": "Include relevant information from web sources and documentation"
+			"web-search": "Include relevant information from web sources and documentation"
 		}
 	},
 	"prioritizationList": {
