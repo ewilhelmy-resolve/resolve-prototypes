@@ -57,6 +57,9 @@ export interface IframeWebhookConfig {
 		[key: string]: unknown;
 	};
 
+	/** OPTIONAL - Host page origin for secure postMessage targetOrigin validation */
+	parentOrigin?: string;
+
 	/** OPTIONAL - Custom UI text from Valkey ui_config object */
 	uiConfig?: {
 		/** Custom title (e.g., "Ask Workflow Designer" instead of "Ask RITA") */
