@@ -40,9 +40,12 @@ export default function TicketDetailPage() {
 				...(searchParams.get("sort_dir") && {
 					sort_dir: searchParams.get("sort_dir") as SortDirection,
 				}),
-				...(searchParams.get("tab") && {
-					tab: searchParams.get("tab") as "needs_response" | "completed",
-				}),
+				...(() => {
+					const tab = searchParams.get("tab");
+					if (tab === "open") return { external_status: "Open" };
+					if (tab === "needs_response" || tab === "completed") return { tab };
+					return {};
+				})(),
 				...(searchParams.get("search") && {
 					search: searchParams.get("search") ?? undefined,
 				}),
@@ -150,7 +153,7 @@ export default function TicketDetailPage() {
 				{/* Content */}
 				<div className="flex flex-col gap-4 p-4 w-full max-w-3xl mx-auto">
 					{/* Page Header */}
-					<h1 className="text-xl font-medium">{ticket.subject}</h1>
+					<h1 className="heading-lg text-xl font-medium">{ticket.subject}</h1>
 
 					{/* Ticket Details Card */}
 					<TicketDetailsCard ticket={ticketForCard} />
