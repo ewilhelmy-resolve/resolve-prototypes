@@ -15,6 +15,7 @@
 
 import {
 	ALargeSmall,
+	Bot,
 	CheckCircle,
 	ChevronDown,
 	File,
@@ -110,6 +111,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
 	const enableWorkflows = useFeatureFlag("ENABLE_WORKFLOWS");
 	const enableLanguageSwitcher = useFeatureFlag("ENABLE_LANGUAGE_SWITCHER");
+	const enableAgents = useFeatureFlag("ENABLE_AGENTS");
 
 	// RITA hooks
 	const { user, logout } = useAuth();
@@ -201,6 +203,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 		// Set cookie to expire in 1 year (for cross-tab consistency)
 		const expiryDate = new Date();
 		expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+		// biome-ignore lint/suspicious/noDocumentCookie: cross-tab persistence requires cookie
 		document.cookie = `${storageKey}=true; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
 	}, [profile?.user?.id]);
 
@@ -310,6 +313,20 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
+								{enableAgents && (
+									<SidebarMenuItem>
+										<SidebarMenuButton
+											className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"
+											onClick={() => navigate("/agents")}
+											isActive={location.pathname.startsWith("/agents")}
+										>
+											<Bot className="w-4 h-4" />
+											<span className="text-sm text-sidebar-foreground">
+												{t("nav.agents")}
+											</span>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								)}
 							</SidebarMenu>
 						</SidebarGroup>
 					)}

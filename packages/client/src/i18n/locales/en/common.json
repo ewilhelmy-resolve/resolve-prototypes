@@ -1,6 +1,7 @@
 {
 	"nav": {
 		"home": "Home",
+		"agents": "Agents",
 		"knowledgeArticles": "Knowledge Articles",
 		"tickets": "Tickets",
 		"workflows": "Workflows",
