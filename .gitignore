@@ -133,3 +133,8 @@ tmux-dev.sh
 .pi-plans/
 .pi/
 .context/
+
+# Docusaurus
+packages/docs-site/content/
+packages/docs-site/build/
+packages/docs-site/.docusaurus/

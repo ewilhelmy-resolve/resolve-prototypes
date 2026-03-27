@@ -37,7 +37,10 @@
 		"spec:build": "pnpm --filter @rita/spec-engine dev -- build",
 		"spec:check": "pnpm --filter @rita/spec-engine dev -- check all",
 		"spec:heal": "pnpm --filter @rita/spec-engine dev -- heal --fix",
-		"spec:generate": "pnpm --filter @rita/spec-engine dev -- generate"
+		"spec:generate": "pnpm --filter @rita/spec-engine dev -- generate",
+		"docs:dev": "pnpm --filter @rita/docs-site start",
+		"docs:build": "pnpm --filter @rita/docs-site build",
+		"docs:deploy": "pnpm --filter @rita/docs-site deploy"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.4",
