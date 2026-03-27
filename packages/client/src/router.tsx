@@ -93,61 +93,61 @@ const router = createBrowserRouter([
 	{
 		path: "/agents",
 		element: (
-			<ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<AgentsFeatureGate>
 					<AgentsPage />
 				</AgentsFeatureGate>
-			</ProtectedRoute>
+			</RoleProtectedRoute>
 		),
 	},
 	{
 		path: "/agents/create",
 		element: (
-			<ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<AgentsFeatureGate>
 					<AgentBuilderPageV2 />
 				</AgentsFeatureGate>
-			</ProtectedRoute>
+			</RoleProtectedRoute>
 		),
 	},
 	{
 		path: "/agents/:id",
 		element: (
-			<ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<AgentsFeatureGate>
 					<AgentBuilderPageV2 />
 				</AgentsFeatureGate>
-			</ProtectedRoute>
+			</RoleProtectedRoute>
 		),
 	},
 	{
 		path: "/agents/:id/chat",
 		element: (
-			<ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<AgentsFeatureGate>
 					<AgentChatPage />
 				</AgentsFeatureGate>
-			</ProtectedRoute>
+			</RoleProtectedRoute>
 		),
 	},
 	{
 		path: "/agents/:id/test",
 		element: (
-			<ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<AgentsFeatureGate>
 					<AgentTestPage />
 				</AgentsFeatureGate>
-			</ProtectedRoute>
+			</RoleProtectedRoute>
 		),
 	},
 	{
 		path: "/agents/test",
 		element: (
-			<ProtectedRoute>
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<AgentsFeatureGate>
 					<AgentTestPage />
 				</AgentsFeatureGate>
-			</ProtectedRoute>
+			</RoleProtectedRoute>
 		),
 	},
 	// JIRITA - Workflow builder (dev tool, feature-flagged)

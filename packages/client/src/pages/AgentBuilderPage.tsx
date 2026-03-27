@@ -79,12 +79,8 @@ import {
 	useLocation,
 	useNavigate,
 	useParams,
-	useSearchParams,
 } from "react-router-dom";
-import { CanvasBuilder } from "@/components/agents/CanvasBuilder";
 import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
-import { WizardAgentBuilder } from "@/components/agents/WizardAgentBuilder";
-import { WizardFloatBuilder } from "@/components/agents/WizardFloatBuilder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1003,23 +999,6 @@ export default function AgentBuilderPage() {
 		}
 		prevWorkflowsLength.current = config.workflows.length;
 	}, [config.workflows.length, config.workflows]);
-
-	// Builder mode toggle - can be set via URL ?mode=chat|wizard|wizard-float|canvas
-	const [searchParams] = useSearchParams();
-	const modeParam = searchParams.get("mode") as
-		| "chat"
-		| "wizard"
-		| "wizard-float"
-		| "canvas"
-		| null;
-	const [builderMode, setBuilderMode] = useState<
-		"chat" | "wizard" | "wizard-float" | "canvas"
-	>(
-		modeParam &&
-			["chat", "wizard", "wizard-float", "canvas"].includes(modeParam)
-			? modeParam
-			: "chat",
-	);
 
 	// Auto-save with 1.5s debounce
 	const {
@@ -2625,167 +2604,8 @@ export default function AgentBuilderPage() {
 		});
 	};
 
-	// Mode switcher bar - hidden for screenshots, access via URL ?mode=chat|wizard|wizard-float|canvas
-	const ModeSwitcherBar = () => (
-		<div className="hidden flex items-center justify-center gap-3 px-4 py-2 bg-white border-b">
-			<span className="text-xs text-muted-foreground">Builder variation:</span>
-			<div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
-				<button
-					onClick={() => setBuilderMode("chat")}
-					className={cn(
-						"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-						builderMode === "chat"
-							? "bg-white text-foreground shadow-sm"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-				>
-					<MessageSquare className="size-3.5" />
-					Chat
-				</button>
-				<button
-					onClick={() => setBuilderMode("wizard")}
-					className={cn(
-						"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-						builderMode === "wizard"
-							? "bg-white text-foreground shadow-sm"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-				>
-					<FileText className="size-3.5" />
-					Wizard
-				</button>
-				<button
-					onClick={() => setBuilderMode("wizard-float")}
-					className={cn(
-						"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-						builderMode === "wizard-float"
-							? "bg-white text-foreground shadow-sm"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-				>
-					<Sparkles className="size-3.5" />
-					Wizard + AI
-				</button>
-				<button
-					onClick={() => setBuilderMode("canvas")}
-					className={cn(
-						"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-						builderMode === "canvas"
-							? "bg-white text-foreground shadow-sm"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-				>
-					<Workflow className="size-3.5" />
-					Canvas
-				</button>
-			</div>
-		</div>
-	);
-
-	// If wizard mode is selected, render the WizardAgentBuilder
-	if (builderMode === "wizard") {
-		return (
-			<div className="flex flex-col h-screen">
-				<ModeSwitcherBar />
-				<div className="flex-1 overflow-hidden">
-					<WizardAgentBuilder
-						initialConfig={{
-							name: config.name,
-							description: config.description,
-							role: config.role,
-							completionCriteria: config.completionCriteria,
-							iconId: config.iconId,
-							iconColorId: config.iconColorId,
-							agentType: config.agentType,
-						}}
-						onBack={handleBack}
-						onPublish={(wizardConfig) => {
-							setConfig((prev) => ({
-								...prev,
-								name: wizardConfig.name,
-								description: wizardConfig.description,
-								role: wizardConfig.role,
-								completionCriteria: wizardConfig.completionCriteria,
-								iconId: wizardConfig.iconId,
-								iconColorId: wizardConfig.iconColorId,
-								agentType: wizardConfig.agentType,
-							}));
-							setShowPublishModal(true);
-						}}
-						isEditing={isEditing}
-					/>
-				</div>
-			</div>
-		);
-	}
-
-	// If wizard-float mode is selected, render the WizardFloatBuilder
-	if (builderMode === "wizard-float") {
-		return (
-			<div className="flex flex-col h-screen">
-				<ModeSwitcherBar />
-				<div className="flex-1 overflow-hidden">
-					<WizardFloatBuilder
-						initialConfig={{
-							name: config.name,
-							description: config.description,
-							role: config.role,
-							completionCriteria: config.completionCriteria,
-							iconId: config.iconId,
-							iconColorId: config.iconColorId,
-							agentType: config.agentType,
-						}}
-						onBack={handleBack}
-						onPublish={(wizardConfig) => {
-							setConfig((prev) => ({
-								...prev,
-								name: wizardConfig.name,
-								description: wizardConfig.description,
-								role: wizardConfig.role,
-								completionCriteria: wizardConfig.completionCriteria,
-								iconId: wizardConfig.iconId,
-								iconColorId: wizardConfig.iconColorId,
-								agentType: wizardConfig.agentType,
-							}));
-							setShowPublishModal(true);
-						}}
-						isEditing={isEditing}
-					/>
-				</div>
-			</div>
-		);
-	}
-
-	// If canvas mode is selected, render the CanvasBuilder
-	if (builderMode === "canvas") {
-		return (
-			<div className="flex flex-col h-screen">
-				<ModeSwitcherBar />
-				<div className="flex-1 overflow-hidden">
-					<CanvasBuilder
-						initialConfig={{
-							name: config.name,
-							description: config.description,
-						}}
-						onBack={handleBack}
-						onPublish={(canvasConfig) => {
-							setConfig((prev) => ({
-								...prev,
-								name: canvasConfig.name,
-								description: canvasConfig.description,
-							}));
-							setShowPublishModal(true);
-						}}
-						isEditing={isEditing}
-					/>
-				</div>
-			</div>
-		);
-	}
-
 	return (
 		<div className="flex flex-col h-screen bg-muted/50">
-			<ModeSwitcherBar />
 
 			{/* Header */}
 			<header className="flex items-center justify-between px-4 py-3 bg-white border-b">
