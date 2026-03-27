@@ -32,7 +32,12 @@
 		"setup": "node scripts/setup.js",
 		"storybook": "pnpm --filter rita-client storybook",
 		"build-storybook": "pnpm --filter rita-client build-storybook",
-		"deploy-storybook": "pnpm --filter rita-client deploy-storybook"
+		"deploy-storybook": "pnpm --filter rita-client deploy-storybook",
+		"spec:extract": "pnpm --filter @rita/spec-engine dev -- extract",
+		"spec:build": "pnpm --filter @rita/spec-engine dev -- build",
+		"spec:check": "pnpm --filter @rita/spec-engine dev -- check all",
+		"spec:heal": "pnpm --filter @rita/spec-engine dev -- heal --fix",
+		"spec:generate": "pnpm --filter @rita/spec-engine dev -- generate"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.4",
