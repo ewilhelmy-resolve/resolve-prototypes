@@ -15,6 +15,14 @@ vi.mock("@/hooks/useClusters", () => ({
 		data: undefined,
 		isLoading: false,
 	})),
+	useGenerateKnowledge: vi.fn(() => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	})),
+	useAddKbArticle: vi.fn(() => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	})),
 }));
 
 // Access the mock to change return values per test

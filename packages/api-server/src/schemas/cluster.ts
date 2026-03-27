@@ -213,6 +213,45 @@ export const KbArticleSchema = z
 	.openapi("KbArticle");
 
 // ============================================================================
+// Request Schemas
+// ============================================================================
+
+export const GenerateKnowledgeRequestSchema = z
+	.object({
+		sources: z
+			.array(z.string())
+			.min(1)
+			.openapi({
+				description: "Knowledge sources to use for generation",
+				example: ["historical-tickets", "web-search"],
+			}),
+	})
+	.openapi("GenerateKnowledgeRequest");
+
+export const GenerateKnowledgeResponseSchema = z
+	.object({
+		generation_id: z
+			.string()
+			.uuid()
+			.openapi({ description: "Correlation ID for matching SSE response" }),
+	})
+	.openapi("GenerateKnowledgeResponse");
+
+export const AddKbArticleRequestSchema = z
+	.object({
+		content: z
+			.string()
+			.min(1)
+			.max(5 * 1024 * 1024)
+			.openapi({ description: "Article content (markdown or text)" }),
+		filename: z.string().min(1).max(255).openapi({
+			description: "Article filename",
+			example: "network-troubleshooting-guide.md",
+		}),
+	})
+	.openapi("AddKbArticleRequest");
+
+// ============================================================================
 // Response Schemas
 // ============================================================================
 

@@ -2,12 +2,16 @@ import express from "express";
 import { z } from "zod";
 import { registry } from "../docs/openapi.js";
 import {
+	AddKbArticleRequestSchema,
 	ClusterDetailsResponseSchema,
 	ClusterKbArticlesResponseSchema,
 	ClusterListQuerySchema,
 	ClusterListResponseSchema,
 	ClusterTicketsQuerySchema,
 	ClusterTicketsResponseSchema,
+	GenerateKnowledgeRequestSchema,
+	GenerateKnowledgeResponseSchema,
+	KbArticleSchema,
 } from "../schemas/cluster.js";
 import {
 	ErrorResponseSchema,
@@ -141,6 +145,96 @@ registry.registerPath({
 			content: {
 				"application/json": { schema: ClusterKbArticlesResponseSchema },
 			},
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Cluster not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/api/clusters/{id}/generate-knowledge",
+	tags: ["Clusters"],
+	summary: "Generate knowledge article",
+	description:
+		"Trigger AI knowledge article generation for a cluster via external platform webhook",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			id: z.string().uuid().openapi({ description: "Cluster ID" }),
+		}),
+		body: {
+			content: {
+				"application/json": { schema: GenerateKnowledgeRequestSchema },
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: "Generation triggered",
+			content: {
+				"application/json": { schema: GenerateKnowledgeResponseSchema },
+			},
+		},
+		400: {
+			description: "Validation error",
+			content: { "application/json": { schema: ValidationErrorSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Cluster not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/api/clusters/{id}/kb-articles",
+	tags: ["Clusters"],
+	summary: "Add knowledge article to cluster",
+	description:
+		"Persist an AI-generated knowledge article, link it to the cluster, and trigger RAG indexing",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			id: z.string().uuid().openapi({ description: "Cluster ID" }),
+		}),
+		body: {
+			content: {
+				"application/json": { schema: AddKbArticleRequestSchema },
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: "Article added",
+			content: {
+				"application/json": {
+					schema: z.object({ data: KbArticleSchema }),
+				},
+			},
+		},
+		400: {
+			description: "Validation error",
+			content: { "application/json": { schema: ValidationErrorSchema } },
 		},
 		401: {
 			description: "Unauthorized",
@@ -314,6 +408,81 @@ router.get("/:id/kb-articles", async (req, res) => {
 	} catch (error) {
 		console.error("[Clusters] Error fetching cluster KB articles:", error);
 		res.status(500).json({ error: "Failed to fetch cluster KB articles" });
+	}
+});
+
+/**
+ * POST /api/clusters/:id/generate-knowledge
+ * Trigger AI knowledge article generation for a cluster
+ */
+router.post("/:id/generate-knowledge", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	const { id } = req.params;
+
+	try {
+		const body = GenerateKnowledgeRequestSchema.parse(req.body);
+
+		const result = await clusterService.generateKnowledge({
+			clusterId: id,
+			organizationId: authReq.user.activeOrganizationId,
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			sources: body.sources,
+		});
+
+		res.json(result);
+	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return res.status(400).json({
+				error: "Validation error",
+				details: error.issues,
+			});
+		}
+
+		if (error instanceof Error && error.message === "Cluster not found") {
+			return res.status(404).json({ error: "Cluster not found" });
+		}
+
+		console.error("[Clusters] Error triggering knowledge generation:", error);
+		res.status(500).json({ error: "Failed to trigger knowledge generation" });
+	}
+});
+
+/**
+ * POST /api/clusters/:id/kb-articles
+ * Persist a knowledge article and link it to a cluster
+ */
+router.post("/:id/kb-articles", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	const { id } = req.params;
+
+	try {
+		const body = AddKbArticleRequestSchema.parse(req.body);
+
+		const article = await clusterService.addKbArticle({
+			clusterId: id,
+			organizationId: authReq.user.activeOrganizationId,
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			content: body.content,
+			filename: body.filename,
+		});
+
+		res.json({ data: article });
+	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return res.status(400).json({
+				error: "Validation error",
+				details: error.issues,
+			});
+		}
+
+		if (error instanceof Error && error.message === "Cluster not found") {
+			return res.status(404).json({ error: "Cluster not found" });
+		}
+
+		console.error("[Clusters] Error adding KB article:", error);
+		res.status(500).json({ error: "Failed to add knowledge article" });
 	}
 });
 

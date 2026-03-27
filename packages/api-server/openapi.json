@@ -820,6 +820,51 @@
 					"updated_at"
 				]
 			},
+			"GenerateKnowledgeResponse": {
+				"type": "object",
+				"properties": {
+					"generation_id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Correlation ID for matching SSE response"
+					}
+				},
+				"required": ["generation_id"]
+			},
+			"GenerateKnowledgeRequest": {
+				"type": "object",
+				"properties": {
+					"sources": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"minItems": 1,
+						"description": "Knowledge sources to use for generation",
+						"example": ["historical-tickets", "web-search"]
+					}
+				},
+				"required": ["sources"]
+			},
+			"AddKbArticleRequest": {
+				"type": "object",
+				"properties": {
+					"content": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 5242880,
+						"description": "Article content (markdown or text)"
+					},
+					"filename": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 255,
+						"description": "Article filename",
+						"example": "network-troubleshooting-guide.md"
+					}
+				},
+				"required": ["content", "filename"]
+			},
 			"ConversationResponse": {
 				"type": "object",
 				"properties": {
@@ -1656,7 +1701,13 @@
 					},
 					"source": {
 						"type": "string",
-						"enum": ["manual", "confluence", "jira", "sharepoint"],
+						"enum": [
+							"manual",
+							"confluence",
+							"jira",
+							"sharepoint",
+							"ai-generated"
+						],
 						"description": "Source of the file"
 					},
 					"created_at": {
@@ -1882,7 +1933,14 @@
 					},
 					"source": {
 						"type": ["string", "null"],
-						"enum": ["manual", "confluence", "jira", "sharepoint", null],
+						"enum": [
+							"manual",
+							"confluence",
+							"jira",
+							"sharepoint",
+							"ai-generated",
+							null
+						],
 						"description": "Source of the file"
 					},
 					"content_type": {
@@ -3839,6 +3897,188 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ClusterKbArticlesResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Cluster not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": ["Clusters"],
+				"summary": "Add knowledge article to cluster",
+				"description": "Persist an AI-generated knowledge article, link it to the cluster, and trigger RAG indexing",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Cluster ID"
+						},
+						"required": true,
+						"description": "Cluster ID",
+						"name": "id",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AddKbArticleRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Article added",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/KbArticle"
+										}
+									},
+									"required": ["data"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationError"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Cluster not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/clusters/{id}/generate-knowledge": {
+			"post": {
+				"tags": ["Clusters"],
+				"summary": "Generate knowledge article",
+				"description": "Trigger AI knowledge article generation for a cluster via external platform webhook",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Cluster ID"
+						},
+						"required": true,
+						"description": "Cluster ID",
+						"name": "id",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/GenerateKnowledgeRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Generation triggered",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/GenerateKnowledgeResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationError"
 								}
 							}
 						}

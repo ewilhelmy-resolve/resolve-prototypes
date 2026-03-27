@@ -219,6 +219,9 @@ importers:
       '@radix-ui/react-use-controllable-state':
         specifier: 1.2.2
         version: 1.2.2(@types/react@18.3.12)(react@18.3.1)
+      '@resolve-io/tokens':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@tanstack/react-query':
         specifier: 5.87.4
         version: 5.87.4(react@18.3.1)
@@ -3133,6 +3136,9 @@ packages:
         optional: true
       react-redux:
         optional: true
+
+  '@resolve-io/tokens@0.1.0':
+    resolution: {integrity: sha512-T4keNizSNwF0AM4lqxpuz69sfUylwpYkws7yiKbagFfbYZ9fFPm71VyhB87cnUUGiFTYdBrIsI39RqdWw//M3A==, tarball: https://npm.pkg.github.com/download/@resolve-io/tokens/0.1.0/9e0870ccfde2969762f1f3e1bc423ef18159315a}
 
   '@rollup/pluginutils@5.3.0':
     resolution: {integrity: sha512-5EdhGZtnu3V88ces7s53hhfK5KSASnJZv8Lulpc04cWO3REESroJXg73DFsOmgbU2BhwV0E20bu2IDZb3VKW4Q==}
@@ -11039,7 +11045,7 @@ snapshots:
       '@babel/core': 7.28.5
       '@babel/helper-annotate-as-pure': 7.27.3
       '@babel/helper-wrap-function': 7.28.6
-      '@babel/traverse': 7.29.0
+      '@babel/traverse': 7.28.5
     transitivePeerDependencies:
       - supports-color
 
@@ -13838,6 +13844,8 @@ snapshots:
     optionalDependencies:
       react: 18.3.1
       react-redux: 9.2.0(@types/react@18.3.12)(react@18.3.1)(redux@5.0.1)
+
+  '@resolve-io/tokens@0.1.0': {}
 
   '@rollup/pluginutils@5.3.0(rollup@4.53.5)':
     dependencies:

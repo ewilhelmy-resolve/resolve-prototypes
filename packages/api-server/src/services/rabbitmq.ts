@@ -2,6 +2,7 @@ import amqp from "amqplib";
 import { randomUUID } from "crypto";
 import { pool, withOrgContext } from "../config/database.js";
 import { logError, PerformanceTimer, queueLogger } from "../config/logger.js";
+import { ClusterEventsConsumer } from "../consumers/ClusterEventsConsumer.js";
 import { DataSourceStatusConsumer } from "../consumers/DataSourceStatusConsumer.js";
 import { DocumentProcessingConsumer } from "../consumers/DocumentProcessingConsumer.js";
 import { WorkflowConsumer } from "../consumers/WorkflowConsumer.js";
@@ -60,6 +61,7 @@ export class RabbitMQService {
 	private dataSourceStatusConsumer: DataSourceStatusConsumer;
 	private documentProcessingConsumer: DocumentProcessingConsumer;
 	private workflowConsumer: WorkflowConsumer;
+	private clusterEventsConsumer: ClusterEventsConsumer;
 
 	// Connection resilience state
 	private state: ConnectionState = {
@@ -79,6 +81,7 @@ export class RabbitMQService {
 		this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
 		this.documentProcessingConsumer = new DocumentProcessingConsumer();
 		this.workflowConsumer = new WorkflowConsumer();
+		this.clusterEventsConsumer = new ClusterEventsConsumer();
 
 		// Initialize retry configuration from environment variables
 		this.retryConfig = {
@@ -442,6 +445,9 @@ export class RabbitMQService {
 
 		// Start workflow consumer
 		await this.workflowConsumer.startConsumer(this.channel);
+
+		// Start cluster events consumer
+		await this.clusterEventsConsumer.startConsumer(this.channel);
 	}
 
 	private async processMessage(payload: any): Promise<void> {

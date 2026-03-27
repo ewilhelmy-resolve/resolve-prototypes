@@ -12,6 +12,8 @@ import { EnableAutoRespondModal } from "./EnableAutoRespondModal";
 import { RecommendationAlert } from "./RecommendationAlert";
 
 interface ClusterDetailOverviewTabProps {
+	/** Cluster ID for API calls */
+	clusterId?: string;
 	/** Cluster display name */
 	clusterName?: string;
 	/** Number of open tickets in this cluster */
@@ -37,6 +39,7 @@ interface ClusterDetailOverviewTabProps {
  * Displays metrics, validation confidence progress, and AutoPilot recommendations
  */
 export function ClusterDetailOverviewTab({
+	clusterId,
 	clusterName = "Cluster",
 	openTicketsCount = 0,
 	kbStatus,
@@ -111,6 +114,7 @@ export function ClusterDetailOverviewTab({
 			<CreateKnowledgeArticleSheet
 				open={createKnowledgeSheetOpen}
 				onOpenChange={setCreateKnowledgeSheetOpen}
+				clusterId={clusterId}
 				ticketGroupName={clusterName}
 				onKnowledgeAdded={onKnowledgeAdded}
 			/>

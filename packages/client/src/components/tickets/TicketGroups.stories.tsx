@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { ChevronDown, Search } from "lucide-react";
 import { Link, MemoryRouter } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -368,9 +368,12 @@ export const NoModelConnected: Story = {
 				<p className="text-muted-foreground">
 					No data source connected. Connect a source to see ticket groups.
 				</p>
-				<Button asChild variant="outline" size="sm">
-					<Link to="/settings/connections/itsm">Connect Source</Link>
-				</Button>
+				<Link
+					to="/settings/connections/itsm"
+					className={buttonVariants({ variant: "outline", size: "sm" })}
+				>
+					Connect Source
+				</Link>
 			</div>
 		</PageWrapper>
 	),
@@ -515,9 +518,12 @@ export const TrainingFailed: Story = {
 						There was an error processing your tickets. Please check your
 						connection settings.
 					</p>
-					<Button asChild variant="outline" size="sm">
-						<Link to="/settings/connections/itsm">Go to ITSM Connections</Link>
-					</Button>
+					<Link
+						to="/settings/connections/itsm"
+						className={buttonVariants({ variant: "outline", size: "sm" })}
+					>
+						Go to ITSM Connections
+					</Link>
 				</StatusAlert>
 				<div className="flex min-h-[200px] items-center justify-center">
 					<p className="text-muted-foreground">No groups available</p>
@@ -547,9 +553,12 @@ export const TicketsBelowThreshold: Story = {
 						There are 10 tickets in your instance but at least 100 are required
 						to train a model. Add more tickets and sync again.
 					</p>
-					<Button asChild variant="outline" size="sm">
-						<Link to="/settings/connections/itsm">Go to ITSM Connections</Link>
-					</Button>
+					<Link
+						to="/settings/connections/itsm"
+						className={buttonVariants({ variant: "outline", size: "sm" })}
+					>
+						Go to ITSM Connections
+					</Link>
 				</StatusAlert>
 				<div className="flex min-h-[200px] items-center justify-center">
 					<p className="text-muted-foreground">No groups available</p>

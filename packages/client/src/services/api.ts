@@ -609,6 +609,26 @@ export const clustersApi = {
 		apiRequest<import("../types/cluster").ClusterKbArticlesResponse>(
 			`/api/clusters/${clusterId}/kb-articles`,
 		),
+
+	// Generate knowledge article from cluster sources
+	generateKnowledge: (clusterId: string, sources: string[]) =>
+		apiRequest<{ generation_id: string }>(
+			`/api/clusters/${clusterId}/generate-knowledge`,
+			{
+				method: "POST",
+				body: { sources },
+			},
+		),
+
+	// Add a knowledge article to a cluster
+	addKbArticle: (clusterId: string, content: string, filename: string) =>
+		apiRequest<{ data: import("../types/cluster").KbArticle }>(
+			`/api/clusters/${clusterId}/kb-articles`,
+			{
+				method: "POST",
+				body: { content, filename },
+			},
+		),
 };
 
 // Tickets API

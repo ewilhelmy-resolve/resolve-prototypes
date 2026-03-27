@@ -38,6 +38,10 @@ env:
   ECR_REGISTRY: 432993365903.dkr.ecr.us-east-1.amazonaws.com
   EKS_CLUSTER_NAME: rita-prod
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   validate-inputs:
     runs-on: ubuntu-latest
@@ -75,6 +79,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.ONBOARDING_GITHUB_TOKEN }}
 
       - name: Build API Server
         run: pnpm --filter rita-api-server build
