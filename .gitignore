@@ -134,6 +134,9 @@ tmux-dev.sh
 .pi/
 .context/
 
+# Spec-engine generated docs
+docs/discover/
+
 # Docusaurus
 packages/docs-site/content/
 packages/docs-site/build/
