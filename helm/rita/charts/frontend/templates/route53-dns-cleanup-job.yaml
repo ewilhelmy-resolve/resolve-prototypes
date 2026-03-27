@@ -23,6 +23,13 @@ spec:
       containers:
       - name: dns-cleanup
         image: amazon/aws-cli:latest
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "10m"
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
         command:
         - sh
         - -c

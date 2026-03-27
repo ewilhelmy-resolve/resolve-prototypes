@@ -3,6 +3,11 @@ name: Deploy to K8s Dev
 on:
   workflow_dispatch:
     inputs:
+      namespace:
+        description: 'Namespace to deploy to (leave empty to auto-detect from user)'
+        required: false
+        type: string
+        default: ''
       services:
         description: 'Services to deploy (all, api-server, frontend)'
         required: false
@@ -94,23 +99,34 @@ jobs:
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set region us-east-1
 
-      - name: Login to Amazon ECR
+      - name: Set ECR registry
         id: ecr-login
         run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 432993365903.dkr.ecr.us-east-1.amazonaws.com
           echo "registry=432993365903.dkr.ecr.us-east-1.amazonaws.com" >> $GITHUB_OUTPUT
 
-      - name: Build and push images
+      - name: Clear Docker credentials
+        run: |
+          rm -f ~/.docker/config.json
+          docker logout 2>/dev/null || true
+
+      - name: Build images
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           SHORT_SHA: ${{ steps.meta.outputs.short-sha }}
         run: |
-          # API Server
           docker build -t ${ECR_REGISTRY}/rita-api-server:${SHORT_SHA} -f packages/api-server/Dockerfile.prod .
-          docker push ${ECR_REGISTRY}/rita-api-server:${SHORT_SHA}
-
-          # Frontend
           docker build -t ${ECR_REGISTRY}/rita-frontend:${SHORT_SHA} -f packages/client/Dockerfile.prod packages/client
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ steps.ecr-login.outputs.registry }}
+
+      - name: Push images
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          SHORT_SHA: ${{ steps.meta.outputs.short-sha }}
+        run: |
+          docker push ${ECR_REGISTRY}/rita-api-server:${SHORT_SHA}
           docker push ${ECR_REGISTRY}/rita-frontend:${SHORT_SHA}
 
   deploy-k8s:
@@ -120,7 +136,11 @@ jobs:
       - name: Set tenant name variable
         id: get-tenant
         run: |
-          TENANT_TO_DEPLOY_TO=${{ needs.call_match_tenant.outputs.dev_tenant_name || 'rita-dev' }}
+          if [ -n "${{ inputs.namespace }}" ]; then
+            TENANT_TO_DEPLOY_TO="${{ inputs.namespace }}"
+          else
+            TENANT_TO_DEPLOY_TO=${{ needs.call_match_tenant.outputs.dev_tenant_name || 'rita-dev' }}
+          fi
           echo "deploy-tenant=$TENANT_TO_DEPLOY_TO" >> $GITHUB_OUTPUT
 
       - name: Checkout code
@@ -212,8 +232,109 @@ jobs:
             helm rollback $release 0 -n $NAMESPACE --force || helm uninstall $release -n $NAMESPACE || true
           done
 
+      - name: Generate automation credentials
+        id: automation-creds
+        env:
+          KEYCLOAK_URL: "https://auth.dev.resolve.io"
+          ACTIONS_API_URL: "https://actions-api-dev.resolve.io"
+          RA_USERNAME: ${{ secrets.DEV_RA_USERNAME }}
+          RA_PASSWORD: ${{ secrets.DEV_RA_PASSWORD }}
+          NAMESPACE: ${{ steps.get-tenant.outputs.deploy-tenant }}
+          AWS_REGION: us-east-1
+        run: |
+          set -euo pipefail
+          SECRET_NAME="rita/dev/${NAMESPACE}/automation-auth"
+          KEY_NAME="RITA Event Key"
+          KEY_TYPE=2
+
+          # Check if AUTOMATION_AUTH already exists in Secrets Manager
+          EXISTING_SECRET=$(aws secretsmanager get-secret-value \
+            --secret-id "$SECRET_NAME" \
+            --region "$AWS_REGION" \
+            --query 'SecretString' --output text 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_SECRET" ]; then
+            echo "AUTOMATION_AUTH already exists in Secrets Manager, skipping key creation"
+            AUTOMATION_AUTH="$EXISTING_SECRET"
+          else
+            echo "No existing secret found, creating automation credentials..."
+
+            # Authenticate with Keycloak
+            ACCESS_TOKEN=$(curl -s -X POST "${KEYCLOAK_URL}/realms/${NAMESPACE}/protocol/openid-connect/token" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              --data-urlencode "username=${RA_USERNAME}" \
+              --data-urlencode "password=${RA_PASSWORD}" \
+              --data-urlencode "grant_type=password" \
+              --data-urlencode "client_id=actions" | jq -r '.access_token')
+
+            if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
+              echo "Failed to authenticate with Keycloak"
+              exit 1
+            fi
+
+            # Get Tenant details
+            TENANT_DETAILS=$(curl -s "${ACTIONS_API_URL}/api/Tenant/getTenantDetails/${NAMESPACE}" \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}")
+            EVENTS_CLIENT_ID=$(echo "$TENANT_DETAILS" | jq -r '.["Events Client ID"]')
+
+            if [ -z "$EVENTS_CLIENT_ID" ] || [ "$EVENTS_CLIENT_ID" = "null" ]; then
+              echo "Failed to get Events Client ID"
+              exit 1
+            fi
+            echo "Events Client ID: ${EVENTS_CLIENT_ID}"
+
+            # Create secret key
+            echo "Creating secret key '${KEY_NAME}'..."
+            KEY_RESPONSE=$(curl -sf -X POST \
+              "${ACTIONS_API_URL}/api/SecretKeys/createSecretKey" \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\": \"${KEY_NAME}\", \"type\": ${KEY_TYPE}}")
+
+            SECRET_KEY_VALUE=$(echo "$KEY_RESPONSE" | jq -r '.secretKey')
+
+            if [ -z "$SECRET_KEY_VALUE" ] || [ "$SECRET_KEY_VALUE" = "null" ]; then
+              echo "Failed to create secret key"
+              exit 1
+            fi
+            echo "Secret key created"
+
+            AUTOMATION_AUTH=$(echo -n "${EVENTS_CLIENT_ID}:${SECRET_KEY_VALUE}" | base64 | tr -d '\n')
+
+            # Store in Secrets Manager
+            aws secretsmanager create-secret \
+              --name "$SECRET_NAME" \
+              --secret-string "$AUTOMATION_AUTH" \
+              --region "$AWS_REGION"
+            echo "AUTOMATION_AUTH stored in Secrets Manager"
+          fi
+
+          # Build AUTOMATION_WEBHOOK_URL (always, from tenant details)
+          if [ -z "${ACCESS_TOKEN:-}" ]; then
+            ACCESS_TOKEN=$(curl -s -X POST "${KEYCLOAK_URL}/realms/${NAMESPACE}/protocol/openid-connect/token" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              --data-urlencode "username=${RA_USERNAME}" \
+              --data-urlencode "password=${RA_PASSWORD}" \
+              --data-urlencode "grant_type=password" \
+              --data-urlencode "client_id=actions" | jq -r '.access_token')
+          fi
+
+          TENANT_ID=$(curl -s "${ACTIONS_API_URL}/api/Tenant/getTenantDetails/${NAMESPACE}" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq -r '.["Tenant ID"]')
+
+          if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "null" ]; then
+            echo "Failed to get tenant ID"
+            exit 1
+          fi
+
+          AUTOMATION_WEBHOOK_URL="${ACTIONS_API_URL}/api/Webhooks/postEvent/${TENANT_ID}"
+
+          echo "::add-mask::${AUTOMATION_AUTH}"
+          echo "automation-auth=${AUTOMATION_AUTH}" >> $GITHUB_OUTPUT
+          echo "automation-webhook-url=${AUTOMATION_WEBHOOK_URL}" >> $GITHUB_OUTPUT
+
       - name: Deploy via helmfile (multi-tenant with selectors)
-        working-directory: helm/ritadev/ops
+        working-directory: helm/rita/ops
         env:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.short-sha }}
           ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr-registry }}
@@ -226,8 +347,8 @@ jobs:
           CONSUL_HTTP_TOKEN: ${{ secrets.DEV_CONSUL_HTTP_TOKEN }}
           CONSUL_HTTP_ADDR: ${{ secrets.DEV_CONSUL_HTTP_ADDR }}
           VALKEY_URL: ${{ secrets.VALKEY_URL_DEV }}
-          AUTOMATION_WEBHOOK_URL: ${{ secrets.DEV_AUTOMATION_WEBHOOK_URL }}
-          AUTOMATION_AUTH: ${{ secrets.DEV_AUTOMATION_AUTH }}
+          AUTOMATION_WEBHOOK_URL: ${{ steps.automation-creds.outputs.automation-webhook-url }}
+          AUTOMATION_AUTH: ${{ steps.automation-creds.outputs.automation-auth }}
           ROUTE53_ENABLED: ${{ secrets.ROUTE53_ENABLED || 'false' }}
           ROUTE53_HOSTED_ZONE_ID: ${{ secrets.ROUTE53_HOSTED_ZONE_ID || '' }}
           DEV_RITA_CLIENT_SECRET: ${{ secrets.DEV_RITA_CLIENT_SECRET }}

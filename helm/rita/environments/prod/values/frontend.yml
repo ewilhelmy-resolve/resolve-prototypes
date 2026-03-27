@@ -37,7 +37,7 @@ route53:
   hostedZoneId: Z00550801QTKF8OAESP4
   serviceAccount:
     annotations:
-      eks.amazonaws.com/role-arn: ""  # Set to IRSA role ARN after Terraform apply
+      eks.amazonaws.com/role-arn: "arn:aws:iam::432993365903:role/rita-prod-route53"
 
 # Production hardening
 networkPolicy:

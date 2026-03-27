@@ -26,6 +26,7 @@ spec:
       - name: db-init
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        workingDir: /app/packages/api-server
         command:
         - node
         - -e

@@ -77,6 +77,18 @@ migration:
   backoffLimit: 0
   ttlSecondsAfterFinished: 86400
 
+# Automation credentials (creates RITA Event Key + stores in AWS Secrets Manager)
+automationCreds:
+  enabled: false
+  keycloakUrl: ""
+  actionsApiUrl: ""
+  keycloakAdminUser: ""
+  keycloakAdminPass: ""
+  awsAccessKeyId: ""
+  awsSecretAccessKey: ""
+  awsRegion: "us-east-1"
+  environment: "prod"
+
 # Database initialization (creates database if not exists)
 dbInit:
   enabled: false

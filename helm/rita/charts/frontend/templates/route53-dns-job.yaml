@@ -50,6 +50,13 @@ spec:
 
           echo "ERROR: Timeout waiting for ALB to be provisioned after $MAX_WAIT seconds"
           exit 1
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "10m"
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
         volumeMounts:
         - name: shared-data
           mountPath: /tmp
@@ -111,6 +118,13 @@ spec:
 
           echo "DNS record created/updated successfully!"
           echo "URL: https://$HOSTNAME"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "10m"
+          limits:
+            memory: "256Mi"
+            cpu: "100m"
         volumeMounts:
         - name: shared-data
           mountPath: /tmp

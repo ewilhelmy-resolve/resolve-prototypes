@@ -77,12 +77,6 @@ resource "aws_db_parameter_group" "main" {
   name   = "${var.cluster_name}-pg15-pgvector"
   family = "postgres15"
 
-  parameter {
-    name         = "shared_preload_libraries"
-    value        = "vector"
-    apply_method = "pending-reboot"
-  }
-
   tags = {
     Name        = "${var.cluster_name}-pg15-pgvector"
     Environment = var.environment
