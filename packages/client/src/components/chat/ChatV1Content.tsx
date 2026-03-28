@@ -89,6 +89,7 @@ import {
 	extractFormFields,
 	openFormModal as hostOpenFormModal,
 	isInIframe,
+	safePostToParent,
 } from "@/utils/hostModal";
 import { SchemaRenderer } from "../schema-renderer";
 import { InlineFormRequest } from "../ui-form-request/InlineFormRequest";
@@ -505,7 +506,11 @@ function SimpleMessage({
 			};
 			window.addEventListener("message", onAck);
 
-			window.parent.postMessage({ type: "RITA_FORM_MODAL", payload }, "*");
+			if (!safePostToParent({ type: "RITA_FORM_MODAL", payload })) {
+				window.removeEventListener("message", onAck);
+				setShowFallbackDialog(true);
+				return;
+			}
 
 			// Tier 2 fallback: if no ACK in 300ms, open in-iframe dialog
 			setTimeout(() => {

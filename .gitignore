@@ -1,3 +1,6 @@
+# One-off scripts
+scripts/
+
 # Dependencies
 node_modules/
 */node_modules/
@@ -141,3 +144,9 @@ docs/discover/
 packages/docs-site/content/
 packages/docs-site/build/
 packages/docs-site/.docusaurus/
+
+# Terraform states and locks
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+>>>>>>> origin/main

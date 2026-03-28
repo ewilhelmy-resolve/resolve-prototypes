@@ -1,0 +1,289 @@
+{{- if or (eq (toString .Values.automationCreds.enabled) "true") }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "api-server.fullname" . }}-automation-creds-{{ .Release.Revision }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "api-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: automation-creds
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "7"
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook-timeout: "120s"
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: automation-creds
+        app.kubernetes.io/component: automation-creds
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: automation-creds
+        image: amazon/aws-cli:latest
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "50m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        env:
+        - name: KEYCLOAK_URL
+          value: {{ .Values.automationCreds.keycloakUrl | quote }}
+        - name: ACTIONS_API_URL
+          value: {{ .Values.automationCreds.actionsApiUrl | quote }}
+        - name: KEYCLOAK_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "api-server.fullname" . }}-automation-aws
+              key: KEYCLOAK_ADMIN_USER
+        - name: KEYCLOAK_ADMIN_PASS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "api-server.fullname" . }}-automation-aws
+              key: KEYCLOAK_ADMIN_PASS
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "api-server.fullname" . }}-automation-aws
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "api-server.fullname" . }}-automation-aws
+              key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_REGION
+          value: {{ .Values.automationCreds.awsRegion | default "us-east-1" | quote }}
+        - name: NAMESPACE
+          value: {{ .Values.namespace | quote }}
+        - name: ENVIRONMENT
+          value: {{ .Values.automationCreds.environment | default "prod" | quote }}
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+
+          yum install -y -q jq 2>/dev/null || true
+
+          AUTH_SECRET_NAME="rita/${ENVIRONMENT}/${NAMESPACE}/automation-auth"
+          WEBHOOK_SECRET_NAME="rita/${ENVIRONMENT}/${NAMESPACE}/automation-webhook-url"
+          KEY_NAME="RITA Event Key"
+          KEY_TYPE=2
+          TEMP_USER="rita-automation-temp"
+
+          # Check if both secrets already exist in Secrets Manager
+          EXISTING_AUTH=$(aws secretsmanager get-secret-value \
+            --secret-id "$AUTH_SECRET_NAME" \
+            --region "$AWS_REGION" \
+            --query 'SecretString' --output text 2>/dev/null || echo "")
+
+          EXISTING_WEBHOOK=$(aws secretsmanager get-secret-value \
+            --secret-id "$WEBHOOK_SECRET_NAME" \
+            --region "$AWS_REGION" \
+            --query 'SecretString' --output text 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_AUTH" ] && [ -n "$EXISTING_WEBHOOK" ]; then
+            echo "Automation credentials already exist in Secrets Manager, skipping"
+            exit 0
+          fi
+
+          echo "No existing credentials found, creating..."
+          TEMP_PASS="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)"
+
+          # Reusable function to get/refresh master admin token
+          refresh_admin_token() {
+            ADMIN_TOKEN=$(curl -s -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -d "username=${KEYCLOAK_ADMIN_USER}" \
+              -d "password=${KEYCLOAK_ADMIN_PASS}" \
+              -d "grant_type=password" \
+              -d "client_id=admin-cli" | jq -r '.access_token')
+          }
+
+          refresh_admin_token
+
+          if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
+            echo "Failed to authenticate as Keycloak admin"
+            exit 1
+          fi
+          echo "Authenticated as Keycloak admin"
+
+          # Clean up any stale temp user from a previous failed run
+          STALE_USER_ID=$(curl -s "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/users?username=${TEMP_USER}&exact=true" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" | jq -r '.[0].id // empty')
+          if [ -n "$STALE_USER_ID" ]; then
+            echo "Removing stale temp user from previous run (${STALE_USER_ID})..."
+            curl -s -X DELETE "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/users/${STALE_USER_ID}" \
+              -H "Authorization: Bearer ${ADMIN_TOKEN}" || true
+          fi
+
+          # Create temp user in tenant realm
+          echo "Creating temporary user in realm '${NAMESPACE}'..."
+          CREATE_STATUS=$(curl -s -o /tmp/create-user.txt -w "%{http_code}" \
+            -X POST "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/users" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"username\": \"${TEMP_USER}\",
+              \"email\": \"${TEMP_USER}@automation.local\",
+              \"firstName\": \"Rita\",
+              \"lastName\": \"Automation\",
+              \"enabled\": true,
+              \"emailVerified\": true,
+              \"requiredActions\": [],
+              \"credentials\": [{\"type\": \"password\", \"value\": \"${TEMP_PASS}\", \"temporary\": false}]
+            }")
+
+          if [ "$CREATE_STATUS" -lt 200 ] || [ "$CREATE_STATUS" -ge 300 ]; then
+            echo "Failed to create temp user: HTTP ${CREATE_STATUS}"
+            cat /tmp/create-user.txt
+            exit 1
+          fi
+
+          # Get the temp user's UUID
+          TEMP_USER_ID=$(curl -s "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/users?username=${TEMP_USER}&exact=true" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" | jq -r '.[0].id')
+
+          if [ -z "$TEMP_USER_ID" ] || [ "$TEMP_USER_ID" = "null" ]; then
+            echo "Failed to get temp user ID"
+            exit 1
+          fi
+          echo "Temp user created (ID: ${TEMP_USER_ID})"
+
+          # Clear any required actions the realm may have applied
+          echo "Clearing required actions for temp user..."
+          CLEAR_STATUS=$(curl -s -o /tmp/clear-actions.txt -w "%{http_code}" \
+            -X PUT "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/users/${TEMP_USER_ID}" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"requiredActions\": [], \"emailVerified\": true}")
+          echo "Clear required actions response: HTTP ${CLEAR_STATUS}"
+          if [ "$CLEAR_STATUS" -ge 300 ]; then
+            echo "Warning: failed to clear required actions"
+            cat /tmp/clear-actions.txt
+          fi
+
+          # Verify the user state
+          USER_STATE=$(curl -s "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/users/${TEMP_USER_ID}" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}")
+          echo "User requiredActions: $(echo "$USER_STATE" | jq -r '.requiredActions')"
+          echo "User emailVerified: $(echo "$USER_STATE" | jq -r '.emailVerified')"
+
+          # Cleanup function — re-acquires admin token in case original expired
+          cleanup_temp_user() {
+            echo "Cleaning up temp user..."
+            refresh_admin_token
+            curl -s -X DELETE "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/users/${TEMP_USER_ID}" \
+              -H "Authorization: Bearer ${ADMIN_TOKEN}" || true
+            echo "Temp user deleted"
+          }
+          trap cleanup_temp_user EXIT
+
+          # Get the 'actions' client UUID in the tenant realm
+          ACTIONS_CLIENT_UUID=$(curl -s "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/clients?clientId=actions" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" | jq -r '.[0].id')
+
+          if [ -z "$ACTIONS_CLIENT_UUID" ] || [ "$ACTIONS_CLIENT_UUID" = "null" ]; then
+            echo "Failed to find 'actions' client in realm"
+            exit 1
+          fi
+
+          # Get the 'Administrator' role from the actions client
+          ADMIN_ROLE=$(curl -s "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/clients/${ACTIONS_CLIENT_UUID}/roles/Administrator" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}")
+
+          if [ "$(echo "$ADMIN_ROLE" | jq -r '.name')" != "Administrator" ]; then
+            echo "Failed to find 'Administrator' role on actions client"
+            exit 1
+          fi
+
+          # Assign the role to the temp user
+          curl -s -X POST "${KEYCLOAK_URL}/admin/realms/${NAMESPACE}/users/${TEMP_USER_ID}/role-mappings/clients/${ACTIONS_CLIENT_UUID}" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "[${ADMIN_ROLE}]"
+          echo "Administrator role assigned to temp user"
+
+          # Authenticate as temp user against Actions API
+          AUTH_RESPONSE=$(curl -s -X POST "${KEYCLOAK_URL}/realms/${NAMESPACE}/protocol/openid-connect/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "username=${TEMP_USER}" \
+            --data-urlencode "password=${TEMP_PASS}" \
+            --data-urlencode "grant_type=password" \
+            --data-urlencode "client_id=actions")
+          ACCESS_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.access_token')
+
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
+            echo "Failed to authenticate as temp user"
+            echo "Auth response: $AUTH_RESPONSE"
+            exit 1
+          fi
+
+          # Get Tenant details
+          TENANT_DETAILS=$(curl -s "${ACTIONS_API_URL}/api/Tenant/getTenantDetails/${NAMESPACE}" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}")
+          TENANT_ID=$(echo "$TENANT_DETAILS" | jq -r '.["Tenant ID"]')
+          EVENTS_CLIENT_ID=$(echo "$TENANT_DETAILS" | jq -r '.["Events Client ID"]')
+
+          if [ -z "$TENANT_ID" ] || [ "$TENANT_ID" = "null" ]; then
+            echo "Failed to get tenant ID"
+            exit 1
+          fi
+          if [ -z "$EVENTS_CLIENT_ID" ] || [ "$EVENTS_CLIENT_ID" = "null" ]; then
+            echo "Failed to get Events Client ID"
+            exit 1
+          fi
+          echo "Tenant ID: ${TENANT_ID}"
+          echo "Events Client ID: ${EVENTS_CLIENT_ID}"
+
+          # Create secret key
+          echo "Creating secret key '${KEY_NAME}'..."
+          KEY_RESPONSE=$(curl -s -X POST \
+            "${ACTIONS_API_URL}/api/SecretKeys/createSecretKey" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"${KEY_NAME}\", \"type\": ${KEY_TYPE}}")
+
+          SECRET_KEY_VALUE=$(echo "$KEY_RESPONSE" | jq -r '.secretKey')
+
+          if [ -z "$SECRET_KEY_VALUE" ] || [ "$SECRET_KEY_VALUE" = "null" ]; then
+            echo "Failed to create secret key"
+            echo "$KEY_RESPONSE"
+            exit 1
+          fi
+          echo "Secret key created"
+
+          AUTOMATION_AUTH=$(echo -n "${EVENTS_CLIENT_ID}:${SECRET_KEY_VALUE}" | base64 | tr -d '\n')
+          AUTOMATION_WEBHOOK_URL="${ACTIONS_API_URL}/api/Webhooks/postEvent/${TENANT_ID}"
+
+          # Store both in Secrets Manager (handle create, update, and restore from deletion)
+          store_secret() {
+            local name=$1 value=$2
+            # Try restore first (in case of scheduled deletion)
+            aws secretsmanager restore-secret --secret-id "$name" --region "$AWS_REGION" 2>/dev/null || true
+            # Try create, fall back to put-secret-value if it already exists
+            aws secretsmanager create-secret \
+              --name "$name" \
+              --secret-string "$value" \
+              --region "$AWS_REGION" 2>/dev/null || \
+            aws secretsmanager put-secret-value \
+              --secret-id "$name" \
+              --secret-string "$value" \
+              --region "$AWS_REGION"
+          }
+
+          store_secret "$AUTH_SECRET_NAME" "$AUTOMATION_AUTH"
+          echo "AUTOMATION_AUTH stored in Secrets Manager"
+
+          store_secret "$WEBHOOK_SECRET_NAME" "$AUTOMATION_WEBHOOK_URL"
+          echo "AUTOMATION_WEBHOOK_URL stored in Secrets Manager"
+
+          echo "Automation credentials setup complete!"
+          # Temp user cleanup happens via trap
+{{- end }}

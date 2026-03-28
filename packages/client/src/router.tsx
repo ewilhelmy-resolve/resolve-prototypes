@@ -7,6 +7,10 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import { RootLayout } from "./components/layouts/RootLayout";
 import { useFeatureFlag } from "./hooks/useFeatureFlags";
+import AgentBuilderPageV2 from "./pages/AgentBuilderPage";
+import AgentChatPage from "./pages/AgentChatPage";
+import AgentsPage from "./pages/AgentsPage";
+import AgentTestPage from "./pages/AgentTestPage";
 import ChatV1Page from "./pages/ChatV1Page";
 import ClusterDetailPage from "./pages/ClusterDetailPage";
 import ClustersPage from "./pages/ClustersPage";
@@ -38,6 +42,13 @@ import WorkflowsPage from "./pages/WorkflowsPage";
 function TicketsPageWithFlag() {
 	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
 	return enableTicketsV2 ? <ClustersPage /> : <TicketsPage />;
+}
+
+// Feature-flagged agents gate
+function AgentsFeatureGate({ children }: { children: React.ReactNode }) {
+	const enableAgents = useFeatureFlag("ENABLE_AGENTS");
+	if (!enableAgents) return <Navigate to="/chat" replace />;
+	return children;
 }
 
 const router = createBrowserRouter([
@@ -72,6 +83,72 @@ const router = createBrowserRouter([
 	{
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
+	},
+	// Redirect /agent to /agents
+	{
+		path: "/agent",
+		element: <Navigate to="/agents" replace />,
+	},
+	// Agent builder
+	{
+		path: "/agents",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<AgentsFeatureGate>
+					<AgentsPage />
+				</AgentsFeatureGate>
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/create",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<AgentsFeatureGate>
+					<AgentBuilderPageV2 />
+				</AgentsFeatureGate>
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/:id",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<AgentsFeatureGate>
+					<AgentBuilderPageV2 />
+				</AgentsFeatureGate>
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/:id/chat",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<AgentsFeatureGate>
+					<AgentChatPage />
+				</AgentsFeatureGate>
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/:id/test",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<AgentsFeatureGate>
+					<AgentTestPage />
+				</AgentsFeatureGate>
+			</RoleProtectedRoute>
+		),
+	},
+	{
+		path: "/agents/test",
+		element: (
+			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
+				<AgentsFeatureGate>
+					<AgentTestPage />
+				</AgentsFeatureGate>
+			</RoleProtectedRoute>
+		),
 	},
 	// JIRITA - Workflow builder (dev tool, feature-flagged)
 	{
