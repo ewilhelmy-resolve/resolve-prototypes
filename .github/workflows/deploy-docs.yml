@@ -35,6 +35,8 @@ jobs:
         cache: 'pnpm'
 
     - run: pnpm install --frozen-lockfile
+      env:
+        GITHUB_TOKEN: ${{ secrets.ONBOARDING_GITHUB_TOKEN }}
 
     - name: Generate spec documentation
       run: pnpm spec:build
