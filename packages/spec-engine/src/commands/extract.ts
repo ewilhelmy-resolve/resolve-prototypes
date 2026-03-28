@@ -1,0 +1,56 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import chalk from "chalk";
+import { extractComponents } from "../extractors/component-extractor.js";
+import { extractRoutes } from "../extractors/route-extractor.js";
+import { extractSchemas } from "../extractors/schema-extractor.js";
+import { extractStories } from "../extractors/story-extractor.js";
+import { extractAll } from "../extractors/ts-extractor.js";
+import type { Lexicon } from "../types/lexicon.js";
+import { mergeLexicon } from "../utils/merge-lexicon.js";
+import { findRepoRoot } from "../utils/repo-root.js";
+
+interface ExtractOptions {
+	output: string;
+}
+
+export async function extractCommand(options: ExtractOptions) {
+	const rootDir = findRepoRoot();
+	const outputPath = path.resolve(rootDir, options.output);
+
+	console.log(chalk.blue("Extracting metadata from source code...\n"));
+
+	const tsData = await extractAll(rootDir);
+	const storyData = await extractStories(rootDir);
+	const routeData = await extractRoutes(rootDir);
+	const schemaData = await extractSchemas(rootDir);
+	const componentData = await extractComponents(rootDir);
+
+	const lexicon = mergeLexicon(
+		tsData,
+		storyData,
+		routeData,
+		schemaData,
+		componentData,
+	);
+
+	mkdirSync(path.dirname(outputPath), { recursive: true });
+	writeFileSync(outputPath, JSON.stringify(lexicon, null, "\t"), "utf-8");
+
+	console.log(
+		chalk.green(`\nLexicon written to ${path.relative(rootDir, outputPath)}`),
+	);
+	printStats(lexicon);
+}
+
+function printStats(lexicon: Lexicon) {
+	const { stats } = lexicon;
+	console.log(`\n  Files scanned:    ${stats.totalFiles}`);
+	console.log(`  Exports found:    ${stats.totalExports}`);
+	console.log(`  Annotated:        ${stats.annotatedExports}`);
+	console.log(`  Coverage:         ${stats.coveragePercent.toFixed(1)}%`);
+	console.log(`  Actors:           ${lexicon.actors.length}`);
+	console.log(`  Views:            ${lexicon.views.length}`);
+	console.log(`  Journeys:         ${lexicon.journeys.length}`);
+	console.log(`  Constraints:      ${lexicon.constraints.length}`);
+}
