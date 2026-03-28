@@ -5,6 +5,7 @@ import { extractComponents } from "../extractors/component-extractor.js";
 import { extractRoutes } from "../extractors/route-extractor.js";
 import { extractSchemas } from "../extractors/schema-extractor.js";
 import { extractStories } from "../extractors/story-extractor.js";
+import { extractTests } from "../extractors/test-extractor.js";
 import { extractAll } from "../extractors/ts-extractor.js";
 import type { Lexicon } from "../types/lexicon.js";
 import { mergeLexicon } from "../utils/merge-lexicon.js";
@@ -25,6 +26,7 @@ export async function extractCommand(options: ExtractOptions) {
 	const routeData = await extractRoutes(rootDir);
 	const schemaData = await extractSchemas(rootDir);
 	const componentData = await extractComponents(rootDir);
+	const testData = await extractTests(rootDir);
 
 	const lexicon = mergeLexicon(
 		tsData,
@@ -32,6 +34,7 @@ export async function extractCommand(options: ExtractOptions) {
 		routeData,
 		schemaData,
 		componentData,
+		testData,
 	);
 
 	mkdirSync(path.dirname(outputPath), { recursive: true });

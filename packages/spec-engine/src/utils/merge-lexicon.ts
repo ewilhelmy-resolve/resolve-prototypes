@@ -10,6 +10,7 @@ import type { ComponentData } from "../extractors/component-extractor.js";
 import type { RouteData } from "../extractors/route-extractor.js";
 import type { SchemaData } from "../extractors/schema-extractor.js";
 import type { StoryData } from "../extractors/story-extractor.js";
+import type { TestData } from "../extractors/test-extractor.js";
 import type { ExtractedData } from "../extractors/ts-extractor.js";
 import type { Vocabulary } from "../types/vocabulary.js";
 
@@ -19,6 +20,7 @@ export function mergeLexicon(
 	routeData: RouteData,
 	schemaData: SchemaData,
 	componentData: ComponentData,
+	testData: TestData,
 ): Lexicon {
 	// Start with ts-morph extracted data
 	const actors = dedup(tsData.actors, (a) => a.id);
@@ -28,7 +30,7 @@ export function mergeLexicon(
 		(c) => c.id,
 	);
 	const journeys = dedup(
-		[...tsData.journeys, ...routeData.journeys],
+		[...tsData.journeys, ...routeData.journeys, ...testData.journeys],
 		(j) => j.id,
 	);
 
