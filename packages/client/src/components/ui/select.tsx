@@ -4,8 +4,16 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+// Label registry: SelectItem registers value→label, SelectValue reads it
+type LabelRegistry = {
+  register: (value: string, label: string) => void
+  getLabel: (value: string) => string | undefined
+}
+const SelectLabelContext = React.createContext<LabelRegistry | null>(null)
+
 function Select({
   onValueChange,
+  children,
   ...props
 }: Omit<
   React.ComponentProps<typeof SelectPrimitive.Root>,
@@ -13,16 +21,28 @@ function Select({
 > & {
   onValueChange?: (value: string) => void
 }) {
+  const labelsRef = React.useRef<Map<string, string>>(new Map())
+  const registry = React.useMemo<LabelRegistry>(
+    () => ({
+      register: (value, label) => { labelsRef.current.set(value, label) },
+      getLabel: (value) => labelsRef.current.get(value),
+    }),
+    [],
+  )
   return (
-    <SelectPrimitive.Root
-      data-slot="select"
-      onValueChange={
-        onValueChange
-          ? (value: unknown) => onValueChange(value as string)
-          : undefined
-      }
-      {...props}
-    />
+    <SelectLabelContext.Provider value={registry}>
+      <SelectPrimitive.Root
+        data-slot="select"
+        onValueChange={
+          onValueChange
+            ? (value: unknown) => onValueChange(value as string)
+            : undefined
+        }
+        {...props}
+      >
+        {children}
+      </SelectPrimitive.Root>
+    </SelectLabelContext.Provider>
   )
 }
 
@@ -33,9 +53,24 @@ function SelectGroup({
 }
 
 function SelectValue({
+  children,
+  placeholder,
   ...props
 }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Value>) {
-  return <SelectPrimitive.Value data-slot="select-value" {...props} />
+  const registry = React.useContext(SelectLabelContext)
+  return (
+    <SelectPrimitive.Value
+      data-slot="select-value"
+      placeholder={placeholder}
+      {...props}
+    >
+      {children ?? ((value: unknown) => {
+        if (value == null) return placeholder ?? null
+        const label = registry?.getLabel(String(value))
+        return label ?? String(value)
+      })}
+    </SelectPrimitive.Value>
+  )
 }
 
 function SelectTrigger({
@@ -109,15 +144,25 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  value,
   label,
   ...props
 }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & {
   label?: string
 }) {
+  const registry = React.useContext(SelectLabelContext)
   const resolvedLabel = label ?? (typeof children === "string" ? children : undefined)
+
+  React.useEffect(() => {
+    if (value != null && resolvedLabel) {
+      registry?.register(String(value), resolvedLabel)
+    }
+  }, [value, resolvedLabel, registry])
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
+      value={value}
       label={resolvedLabel}
       className={cn(
         "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
