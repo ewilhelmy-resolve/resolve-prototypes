@@ -1225,8 +1225,8 @@ describe("IframeService", () => {
 			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
 		});
 
-		it("should return session unchanged when Valkey context is empty", async () => {
-			const session = {
+		it("should still update session when Valkey context is empty but other fields present", async () => {
+			mockSessionStore.getSession = vi.fn().mockResolvedValue({
 				sessionId: "sess-5",
 				valkeySessionKey: "key-5",
 				iframeWebhookConfig: {
@@ -1234,16 +1234,28 @@ describe("IframeService", () => {
 					userGuid: "u",
 					context: { existing: true },
 				},
-			};
-			mockSessionStore.getSession = vi.fn().mockResolvedValue(session);
+			});
 			mockValkeyClient.hget.mockResolvedValueOnce(
 				JSON.stringify({ tenantId: "t", userGuid: "u" }),
 			);
 
-			const result = await iframeService.refreshSessionFromValkey("sess-5");
+			mockSessionStore.updateSession.mockImplementation(
+				async (_id, updates) => ({
+					sessionId: "sess-5",
+					...updates,
+				}),
+			);
 
-			expect(result).toBe(session);
-			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+			await iframeService.refreshSessionFromValkey("sess-5");
+
+			// Should still merge — preserves existing context even if fresh has none
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith("sess-5", {
+				iframeWebhookConfig: expect.objectContaining({
+					tenantId: "t",
+					userGuid: "u",
+					context: { existing: true },
+				}),
+			});
 		});
 
 		it("should preserve existing context fields when merging", async () => {
@@ -1314,6 +1326,95 @@ describe("IframeService", () => {
 
 			expect(result).toBe(session);
 			expect(mockSessionStore.updateSession).not.toHaveBeenCalled();
+		});
+
+		it("should merge all fresh Valkey fields, not just context", async () => {
+			mockSessionStore.getSession = vi.fn().mockResolvedValue({
+				sessionId: "sess-8",
+				valkeySessionKey: "key-8",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					actionsApiBaseUrl: "https://api.example.com",
+					clientId: "old-client",
+					clientKey: "old-key",
+					context: { designer: "activity" },
+				},
+			});
+
+			// Platform updates Valkey with new chatSessionId and refreshed tokens
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify({
+					tenantId: "t",
+					userGuid: "u",
+					actionsApiBaseUrl: "https://api.example.com",
+					clientId: "old-client",
+					clientKey: "old-key",
+					chatSessionId: "new-session-id",
+					accessToken: "refreshed-token",
+					context: { designer: "activity", activityId: 42 },
+				}),
+			);
+
+			mockSessionStore.updateSession.mockImplementation(
+				async (_id, updates) => ({
+					sessionId: "sess-8",
+					...updates,
+				}),
+			);
+
+			await iframeService.refreshSessionFromValkey("sess-8");
+
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith("sess-8", {
+				iframeWebhookConfig: expect.objectContaining({
+					chatSessionId: "new-session-id",
+					accessToken: "refreshed-token",
+					context: { designer: "activity", activityId: 42 },
+				}),
+			});
+		});
+
+		it("should update session even when context has no changes but other fields do", async () => {
+			mockSessionStore.getSession = vi.fn().mockResolvedValue({
+				sessionId: "sess-9",
+				valkeySessionKey: "key-9",
+				iframeWebhookConfig: {
+					tenantId: "t",
+					userGuid: "u",
+					actionsApiBaseUrl: "https://api.example.com",
+					clientId: "c",
+					clientKey: "k",
+					context: { designer: "activity" },
+				},
+			});
+
+			// Platform updates Valkey with same context but new chatSessionId
+			mockValkeyClient.hget.mockResolvedValueOnce(
+				JSON.stringify({
+					tenantId: "t",
+					userGuid: "u",
+					actionsApiBaseUrl: "https://api.example.com",
+					clientId: "c",
+					clientKey: "k",
+					chatSessionId: "updated-session",
+					context: { designer: "activity" },
+				}),
+			);
+
+			mockSessionStore.updateSession.mockImplementation(
+				async (_id, updates) => ({
+					sessionId: "sess-9",
+					...updates,
+				}),
+			);
+
+			await iframeService.refreshSessionFromValkey("sess-9");
+
+			expect(mockSessionStore.updateSession).toHaveBeenCalledWith("sess-9", {
+				iframeWebhookConfig: expect.objectContaining({
+					chatSessionId: "updated-session",
+				}),
+			});
 		});
 	});
 
