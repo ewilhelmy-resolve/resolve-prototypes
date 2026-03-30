@@ -82,7 +82,7 @@ function SelectContent({
         >
           <SelectScrollUpButton />
           <div
-            className="p-1 h-[var(--anchor-height)] w-full min-w-[var(--anchor-width)] scroll-my-1"
+            className="p-1 w-full min-w-[var(--anchor-width)] scroll-my-1"
           >
             {children}
           </div>
