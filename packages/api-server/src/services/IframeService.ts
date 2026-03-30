@@ -644,10 +644,22 @@ export class IframeService {
 			const { config } = await this.fetchValkeyPayloadWithDebug(
 				session.valkeySessionKey,
 			);
-			if (!config?.context) return session;
+			if (!config) return session;
+
+			// Merge all fresh Valkey fields into the session config
+			// Platform may update tokens, chatSessionId, context, etc. mid-session
+			// Filter out undefined values so they don't overwrite existing fields
+			const freshFields: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(config)) {
+				if (value !== undefined && key !== "context") {
+					freshFields[key] = value;
+				}
+			}
 
 			const updatedConfig = {
 				...session.iframeWebhookConfig,
+				...freshFields,
+				// Deep-merge context to preserve existing fields not in the fresh payload
 				context: { ...session.iframeWebhookConfig.context, ...config.context },
 			};
 
