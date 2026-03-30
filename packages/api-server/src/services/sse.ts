@@ -150,6 +150,19 @@ export interface FeatureFlagUpdateEvent {
 	};
 }
 
+export interface ClusterKnowledgeGeneratedEvent {
+	type: "cluster_knowledge_generated";
+	data: {
+		generation_id: string;
+		cluster_id: string;
+		content?: string;
+		filename?: string;
+		format?: "markdown" | "text";
+		error?: string;
+		timestamp: string;
+	};
+}
+
 export interface DynamicWorkflowEvent {
 	type: "dynamic_workflow";
 	data: {
@@ -192,6 +205,7 @@ export type SSEEvent =
 	| MemberDeletedOwnAccountEvent
 	| IngestionRunUpdateEvent
 	| FeatureFlagUpdateEvent
+	| ClusterKnowledgeGeneratedEvent
 	| DynamicWorkflowEvent;
 
 export class SSEService {

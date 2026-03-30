@@ -206,6 +206,7 @@ export function ClusterDetailSidebar({
 			<CreateKnowledgeArticleSheet
 				open={createSheetOpen}
 				onOpenChange={setCreateSheetOpen}
+				clusterId={clusterId}
 				ticketGroupName={clusterName}
 				onAddKnowledge={handleKnowledgeGenerated}
 				onKnowledgeAdded={handleSheetKnowledgeAdded}

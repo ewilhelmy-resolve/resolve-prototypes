@@ -3536,6 +3536,110 @@ app.post("/webhook", async (req, res) => {
 				});
 				return;
 			}
+		} else if (
+			payload.source === "rita-chat" &&
+			payload.action === "create_knowledge"
+		) {
+			// Handle create_knowledge webhook — generate mock article and publish to cluster.events queue
+			const knowledgePayload = payload as BaseWebhookPayload & {
+				cluster_id: string;
+				cluster_name: string;
+				generation_id: string;
+				sources: string[];
+			};
+
+			const contextLogger = createContextLogger(webhookLogger, correlationId, {
+				tenantId: knowledgePayload.tenant_id,
+				userId: knowledgePayload.user_id,
+			});
+
+			contextLogger.info(
+				{
+					source: knowledgePayload.source,
+					action: knowledgePayload.action,
+					cluster_name: knowledgePayload.cluster_name,
+					sources: knowledgePayload.sources,
+				},
+				"Received create_knowledge webhook",
+			);
+
+			// Respond immediately, generate async
+			res.status(200).json({
+				success: true,
+				message: "Knowledge generation started",
+				generation_id: knowledgePayload.generation_id,
+			});
+
+			// Simulate generation delay (2-4 seconds) then publish result
+			const delay = 2000 + Math.random() * 2000;
+			setTimeout(async () => {
+				try {
+					const clusterName = knowledgePayload.cluster_name || "General";
+					const kebabName = clusterName
+						.toLowerCase()
+						.replace(/\s+/g, "-")
+						.replace(/[^a-z0-9-]/g, "");
+
+					const mockArticle = `# ${clusterName} Troubleshooting Guide
+
+## Overview
+This guide provides step-by-step instructions for resolving common ${clusterName.toLowerCase()} issues reported by users.
+
+## Common Symptoms
+- Unable to access related resources
+- Intermittent issues or failures
+- Slow performance or timeouts
+- Configuration errors
+
+## Troubleshooting Steps
+
+### 1. Initial Diagnostics
+- Verify the user's environment and access permissions
+- Check for recent changes or deployments
+- Review error logs for relevant timestamps
+
+### 2. Common Resolutions
+- Restart the affected service or application
+- Clear cache and temporary files
+- Verify network connectivity and firewall rules
+- Check for known issues or maintenance windows
+
+### 3. Escalation Path
+If the above steps do not resolve the issue:
+1. Collect diagnostic logs and screenshots
+2. Document the steps already attempted
+3. Escalate to the appropriate team with full context
+
+## Prevention
+- Regular system health checks
+- Proactive monitoring alerts
+- User training on common self-service actions`;
+
+					const rabbitmqService = getRabbitMQService();
+					await rabbitmqService.publishToQueue("cluster.events", {
+						type: "knowledge_generated",
+						tenant_id: knowledgePayload.tenant_id,
+						user_id: knowledgePayload.user_id,
+						cluster_id: knowledgePayload.cluster_id,
+						generation_id: knowledgePayload.generation_id,
+						status: "success",
+						content: mockArticle,
+						filename: `${kebabName}-troubleshooting-guide.md`,
+						format: "markdown",
+					});
+
+					contextLogger.info(
+						{ generationId: knowledgePayload.generation_id },
+						"Published knowledge_generated message to cluster.events queue",
+					);
+				} catch (error) {
+					logError(contextLogger, error as Error, {
+						operation: "create-knowledge-publish",
+					});
+				}
+			}, delay);
+
+			return;
 		} else {
 			const errorLogger = createContextLogger(webhookLogger, correlationId);
 			// Avoid accessing properties on a value narrowed to never by referencing raw body as BaseWebhookPayload

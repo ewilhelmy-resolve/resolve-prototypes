@@ -1,4 +1,4 @@
-bucket         = "rita-terraform-state"
+bucket         = "rita-tf-state"
 key            = "prod/terraform.tfstate"
 region         = "us-east-1"
-dynamodb_table = "rita-terraform-locks"
+dynamodb_table = "rita-tf-locks"

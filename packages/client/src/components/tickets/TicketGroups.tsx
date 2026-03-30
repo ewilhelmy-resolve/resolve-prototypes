@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -423,11 +423,12 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 										DEFAULT_MINIMUM_TICKETS,
 								})}
 							</p>
-							<Button asChild variant="outline" size="sm">
-								<Link to="/settings/connections/itsm">
-									{t("groups.goToItsmConnections")}
-								</Link>
-							</Button>
+							<Link
+								to="/settings/connections/itsm"
+								className={buttonVariants({ variant: "outline", size: "sm" })}
+							>
+								{t("groups.goToItsmConnections")}
+							</Link>
 						</StatusAlert>
 						<div className="flex min-h-[200px] items-center justify-center">
 							<p className="text-muted-foreground">{t("groups.noGroups")}</p>
@@ -450,21 +451,23 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 						<p className="text-muted-foreground">
 							{t("groups.noSourceConnected")}
 						</p>
-						<Button asChild variant="outline" size="sm">
-							<Link to="/settings/connections/itsm">
-								{t("groups.connectSource")}
-							</Link>
-						</Button>
+						<Link
+							to="/settings/connections/itsm"
+							className={buttonVariants({ variant: "outline", size: "sm" })}
+						>
+							{t("groups.connectSource")}
+						</Link>
 					</div>
 				) : isFailed ? (
 					<div className="flex flex-col gap-6">
 						<StatusAlert variant="error" title={t("groups.trainingFailed")}>
 							<p className="mb-3">{t("groups.trainingFailedDescription")}</p>
-							<Button asChild variant="outline" size="sm">
-								<Link to="/settings/connections/itsm">
-									{t("groups.goToItsmConnections")}
-								</Link>
-							</Button>
+							<Link
+								to="/settings/connections/itsm"
+								className={buttonVariants({ variant: "outline", size: "sm" })}
+							>
+								{t("groups.goToItsmConnections")}
+							</Link>
 						</StatusAlert>
 						<div className="flex min-h-[200px] items-center justify-center">
 							<p className="text-muted-foreground">{t("groups.noGroups")}</p>

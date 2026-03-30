@@ -1,0 +1,226 @@
+{{- if or (eq .Values.keycloak.clientImport.enabled true) (eq .Values.keycloak.clientImport.enabled "true") }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: frontend-keycloak-import-{{ .Release.Revision }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "frontend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: keycloak-client-import
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: keycloak-client-import
+        app.kubernetes.io/component: keycloak-client-import
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: client-import
+        image: curlimages/curl:8.5.0
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        env:
+        - name: KEYCLOAK_URL
+          value: "{{ .Values.keycloak.url }}"
+        - name: REALM_NAME
+          value: "{{ .Values.keycloak.realm }}"
+        - name: ADMIN_USER
+          value: "{{ .Values.keycloak.clientImport.adminUser }}"
+        - name: ADMIN_PASSWORD
+          value: "{{ .Values.keycloak.clientImport.adminPassword }}"
+        - name: CLIENT_SECRET
+          value: "{{ .Values.keycloak.clientImport.clientSecret }}"
+        - name: TENANT_URL
+          value: "https://{{ .Values.namespace }}-rita.{{ .Values.keycloak.domain }}"
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+
+          # Helper: make API call and capture both body and status code
+          api_call() {
+            local method=$1 url=$2 data=$3
+            local tmpfile=$(mktemp)
+            local status
+            if [ -n "$data" ]; then
+              status=$(curl -s -w "%{http_code}" -o "$tmpfile" \
+                -X "$method" "$url" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "$data")
+            else
+              status=$(curl -s -w "%{http_code}" -o "$tmpfile" \
+                -X "$method" "$url" \
+                -H "Authorization: Bearer ${TOKEN}")
+            fi
+            RESPONSE_BODY=$(cat "$tmpfile")
+            rm -f "$tmpfile"
+            RESPONSE_STATUS=$status
+          }
+
+          # Helper: upsert a client
+          upsert_client() {
+            local client_id=$1 payload=$2
+
+            echo "Checking ${client_id}..."
+            api_call GET "${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients?clientId=${client_id}"
+
+            # Extract the internal UUID — get the first "id" value from the JSON array
+            # Use non-greedy match by stopping at first "id" occurrence
+            CLIENT_UUID=$(echo "$RESPONSE_BODY" | sed -n 's/\[{"id":"\([^"]*\)".*/\1/p')
+
+            if [ -n "$CLIENT_UUID" ] && [ "$CLIENT_UUID" != "[]" ]; then
+              echo "Updating ${client_id} (${CLIENT_UUID})..."
+              api_call PUT "${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients/${CLIENT_UUID}" "$payload"
+              if [ "$RESPONSE_STATUS" -ge 200 ] && [ "$RESPONSE_STATUS" -lt 300 ]; then
+                echo "${client_id} updated successfully"
+              else
+                echo "ERROR updating ${client_id}: HTTP ${RESPONSE_STATUS}"
+                echo "$RESPONSE_BODY"
+                return 1
+              fi
+            else
+              echo "Creating ${client_id}..."
+              api_call POST "${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients" "$payload"
+              if [ "$RESPONSE_STATUS" -ge 200 ] && [ "$RESPONSE_STATUS" -lt 300 ]; then
+                echo "${client_id} created successfully"
+              elif [ "$RESPONSE_STATUS" = "409" ]; then
+                echo "${client_id} already exists (409), skipping"
+              else
+                echo "ERROR creating ${client_id}: HTTP ${RESPONSE_STATUS}"
+                echo "$RESPONSE_BODY"
+                return 1
+              fi
+            fi
+          }
+
+          echo "Authenticating with Keycloak at ${KEYCLOAK_URL}..."
+          AUTH_RESPONSE=$(curl -s -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "username=${ADMIN_USER}" \
+            -d "password=${ADMIN_PASSWORD}" \
+            -d "grant_type=password" \
+            -d "client_id=admin-cli")
+
+          TOKEN=$(echo "$AUTH_RESPONSE" | sed -n 's/.*"access_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to authenticate with Keycloak"
+            echo "$AUTH_RESPONSE"
+            exit 1
+          fi
+          echo "Authenticated successfully"
+
+          # Check if realm exists, create if not
+          echo "Checking if realm '${REALM_NAME}' exists..."
+          api_call GET "${KEYCLOAK_URL}/admin/realms/${REALM_NAME}"
+
+          if [ "$RESPONSE_STATUS" = "404" ]; then
+            echo "Realm '${REALM_NAME}' does not exist, creating..."
+            api_call POST "${KEYCLOAK_URL}/admin/realms" "{
+              \"realm\": \"${REALM_NAME}\",
+              \"enabled\": true,
+              \"sslRequired\": \"external\",
+              \"registrationAllowed\": false,
+              \"loginWithEmailAllowed\": true,
+              \"duplicateEmailsAllowed\": false,
+              \"resetPasswordAllowed\": true,
+              \"editUsernameAllowed\": false,
+              \"loginTheme\": \"rita-theme-v2\",
+              \"emailTheme\": \"rita-theme-v2\"
+            }"
+            if [ "$RESPONSE_STATUS" -ge 200 ] && [ "$RESPONSE_STATUS" -lt 300 ]; then
+              echo "Realm created"
+            else
+              echo "ERROR creating realm: HTTP ${RESPONSE_STATUS}"
+              echo "$RESPONSE_BODY"
+              exit 1
+            fi
+          else
+            echo "Realm '${REALM_NAME}' already exists"
+          fi
+
+          # Upsert onboarding-auth-client (public)
+          upsert_client "onboarding-auth-client" "{
+            \"clientId\": \"onboarding-auth-client\",
+            \"name\": \"onboarding-auth-client\",
+            \"enabled\": true,
+            \"publicClient\": true,
+            \"standardFlowEnabled\": true,
+            \"implicitFlowEnabled\": false,
+            \"directAccessGrantsEnabled\": false,
+            \"serviceAccountsEnabled\": false,
+            \"frontchannelLogout\": true,
+            \"protocol\": \"openid-connect\",
+            \"redirectUris\": [\"${TENANT_URL}\", \"${TENANT_URL}/*\"],
+            \"webOrigins\": [\"${TENANT_URL}\"],
+            \"attributes\": {
+              \"login_theme\": \"rita-theme-v2\",
+              \"frontchannel.logout.session.required\": \"true\"
+            }
+          }"
+
+          # Handle rita-go-auth-client (confidential) — only create + regenerate secret once
+          echo "Checking rita-go-auth-client..."
+          api_call GET "${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients?clientId=rita-go-auth-client"
+          GO_CLIENT_UUID=$(echo "$RESPONSE_BODY" | sed -n 's/\[{"id":"\([^"]*\)".*/\1/p')
+
+          if [ -n "$GO_CLIENT_UUID" ] && [ "$GO_CLIENT_UUID" != "[]" ]; then
+            echo "rita-go-auth-client already exists (${GO_CLIENT_UUID}), skipping"
+          else
+            echo "Creating rita-go-auth-client..."
+            api_call POST "${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients" "{
+              \"clientId\": \"rita-go-auth-client\",
+              \"name\": \"Rita Go Auth Client\",
+              \"enabled\": true,
+              \"publicClient\": false,
+              \"standardFlowEnabled\": true,
+              \"implicitFlowEnabled\": false,
+              \"directAccessGrantsEnabled\": false,
+              \"serviceAccountsEnabled\": true,
+              \"frontchannelLogout\": true,
+              \"protocol\": \"openid-connect\",
+              \"redirectUris\": [\"${TENANT_URL}/*\"],
+              \"webOrigins\": [\"+\"]
+            }"
+            if [ "$RESPONSE_STATUS" -ge 200 ] && [ "$RESPONSE_STATUS" -lt 300 ]; then
+              echo "rita-go-auth-client created successfully"
+
+              # Get the new client's UUID
+              api_call GET "${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients?clientId=rita-go-auth-client"
+              GO_CLIENT_UUID=$(echo "$RESPONSE_BODY" | sed -n 's/\[{"id":"\([^"]*\)".*/\1/p')
+
+              # Regenerate the secret to get a unique per-tenant value
+              echo "Regenerating rita-go-auth-client secret..."
+              api_call POST "${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients/${GO_CLIENT_UUID}/client-secret"
+              if [ "$RESPONSE_STATUS" -ge 200 ] && [ "$RESPONSE_STATUS" -lt 300 ]; then
+                echo "rita-go-auth-client secret regenerated successfully"
+              else
+                echo "ERROR regenerating secret: HTTP ${RESPONSE_STATUS}"
+                echo "$RESPONSE_BODY"
+                exit 1
+              fi
+            elif [ "$RESPONSE_STATUS" = "409" ]; then
+              echo "rita-go-auth-client already exists (409), skipping"
+            else
+              echo "ERROR creating rita-go-auth-client: HTTP ${RESPONSE_STATUS}"
+              echo "$RESPONSE_BODY"
+              exit 1
+            fi
+          fi
+
+          echo "Keycloak client import complete!"
+{{- end }}

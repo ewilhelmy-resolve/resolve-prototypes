@@ -57,6 +57,10 @@ resource "aws_eks_cluster" "main" {
   version  = var.kubernetes_version
   role_arn = aws_iam_role.eks_cluster.arn
 
+  access_config {
+    authentication_mode = "API_AND_CONFIG_MAP"
+  }
+
   vpc_config {
     subnet_ids              = var.private_subnet_ids
     endpoint_private_access = true
@@ -146,6 +150,11 @@ resource "aws_iam_role_policy_attachment" "eks_ecr_read" {
 
 resource "aws_iam_role_policy_attachment" "eks_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  role       = aws_iam_role.eks_node.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_ebs_csi" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
   role       = aws_iam_role.eks_node.name
 }
 
