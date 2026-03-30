@@ -62,9 +62,11 @@ function HoverCardContent({
     <PreviewCard.Portal data-slot="hover-card-portal">
       <PreviewCard.Positioner
         data-slot="hover-card-positioner"
+        className="z-50"
         align={align}
         sideOffset={sideOffset}
         side={side}
+        positionMethod="fixed"
       >
         <PreviewCard.Popup
           data-slot="hover-card-content"

@@ -70,9 +70,11 @@ function TooltipContent({
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner
         data-slot="tooltip-positioner"
+        className="z-50"
         sideOffset={sideOffset}
         side={side}
         align={align}
+        positionMethod="fixed"
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
