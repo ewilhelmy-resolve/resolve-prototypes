@@ -2040,6 +2040,10 @@
 						"type": "string",
 						"description": "Custom placeholder text from Valkey"
 					},
+					"parentOrigin": {
+						"type": "string",
+						"description": "Host page origin for secure postMessage targetOrigin"
+					},
 					"valkeyPayload": {
 						"type": "object",
 						"additionalProperties": {},

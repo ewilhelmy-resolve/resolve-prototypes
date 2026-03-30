@@ -43,6 +43,7 @@ export interface ClusterDetails extends Cluster {
 	kb_articles_count: number;
 	ticket_count: number;
 	open_count: number;
+	historical_ticket_count: number;
 }
 
 /**

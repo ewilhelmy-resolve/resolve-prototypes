@@ -1,3 +1,6 @@
+# One-off scripts
+scripts/
+
 # Dependencies
 node_modules/
 */node_modules/
@@ -132,3 +135,18 @@ tmux-dev.sh
 
 .pi-plans/
 .pi/
+.context/
+
+# Spec-engine generated docs
+docs/discover/
+
+# Docusaurus
+packages/docs-site/content/
+packages/docs-site/build/
+packages/docs-site/.docusaurus/
+
+# Terraform states and locks
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+>>>>>>> origin/main

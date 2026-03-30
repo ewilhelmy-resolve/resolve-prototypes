@@ -28,6 +28,8 @@ export interface ValidateInstantiationResponse {
 	tabInstanceId?: string;
 	tenantName?: string;
 	webhookTenantId?: string;
+	/** Host page origin for secure postMessage targetOrigin */
+	parentOrigin?: string;
 	/** Full Valkey payload for dev tools (sensitive fields redacted: accessToken, refreshToken, clientKey) */
 	valkeyPayload?: Record<string, unknown>;
 }

@@ -1,0 +1,68 @@
+{
+	"terms": {
+		"conversation": {
+			"aliases": ["chat", "thread", "session"],
+			"definition": "A message exchange between a user and Rita"
+		},
+		"message": {
+			"aliases": ["utterance", "response", "reply"],
+			"definition": "A single unit of communication within a conversation"
+		},
+		"data-source": {
+			"aliases": ["connection", "integration", "connector"],
+			"definition": "An external system connected for knowledge or ticketing"
+		},
+		"organization": {
+			"aliases": ["org", "tenant", "workspace", "account"],
+			"definition": "A tenant with members, settings, and data sources"
+		},
+		"member": {
+			"aliases": ["user", "team-member", "participant"],
+			"definition": "A person belonging to an organization with a specific role"
+		},
+		"role": {
+			"aliases": ["permission-level", "access-level"],
+			"definition": "Access tier within an organization: owner, admin, or user"
+		},
+		"cluster": {
+			"aliases": ["ticket-group", "grouping"],
+			"definition": "A grouping of related support tickets identified by ML"
+		},
+		"ticket": {
+			"aliases": ["issue", "incident", "case", "request"],
+			"definition": "A support request from an ITSM system"
+		},
+		"knowledge-article": {
+			"aliases": ["article", "kb-article", "document"],
+			"definition": "A piece of knowledge content from a connected source"
+		},
+		"autopilot": {
+			"aliases": ["auto-pilot", "autonomous-mode"],
+			"definition": "Mode where Rita handles conversations without human intervention"
+		},
+		"iframe": {
+			"aliases": ["embedded-chat", "widget"],
+			"definition": "Embeddable chat interface for host pages with public guest access"
+		},
+		"webhook": {
+			"aliases": ["callback", "notification-url"],
+			"definition": "HTTP endpoint called to relay messages to external automation services"
+		},
+		"sse": {
+			"aliases": ["server-sent-events", "event-stream", "real-time"],
+			"definition": "Server-Sent Events channel for pushing real-time updates to clients"
+		},
+		"invitation": {
+			"aliases": ["invite", "invite-link"],
+			"definition": "A link sent to onboard a new member into an organization"
+		},
+		"credential-delegation": {
+			"aliases": ["magic-link", "delegated-access"],
+			"definition": "Secure one-time link for credential setup without direct password handling"
+		},
+		"workflow": {
+			"aliases": ["automation", "flow"],
+			"definition": "An automated process triggered by events or user actions"
+		}
+	}
+}

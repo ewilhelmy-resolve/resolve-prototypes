@@ -255,6 +255,8 @@ router.post("/validate-instantiation", async (req, res) => {
 			titleText: result.uiConfig?.titleText,
 			welcomeText: result.uiConfig?.welcomeText,
 			placeholderText: result.uiConfig?.placeholderText,
+			// Host page origin for secure postMessage targetOrigin
+			parentOrigin: result.parentOrigin,
 			// Full Valkey payload for dev tools (sensitive fields excluded)
 			valkeyPayload: result.valkeyPayload,
 		});

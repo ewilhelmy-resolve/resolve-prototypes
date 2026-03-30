@@ -47,7 +47,7 @@ export function TicketDetailHeader({
 	currentPosition,
 	totalTickets,
 	searchParams,
-	onReviewAIResponse,
+	onReviewAIResponse: _onReviewAIResponse,
 	onBack,
 	onPrevious,
 	onNext,
@@ -144,8 +144,9 @@ export function TicketDetailHeader({
 				</div>
 			</div>
 
-			{/* Right side - Review AI response button */}
+			{/* Right side - Review AI response button (hidden until feature is ready)
 			<Button onClick={onReviewAIResponse}>{t("review.title")}</Button>
+			*/}
 		</div>
 	);
 }
