@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 import type { ComponentData } from "../extractors/component-extractor.js";
 import type { DependencyData } from "../extractors/dependency-extractor.js";
 import type { HookData } from "../extractors/hook-extractor.js";
+import type { RabbitMQData } from "../extractors/rabbitmq-extractor.js";
 import type { RouteData } from "../extractors/route-extractor.js";
 import type { RouteSchemaData } from "../extractors/route-schema-extractor.js";
 import type { SchemaData } from "../extractors/schema-extractor.js";
@@ -29,6 +30,7 @@ export function mergeLexicon(
 	sseData: SSEData,
 	hookData: HookData,
 	dependencyData: DependencyData,
+	rabbitmqData: RabbitMQData,
 ): Lexicon {
 	// Start with ts-morph extracted data
 	const actors = dedup(tsData.actors, (a) => a.id);
@@ -83,6 +85,10 @@ export function mergeLexicon(
 		sseEmitters: sseData.emitters,
 		hooks: hookData.hooks,
 		dependencies: dependencyData.edges,
+		rabbitmq: {
+			queues: rabbitmqData.queues,
+			messageTypes: rabbitmqData.messageTypes,
+		},
 		stats: {
 			totalFiles: tsData.totalFiles,
 			totalExports,

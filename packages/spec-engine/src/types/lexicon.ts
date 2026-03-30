@@ -81,6 +81,28 @@ export const LexiconSchema = z.object({
 			}),
 		)
 		.optional(),
+	rabbitmq: z
+		.object({
+			queues: z.array(
+				z.object({
+					name: z.string(),
+					envVar: z.string(),
+					consumer: z.string(),
+					consumerFile: z.string(),
+					durable: z.boolean(),
+				}),
+			),
+			messageTypes: z.array(
+				z.object({
+					queue: z.string(),
+					type: z.string(),
+					fields: z.array(z.string()),
+					consumer: z.string(),
+					file: z.string(),
+				}),
+			),
+		})
+		.optional(),
 	stats: StatsSchema,
 });
 

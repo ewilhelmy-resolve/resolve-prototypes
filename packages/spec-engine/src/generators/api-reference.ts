@@ -112,5 +112,29 @@ export async function generateApiReference(
 		md += "\n";
 	}
 
+	// RabbitMQ
+	const rmq = lexicon.rabbitmq;
+	if (rmq) {
+		if (rmq.queues.length > 0) {
+			md += `## RabbitMQ Queues (${rmq.queues.length})\n\n`;
+			md += "| Queue | Consumer | Env Var | Durable |\n";
+			md += "|-------|----------|---------|--------|\n";
+			for (const q of rmq.queues) {
+				md += `| \`${q.name}\` | \`${q.consumer}\` | \`${q.envVar || "—"}\` | ${q.durable ? "yes" : "no"} |\n`;
+			}
+			md += "\n";
+		}
+
+		if (rmq.messageTypes.length > 0) {
+			md += `## Message Types (${rmq.messageTypes.length})\n\n`;
+			md += "| Type | Queue | Consumer | Fields |\n";
+			md += "|------|-------|----------|--------|\n";
+			for (const m of rmq.messageTypes) {
+				md += `| \`${m.type}\` | \`${m.queue}\` | \`${m.consumer}\` | ${m.fields.slice(0, 6).join(", ") || "—"} |\n`;
+			}
+			md += "\n";
+		}
+	}
+
 	writeFileSync(path.join(outputDir, "api-reference.md"), md);
 }
