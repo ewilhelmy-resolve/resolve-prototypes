@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import chalk from "chalk";
+import { generateApiReference } from "../generators/api-reference.js";
 import { generateAvcjDocs } from "../generators/avcj-docs.js";
 import { generateDashboard } from "../generators/dashboard.js";
 import { generateGlossary } from "../generators/glossary.js";
@@ -13,7 +14,13 @@ interface GenerateOptions {
 	output: string;
 }
 
-const ARTIFACTS = ["glossary", "matrix", "dashboard", "inventory"] as const;
+const ARTIFACTS = [
+	"glossary",
+	"matrix",
+	"dashboard",
+	"inventory",
+	"api-reference",
+] as const;
 type Artifact = (typeof ARTIFACTS)[number];
 
 export async function generateCommand(
@@ -67,6 +74,9 @@ async function runGenerator(
 			break;
 		case "inventory":
 			await generateInventory(lexicon, generatedDir);
+			break;
+		case "api-reference":
+			await generateApiReference(lexicon, generatedDir);
 			break;
 	}
 

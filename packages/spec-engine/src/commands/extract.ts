@@ -3,7 +3,9 @@ import path from "node:path";
 import chalk from "chalk";
 import { extractComponents } from "../extractors/component-extractor.js";
 import { extractRoutes } from "../extractors/route-extractor.js";
+import { extractRouteSchemas } from "../extractors/route-schema-extractor.js";
 import { extractSchemas } from "../extractors/schema-extractor.js";
+import { extractSSE } from "../extractors/sse-extractor.js";
 import { extractStories } from "../extractors/story-extractor.js";
 import { extractTests } from "../extractors/test-extractor.js";
 import { extractAll } from "../extractors/ts-extractor.js";
@@ -27,6 +29,8 @@ export async function extractCommand(options: ExtractOptions) {
 	const schemaData = await extractSchemas(rootDir);
 	const componentData = await extractComponents(rootDir);
 	const testData = await extractTests(rootDir);
+	const routeSchemaData = await extractRouteSchemas(rootDir);
+	const sseData = await extractSSE(rootDir);
 
 	const lexicon = mergeLexicon(
 		tsData,
@@ -35,6 +39,8 @@ export async function extractCommand(options: ExtractOptions) {
 		schemaData,
 		componentData,
 		testData,
+		routeSchemaData,
+		sseData,
 	);
 
 	mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -56,4 +62,6 @@ function printStats(lexicon: Lexicon) {
 	console.log(`  Views:            ${lexicon.views.length}`);
 	console.log(`  Journeys:         ${lexicon.journeys.length}`);
 	console.log(`  Constraints:      ${lexicon.constraints.length}`);
+	console.log(`  API Endpoints:    ${lexicon.endpoints?.length || 0}`);
+	console.log(`  SSE Events:       ${lexicon.sseEvents?.length || 0}`);
 }
