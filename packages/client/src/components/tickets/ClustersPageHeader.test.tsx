@@ -113,7 +113,7 @@ describe("ClustersPageHeader", () => {
 		await user.click(
 			screen.getByRole("button", { name: "groups.periods.last30Days" }),
 		);
-		await user.click(screen.getByText("groups.periods.last90Days"));
+		await user.click(await screen.findByText("groups.periods.last90Days"));
 		expect(onPeriodChange).toHaveBeenCalledWith("last90");
 	});
 
