@@ -248,7 +248,7 @@ export default function ResetPasswordPage() {
 						{/* Progress Bar (shown during submission) */}
 						{isPending && (
 							<div className="w-full space-y-2">
-								<Progress value={undefined} className="w-full" />
+								<Progress value={null} className="w-full" />
 								<p className="text-white text-sm text-center">
 									Resetting password...
 								</p>
