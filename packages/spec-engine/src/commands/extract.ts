@@ -2,6 +2,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import chalk from "chalk";
 import { extractComponents } from "../extractors/component-extractor.js";
+import { extractDependencies } from "../extractors/dependency-extractor.js";
+import { extractHooks } from "../extractors/hook-extractor.js";
 import { extractRoutes } from "../extractors/route-extractor.js";
 import { extractRouteSchemas } from "../extractors/route-schema-extractor.js";
 import { extractSchemas } from "../extractors/schema-extractor.js";
@@ -31,6 +33,8 @@ export async function extractCommand(options: ExtractOptions) {
 	const testData = await extractTests(rootDir);
 	const routeSchemaData = await extractRouteSchemas(rootDir);
 	const sseData = await extractSSE(rootDir);
+	const hookData = await extractHooks(rootDir);
+	const dependencyData = await extractDependencies(rootDir);
 
 	const lexicon = mergeLexicon(
 		tsData,
@@ -41,6 +45,8 @@ export async function extractCommand(options: ExtractOptions) {
 		testData,
 		routeSchemaData,
 		sseData,
+		hookData,
+		dependencyData,
 	);
 
 	mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -64,4 +70,6 @@ function printStats(lexicon: Lexicon) {
 	console.log(`  Constraints:      ${lexicon.constraints.length}`);
 	console.log(`  API Endpoints:    ${lexicon.endpoints?.length || 0}`);
 	console.log(`  SSE Events:       ${lexicon.sseEvents?.length || 0}`);
+	console.log(`  React Hooks:      ${lexicon.hooks?.length || 0}`);
+	console.log(`  Dependencies:     ${lexicon.dependencies?.length || 0}`);
 }

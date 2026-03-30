@@ -7,6 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import type { ComponentData } from "../extractors/component-extractor.js";
+import type { DependencyData } from "../extractors/dependency-extractor.js";
+import type { HookData } from "../extractors/hook-extractor.js";
 import type { RouteData } from "../extractors/route-extractor.js";
 import type { RouteSchemaData } from "../extractors/route-schema-extractor.js";
 import type { SchemaData } from "../extractors/schema-extractor.js";
@@ -25,6 +27,8 @@ export function mergeLexicon(
 	testData: TestData,
 	routeSchemaData: RouteSchemaData,
 	sseData: SSEData,
+	hookData: HookData,
+	dependencyData: DependencyData,
 ): Lexicon {
 	// Start with ts-morph extracted data
 	const actors = dedup(tsData.actors, (a) => a.id);
@@ -77,6 +81,8 @@ export function mergeLexicon(
 		endpoints: routeSchemaData.endpoints,
 		sseEvents: sseData.eventTypes,
 		sseEmitters: sseData.emitters,
+		hooks: hookData.hooks,
+		dependencies: dependencyData.edges,
 		stats: {
 			totalFiles: tsData.totalFiles,
 			totalExports,

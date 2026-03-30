@@ -88,5 +88,29 @@ export async function generateApiReference(
 		md += "\n";
 	}
 
+	// React Hooks
+	const hooks = lexicon.hooks || [];
+	if (hooks.length > 0) {
+		md += `## React Hooks (${hooks.length})\n\n`;
+		md += "| Hook | Type | API Calls | Cache Keys | Invalidates |\n";
+		md += "|------|------|-----------|------------|-------------|\n";
+		for (const h of hooks) {
+			md += `| \`${h.name}\` | ${h.type} | ${h.apiCalls.join(", ") || "—"} | ${h.queryKeys.join(", ") || "—"} | ${h.invalidates.join(", ") || "—"} |\n`;
+		}
+		md += "\n";
+	}
+
+	// Service Dependencies
+	const deps = lexicon.dependencies || [];
+	if (deps.length > 0) {
+		md += `## Service Dependencies (${deps.length} edges)\n\n`;
+		md += "| From | To | Type |\n";
+		md += "|------|----|------|\n";
+		for (const d of deps) {
+			md += `| \`${d.from}\` | \`${d.to}\` | ${d.type} |\n`;
+		}
+		md += "\n";
+	}
+
 	writeFileSync(path.join(outputDir, "api-reference.md"), md);
 }

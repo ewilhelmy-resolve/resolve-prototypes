@@ -59,6 +59,28 @@ export const LexiconSchema = z.object({
 	endpoints: z.array(EndpointSpecSchema).optional(),
 	sseEvents: z.array(SSEEventTypeSchema).optional(),
 	sseEmitters: z.array(SSEEmitterSchema).optional(),
+	hooks: z
+		.array(
+			z.object({
+				name: z.string(),
+				file: z.string(),
+				type: z.enum(["query", "mutation", "infinite"]),
+				apiCalls: z.array(z.string()),
+				queryKeys: z.array(z.string()),
+				invalidates: z.array(z.string()),
+			}),
+		)
+		.optional(),
+	dependencies: z
+		.array(
+			z.object({
+				from: z.string(),
+				to: z.string(),
+				type: z.enum(["import", "method-call"]),
+				file: z.string(),
+			}),
+		)
+		.optional(),
 	stats: StatsSchema,
 });
 
