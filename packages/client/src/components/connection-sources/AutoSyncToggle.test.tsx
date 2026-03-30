@@ -138,6 +138,7 @@ describe("AutoSyncToggle", () => {
 			expect(toggle).not.toBeChecked();
 
 			// Resolve the mutation
+			// biome-ignore lint/style/noNonNullAssertion: resolveMutation is assigned in promise callback above
 			resolveMutation!();
 			await waitFor(() => {
 				expect(mockUpdateMutation.mutateAsync).toHaveBeenCalled();
@@ -178,20 +179,29 @@ describe("AutoSyncToggle", () => {
 		it("should be disabled when disabled prop is true", () => {
 			render(<AutoSyncToggle {...defaultProps} disabled={true} />);
 
-			expect(screen.getByRole("switch")).toBeDisabled();
+			expect(screen.getByRole("switch")).toHaveAttribute(
+				"aria-disabled",
+				"true",
+			);
 		});
 
 		it("should be disabled when mutation is pending", () => {
 			mockUpdateMutation.isPending = true;
 			render(<AutoSyncToggle {...defaultProps} />);
 
-			expect(screen.getByRole("switch")).toBeDisabled();
+			expect(screen.getByRole("switch")).toHaveAttribute(
+				"aria-disabled",
+				"true",
+			);
 		});
 
 		it("should not be disabled by default", () => {
 			render(<AutoSyncToggle {...defaultProps} />);
 
-			expect(screen.getByRole("switch")).not.toBeDisabled();
+			expect(screen.getByRole("switch")).not.toHaveAttribute(
+				"aria-disabled",
+				"true",
+			);
 		});
 	});
 });

@@ -405,7 +405,10 @@ describe("FreshserviceItsmConfiguration", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			expect(screen.getByRole("switch")).toBeDisabled();
+			expect(screen.getByRole("switch")).toHaveAttribute(
+				"aria-disabled",
+				"true",
+			);
 		});
 
 		it("should pass disabled=false to AutoSyncToggle when not syncing", () => {
