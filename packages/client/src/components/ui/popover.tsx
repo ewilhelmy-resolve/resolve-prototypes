@@ -57,9 +57,11 @@ function PopoverContent({
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
         data-slot="popover-positioner"
+        className="z-50"
         align={align}
         sideOffset={sideOffset}
         side={side}
+        positionMethod="fixed"
       >
         <PopoverPrimitive.Popup
           data-slot="popover-content"
