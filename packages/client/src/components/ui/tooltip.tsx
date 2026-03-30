@@ -1,18 +1,24 @@
 import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 
 import { cn } from "@/lib/utils"
 
 function TooltipProvider({
   delayDuration = 0,
+  children,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+}: {
+  delayDuration?: number
+  children: React.ReactNode
+}) {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
-      delayDuration={delayDuration}
+      delay={delayDuration}
       {...props}
-    />
+    >
+      {children}
+    </TooltipPrimitive.Provider>
   )
 }
 
@@ -27,39 +33,68 @@ function Tooltip({
 }
 
 function TooltipTrigger({
+  asChild,
+  children,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+}: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Trigger> & {
+  asChild?: boolean
+}) {
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      {...(asChild && React.isValidElement(children) ? { render: children } : {})}
+      {...props}
+    >
+      {asChild ? undefined : children}
+    </TooltipPrimitive.Trigger>
+  )
 }
 
 function TooltipContent({
   className,
   sideOffset = 0,
   children,
+  side,
+  align,
+  hidden,
   arrowClassName,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content> & {
+}: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Popup> & {
+  sideOffset?: number
+  side?: "top" | "bottom" | "left" | "right"
+  align?: "start" | "center" | "end"
+  hidden?: boolean
   arrowClassName?: string
 }) {
   return (
     <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Content
-        data-slot="tooltip-content"
+      <TooltipPrimitive.Positioner
+        data-slot="tooltip-positioner"
         sideOffset={sideOffset}
-        className={cn(
-          "bg-foreground text-background animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance",
-          className
-        )}
-        {...props}
+        side={side}
+        align={align}
       >
-        {children}
-        <TooltipPrimitive.Arrow
+        <TooltipPrimitive.Popup
+          data-slot="tooltip-content"
+          hidden={hidden}
           className={cn(
-            "bg-foreground fill-foreground z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]",
-            arrowClassName
+            "bg-foreground text-background z-50 w-fit origin-(--transform-origin) rounded-md px-3 py-1.5 text-xs text-balance",
+            "transition-[opacity,transform] duration-200",
+            "data-[starting-style]:opacity-0 data-[starting-style]:scale-95",
+            "data-[ending-style]:opacity-0 data-[ending-style]:scale-95",
+            className
           )}
-        />
-      </TooltipPrimitive.Content>
+          {...props}
+        >
+          {children}
+          <TooltipPrimitive.Arrow
+            className={cn(
+              "bg-foreground fill-foreground z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]",
+              arrowClassName
+            )}
+          />
+        </TooltipPrimitive.Popup>
+      </TooltipPrimitive.Positioner>
     </TooltipPrimitive.Portal>
   )
 }
