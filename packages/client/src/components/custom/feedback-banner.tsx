@@ -62,7 +62,7 @@ export function FeedbackBanner({
 			className={cn(
 				"flex items-start px-8 py-3 shadow-sm",
 				variantStyles.container,
-				className
+				className,
 			)}
 			style={
 				isEnriched
@@ -79,19 +79,17 @@ export function FeedbackBanner({
 					<div
 						className={cn(
 							"flex items-center justify-center rounded-lg size-6",
-							!isEnriched && variantStyles.iconBg
+							!isEnriched && variantStyles.iconBg,
 						)}
 					>
 						<Icon
 							className={cn(
 								"size-4",
-								isEnriched ? "text-violet-600" : variantStyles.iconColor
+								isEnriched ? "text-violet-600" : variantStyles.iconColor,
 							)}
 						/>
 					</div>
-					<span className="text-base font-medium text-foreground">
-						{title}
-					</span>
+					<span className="text-base font-medium text-foreground">{title}</span>
 				</div>
 
 				{/* Description below */}

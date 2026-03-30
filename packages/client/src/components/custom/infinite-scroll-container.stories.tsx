@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
+import { useCallback, useState } from "react";
 import { InfiniteScrollContainer } from "./infinite-scroll-container";
 
 const meta: Meta<typeof InfiniteScrollContainer> = {
@@ -68,10 +68,7 @@ const InteractiveDemo = () => {
 		// Simulate API delay
 		setTimeout(() => {
 			setItems((prev) => {
-				const newItems = Array.from(
-					{ length: 6 },
-					(_, i) => prev.length + i,
-				);
+				const newItems = Array.from({ length: 6 }, (_, i) => prev.length + i);
 				const allItems = [...prev, ...newItems];
 
 				// Stop after 30 items

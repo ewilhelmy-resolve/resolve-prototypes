@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { FeedbackBanner } from "./feedback-banner";
 
 describe("FeedbackBanner", () => {
@@ -12,7 +12,10 @@ describe("FeedbackBanner", () => {
 
 		it("renders description when provided", () => {
 			render(
-				<FeedbackBanner title="Success!" description="Your changes were saved." />
+				<FeedbackBanner
+					title="Success!"
+					description="Your changes were saved."
+				/>,
 			);
 			expect(screen.getByText("Your changes were saved.")).toBeInTheDocument();
 		});
@@ -27,7 +30,7 @@ describe("FeedbackBanner", () => {
 	describe("Variants", () => {
 		it("renders success variant with green styling", () => {
 			const { container } = render(
-				<FeedbackBanner variant="success" title="Success!" />
+				<FeedbackBanner variant="success" title="Success!" />,
 			);
 			const banner = container.firstChild as HTMLElement;
 			expect(banner).toHaveClass("bg-green-50", "border-green-300");
@@ -35,7 +38,7 @@ describe("FeedbackBanner", () => {
 
 		it("renders destructive variant with red styling", () => {
 			const { container } = render(
-				<FeedbackBanner variant="destructive" title="Error!" />
+				<FeedbackBanner variant="destructive" title="Error!" />,
 			);
 			const banner = container.firstChild as HTMLElement;
 			expect(banner).toHaveClass("bg-red-50", "border-red-300");
@@ -43,10 +46,12 @@ describe("FeedbackBanner", () => {
 
 		it("renders enriched variant with purple gradient", () => {
 			const { container } = render(
-				<FeedbackBanner variant="enriched" title="Enriched!" />
+				<FeedbackBanner variant="enriched" title="Enriched!" />,
 			);
 			const banner = container.firstChild as HTMLElement;
-			expect(banner).toHaveStyle({ backgroundImage: expect.stringContaining("linear-gradient") });
+			expect(banner).toHaveStyle({
+				backgroundImage: expect.stringContaining("linear-gradient"),
+			});
 		});
 
 		it("defaults to success variant", () => {
@@ -59,12 +64,16 @@ describe("FeedbackBanner", () => {
 	describe("Dismissible", () => {
 		it("shows dismiss button by default", () => {
 			render(<FeedbackBanner title="Message" />);
-			expect(screen.getByLabelText("accessibility.dismissBanner")).toBeInTheDocument();
+			expect(
+				screen.getByLabelText("accessibility.dismissBanner"),
+			).toBeInTheDocument();
 		});
 
 		it("hides dismiss button when dismissible is false", () => {
 			render(<FeedbackBanner title="Message" dismissible={false} />);
-			expect(screen.queryByLabelText("accessibility.dismissBanner")).not.toBeInTheDocument();
+			expect(
+				screen.queryByLabelText("accessibility.dismissBanner"),
+			).not.toBeInTheDocument();
 		});
 
 		it("calls onDismiss when dismiss button is clicked", async () => {
@@ -80,7 +89,7 @@ describe("FeedbackBanner", () => {
 	describe("Props", () => {
 		it("applies custom className", () => {
 			const { container } = render(
-				<FeedbackBanner title="Message" className="custom-class" />
+				<FeedbackBanner title="Message" className="custom-class" />,
 			);
 			const banner = container.firstChild as HTMLElement;
 			expect(banner).toHaveClass("custom-class");

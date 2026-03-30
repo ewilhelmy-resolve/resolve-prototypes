@@ -1,10 +1,10 @@
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { ritaToast } from "@/components/custom/rita-toast";
+import { Spinner } from "@/components/custom/spinner";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ritaToast } from "@/components/ui/rita-toast";
-import { Spinner } from "@/components/ui/spinner";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
 	useUpdateDataSource,

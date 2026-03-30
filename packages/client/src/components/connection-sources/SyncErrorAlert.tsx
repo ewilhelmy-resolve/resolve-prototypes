@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
-import { StatusAlert } from "@/components/ui/status-alert";
 import type { DataSourceConnection } from "@/types/dataSource";
 import { credentialErrorI18nKey, isCredentialError } from "./utils";
 

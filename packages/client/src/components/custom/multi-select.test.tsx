@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { MultiSelect } from "./multi-select";
 
 // Mock scrollIntoView for cmdk
@@ -28,7 +28,9 @@ describe("MultiSelect", () => {
 
 		it("renders default placeholder", () => {
 			render(<MultiSelect {...defaultProps} />);
-			expect(screen.getByText("placeholders.selectOptions")).toBeInTheDocument();
+			expect(
+				screen.getByText("placeholders.selectOptions"),
+			).toBeInTheDocument();
 		});
 
 		it("renders as combobox", () => {
@@ -40,7 +42,7 @@ describe("MultiSelect", () => {
 			render(<MultiSelect {...defaultProps} />);
 			expect(screen.getByRole("combobox")).toHaveAttribute(
 				"aria-expanded",
-				"false"
+				"false",
 			);
 		});
 	});
@@ -58,7 +60,7 @@ describe("MultiSelect", () => {
 				() => {
 					expect(combobox).toHaveAttribute("aria-expanded", "true");
 				},
-				{ timeout: 2000 }
+				{ timeout: 2000 },
 			);
 		});
 	});
@@ -66,7 +68,7 @@ describe("MultiSelect", () => {
 	describe("Selection", () => {
 		it("shows selected values as badges", () => {
 			render(
-				<MultiSelect {...defaultProps} defaultValue={["option1", "option2"]} />
+				<MultiSelect {...defaultProps} defaultValue={["option1", "option2"]} />,
 			);
 
 			expect(screen.getByText("Option 1")).toBeInTheDocument();
@@ -81,10 +83,12 @@ describe("MultiSelect", () => {
 					{...defaultProps}
 					defaultValue={["option1"]}
 					onValueChange={onValueChange}
-				/>
+				/>,
 			);
 
-			const removeBtn = screen.getByLabelText("accessibility.removeFromSelection");
+			const removeBtn = screen.getByLabelText(
+				"accessibility.removeFromSelection",
+			);
 			await user.click(removeBtn);
 
 			expect(onValueChange).toHaveBeenCalledWith([]);
@@ -111,7 +115,7 @@ describe("MultiSelect", () => {
 					{...defaultProps}
 					defaultValue={["option1", "option2", "option3"]}
 					maxCount={2}
-				/>
+				/>,
 			);
 
 			expect(screen.getByText("+ 1 more")).toBeInTheDocument();
@@ -127,12 +131,10 @@ describe("MultiSelect", () => {
 					{...defaultProps}
 					defaultValue={["option1", "option2"]}
 					onValueChange={onValueChange}
-				/>
+				/>,
 			);
 
-			const clearBtn = screen.getByLabelText(
-				"accessibility.clearAllSelected"
-			);
+			const clearBtn = screen.getByLabelText("accessibility.clearAllSelected");
 			await user.click(clearBtn);
 
 			expect(onValueChange).toHaveBeenCalledWith([]);
@@ -144,7 +146,7 @@ describe("MultiSelect", () => {
 			render(<MultiSelect {...defaultProps} />);
 			expect(screen.getByRole("combobox")).toHaveAttribute(
 				"aria-label",
-				expect.stringContaining("Multi-select")
+				expect.stringContaining("Multi-select"),
 			);
 		});
 
@@ -152,7 +154,7 @@ describe("MultiSelect", () => {
 			render(<MultiSelect {...defaultProps} />);
 			expect(screen.getByRole("combobox")).toHaveAttribute(
 				"aria-haspopup",
-				"listbox"
+				"listbox",
 			);
 		});
 	});

@@ -4,7 +4,7 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ritaToast } from "@/components/ui/rita-toast";
+import { ritaToast } from "@/components/custom/rita-toast";
 import { AutoSyncToggle } from "./AutoSyncToggle";
 
 // Mock hooks
@@ -28,7 +28,7 @@ vi.mock("@/hooks/useActiveModel", () => ({
 	useActiveModel: vi.fn(() => mockActiveModelQuery),
 }));
 
-vi.mock("@/components/ui/rita-toast", () => ({
+vi.mock("@/components/custom/rita-toast", () => ({
 	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),

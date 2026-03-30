@@ -1,8 +1,8 @@
+import { Spinner } from "@/components/custom/spinner";
 import {
-	useInfiniteScroll,
 	type UseInfiniteScrollOptions,
+	useInfiniteScroll,
 } from "@/hooks/useInfiniteScroll";
-import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 export interface InfiniteScrollContainerProps {

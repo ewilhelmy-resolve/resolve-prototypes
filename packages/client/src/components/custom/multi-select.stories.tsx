@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
+import { Apple, Banana, Cherry, Citrus, Grape } from "lucide-react";
 import { MultiSelect } from "./multi-select";
-import { Apple, Banana, Cherry, Grape, Citrus } from "lucide-react";
 
 const meta: Meta<typeof MultiSelect> = {
 	component: MultiSelect,

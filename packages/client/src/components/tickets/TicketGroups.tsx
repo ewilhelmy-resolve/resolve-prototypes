@@ -2,6 +2,8 @@ import { BookX, Filter, LayoutGrid, List, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { Spinner } from "@/components/custom/spinner";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -19,8 +21,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";

@@ -45,7 +45,8 @@ export const Warning: Story = {
 	},
 };
 
-export const Error: Story = {
+export const ErrorVariant: Story = {
+	name: "Error",
 	args: {
 		variant: "error",
 		children: <p>Failed to save your changes. Please try again.</p>,
