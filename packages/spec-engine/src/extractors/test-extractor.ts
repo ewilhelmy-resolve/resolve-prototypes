@@ -16,6 +16,14 @@ interface DescribeBlock {
 
 interface ItBlock {
 	name: string;
+	body: string;
+}
+
+interface StepMeta {
+	statusCodes: number[];
+	errorCodes: string[];
+	requestData: string[];
+	mockCalls: string[];
 }
 
 export async function extractTests(rootDir: string): Promise<TestData> {
@@ -30,7 +38,7 @@ export async function extractTests(rootDir: string): Promise<TestData> {
 	for (const file of testFiles) {
 		const content = readFileSync(path.join(rootDir, file), "utf-8");
 		const tree = parseDescribeTree(content);
-		const pkg = file.split("/")[1]; // api-server, client, etc.
+		const pkg = file.split("/")[1];
 
 		for (const block of tree) {
 			const journey = blockToJourney(block, file, pkg);
@@ -46,17 +54,15 @@ export async function extractTests(rootDir: string): Promise<TestData> {
 
 /**
  * Parse describe/it blocks into a tree structure using brace counting.
- * Handles nested describes and extracts it blocks at each level.
+ * Captures the body of each it block for assertion extraction.
  */
 function parseDescribeTree(content: string): DescribeBlock[] {
 	const roots: DescribeBlock[] = [];
 	const stack: DescribeBlock[] = [];
 
-	// Match describe('...') or describe("...") or describe(`...`)
 	const describeRegex = /\bdescribe\s*\(\s*(['"`])((?:(?!\1).)*)\1/g;
 	const itRegex = /\bit\s*\(\s*(['"`])((?:(?!\1).)*)\1/g;
 
-	// Collect all describe and it positions
 	const tokens: Array<{
 		type: "describe" | "it";
 		name: string;
@@ -70,10 +76,8 @@ function parseDescribeTree(content: string): DescribeBlock[] {
 		tokens.push({ type: "it", name: match[2], index: match.index });
 	}
 
-	// Sort by position in file
 	tokens.sort((a, b) => a.index - b.index);
 
-	// Use brace counting to determine nesting
 	for (const token of tokens) {
 		const depth = braceDepthAt(content, token.index);
 
@@ -85,7 +89,6 @@ function parseDescribeTree(content: string): DescribeBlock[] {
 				itBlocks: [],
 			};
 
-			// Pop stack until we find a parent at a lower depth
 			while (stack.length > 0 && stack[stack.length - 1].depth >= depth) {
 				stack.pop();
 			}
@@ -97,12 +100,13 @@ function parseDescribeTree(content: string): DescribeBlock[] {
 			}
 			stack.push(block);
 		} else {
-			// it block — attach to nearest describe on stack
+			// Capture it block body for assertion extraction
+			const body = extractBlockBody(content, token.index);
+
 			if (stack.length > 0) {
-				// Find the describe whose depth is just below this it's depth
 				for (let i = stack.length - 1; i >= 0; i--) {
 					if (stack[i].depth < depth) {
-						stack[i].itBlocks.push({ name: token.name });
+						stack[i].itBlocks.push({ name: token.name, body });
 						break;
 					}
 				}
@@ -114,8 +118,114 @@ function parseDescribeTree(content: string): DescribeBlock[] {
 }
 
 /**
- * Count the brace depth at a given position in the source.
+ * Extract the body of an it/describe block starting from its position.
+ * Finds the opening `{` after the callback arrow/function, then captures to matching `}`.
  */
+function extractBlockBody(content: string, startIndex: number): string {
+	// Find the opening brace of the callback
+	let i = startIndex;
+	let parenDepth = 0;
+	let foundFirstParen = false;
+
+	// Skip past the it('name', and find the callback body
+	while (i < content.length) {
+		const ch = content[i];
+		if (ch === "(") {
+			parenDepth++;
+			foundFirstParen = true;
+		}
+		if (ch === ")") parenDepth--;
+		if (foundFirstParen && parenDepth === 0) break;
+
+		// Found the callback body opening brace
+		if (foundFirstParen && ch === "{" && parenDepth === 1) {
+			const bodyStart = i + 1;
+			let braceDepth = 1;
+			let j = bodyStart;
+			let inStr: string | null = null;
+			let esc = false;
+
+			while (j < content.length && braceDepth > 0) {
+				const c = content[j];
+				if (esc) {
+					esc = false;
+					j++;
+					continue;
+				}
+				if (c === "\\") {
+					esc = true;
+					j++;
+					continue;
+				}
+				if (inStr) {
+					if (c === inStr) inStr = null;
+					j++;
+					continue;
+				}
+				if (c === "'" || c === '"' || c === "`") {
+					inStr = c;
+					j++;
+					continue;
+				}
+				if (c === "{") braceDepth++;
+				if (c === "}") braceDepth--;
+				j++;
+			}
+
+			// Limit body to 2000 chars to avoid memory issues
+			return content.slice(bodyStart, Math.min(j - 1, bodyStart + 2000));
+		}
+		i++;
+	}
+	return "";
+}
+
+/**
+ * Extract assertion metadata from an it block body.
+ */
+function extractStepMeta(body: string): StepMeta {
+	const meta: StepMeta = {
+		statusCodes: [],
+		errorCodes: [],
+		requestData: [],
+		mockCalls: [],
+	};
+
+	// HTTP status codes: .expect(200), expect(status).toBe(400)
+	for (const m of body.matchAll(/\.expect\((\d{3})\)/g)) {
+		meta.statusCodes.push(Number(m[1]));
+	}
+	for (const m of body.matchAll(
+		/expect\(.*?(?:status|statusCode).*?\)\.toBe\((\d{3})\)/g,
+	)) {
+		meta.statusCodes.push(Number(m[1]));
+	}
+
+	// Error codes: expect(body.code).toBe('LAST_OWNER'), toContain('INV006')
+	for (const m of body.matchAll(
+		/(?:toBe|toEqual|toContain)\(\s*['"]([A-Z][A-Z0-9_]+)['"]\s*\)/g,
+	)) {
+		const code = m[1];
+		if (
+			/^(INV\d+|ERR_|LAST_|CANNOT_|INSUFFICIENT_|MEMBER_|INVALID_)/.test(code)
+		) {
+			meta.errorCodes.push(code);
+		}
+	}
+
+	// Request data: .send({ role: 'admin' })
+	for (const m of body.matchAll(/\.send\(\s*(\{[^}]{1,200}\})\s*\)/g)) {
+		meta.requestData.push(m[1].replace(/\s+/g, " ").trim());
+	}
+
+	// Mock service calls: expect(mockService.method).toHaveBeenCalledWith(...)
+	for (const m of body.matchAll(/expect\((\w+)\.(\w+)\)\.toHaveBeenCalled/g)) {
+		meta.mockCalls.push(`${m[1]}.${m[2]}`);
+	}
+
+	return meta;
+}
+
 function braceDepthAt(content: string, position: number): number {
 	let depth = 0;
 	let inString: string | null = null;
@@ -132,17 +242,14 @@ function braceDepthAt(content: string, position: number): number {
 			escaped = true;
 			continue;
 		}
-
 		if (inString) {
 			if (ch === inString) inString = null;
 			continue;
 		}
-
 		if (ch === "'" || ch === '"' || ch === "`") {
 			inString = ch;
 			continue;
 		}
-
 		if (ch === "{") depth++;
 		if (ch === "}") depth--;
 	}
@@ -152,7 +259,6 @@ function braceDepthAt(content: string, position: number): number {
 
 /**
  * Convert a top-level describe block into a Journey.
- * Child describes or it blocks become journey steps.
  */
 function blockToJourney(
 	block: DescribeBlock,
@@ -164,78 +270,74 @@ function blockToJourney(
 	const constraints = new Set<string>();
 	let order = 0;
 
-	// Extract endpoint from describe name if present (e.g., "GET /api/organizations/members")
 	const endpointMatch = block.name.match(
 		/^(GET|POST|PUT|PATCH|DELETE)\s+(\/\S+)/,
 	);
 
-	// Process child describes as step groups
 	for (const child of block.children) {
-		// Check if child describe name contains a step indicator
 		const stepMatch = child.name.match(/^Step\s+(\d+):\s*(.*)/i);
 		const httpMatch = child.name.match(
 			/^(GET|POST|PUT|PATCH|DELETE)\s+(\/\S+)/,
 		);
 
 		if (stepMatch) {
-			// Explicit step: "Step 1: RabbitMQ message creates form request"
 			order++;
+			const allMeta = mergeStepMeta(child.itBlocks);
 			const step: JourneyStep = {
 				order,
 				actor: inferActor(child.name, filePath),
 				action: stepMatch[2],
-				description: child.itBlocks.map((it) => it.name).join("; "),
+				description: formatStepDescription(child.itBlocks, allMeta),
 			};
 			steps.push(step);
 			actors.add(step.actor);
+			addConstraints(constraints, allMeta, child.itBlocks);
 		} else if (httpMatch) {
-			// HTTP endpoint describe: "PATCH /api/organizations/members/:userId/role"
 			order++;
+			const allMeta = mergeStepMeta(child.itBlocks);
+			const method = httpMatch[1] as
+				| "GET"
+				| "POST"
+				| "PUT"
+				| "PATCH"
+				| "DELETE";
 			const step: JourneyStep = {
 				order,
 				actor: "user",
 				action: cleanActionName(child.name),
-				endpoint: {
-					method: httpMatch[1] as JourneyStep["endpoint"] extends {
-						method: infer M;
-					}
-						? M
-						: never,
-					path: httpMatch[2],
-				},
-				description: child.itBlocks.map((it) => it.name).join("; "),
+				endpoint: { method, path: httpMatch[2] },
+				description: formatStepDescription(child.itBlocks, allMeta),
 			};
 			steps.push(step);
-
-			// Extract constraints from error-case it blocks
-			for (const it of child.itBlocks) {
-				const constraint = extractConstraint(it.name);
-				if (constraint) constraints.add(constraint);
-			}
+			addConstraints(constraints, allMeta, child.itBlocks);
 		} else {
-			// Regular describe — each it block becomes a step
 			for (const it of child.itBlocks) {
 				order++;
+				const meta = extractStepMeta(it.body);
 				const step: JourneyStep = {
 					order,
 					actor: inferActor(it.name, filePath),
 					action: cleanItName(it.name),
-					description: "",
+					endpoint: endpointMatch
+						? {
+								method: endpointMatch[1] as
+									| "GET"
+									| "POST"
+									| "PUT"
+									| "PATCH"
+									| "DELETE",
+								path: endpointMatch[2],
+							}
+						: undefined,
+					description: formatSingleStepDescription(meta),
 				};
-				if (endpointMatch) {
-					step.endpoint = {
-						method: endpointMatch[1] as JourneyStep["endpoint"] extends {
-							method: infer M;
-						}
-							? M
-							: never,
-						path: endpointMatch[2],
-					};
-				}
 				steps.push(step);
 
 				const constraint = extractConstraint(it.name);
 				if (constraint) constraints.add(constraint);
+				for (const code of meta.errorCodes) {
+					constraints.add(toKebabCase(code));
+				}
 			}
 		}
 	}
@@ -244,25 +346,30 @@ function blockToJourney(
 	if (block.children.length === 0) {
 		for (const it of block.itBlocks) {
 			order++;
+			const meta = extractStepMeta(it.body);
 			steps.push({
 				order,
 				actor: inferActor(it.name, filePath),
 				action: cleanItName(it.name),
 				endpoint: endpointMatch
 					? {
-							method: endpointMatch[1] as JourneyStep["endpoint"] extends {
-								method: infer M;
-							}
-								? M
-								: never,
+							method: endpointMatch[1] as
+								| "GET"
+								| "POST"
+								| "PUT"
+								| "PATCH"
+								| "DELETE",
 							path: endpointMatch[2],
 						}
 					: undefined,
-				description: "",
+				description: formatSingleStepDescription(meta),
 			});
 
 			const constraint = extractConstraint(it.name);
 			if (constraint) constraints.add(constraint);
+			for (const code of meta.errorCodes) {
+				constraints.add(toKebabCase(code));
+			}
 		}
 	}
 
@@ -283,8 +390,89 @@ function blockToJourney(
 }
 
 /**
- * Infer which actor performs a step based on the test name and file path.
+ * Merge metadata from all it blocks in a describe group.
  */
+function mergeStepMeta(itBlocks: ItBlock[]): StepMeta {
+	const merged: StepMeta = {
+		statusCodes: [],
+		errorCodes: [],
+		requestData: [],
+		mockCalls: [],
+	};
+	for (const it of itBlocks) {
+		const meta = extractStepMeta(it.body);
+		merged.statusCodes.push(...meta.statusCodes);
+		merged.errorCodes.push(...meta.errorCodes);
+		merged.requestData.push(...meta.requestData);
+		merged.mockCalls.push(...meta.mockCalls);
+	}
+	return merged;
+}
+
+/**
+ * Add constraints from metadata and it block names.
+ */
+function addConstraints(
+	constraints: Set<string>,
+	meta: StepMeta,
+	itBlocks: ItBlock[],
+): void {
+	for (const code of meta.errorCodes) {
+		constraints.add(toKebabCase(code));
+	}
+	for (const it of itBlocks) {
+		const constraint = extractConstraint(it.name);
+		if (constraint) constraints.add(constraint);
+	}
+}
+
+/**
+ * Format step description with metadata from multiple it blocks.
+ */
+function formatStepDescription(itBlocks: ItBlock[], meta: StepMeta): string {
+	const parts: string[] = [];
+
+	// Test cases
+	const cases = itBlocks.map((it) => it.name);
+	if (cases.length > 0) {
+		parts.push(cases.join("; "));
+	}
+
+	// Assertion metadata
+	const metaParts = formatMetaParts(meta);
+	if (metaParts) parts.push(metaParts);
+
+	return parts.join(" | ");
+}
+
+/**
+ * Format step description for a single it block.
+ */
+function formatSingleStepDescription(meta: StepMeta): string {
+	return formatMetaParts(meta);
+}
+
+function formatMetaParts(meta: StepMeta): string {
+	const parts: string[] = [];
+	const uniqueStatuses = [...new Set(meta.statusCodes)];
+	const uniqueErrors = [...new Set(meta.errorCodes)];
+	const uniqueMocks = [...new Set(meta.mockCalls)];
+
+	if (uniqueStatuses.length > 0) {
+		parts.push(`HTTP ${uniqueStatuses.join(", ")}`);
+	}
+	if (uniqueErrors.length > 0) {
+		parts.push(`Errors: ${uniqueErrors.join(", ")}`);
+	}
+	if (uniqueMocks.length > 0) {
+		parts.push(`Calls: ${uniqueMocks.slice(0, 5).join(", ")}`);
+	}
+	if (meta.requestData.length > 0) {
+		parts.push(`Input: ${meta.requestData[0]}`);
+	}
+	return parts.join(" | ");
+}
+
 function inferActor(text: string, filePath: string): string {
 	const lower = text.toLowerCase();
 
@@ -295,7 +483,6 @@ function inferActor(text: string, filePath: string): string {
 	if (/database|query|insert|update.*record/.test(lower)) return "database";
 	if (/user|should return|request|submit|navigate/.test(lower)) return "user";
 
-	// Infer from file path
 	if (filePath.includes("services/")) {
 		const serviceName = filePath.match(/(\w+)\.test/)?.[1];
 		return serviceName ? toKebabCase(serviceName) : "service";
@@ -308,17 +495,12 @@ function inferActor(text: string, filePath: string): string {
 	return "system";
 }
 
-/**
- * Extract constraint identifiers from error-related test names.
- */
 function extractConstraint(itName: string): string | null {
-	// Match explicit error codes: INV001, LAST_OWNER, etc.
 	const codeMatch = itName.match(
 		/\b(INV\d+|ERR_\w+|LAST_OWNER|INSUFFICIENT_PERMISSIONS|CANNOT_\w+|MEMBER_NOT_FOUND)\b/,
 	);
 	if (codeMatch) return toKebabCase(codeMatch[1]);
 
-	// Match HTTP error patterns
 	if (/should return [45]\d\d/.test(itName)) {
 		const reason = itName
 			.replace(/should return [45]\d\d\s*(when|for|if)?\s*/, "")

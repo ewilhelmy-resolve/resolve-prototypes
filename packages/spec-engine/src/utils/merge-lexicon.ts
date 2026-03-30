@@ -25,8 +25,9 @@ export function mergeLexicon(
 	// Start with ts-morph extracted data
 	const actors = dedup(tsData.actors, (a) => a.id);
 	const views = dedup(tsData.views, (v) => v.id);
+	// Schema data first — has enriched Zod rule descriptions
 	const constraints = dedup(
-		[...tsData.constraints, ...schemaData.constraints],
+		[...schemaData.constraints, ...tsData.constraints],
 		(c) => c.id,
 	);
 	const journeys = dedup(
