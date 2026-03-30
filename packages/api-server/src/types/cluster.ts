@@ -173,26 +173,6 @@ export interface ClusterTicketsResponse {
 }
 
 /**
- * Historical ticket entity from database
- * Slim version of Ticket focused on knowledge generation
- */
-export interface HistoricalTicket {
-	id: string;
-	organization_id: string;
-	cluster_id: string | null;
-	data_source_connection_id: string | null;
-	external_id: string;
-	subject: string;
-	description: string | null;
-	resolution: string | null;
-	external_status: string;
-	source_metadata: Record<string, any>;
-	closed_at: Date;
-	created_at: Date;
-	updated_at: Date;
-}
-
-/**
  * KB article from blob_metadata
  */
 export interface KbArticle {

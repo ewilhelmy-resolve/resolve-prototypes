@@ -54,7 +54,7 @@ export class ClusterService {
 				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND external_status = 'Open')`.as(
 					"open_count",
 				),
-				sql<number>`(SELECT COUNT(*) FROM historical_tickets WHERE cluster_id = c.id)`.as(
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND resolution IS NOT NULL)`.as(
 					"historical_ticket_count",
 				),
 			])

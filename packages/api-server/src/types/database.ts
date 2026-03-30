@@ -248,34 +248,6 @@ export interface DataSourceConnections {
 	updated_by: string;
 }
 
-export interface HistoricalTickets {
-	/**
-	 * When the ticket was closed/resolved in the ITSM system
-	 */
-	closed_at: Timestamp;
-	/**
-	 * NULL until classification workflow assigns cluster
-	 */
-	cluster_id: string | null;
-	created_at: Generated<Timestamp>;
-	data_source_connection_id: string | null;
-	description: string | null;
-	/**
-	 * Ticket ID from ITSM system. Same ticket may also exist in tickets table.
-	 */
-	external_id: string;
-	external_status: string;
-	id: Generated<string>;
-	organization_id: string;
-	/**
-	 * Extracted close/resolution notes from ITSM system (e.g. ServiceNow close_notes)
-	 */
-	resolution: string | null;
-	source_metadata: Generated<Json>;
-	subject: string;
-	updated_at: Generated<Timestamp>;
-}
-
 export interface IngestionRuns {
 	completed_at: Timestamp | null;
 	created_at: Generated<Timestamp | null>;
@@ -593,6 +565,10 @@ export interface Tickets {
 	priority: string | null;
 	requester: string | null;
 	/**
+	 * Close/resolution notes from ITSM system. Non-null indicates a historical ticket usable for knowledge generation.
+	 */
+	resolution: string | null;
+	/**
 	 * Rita processing status: NEEDS_RESPONSE or COMPLETED
 	 */
 	rita_status: Generated<string | null>;
@@ -658,7 +634,6 @@ export interface DB {
 	conversations: Conversations;
 	credential_delegation_tokens: CredentialDelegationTokens;
 	data_source_connections: DataSourceConnections;
-	historical_tickets: HistoricalTickets;
 	ingestion_runs: IngestionRuns;
 	itsm_field_mappings: ItsmFieldMappings;
 	message_processing_failures: MessageProcessingFailures;

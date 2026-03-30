@@ -143,9 +143,6 @@ export async function syncProviderData(
 	if (scenario === "null") {
 		const { query } = await import("./database.js");
 
-		await query(`DELETE FROM historical_tickets WHERE organization_id = $1`, [
-			organizationId,
-		]);
 		await query(`DELETE FROM tickets WHERE organization_id = $1`, [
 			organizationId,
 		]);
@@ -167,11 +164,7 @@ export async function syncProviderData(
 	const initialState = scenario === "failed" ? "failed" : "in_progress";
 
 	return withTransaction(async (client: pg.PoolClient) => {
-		// Clean up existing tickets, historical tickets, and clusters
-		await client.query(
-			`DELETE FROM historical_tickets WHERE organization_id = $1`,
-			[organizationId],
-		);
+		// Clean up existing tickets and clusters
 		await client.query(`DELETE FROM tickets WHERE organization_id = $1`, [
 			organizationId,
 		]);
@@ -249,6 +242,18 @@ export async function syncProviderData(
 				? "Customer request: "
 				: "General support request for ";
 
+		// Resolution templates for closed tickets (~40% of tickets)
+		const resolutionTemplates: Record<string, string[]> = {};
+		for (const clusterName of config.clusterNames) {
+			resolutionTemplates[clusterName] = [
+				`Resolved by applying standard fix for ${clusterName}. Verified with the user that the issue is no longer occurring.`,
+				`Issue resolved. Root cause was identified and corrected. User confirmed ${clusterName.toLowerCase()} is working as expected.`,
+				`Completed troubleshooting for ${clusterName}. Applied configuration change and tested successfully.`,
+				`Followed KB article steps to resolve. User verified the fix and confirmed the issue is resolved.`,
+				`Escalated to L2, root cause identified. Applied fix and monitored for 24 hours. No recurrence.`,
+			];
+		}
+
 		for (const [clusterName, clusterId] of clusterMap) {
 			const ticketsPerCluster = 5 + Math.floor(Math.random() * 11);
 
@@ -279,12 +284,23 @@ export async function syncProviderData(
 					config.descriptionSuffixes,
 				);
 
+				// ~40% of tickets are closed with resolution (historical)
+				const isClosed = Math.random() < 0.4;
+				const resolutions = resolutionTemplates[clusterName] || [
+					"Issue resolved. Verified with user.",
+				];
+				const resolution = isClosed
+					? resolutions[Math.floor(Math.random() * resolutions.length)]
+					: null;
+				const externalStatus = isClosed ? "Closed" : config.externalStatus;
+				const ritaStatus = isClosed ? "COMPLETED" : "NEEDS_RESPONSE";
+
 				const insertResult = await client.query(
 					`INSERT INTO tickets (
             organization_id, cluster_id, data_source_connection_id,
             external_id, subject, description, external_status, rita_status, source_metadata, created_at,
-            requester, assigned_to, priority
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'NEEDS_RESPONSE', $8, $9, $10, $11, $12)
+            requester, assigned_to, priority, resolution
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           ON CONFLICT (organization_id, external_id) DO NOTHING`,
 					[
 						organizationId,
@@ -293,12 +309,14 @@ export async function syncProviderData(
 						externalId,
 						subject,
 						description,
-						config.externalStatus,
+						externalStatus,
+						ritaStatus,
 						JSON.stringify(sourceMetadata),
 						createdAt,
 						requester,
 						agent || null,
 						priority,
+						resolution,
 					],
 				);
 
@@ -309,88 +327,11 @@ export async function syncProviderData(
 			}
 		}
 
-		// Create historical tickets (3-8 per cluster, closed with resolution)
-		const resolutionTemplates: Record<string, string[]> = {};
-		for (const clusterName of config.clusterNames) {
-			resolutionTemplates[clusterName] = [
-				`Resolved by applying standard fix for ${clusterName}. Verified with the user that the issue is no longer occurring.`,
-				`Issue resolved. Root cause was identified and corrected. User confirmed ${clusterName.toLowerCase()} is working as expected.`,
-				`Completed troubleshooting for ${clusterName}. Applied configuration change and tested successfully.`,
-				`Followed KB article steps to resolve. User verified the fix and confirmed the issue is resolved.`,
-				`Escalated to L2, root cause identified. Applied fix and monitored for 24 hours. No recurrence.`,
-			];
-		}
-
-		let historicalTicketNum = config.ticketNumStart + 10000;
-		let historicalTicketsCreated = 0;
-
-		for (const [clusterName, clusterId] of clusterMap) {
-			const historicalPerCluster = 3 + Math.floor(Math.random() * 6);
-
-			for (let i = 0; i < historicalPerCluster; i++) {
-				const subject = getRandomSubject(
-					clusterName,
-					config.subjectTemplates,
-					config.name === "freshservice_itsm"
-						? "Customer request: "
-						: "General support request for ",
-				);
-				const externalId = `${config.externalIdPrefix}${historicalTicketNum}`;
-				const description = generateDescription(
-					subject,
-					config.descriptionPrefixes,
-					config.descriptionSuffixes,
-				);
-				const resolutions = resolutionTemplates[clusterName] || [
-					`Issue resolved. Verified with user.`,
-				];
-				const resolution =
-					resolutions[Math.floor(Math.random() * resolutions.length)];
-
-				// closed_at: 30-365 days ago
-				const closedDaysAgo = 30 + Math.floor(Math.random() * 335);
-				const closedAt = new Date(
-					Date.now() - closedDaysAgo * 24 * 60 * 60 * 1000,
-				);
-				// created_at: 1-14 days before closed_at
-				const createdAt = new Date(
-					closedAt.getTime() -
-						(1 + Math.floor(Math.random() * 14)) * 24 * 60 * 60 * 1000,
-				);
-
-				const insertResult = await client.query(
-					`INSERT INTO historical_tickets (
-						organization_id, cluster_id, data_source_connection_id,
-						external_id, subject, description, resolution,
-						external_status, source_metadata, closed_at, created_at
-					) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Closed', '{}', $8, $9)
-					ON CONFLICT (organization_id, external_id) DO NOTHING`,
-					[
-						organizationId,
-						clusterId,
-						connectionId,
-						externalId,
-						subject,
-						description,
-						resolution,
-						closedAt,
-						createdAt,
-					],
-				);
-
-				if (insertResult.rowCount && insertResult.rowCount > 0) {
-					historicalTicketsCreated++;
-				}
-				historicalTicketNum++;
-			}
-		}
-
 		logger.info(
 			{
 				modelId,
 				clustersCreated: clusterMap.size,
 				ticketsCreated,
-				historicalTicketsCreated,
 				initialState,
 				scenario,
 			},
