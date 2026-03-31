@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { ConnectionSource } from "@/constants/connectionSources";
 import { STATUS } from "@/constants/connectionSources";
-import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
+import { MultiSelect, type MultiSelectOption } from "../../custom/multi-select";
 
 interface KbSyncSectionProps {
 	source: ConnectionSource;

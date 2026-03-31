@@ -132,7 +132,7 @@ export default function RitaSettingsLayout({
 												)}
 											>
 												<span className="text-sm">Connection Sources</span>
-												<ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+												<ChevronDown className="h-4 w-4 transition-transform group-data-[panel-open]/collapsible:rotate-180" />
 											</SidebarMenuButton>
 										</CollapsibleTrigger>
 										<CollapsibleContent>

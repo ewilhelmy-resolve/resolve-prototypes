@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { StatusAlert, InfoAlert } from "./status-alert";
+import { describe, expect, it } from "vitest";
+import { InfoAlert, StatusAlert } from "./status-alert";
 
 describe("StatusAlert", () => {
 	describe("Rendering", () => {
@@ -24,7 +24,11 @@ describe("StatusAlert", () => {
 		it("renders info variant with blue styling", () => {
 			render(<StatusAlert variant="info">Info message</StatusAlert>);
 			const alert = screen.getByRole("alert");
-			expect(alert).toHaveClass("bg-blue-50", "border-blue-200", "text-blue-900");
+			expect(alert).toHaveClass(
+				"bg-blue-50",
+				"border-blue-200",
+				"text-blue-900",
+			);
 		});
 
 		it("renders warning variant with amber styling", () => {
@@ -33,7 +37,7 @@ describe("StatusAlert", () => {
 			expect(alert).toHaveClass(
 				"bg-amber-50",
 				"border-amber-200",
-				"text-amber-900"
+				"text-amber-900",
 			);
 		});
 
@@ -49,7 +53,7 @@ describe("StatusAlert", () => {
 			expect(alert).toHaveClass(
 				"bg-green-50",
 				"border-green-200",
-				"text-green-900"
+				"text-green-900",
 			);
 		});
 
@@ -82,7 +86,7 @@ describe("StatusAlert", () => {
 						<li>Item 1</li>
 						<li>Item 2</li>
 					</ul>
-				</StatusAlert>
+				</StatusAlert>,
 			);
 			expect(screen.getByText("Item 1")).toBeInTheDocument();
 			expect(screen.getByText("Item 2")).toBeInTheDocument();

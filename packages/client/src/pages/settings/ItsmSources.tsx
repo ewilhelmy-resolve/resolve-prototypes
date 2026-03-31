@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { StatusAlert } from "@/components/ui/status-alert";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { ITSM_SOURCES_ORDER, SOURCES } from "@/constants/connectionSources";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";

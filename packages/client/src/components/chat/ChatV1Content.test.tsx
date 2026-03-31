@@ -211,7 +211,7 @@ describe("ChatV1Content - Attachment Upload Permissions", () => {
 
 			// Even though drag-and-drop is disabled, the validation logic exists in the code
 			// We can verify the ritaToast mock would be called with proper error messages
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 
 			// Verify ritaToast is available for error reporting
 			expect(ritaToast.error).toBeDefined();
@@ -229,7 +229,7 @@ describe("ChatV1Content - Attachment Upload Permissions", () => {
 			);
 
 			// Verify component imports ritaToast (not plain toast from sonner)
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			expect(ritaToast).toBeDefined();
 			expect(ritaToast.error).toBeDefined();
 			expect(ritaToast.success).toBeDefined();
@@ -292,7 +292,7 @@ describe("ChatV1Content - Attachment Upload Permissions", () => {
 				},
 			];
 
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			const warningSpy = vi.spyOn(ritaToast, "warning");
 
 			const { rerender } = render(

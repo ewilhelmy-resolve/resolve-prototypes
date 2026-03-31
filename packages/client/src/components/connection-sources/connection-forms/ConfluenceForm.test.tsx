@@ -50,7 +50,7 @@ vi.mock("@/hooks/useDataSources", () => ({
 	useVerifyDataSource: vi.fn(() => mockVerifyMutation),
 }));
 
-vi.mock("@/components/ui/rita-toast", () => ({
+vi.mock("@/components/custom/rita-toast", () => ({
 	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
@@ -246,7 +246,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show validation error toast when clicking Connect with empty form", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -264,7 +264,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show validation error for invalid URL format after clicking Connect", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -297,7 +297,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show validation error for invalid email format after clicking Connect", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -432,7 +432,7 @@ describe("ConfluenceForm", () => {
 		// TODO: Re-add this test when the Spaces Multiselect feature is implemented
 
 		it("should show success toast on successful connection", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -460,7 +460,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show error toast on failed verification", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
 				new Error("Verification failed"),
 			);
@@ -492,7 +492,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should show error toast on failed update", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			mockUpdateMutation.mutateAsync.mockRejectedValueOnce(
 				new Error("Update failed"),
 			);
@@ -655,7 +655,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should not call onSuccess callback when connection fails", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
 				new Error("Verification failed"),
 			);
@@ -688,7 +688,7 @@ describe("ConfluenceForm", () => {
 		});
 
 		it("should call onFailure callback when connection fails", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			mockVerifyMutation.mutateAsync.mockRejectedValueOnce(
 				new Error("Verification failed"),
 			);

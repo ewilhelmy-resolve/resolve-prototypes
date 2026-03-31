@@ -1,4 +1,9 @@
-import { AlertCircle, AlertTriangle, CheckCircle2, InfoIcon } from "lucide-react";
+import {
+	AlertCircle,
+	AlertTriangle,
+	CheckCircle2,
+	InfoIcon,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
@@ -85,19 +90,15 @@ export function StatusAlert({
 			className={cn(
 				"w-full flex items-start gap-2 border-1",
 				variantStyles,
-				className
+				className,
 			)}
 		>
 			<Icon className={cn(iconSize, iconStyles, "flex-shrink-0")} />
 			<AlertDescription className="flex-1">
-				{title && (
-					<p className="font-semibold mb-1">{title}</p>
-				)}
+				{title && <p className="font-semibold mb-1">{title}</p>}
 				{children}
 			</AlertDescription>
-			{action && (
-				<div className="flex-shrink-0 ml-2 text-black">{action}</div>
-			)}
+			{action && <div className="flex-shrink-0 ml-2 text-black">{action}</div>}
 		</Alert>
 	);
 }

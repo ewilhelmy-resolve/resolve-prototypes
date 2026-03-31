@@ -1,6 +1,6 @@
-import { toast as sonnerToast } from "sonner";
-import { CheckCircle2, XCircle, AlertCircle, Info, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast as sonnerToast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
@@ -32,8 +32,7 @@ const variantConfig = {
 		iconClass: "text-destructive",
 		titleClass: "text-card-foreground",
 		descClass: "text-muted-foreground",
-		buttonClass:
-			"bg-destructive/10 text-destructive hover:bg-destructive/20",
+		buttonClass: "bg-destructive/10 text-destructive hover:bg-destructive/20",
 	},
 	warning: {
 		icon: AlertCircle,
@@ -76,9 +75,13 @@ function RitaToast(props: ToastProps) {
 			<div className="flex flex-1 items-center gap-3">
 				<Icon className={cn("h-5 w-5 flex-shrink-0", config.iconClass)} />
 				<div className="w-full min-w-0">
-					<p className={cn("text-sm font-medium", config.titleClass)}>{title}</p>
+					<p className={cn("text-sm font-medium", config.titleClass)}>
+						{title}
+					</p>
 					{description && (
-						<p className={cn("mt-1 text-sm", config.descClass)}>{description}</p>
+						<p className={cn("mt-1 text-sm", config.descClass)}>
+							{description}
+						</p>
 					)}
 				</div>
 			</div>

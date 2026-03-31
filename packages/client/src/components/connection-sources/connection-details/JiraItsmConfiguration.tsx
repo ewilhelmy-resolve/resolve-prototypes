@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { StatusAlert } from "@/components/custom/status-alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -13,14 +14,13 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
 	useLatestIngestionRun,
 	useUpdateDataSource,
 } from "@/hooks/useDataSources";
 import { parseAvailableSpaces } from "@/lib/dataSourceUtils";
-import { MultiSelect, type MultiSelectOption } from "../../ui/multi-select";
+import { MultiSelect, type MultiSelectOption } from "../../custom/multi-select";
 import ItsmConfigurationBase from "./ItsmConfigurationBase";
 
 interface JiraItsmConfigurationProps {

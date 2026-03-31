@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Toaster } from "sonner";
-import { ritaToast } from "./rita-toast";
 import { Button } from "./button";
+import { ritaToast } from "./rita-toast";
 
 const meta: Meta = {
 	title: "Components/Feedback/Toast",
@@ -44,7 +44,7 @@ export const Success: Story = {
 	),
 };
 
-export const Error: Story = {
+export const ErrorVariant: Story = {
 	name: "Error",
 	render: () => (
 		<Button

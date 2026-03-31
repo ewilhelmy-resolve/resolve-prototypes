@@ -4,13 +4,13 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
+import { FeedbackBanner } from "@/components/custom/feedback-banner";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { Button } from "@/components/ui/button";
-import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import { clusterKeys, useClusterDetails } from "@/hooks/useClusters";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import {

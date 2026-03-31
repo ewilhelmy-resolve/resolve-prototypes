@@ -3,10 +3,11 @@
 import { AlertCircle, Loader2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ritaToast } from "@/components/custom/rita-toast";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { ritaToast } from "@/components/ui/rita-toast";
 import {
 	Select,
 	SelectContent,
@@ -14,7 +15,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { StatusAlert } from "@/components/ui/status-alert";
 import {
 	Tooltip,
 	TooltipContent,
