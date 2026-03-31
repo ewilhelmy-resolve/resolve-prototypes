@@ -112,6 +112,7 @@ function SelectContent({
 			side={side}
 			align={align}
 			sideOffset={sideOffset}
+			alignItemWithTrigger={false}
 		>
 			<SelectPrimitive.Popup
 				data-slot="select-content"
