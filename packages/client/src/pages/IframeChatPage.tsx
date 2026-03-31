@@ -763,7 +763,11 @@ function IframeDevTools({
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-accent">
+				<Button
+					size="icon"
+					variant="ghost"
+					className="h-8 w-8 hover:bg-accent cursor-pointer"
+				>
 					<Wrench className="h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
