@@ -1,3 +1,15 @@
 packages:
   - 'packages/*'
   - 'keycloak'
+
+strictPeerDependencies: true
+
+publicHoistPattern:
+  - '*types*'
+  - '*biome*'
+
+overrides:
+  '@types/express-serve-static-core': ^5.0.0
+
+minimumReleaseAge: 4320 # 3 days in minutes (3 × 24 × 60)
+
