@@ -70,7 +70,7 @@ export const useFooStore = create<FooState>()(
 
 - `createBrowserRouter` in `src/router.tsx`
 - Protected routes wrapped in `<ProtectedRoute>` or `<RoleProtectedRoute>`
-- Iframe routes at `/iframe/chat` (no auth, Valkey session)
+- Iframe routes at `/iframe/chat` (host-delegated auth via Valkey sessionKey)
 
 ## Testing
 
