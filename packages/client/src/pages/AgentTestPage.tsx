@@ -12,18 +12,14 @@
 import confetti from "canvas-confetti";
 import {
 	ArrowLeft,
-	BookOpen,
 	Bot,
 	BotMessageSquare,
 	Check,
 	ChevronUp,
 	Database,
-	Headphones,
-	Key,
 	Loader2,
 	RefreshCw,
 	SendHorizontal,
-	ShieldCheck,
 	ThumbsDown,
 	ThumbsUp,
 	X,
@@ -42,99 +38,10 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { MOCK_BUILDER_AGENTS } from "@/constants/agentMocks";
+import { AGENT_COLOR_MAP, AGENT_ICON_MAP } from "@/constants/agents";
 import { cn } from "@/lib/utils";
-
-// Icon mapping
-const ICON_MAP: Record<string, React.ElementType> = {
-	bot: Bot,
-	headphones: Headphones,
-	"shield-check": ShieldCheck,
-	key: Key,
-	"book-open": BookOpen,
-};
-
-const COLOR_MAP: Record<string, { bg: string; text: string }> = {
-	slate: { bg: "bg-slate-800", text: "text-white" },
-	blue: { bg: "bg-blue-600", text: "text-white" },
-	emerald: { bg: "bg-emerald-600", text: "text-white" },
-	purple: { bg: "bg-purple-600", text: "text-white" },
-	orange: { bg: "bg-orange-500", text: "text-white" },
-	rose: { bg: "bg-rose-500", text: "text-white" },
-};
-
-// Mock saved agents
-const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
-	"1": {
-		name: "HelpDesk Advisor",
-		description: "Answers IT support questions",
-		instructions:
-			"Help users with IT-related questions. Be patient and thorough.",
-		role: "IT Support Specialist",
-		iconId: "headphones",
-		iconColorId: "blue",
-		agentType: "answer",
-		conversationStarters: [
-			"I need to reset my password",
-			"My VPN isn't connecting",
-			"How do I request software?",
-		],
-		knowledgeSources: ["IT Knowledge Base"],
-		workflows: ["Reset password", "Unlock account", "Request system access"],
-		guardrails: ["salary", "performance reviews"],
-	},
-	"2": {
-		name: "Compliance Checker",
-		description: "Answers from compliance docs",
-		instructions: "Only answer from approved compliance documents.",
-		role: "Compliance Specialist",
-		iconId: "shield-check",
-		iconColorId: "emerald",
-		agentType: "knowledge",
-		conversationStarters: [
-			"Is my I-9 complete?",
-			"What background checks are required?",
-		],
-		knowledgeSources: ["Compliance Handbook", "HR Policies"],
-		workflows: ["Verify I-9 forms", "Check background status"],
-		guardrails: ["personal opinions", "legal advice"],
-	},
-};
-
-interface AgentConfig {
-	name: string;
-	description: string;
-	instructions: string;
-	role: string;
-	iconId: string;
-	iconColorId: string;
-	agentType: "answer" | "knowledge" | "workflow" | null;
-	conversationStarters: string[];
-	knowledgeSources: string[];
-	workflows: string[];
-	guardrails: string[];
-}
-
-interface ConfigSuggestion {
-	message: string;
-	updateType: "instructions";
-	updateValue: string;
-	applied?: boolean;
-}
-
-interface TestMessage {
-	id: string;
-	type:
-		| "user"
-		| "agent"
-		| "agent-retry"
-		| "system"
-		| "user-feedback"
-		| "suggestion";
-	content: string;
-	sourcesUsed?: { type: "knowledge" | "workflow"; name: string }[];
-	iterationNumber?: number;
-	suggestion?: ConfigSuggestion;
-}
+import type { AgentConfig, ConfigSuggestion, TestMessage } from "@/types/agent";
 
 type TestPhase =
 	| "idle"
@@ -151,7 +58,8 @@ export default function AgentTestPage() {
 	const stateConfig = (location.state?.config || location.state?.agentConfig) as
 		| AgentConfig
 		| undefined;
-	const urlConfig = agentId ? MOCK_SAVED_AGENTS[agentId] : undefined;
+	// TODO(react-19): Replace with use(fetchAgent(agentId)) when API is available
+	const urlConfig = agentId ? MOCK_BUILDER_AGENTS[agentId] : undefined;
 	const initialConfig = stateConfig || urlConfig;
 
 	const [config, setConfig] = useState<AgentConfig | null>(
@@ -204,7 +112,8 @@ export default function AgentTestPage() {
 			}
 			case 2: {
 				// Give feedback directly (bypass state since setFeedbackInput is async)
-				const demoFeedback = "Be more specific about the steps and include a timeline";
+				const demoFeedback =
+					"Be more specific about the steps and include a timeline";
 				const newHistory = [...feedbackHistory, demoFeedback];
 				setFeedbackHistory(newHistory);
 				addMessage({ type: "user-feedback", content: demoFeedback });
@@ -213,8 +122,17 @@ export default function AgentTestPage() {
 				setPhase("processing");
 				await wait(800);
 				if (!config) return;
-				const { response, sources } = generateResponse(currentPrompt, config, newHistory);
-				addMessage({ type: "agent-retry", content: response, sourcesUsed: sources, iterationNumber: newHistory.length });
+				const { response, sources } = generateResponse(
+					currentPrompt,
+					config,
+					newHistory,
+				);
+				addMessage({
+					type: "agent-retry",
+					content: response,
+					sourcesUsed: sources,
+					iterationNumber: newHistory.length,
+				});
 				setIsLoading(false);
 				setPhase("awaiting-rating");
 				setDemoStep(3);
@@ -264,8 +182,8 @@ export default function AgentTestPage() {
 		);
 	}
 
-	const Icon = ICON_MAP[config.iconId] || Bot;
-	const color = COLOR_MAP[config.iconColorId] || COLOR_MAP.slate;
+	const Icon = AGENT_ICON_MAP[config.iconId] || Bot;
+	const color = AGENT_COLOR_MAP[config.iconColorId] || AGENT_COLOR_MAP.slate;
 	const starters = config.conversationStarters
 		.filter((s) => s.trim())
 		.slice(0, 4);
@@ -375,7 +293,8 @@ export default function AgentTestPage() {
 		} else {
 			addMessage({
 				type: "system",
-				content: "Skipped. You can edit the instructions manually, then retest. When you're happy with the results, publish to go live.",
+				content:
+					"Skipped. You can edit the instructions manually, then retest. When you're happy with the results, publish to go live.",
 			});
 		}
 		setPhase("idle");
@@ -467,17 +386,10 @@ export default function AgentTestPage() {
 				</div>
 
 				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleReset}
-					>
+					<Button variant="outline" size="sm" onClick={handleReset}>
 						Reset
 					</Button>
-					<Button
-						size="sm"
-						onClick={() => setShowPublishDialog(true)}
-					>
+					<Button size="sm" onClick={() => setShowPublishDialog(true)}>
 						Publish
 					</Button>
 				</div>
@@ -491,7 +403,9 @@ export default function AgentTestPage() {
 							<Check className="size-2.5 text-background" />
 						</div>
 						<div className="flex-1 min-w-0">
-							<p className="text-xs font-medium text-foreground mb-0.5">Instructions updated</p>
+							<p className="text-xs font-medium text-foreground mb-0.5">
+								Instructions updated
+							</p>
 							<p className="text-[11px] text-muted-foreground line-clamp-2 font-mono leading-relaxed whitespace-pre-wrap">
 								{config.instructions.slice(-200)}
 							</p>
@@ -558,7 +472,8 @@ export default function AgentTestPage() {
 												)}
 
 												{/* Agent response */}
-												{(msg.type === "agent" || msg.type === "agent-retry") && (
+												{(msg.type === "agent" ||
+													msg.type === "agent-retry") && (
 													<div className="space-y-2">
 														{msg.type === "agent-retry" && (
 															<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-[50px]">
@@ -579,48 +494,61 @@ export default function AgentTestPage() {
 																</p>
 
 																{/* Sources */}
-																{msg.sourcesUsed && msg.sourcesUsed.length > 0 && (
-																	<>
-																		<button
-																			onClick={() =>
-																				setExpandedSources(
-																					expandedSources === msg.id
-																						? null
-																						: msg.id,
-																				)
-																			}
-																			className="flex items-center gap-1 bg-white rounded-md px-2 py-0.5"
-																		>
-																			<ChevronUp className={cn("size-3 transition-transform", expandedSources === msg.id ? "" : "rotate-180")} />
-																			<span className="text-xs text-foreground">Sources ({msg.sourcesUsed.length})</span>
-																		</button>
-																		{expandedSources === msg.id && (
-																			<div className="mt-1.5 space-y-0.5">
-																				{msg.sourcesUsed.map((source, i) => (
-																					<div
-																						key={i}
-																						className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
-																					>
-																						{source.type === "knowledge" ? (
-																							<Database className="size-2.5" />
-																						) : (
-																							<Zap className="size-2.5" />
-																						)}
-																						{source.name}
-																					</div>
-																				))}
-																			</div>
-																		)}
-																	</>
-																)}
+																{msg.sourcesUsed &&
+																	msg.sourcesUsed.length > 0 && (
+																		<>
+																			<button
+																				onClick={() =>
+																					setExpandedSources(
+																						expandedSources === msg.id
+																							? null
+																							: msg.id,
+																					)
+																				}
+																				className="flex items-center gap-1 bg-white rounded-md px-2 py-0.5"
+																			>
+																				<ChevronUp
+																					className={cn(
+																						"size-3 transition-transform",
+																						expandedSources === msg.id
+																							? ""
+																							: "rotate-180",
+																					)}
+																				/>
+																				<span className="text-xs text-foreground">
+																					Sources ({msg.sourcesUsed.length})
+																				</span>
+																			</button>
+																			{expandedSources === msg.id && (
+																				<div className="mt-1.5 space-y-0.5">
+																					{msg.sourcesUsed.map((source, i) => (
+																						<div
+																							key={i}
+																							className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+																						>
+																							{source.type === "knowledge" ? (
+																								<Database className="size-2.5" />
+																							) : (
+																								<Zap className="size-2.5" />
+																							)}
+																							{source.name}
+																						</div>
+																					))}
+																				</div>
+																			)}
+																		</>
+																	)}
 
 																{/* Rating bar */}
 																{(phase === "awaiting-rating" ||
 																	phase === "awaiting-feedback") &&
-																	messages[messages.length - 1]?.id === msg.id && (
+																	messages[messages.length - 1]?.id ===
+																		msg.id && (
 																		<div className="space-y-3">
 																			<div className="bg-neutral-50 rounded-md p-2 flex items-center gap-3">
-																				<span className="text-xs text-foreground">Rate this response:</span>
+																				<span className="text-xs text-foreground">
+																					Rate this response:
+																				</span>
 																				<div className="flex items-center gap-3">
 																					<button
 																						onClick={() => handleRating("good")}
@@ -689,16 +617,18 @@ export default function AgentTestPage() {
 												)}
 
 												{/* System message */}
-												{msg.type === "system" && msg.content !== "INSTRUCTIONS_UPDATED" && (
-													<p className="text-[11px] text-muted-foreground text-center py-2">
-														{msg.content}
-													</p>
-												)}
-												{msg.type === "system" && msg.content === "INSTRUCTIONS_UPDATED" && (
-													<p className="text-[11px] text-muted-foreground text-center py-2">
-														Instructions updated
-													</p>
-												)}
+												{msg.type === "system" &&
+													msg.content !== "INSTRUCTIONS_UPDATED" && (
+														<p className="text-[11px] text-muted-foreground text-center py-2">
+															{msg.content}
+														</p>
+													)}
+												{msg.type === "system" &&
+													msg.content === "INSTRUCTIONS_UPDATED" && (
+														<p className="text-[11px] text-muted-foreground text-center py-2">
+															Instructions updated
+														</p>
+													)}
 
 												{/* Suggestion */}
 												{msg.type === "suggestion" && msg.suggestion && (
@@ -734,7 +664,8 @@ export default function AgentTestPage() {
 																		</p>
 																	</div>
 																	<p className="text-sm text-foreground leading-5">
-																		Retest to verify the improvement, or publish if you're satisfied.
+																		Retest to verify the improvement, or publish
+																		if you're satisfied.
 																	</p>
 																	<div className="flex items-center gap-3">
 																		<Button
@@ -765,7 +696,9 @@ export default function AgentTestPage() {
 																	<div className="flex items-center gap-2">
 																		<Button
 																			size="sm"
-																			onClick={() => handleSuggestionResponse(true)}
+																			onClick={() =>
+																				handleSuggestionResponse(true)
+																			}
 																			className="h-8 text-xs rounded-md shadow-sm"
 																		>
 																			Apply to Agent Instructions
@@ -773,7 +706,9 @@ export default function AgentTestPage() {
 																		<Button
 																			variant="ghost"
 																			size="sm"
-																			onClick={() => handleSuggestionResponse(false)}
+																			onClick={() =>
+																				handleSuggestionResponse(false)
+																			}
 																			className="h-8 text-xs"
 																		>
 																			Skip suggestion
@@ -817,7 +752,9 @@ export default function AgentTestPage() {
 										onKeyDown={handleKeyDown}
 										placeholder="Test another prompt..."
 										className="min-h-[27px] max-h-[100px] text-base resize-none border-0 shadow-none focus-visible:ring-0 p-0"
-										disabled={isLoading || phase === "awaiting-suggestion-response"}
+										disabled={
+											isLoading || phase === "awaiting-suggestion-response"
+										}
 									/>
 									<Button
 										size="icon"
@@ -846,7 +783,8 @@ export default function AgentTestPage() {
 							Publish Agent
 						</DialogTitle>
 						<DialogDescription>
-							Publishing will make this agent active and available to be matched with real users in this environment.
+							Publishing will make this agent active and available to be matched
+							with real users in this environment.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -883,7 +821,11 @@ export default function AgentTestPage() {
 						</Button>
 						<Button
 							onClick={() => {
-								confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+								confetti({
+									particleCount: 150,
+									spread: 80,
+									origin: { y: 0.6 },
+								});
 								setTimeout(() => {
 									navigate("/agents", {
 										state: {

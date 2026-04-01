@@ -8,8 +8,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-export type AgentStatus = "draft" | "published";
+import type { AgentStatus } from "@/types/agent";
 
 export interface AgentCardProps {
 	/** Agent name */
@@ -36,6 +35,7 @@ const statusConfig: Record<
 > = {
 	draft: { label: "Draft", variant: "secondary" },
 	published: { label: "Published", variant: "default" },
+	disabled: { label: "Disabled", variant: "outline" },
 };
 
 export function AgentCard({
@@ -54,6 +54,7 @@ export function AgentCard({
 		<button
 			type="button"
 			onClick={onClick}
+			aria-label={`${name} agent - ${statusInfo.label}`}
 			className={cn(
 				"flex flex-col items-start p-6 rounded-xl border border-border bg-card",
 				"hover:border-primary/20 hover:bg-muted/70 transition-colors cursor-pointer text-left w-full",

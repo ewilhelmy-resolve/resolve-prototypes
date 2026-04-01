@@ -7,217 +7,14 @@
  * - Template cards with icon, title, description, skills
  */
 
-import {
-	Album,
-	BookOpenText,
-	Bot,
-	Briefcase,
-	ChevronDown,
-	ChevronRight,
-	FileText,
-	Headphones,
-	HelpCircle,
-	Key,
-	Keyboard,
-	Monitor,
-	Search,
-	Settings,
-	ShieldCheck,
-	Users,
-	X,
-} from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { AGENT_TEMPLATES } from "@/constants/agentMocks";
+import { AGENT_ICON_MAP } from "@/constants/agents";
 import { cn } from "@/lib/utils";
-
-export interface AgentTemplate {
-	id: string;
-	name: string;
-	description: string;
-	creator: string;
-	creatorIcon?: string;
-	prompt: string;
-	category: string;
-	domain: string;
-	skills: string[];
-	iconId: string;
-	iconBg: string;
-	iconColor?: string;
-}
-
-// Icon mapping
-const ICON_MAP: Record<string, React.ElementType> = {
-	monitor: Monitor,
-	"book-open-text": BookOpenText,
-	keyboard: Keyboard,
-	album: Album,
-	headphones: Headphones,
-	"shield-check": ShieldCheck,
-	key: Key,
-	users: Users,
-	bot: Bot,
-	"file-text": FileText,
-	settings: Settings,
-	briefcase: Briefcase,
-	"help-circle": HelpCircle,
-};
-
-// Pre-built agent templates
-const AGENT_TEMPLATES: AgentTemplate[] = [
-	{
-		id: "assign-computer",
-		name: "Assign a Computer to a New Owner",
-		description:
-			"Allows IT administrators to quickly assign or reprovision managed apple computers",
-		creator: "Resolve",
-		prompt: "Help IT administrators assign computers to new owners...",
-		category: "IT Support",
-		domain: "Access Management",
-		skills: ["Employee onboarding"],
-		iconId: "monitor",
-		iconBg: "bg-violet-200",
-	},
-	{
-		id: "warranty-lookup",
-		name: "Look Up My Computer Warranty Info",
-		description:
-			"Allows employees to check their computer's warranty and purchase details through",
-		creator: "Resolve",
-		prompt: "Help employees look up warranty information...",
-		category: "IT Support",
-		domain: "Access Management",
-		skills: ["Employee onboarding"],
-		iconId: "book-open-text",
-		iconBg: "bg-teal-200",
-	},
-	{
-		id: "onboard-computer",
-		name: "Onboard a New Computer",
-		description:
-			"Runs automations and performs tasks based on leveraging Resolve actions platform",
-		creator: "Resolve",
-		prompt: "Guide users through onboarding a new computer...",
-		category: "IT Support",
-		domain: "Access Management",
-		skills: ["Employee onboarding"],
-		iconId: "keyboard",
-		iconBg: "bg-sky-100",
-	},
-	{
-		id: "inventory-record",
-		name: "Create a Computer Inventory Record",
-		description:
-			"Allows IT administrators to quickly assign or reprovision managed apple computers",
-		creator: "Resolve",
-		prompt: "Help create inventory records...",
-		category: "IT Support",
-		domain: "General",
-		skills: ["Employee onboarding"],
-		iconId: "album",
-		iconBg: "bg-indigo-950",
-		iconColor: "text-white",
-	},
-	{
-		id: "helpdesk-advisor",
-		name: "HelpDesk Advisor",
-		description: "Answer IT support questions using your knowledge base",
-		creator: "Resolve",
-		prompt: "Help employees with IT-related questions...",
-		category: "IT Support",
-		domain: "General",
-		skills: ["IT Support", "Troubleshooting"],
-		iconId: "headphones",
-		iconBg: "bg-blue-100",
-	},
-	{
-		id: "password-reset",
-		name: "Password Reset Bot",
-		description: "Automate password reset requests for employees securely",
-		creator: "Resolve",
-		prompt: "Help employees reset their passwords...",
-		category: "IT Support",
-		domain: "Access Management",
-		skills: ["Password Reset", "Account Unlock"],
-		iconId: "key",
-		iconBg: "bg-purple-100",
-	},
-	{
-		id: "onboarding-guide",
-		name: "Onboarding Guide",
-		description: "Help new hires navigate their first days at the company",
-		creator: "Resolve",
-		prompt: "Welcome new employees and guide them...",
-		category: "HR",
-		domain: "Human Resources",
-		skills: ["Employee onboarding", "Benefits"],
-		iconId: "users",
-		iconBg: "bg-green-100",
-	},
-	{
-		id: "policy-expert",
-		name: "Policy Expert",
-		description:
-			"Answer questions about company policies from official documents",
-		creator: "Resolve",
-		prompt: "Provide accurate answers about company policies...",
-		category: "Compliance",
-		domain: "Human Resources",
-		skills: ["Policy lookup", "Compliance"],
-		iconId: "shield-check",
-		iconBg: "bg-emerald-100",
-	},
-	{
-		id: "benefits-advisor",
-		name: "Benefits Advisor",
-		description:
-			"Help employees understand and navigate their benefits package",
-		creator: "Resolve",
-		prompt: "Help employees understand their benefits...",
-		category: "HR",
-		domain: "Human Resources",
-		skills: ["Benefits", "Enrollment"],
-		iconId: "briefcase",
-		iconBg: "bg-amber-100",
-	},
-	{
-		id: "access-request",
-		name: "Access Request Handler",
-		description: "Process system access requests for employees efficiently",
-		creator: "Resolve",
-		prompt: "Help employees request access to systems...",
-		category: "IT Support",
-		domain: "Access Management",
-		skills: ["Access provisioning", "Approvals"],
-		iconId: "settings",
-		iconBg: "bg-slate-100",
-	},
-	{
-		id: "customer-success",
-		name: "Customer Success Assistant",
-		description:
-			"Help customer success teams with account information and insights",
-		creator: "Resolve",
-		prompt: "Assist customer success teams...",
-		category: "Sales",
-		domain: "Customer Success",
-		skills: ["Account lookup", "Customer insights"],
-		iconId: "help-circle",
-		iconBg: "bg-pink-100",
-	},
-	{
-		id: "approval-bot",
-		name: "Approval Workflow Bot",
-		description: "Streamline approval processes for various business requests",
-		creator: "Resolve",
-		prompt: "Help process approval requests...",
-		category: "Operations",
-		domain: "Approvals",
-		skills: ["Approval routing", "Status tracking"],
-		iconId: "file-text",
-		iconBg: "bg-orange-100",
-	},
-];
+import type { AgentTemplate } from "@/types/agent";
 
 // Category structure
 interface CategoryItem {
@@ -297,16 +94,13 @@ export function AgentTemplateModal({
 			}
 		}
 
-		// Category filter
+		// Category filter - derive domain name from CATEGORIES structure
 		if (selectedSubCategory) {
-			const domainMap: Record<string, string> = {
-				"access-management": "Access Management",
-				approvals: "Approvals",
-				"customer-success": "Customer Success",
-				general: "General",
-				"human-resources": "Human Resources",
-			};
-			if (template.domain !== domainMap[selectedSubCategory]) {
+			const domainCategory = CATEGORIES.find((c) => c.children)?.children;
+			const domainName = domainCategory?.find(
+				(c) => c.id === selectedSubCategory,
+			)?.name;
+			if (domainName && template.domain !== domainName) {
 				return false;
 			}
 		}
@@ -335,7 +129,9 @@ export function AgentTemplateModal({
 				<div className="flex items-center justify-between px-8 pt-8 pb-6">
 					<h2 className="text-lg font-semibold">Agent Library</h2>
 					<button
+						type="button"
 						onClick={() => onOpenChange(false)}
+						aria-label="Close"
 						className="p-1 rounded hover:bg-muted transition-colors opacity-70 hover:opacity-100"
 					>
 						<X className="size-4" />
@@ -434,7 +230,7 @@ export function AgentTemplateModal({
 						<p className="text-sm text-muted-foreground mb-2">Agents</p>
 						<div className="space-y-3">
 							{filteredTemplates.map((template) => {
-								const Icon = ICON_MAP[template.iconId] || Bot;
+								const Icon = AGENT_ICON_MAP[template.iconId] || Bot;
 								const isSelected = selectedTemplate?.id === template.id;
 								return (
 									<button
@@ -501,7 +297,7 @@ export function AgentTemplateModal({
 								{/* Preview header */}
 								<div className="flex items-start gap-3 mb-4">
 									{(() => {
-										const Icon = ICON_MAP[selectedTemplate.iconId] || Bot;
+										const Icon = AGENT_ICON_MAP[selectedTemplate.iconId] || Bot;
 										return (
 											<div
 												className={cn(
@@ -569,6 +365,7 @@ export function AgentTemplateModal({
 								<button
 									onClick={handleUseTemplate}
 									className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+									type="button"
 								>
 									Use this template
 								</button>

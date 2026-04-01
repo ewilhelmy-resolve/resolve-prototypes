@@ -27,43 +27,21 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { AVATAR_COLORS } from "@/constants/agents";
 import { cn } from "@/lib/utils";
-import type { AgentStatus } from "./AgentCard";
+import type { AgentTableRow } from "@/types/agent";
 
-export interface Agent {
-	id: string;
-	name: string;
-	description: string;
-	status: AgentStatus;
-	skills?: string[];
-	updatedBy: {
-		initials: string;
-		color: string;
-	} | null;
-	owner: {
-		initials: string;
-		color: string;
-	} | null;
-	lastUpdated: string;
-}
+export type { AgentTableRow as Agent };
 
 interface AgentsTableProps {
-	agents: Agent[];
-	onAgentClick?: (agent: Agent) => void;
-	onEdit?: (agent: Agent) => void;
-	onDelete?: (agent: Agent) => void;
+	agents: AgentTableRow[];
+	onAgentClick?: (agent: AgentTableRow) => void;
+	onEdit?: (agent: AgentTableRow) => void;
+	onDelete?: (agent: AgentTableRow) => void;
 }
 
 type SortField = "status" | "updatedBy" | "lastUpdated";
 type SortDirection = "asc" | "desc";
-
-const avatarColors: Record<string, string> = {
-	teal: "bg-teal-200",
-	purple: "bg-purple-100",
-	sky: "bg-sky-200",
-	indigo: "bg-indigo-100",
-	emerald: "bg-emerald-100",
-};
 
 function SortableHeader({
 	field,
@@ -134,21 +112,31 @@ export function AgentsTable({
 
 	return (
 		<div className="rounded-md border overflow-hidden">
-			<Table>
+			<Table aria-label="Agents list">
 				<TableHeader>
 					<TableRow className="hover:bg-transparent">
 						<TableHead className="min-w-[250px] pl-4">Name</TableHead>
 						<TableHead className="w-[200px]">Skills</TableHead>
 						<TableHead className="w-[127px]">
-							<SortableHeader field="status" onSort={handleSort}>Status</SortableHeader>
+							<SortableHeader field="status" onSort={handleSort}>
+								Status
+							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-[136px]">
-							<SortableHeader field="updatedBy" align="center" onSort={handleSort}>
+							<SortableHeader
+								field="updatedBy"
+								align="center"
+								onSort={handleSort}
+							>
 								Updated by
 							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-[162px]">
-							<SortableHeader field="lastUpdated" align="right" onSort={handleSort}>
+							<SortableHeader
+								field="lastUpdated"
+								align="right"
+								onSort={handleSort}
+							>
 								Last updated
 							</SortableHeader>
 						</TableHead>
@@ -201,7 +189,7 @@ export function AgentsTable({
 										<Avatar className="size-10">
 											<AvatarFallback
 												className={cn(
-													avatarColors[agent.updatedBy.color] || "bg-muted",
+													AVATAR_COLORS[agent.updatedBy.color] || "bg-muted",
 												)}
 											>
 												{agent.updatedBy.initials}
