@@ -51,7 +51,7 @@ export interface AgentConfig {
 	responsibilities?: string;
 	completionCriteria?: string;
 	hasRequiredConnections?: boolean;
-	capabilities?: AgentCapabilities;
+	capabilities: AgentCapabilities;
 }
 
 /**

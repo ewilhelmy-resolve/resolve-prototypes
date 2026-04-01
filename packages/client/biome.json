@@ -37,7 +37,6 @@
 			"!coverage",
 			"!src/components/ui",
 			"!src/components/ai-elements",
-			"!src/pages/AgentBuilderPage.tsx",
 			"!src/index.css",
 			"!src/test"
 		]
