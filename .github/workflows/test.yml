@@ -56,7 +56,7 @@ jobs:
       run: pnpm --filter rita-api-server type-check
 
     - name: Type check client
-      run: pnpm --filter rita-client type-check:native
+      run: pnpm --filter rita-client type-check
 
     - name: Lint (all packages)
       run: pnpm -r run lint
