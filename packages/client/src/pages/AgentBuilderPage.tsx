@@ -80,6 +80,7 @@ import {
 	useNavigate,
 	useParams,
 } from "react-router-dom";
+import { PublishModal, UnpublishModal } from "@/components/agents/builder";
 import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -463,7 +464,6 @@ export default function AgentBuilderPage() {
 		isEditing || isDuplicate ? "done" : "start",
 	);
 	const [isTyping, setIsTyping] = useState(false);
-	const [_statusMessage, _setStatusMessage] = useState<string | null>(null);
 	const [config, setConfig] = useState<AgentConfig>(
 		duplicatedConfig ||
 			savedAgent || {
@@ -489,10 +489,7 @@ export default function AgentBuilderPage() {
 			},
 	);
 
-	// Legacy button states (for old flow)
 	const [showConfirmButtons, setShowConfirmButtons] = useState(false);
-	const [_showKnowledgeButtons, _setShowKnowledgeButtons] = useState(false);
-	const [_showWorkflowButtons, _setShowWorkflowButtons] = useState(false);
 
 	// Selection UI states (new flow)
 	const [showTypeSelector, setShowTypeSelector] = useState(false);
@@ -500,13 +497,7 @@ export default function AgentBuilderPage() {
 	const [selectedType, setSelectedType] = useState<
 		"answer" | "knowledge" | "workflow" | null
 	>(null);
-	const [_suggestedType, _setSuggestedType] = useState<
-		"answer" | "knowledge" | "workflow"
-	>("answer");
 	const [selectedSources, setSelectedSources] = useState<string[]>([]);
-	const [_selectedWorkflows, _setSelectedWorkflows] = useState<string[]>([]);
-	const [_sourceSearchQuery, _setSourceSearchQuery] = useState("");
-	const [_suggestedSourceIds, _setSuggestedSourceIds] = useState<string[]>([]);
 	const [showTypeConfirmation, setShowTypeConfirmation] = useState(false);
 	const [showTriggerPhrases, setShowTriggerPhrases] = useState(false);
 	const [suggestedTriggerPhrases, setSuggestedTriggerPhrases] = useState<
@@ -1537,277 +1528,11 @@ export default function AgentBuilderPage() {
 		}
 	};
 
-	const _handleConfirm = () => {
-		setShowConfirmButtons(false);
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Yes, continue",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Move to type-specific requirements step
-		setStep("knowledge_sources");
-
-		if (config.agentType === "answer") {
-			setIsTyping(true);
-			setTimeout(() => {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: `Great! To help this agent answer questions effectively, would you like to connect any knowledge sources?\n\nThis could include HR docs, policy guides, FAQs, or other reference materials.`,
-					},
-				]);
-				setIsTyping(false);
-				_setShowKnowledgeButtons(true);
-			}, 800);
-		} else if (config.agentType === "knowledge") {
-			setIsTyping(true);
-			setTimeout(() => {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: `Since this is a **Knowledge Agent**, it will only answer from specific documents — no guessing or inference.\n\n**Which documents should this agent use?**\nThis is required for Knowledge Agents to ensure accuracy and compliance.`,
-					},
-				]);
-				setIsTyping(false);
-				_setShowKnowledgeButtons(true);
-			}, 800);
-		} else if (config.agentType === "workflow") {
-			setIsTyping(true);
-			setTimeout(() => {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: `Since this is a **Workflow Agent**, it needs to connect to workflows to perform actions.\n\n**Which workflows should this agent have access to?**\nThis is required for Workflow Agents to execute tasks.`,
-					},
-				]);
-				setIsTyping(false);
-				_setShowWorkflowButtons(true);
-			}, 800);
-		}
-	};
-
-	const _handleAddKnowledgeSources = () => {
-		_setShowKnowledgeButtons(false);
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Add knowledge sources",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Simulate adding knowledge sources
-		setConfig((prev) => ({
-			...prev,
-			knowledgeSources: ["HR Policies", "Benefits Guide", "PTO Handbook"],
-			hasRequiredConnections: true,
-		}));
-
-		setIsTyping(true);
-		setTimeout(() => {
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `I've connected the following knowledge sources:\n• HR Policies\n• Benefits Guide\n• PTO Handbook\n\nYour agent is now configured and ready. You can review the settings in the Configure tab or click Publish when ready.`,
-				},
-			]);
-			setIsTyping(false);
-			setStep("done");
-		}, 1000);
-	};
-
-	const _handleSkipKnowledgeSources = () => {
-		_setShowKnowledgeButtons(false);
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Skip for now",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// For Answer Agents, skipping is allowed
-		if (config.agentType === "answer") {
-			setConfig((prev) => ({ ...prev, hasRequiredConnections: true }));
-			addAssistantMessage(
-				"No problem! You can add knowledge sources later in the Configure tab.\n\nYour agent is ready. Click Publish when you're done.",
-			);
-			setStep("done");
-		} else {
-			// For Knowledge Agents, this is required
-			addAssistantMessage(
-				"Knowledge sources are required for Knowledge Agents. Please select at least one document to continue.",
-			);
-			_setShowKnowledgeButtons(true);
-		}
-	};
-
-	const _handleAddWorkflows = () => {
-		_setShowWorkflowButtons(false);
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Connect workflows",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Simulate adding workflows
-		setConfig((prev) => ({
-			...prev,
-			workflows: ["Password Reset", "Access Request"],
-			hasRequiredConnections: true,
-		}));
-
-		setIsTyping(true);
-		setTimeout(() => {
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `I've connected the following workflows:\n• Password Reset\n• Access Request\n\nYour agent is now configured and ready. You can review the settings in the Configure tab or click Publish when ready.`,
-				},
-			]);
-			setIsTyping(false);
-			setStep("done");
-		}, 1000);
-	};
-
 	// Handler for type selection confirmation (new flow)
-	const _handleTypeSelectionConfirm = () => {
-		if (!selectedType) return;
-
-		setShowTypeSelector(false);
-		setConfig((prev) => ({ ...prev, agentType: selectedType }));
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: `Selected: ${AGENT_TYPE_INFO[selectedType].label}`,
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Move to confirmation step with Overall Understanding
-		setStep("confirm_type");
-		setIsTyping(true);
-		_setStatusMessage("Generating agent understanding...");
-
-		setTimeout(() => {
-			setIsTyping(false);
-			_setStatusMessage(null);
-
-			const understanding = generateOverallUnderstanding(config, selectedType);
-			const typeLabel = AGENT_TYPE_INFO[selectedType].label;
-
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `Got it! You're building a **${typeLabel}**.\n\n**Agent Overall Understanding:** ${understanding}\n\nIs this accurate? Please confirm if this correctly captures your agent, or let me know what needs to be adjusted.`,
-				},
-			]);
-			setShowTypeConfirmation(true);
-		}, 1000);
-	};
 
 	// Handler for confirming the agent type understanding
-	const _handleTypeConfirmationConfirm = () => {
-		setShowTypeConfirmation(false);
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Yes, that's correct",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Move to trigger phrases step
-		setStep("trigger_phrases");
-		setIsTyping(true);
-		_setStatusMessage("Generating example phrases...");
-
-		// Generate trigger phrases based on config
-		const phrases = generateTriggerPhrases(config);
-		setSuggestedTriggerPhrases(phrases);
-
-		setTimeout(() => {
-			setIsTyping(false);
-			_setStatusMessage(null);
-
-			const typeLabel = selectedType
-				? AGENT_TYPE_INFO[selectedType].shortLabel
-				: "agent";
-			const phrasesList = phrases.map((p, i) => `${i + 1}. "${p}"`).join("\n");
-
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `**Example phrases users might say:**\n\n${phrasesList}\n\nThese examples cover different ways users might request your ${typeLabel.toLowerCase()}.\n\nDo these examples capture how users would request your agent? You can add, remove, or modify these in the Configure tab.`,
-				},
-			]);
-			setShowTriggerPhrases(true);
-		}, 1000);
-	};
 
 	// Handler for continuing after trigger phrases
-	const _handleTriggerPhrasesConfirm = () => {
-		setShowTriggerPhrases(false);
-
-		// Save the suggested phrases to config as conversation starters
-		setConfig((prev) => ({
-			...prev,
-			conversationStarters: suggestedTriggerPhrases.slice(0, 4), // Take first 4 as starters
-		}));
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Looks good, continue",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Move to guardrails step
-		setStep("guardrails");
-		setIsTyping(true);
-
-		setTimeout(() => {
-			setIsTyping(false);
-
-			const agentContext = config.description
-				.toLowerCase()
-				.includes("onboarding")
-				? "onboarding"
-				: config.role.toLowerCase().includes("hr")
-					? "HR"
-					: "this";
-
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `Now I need to understand the boundaries of your ${agentContext} agent.\n\n**What types of requests should this agent NOT handle?** For example:\n\n• Should it avoid HR policy questions?\n• Should it not handle IT troubleshooting?\n• Are there specific topics outside of ${agentContext} it should redirect?\n\nPlease tell me what types of requests should be excluded, or say 'none' if it should handle all ${agentContext}-related requests.`,
-				},
-			]);
-			setShowGuardrails(true);
-			setGuardrailInput("");
-		}, 800);
-	};
 
 	// Handler for guardrails input submission
 	const handleGuardrailsSubmit = () => {
@@ -1891,151 +1616,12 @@ export default function AgentBuilderPage() {
 	};
 
 	// Handler for skipping guardrails
-	const _handleGuardrailsSkip = () => {
-		setGuardrailInput("none");
-		handleGuardrailsSubmit();
-	};
 
 	// Handler for adjusting the agent type (goes back to selection)
-	const _handleTypeConfirmationAdjust = () => {
-		setShowTypeConfirmation(false);
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "I'd like to adjust this",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Go back to type selection
-		setStep("select_type");
-		setIsTyping(true);
-
-		setTimeout(() => {
-			setIsTyping(false);
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `No problem! Let's pick a different agent type, or tell me more about what you need:`,
-				},
-			]);
-			setShowTypeSelector(true);
-		}, 600);
-	};
 
 	// Handler for source/workflow selection confirmation
-	const _handleSourceSelectionConfirm = () => {
-		const isWorkflowAgent = selectedType === "workflow";
-		const isKnowledgeAgent = selectedType === "knowledge";
-		const selected = isWorkflowAgent ? _selectedWorkflows : selectedSources;
-
-		// Validate required selections
-		if ((isWorkflowAgent || isKnowledgeAgent) && selected.length === 0) {
-			// Show error - selection required
-			return;
-		}
-
-		setShowSourceSelector(false);
-
-		const selectedNames = isWorkflowAgent
-			? _selectedWorkflows
-					.map((id) => AVAILABLE_WORKFLOWS.find((w) => w.id === id)?.name)
-					.filter(Boolean)
-			: selectedSources
-					.map(
-						(id) => AVAILABLE_KNOWLEDGE_SOURCES.find((s) => s.id === id)?.name,
-					)
-					.filter(Boolean);
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content:
-				selected.length > 0
-					? `Selected: ${selectedNames.join(", ")}`
-					: "Skip for now",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Update config
-		if (isWorkflowAgent) {
-			setConfig((prev) => ({
-				...prev,
-				workflows: selectedNames as string[],
-				hasRequiredConnections: true,
-			}));
-		} else {
-			setConfig((prev) => ({
-				...prev,
-				knowledgeSources: selectedNames as string[],
-				hasRequiredConnections: true,
-			}));
-		}
-
-		setIsTyping(true);
-		_setStatusMessage("Finalizing configuration...");
-
-		setTimeout(() => {
-			setIsTyping(false);
-			_setStatusMessage(null);
-
-			const resourceType = isWorkflowAgent ? "workflows" : "knowledge sources";
-			const resourceList =
-				selectedNames.length > 0
-					? `\n${selectedNames.map((n) => `• ${n}`).join("\n")}`
-					: "";
-
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content:
-						selected.length > 0
-							? `I've connected the following ${resourceType}:${resourceList}\n\nYour agent is now configured and ready. You can review the settings in the Configure tab or click Publish when ready.`
-							: `No problem! You can add ${resourceType} later in the Configure tab.\n\nYour agent is ready. Click Publish when you're done.`,
-				},
-			]);
-			setStep("done");
-		}, 1000);
-	};
 
 	// Toggle source selection
-	const _toggleSourceSelection = (id: string) => {
-		setSelectedSources((prev) =>
-			prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-		);
-	};
-
-	const _handleChangeType = () => {
-		setShowConfirmButtons(false);
-
-		const userMessage: BuilderMessage = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Change agent type",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Cycle through types
-		const types: Array<"answer" | "knowledge" | "workflow"> = [
-			"answer",
-			"knowledge",
-			"workflow",
-		];
-		const currentIndex = types.indexOf(config.agentType || "answer");
-		const nextType = types[(currentIndex + 1) % types.length];
-
-		setConfig((prev) => ({ ...prev, agentType: nextType }));
-
-		const typeInfo = AGENT_TYPE_INFO[nextType];
-		addAssistantMessage(
-			`How about this instead:\n\n**${typeInfo.label}**\n\nIt will focus on ${typeInfo.description}.\nDoes that sound right?`,
-			{ showButtons: true },
-		);
-	};
 
 	const handleBack = () => {
 		navigate("/agents");
@@ -2278,13 +1864,6 @@ export default function AgentBuilderPage() {
 		setInputValue("");
 
 		processUserInput(input);
-	};
-
-	const _handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			handleSendMessage();
-		}
 	};
 
 	const renderMessageContent = (content: string) => {
@@ -3371,262 +2950,29 @@ export default function AgentBuilderPage() {
 			)}
 
 			{/* Publish Confirmation Modal */}
-			{showPublishModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowPublishModal(false)}
-					/>
-					<div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-						<button
-							onClick={() => setShowPublishModal(false)}
-							className="absolute top-[15px] right-[15px] opacity-70 hover:opacity-100"
-						>
-							<X className="size-4" />
-						</button>
-
-						{/* Header */}
-						<div className="flex flex-col gap-1.5">
-							<p className="text-lg font-semibold leading-none text-foreground">
-								Publish agent
-							</p>
-							<p className="text-sm text-muted-foreground leading-5">
-								Publishing will make this agent active and available to be matched with real users in this environment.
-							</p>
-						</div>
-
-						{/* Agent card */}
-						<div className="bg-neutral-50 rounded-md px-2 py-2">
-							<div className="flex gap-2.5 items-start">
-								<div
-									className={cn(
-										"size-[38px] rounded-lg flex items-center justify-center shrink-0 overflow-clip p-2",
-										ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg || "bg-violet-200",
-									)}
-								>
-									{(() => {
-										const IconComponent = AVAILABLE_ICONS.find((i) => i.id === config.iconId)?.icon || Squirrel;
-										const colorClass = ICON_COLORS.find((c) => c.id === config.iconColorId)?.text || "text-white";
-										return <IconComponent className={cn("size-6", colorClass)} />;
-									})()}
-								</div>
-								<div className="flex-1 min-w-0 flex flex-col gap-2.5">
-									<div className="flex flex-col pb-0.5">
-										<p className="text-base font-bold text-foreground truncate leading-[22px]">
-											{config.name}
-										</p>
-										<p className="text-xs text-foreground leading-none">
-											{config.description}
-										</p>
-									</div>
-									{config.workflows.length > 0 && (
-										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-											<span>Skills</span>
-											<span className="text-right">{config.workflows.length}</span>
-										</div>
-									)}
-									{config.knowledgeSources.length > 0 && (
-										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-											<span>Knowledge Sources</span>
-											<span className="text-right">{config.knowledgeSources.length}</span>
-										</div>
-									)}
-									{config.guardrails.length > 0 && (
-										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-											<span>Guardrails</span>
-											<span className="text-right">{config.guardrails.length}</span>
-										</div>
-									)}
-								</div>
-							</div>
-						</div>
-
-						{/* Footer */}
-						<div className="flex items-center justify-end gap-2">
-							<Button
-								variant="outline"
-								onClick={() => setShowPublishModal(false)}
-							>
-								Cancel
-							</Button>
-							<Button onClick={handleConfirmPublish}>
-								Publish
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
+			<PublishModal
+				open={showPublishModal}
+				onOpenChange={setShowPublishModal}
+				config={config}
+				onConfirm={handleConfirmPublish}
+			/>
 
 			{/* Unpublish Confirmation Modal */}
-			{showUnpublishModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowUnpublishModal(false)}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-8 space-y-6">
-						{/* Close button */}
-						<button
-							onClick={() => setShowUnpublishModal(false)}
-							className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-						>
-							<X className="size-5" />
-						</button>
-
-						{/* Centered icon and title */}
-						<div className="flex flex-col items-center text-center pt-2">
-							<div
-								className={cn(
-									"size-20 rounded-2xl flex items-center justify-center mb-4 bg-amber-100",
-								)}
-							>
-								<Clock className="size-10 text-amber-600" />
-							</div>
-							<h2 className="text-xl font-semibold mb-1">
-								Unpublish this agent?
-							</h2>
-							<p className="text-sm text-muted-foreground max-w-xs">
-								<span className="font-medium text-foreground">
-									{config.name}
-								</span>{" "}
-								will no longer be available to users. You can republish it
-								anytime.
-							</p>
-						</div>
-
-						{/* Warning info */}
-						<div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-							<p className="text-sm text-amber-800 font-medium">
-								What happens when you unpublish:
-							</p>
-							<ul className="text-sm text-amber-700 space-y-1.5 ml-4 list-disc">
-								<li>Users will no longer be able to access this agent</li>
-								<li>Existing conversations will be preserved</li>
-								<li>All configuration and settings will be saved</li>
-							</ul>
-						</div>
-
-						{/* Action buttons */}
-						<div className="flex gap-3 pt-2">
-							<Button
-								variant="outline"
-								onClick={() => setShowUnpublishModal(false)}
-								className="flex-1"
-							>
-								Cancel
-							</Button>
-							<Button
-								variant="destructive"
-								onClick={() => {
-									setShowUnpublishModal(false);
-									navigate("/agents", {
-										state: {
-											unpublishedAgent: {
-												id: agentId,
-												name: config.name,
-											},
-										},
-									});
-								}}
-								className="flex-1"
-							>
-								Unpublish
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
-
-			{/* Publish Changes Modal with Diff */}
-			{showPublishChangesModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowPublishChangesModal(false)}
-					/>
-					<div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-						<button
-							onClick={() => setShowPublishChangesModal(false)}
-							className="absolute top-[15px] right-[15px] opacity-70 hover:opacity-100"
-						>
-							<X className="size-4" />
-						</button>
-
-						{/* Header */}
-						<div className="flex flex-col gap-1.5">
-							<p className="text-lg font-semibold leading-none text-foreground">
-								Publish changes
-							</p>
-							<p className="text-sm text-muted-foreground leading-5">
-								Review the change{configChanges.length !== 1 ? "s" : ""} before publishing updates to <span className="font-bold text-foreground">{config.name}</span>
-							</p>
-						</div>
-
-						{/* Agent card with changes */}
-						<div className="bg-neutral-50 rounded-md px-2 py-2">
-							<div className="flex gap-2.5 items-start">
-								<div
-									className={cn(
-										"size-[38px] rounded-lg flex items-center justify-center shrink-0 overflow-clip p-2",
-										ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg || "bg-violet-200",
-									)}
-								>
-									{(() => {
-										const IconComp = AVAILABLE_ICONS.find((i) => i.id === config.iconId)?.icon || Squirrel;
-										const colorCls = ICON_COLORS.find((c) => c.id === config.iconColorId)?.text || "text-white";
-										return <IconComp className={cn("size-6", colorCls)} />;
-									})()}
-								</div>
-								<div className="flex-1 min-w-0 flex flex-col gap-2.5">
-									<div className="flex flex-col pb-0.5">
-										<p className="text-base font-bold text-foreground truncate leading-[22px]">
-											{config.name}
-										</p>
-										<p className="text-xs text-foreground leading-none">
-											{config.description}
-										</p>
-									</div>
-									{/* Changes list inside card */}
-									<div className="bg-neutral-100 rounded-md p-2 flex flex-col gap-2.5">
-										{configChanges.map((change, index) => (
-											<div key={index} className="flex items-center justify-between gap-2.5">
-												<p className="text-sm text-foreground leading-none h-[18px] flex items-end">
-													{change.label}
-												</p>
-												<span className="text-xs font-semibold text-foreground border border-border bg-background rounded-md px-2 py-0.5 leading-4 whitespace-nowrap">
-													{change.type === "added" ? "Added" : change.type === "removed" ? "Removed" : "Updated"}
-												</span>
-											</div>
-										))}
-									</div>
-								</div>
-							</div>
-						</div>
-
-						{/* Footer */}
-						<div className="flex items-center justify-end gap-2">
-							<Button
-								variant="outline"
-								onClick={() => setShowPublishChangesModal(false)}
-							>
-								Cancel
-							</Button>
-							<Button
-								onClick={() => {
-									setShowPublishChangesModal(false);
-									toast.success("Changes published", {
-										description: `${configChanges.length} change${configChanges.length !== 1 ? "s" : ""} applied to ${config.name}`,
-									});
-								}}
-							>
-								Publish changes
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
+			<UnpublishModal
+				open={showUnpublishModal}
+				onOpenChange={setShowUnpublishModal}
+				onConfirm={() => {
+					setShowUnpublishModal(false);
+					navigate("/agents", {
+						state: {
+							unpublishedAgent: {
+								id: agentId,
+								name: config.name,
+							},
+						},
+					});
+				}}
+			/>
 
 			{/* Instructions Expanded Modal */}
 			{showInstructionsModal && (
