@@ -80,7 +80,16 @@ import {
 	useNavigate,
 	useParams,
 } from "react-router-dom";
-import { PublishModal, UnpublishModal } from "@/components/agents/builder";
+import {
+	AddSkillModal,
+	ChangeAgentTypeModal,
+	ConfirmTypeChangeModal,
+	CreateWorkflowModal,
+	InstructionsExpandedModal,
+	PublishModal,
+	UnlinkWorkflowModal,
+	UnpublishModal,
+} from "@/components/agents/builder";
 import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -2683,271 +2692,50 @@ export default function AgentBuilderPage() {
 
 
 			{/* Change Agent Type Modal */}
-			{showChangeTypeModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowChangeTypeModal(false)}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
-						<div className="flex items-center justify-between">
-							<h2 className="text-lg font-medium">Change Agent Type</h2>
-							<button
-								onClick={() => setShowChangeTypeModal(false)}
-								className="text-muted-foreground hover:text-foreground"
-							>
-								<X className="size-5" />
-							</button>
-						</div>
+			<ChangeAgentTypeModal
+				open={showChangeTypeModal}
+				onOpenChange={setShowChangeTypeModal}
+				currentType={config.agentType}
+				knowledgeSourcesCount={config.knowledgeSources.length}
+				workflowsCount={config.workflows.length}
+				isEditing={isEditing}
+				onConfirm={(newType, needsDoubleConfirm) => {
+					if (needsDoubleConfirm) {
+						setPendingAgentType(newType);
+						setShowConfirmTypeChangeModal(true);
+					} else {
+						setConfig((prev) => ({
+							...prev,
+							agentType: newType,
+							knowledgeSources: newType === "workflow" ? [] : prev.knowledgeSources,
+							workflows: newType === "knowledge" ? [] : prev.workflows,
+						}));
+					}
+				}}
+			/>
 
-						<p className="text-sm text-muted-foreground">
-							Select a new agent type. This will affect available configuration
-							options.
-						</p>
-
-						<div className="space-y-2">
-							{(["answer", "knowledge", "workflow"] as const).map((type) => {
-								const typeInfo = AGENT_TYPE_INFO[type];
-								return (
-									<label
-										key={type}
-										className={cn(
-											"flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all",
-											pendingAgentType === type
-												? "border-primary ring-1 ring-primary bg-white"
-												: "border-muted bg-white hover:border-muted-foreground/30",
-										)}
-									>
-										<input
-											type="radio"
-											name="change-agent-type"
-											checked={pendingAgentType === type}
-											onChange={() => setPendingAgentType(type)}
-											className="mt-1.5"
-										/>
-										{/* Icon box */}
-										<div
-											className={cn(
-												"size-10 rounded-lg flex items-center justify-center flex-shrink-0",
-												typeInfo.iconBg,
-											)}
-										>
-											{type === "answer" && (
-												<MessageSquare
-													className={cn("size-5", typeInfo.iconColor)}
-												/>
-											)}
-											{type === "knowledge" && (
-												<BookOpen
-													className={cn("size-5", typeInfo.iconColor)}
-												/>
-											)}
-											{type === "workflow" && (
-												<Workflow
-													className={cn("size-5", typeInfo.iconColor)}
-												/>
-											)}
-										</div>
-										<div className="flex-1 min-w-0">
-											<span className="font-medium">{typeInfo.label}</span>
-											<p className="text-sm text-muted-foreground mt-0.5">
-												{typeInfo.shortDesc}
-											</p>
-										</div>
-									</label>
-								);
-							})}
-						</div>
-
-						{/* Show what will change */}
-						{pendingAgentType && pendingAgentType !== config.agentType && (
-							<div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-								<p className="text-sm font-medium text-amber-800 mb-2">
-									What will change:
-								</p>
-								<ul className="text-sm text-amber-700 space-y-1">
-									{pendingAgentType === "workflow" &&
-										config.knowledgeSources.length > 0 && (
-											<li>
-												• Knowledge sources will be removed (
-												{config.knowledgeSources.length} sources)
-											</li>
-										)}
-									{pendingAgentType === "knowledge" &&
-										config.workflows.length > 0 && (
-											<li>
-												• Actions/workflows will be removed (
-												{config.workflows.length} workflow)
-											</li>
-										)}
-									{config.agentType === "workflow" &&
-										pendingAgentType !== "workflow" && (
-											<li>• Workflow configuration will be cleared</li>
-										)}
-									{config.agentType === "knowledge" &&
-										pendingAgentType !== "knowledge" && (
-											<li>• Knowledge-only settings will be adjusted</li>
-										)}
-									<li>• Agent behavior and capabilities will change</li>
-								</ul>
-							</div>
-						)}
-
-						<div className="flex justify-end gap-2 pt-2">
-							<Button
-								variant="outline"
-								onClick={() => setShowChangeTypeModal(false)}
-							>
-								Cancel
-							</Button>
-							<Button
-								onClick={() => {
-									if (
-										pendingAgentType &&
-										pendingAgentType !== config.agentType
-									) {
-										if (isEditing) {
-											// Show double confirm for existing agents
-											setShowChangeTypeModal(false);
-											setShowConfirmTypeChangeModal(true);
-										} else {
-											// Direct change for new agents
-											setConfig((prev) => ({
-												...prev,
-												agentType: pendingAgentType,
-												// Clear knowledge sources if switching to workflow
-												knowledgeSources:
-													pendingAgentType === "workflow"
-														? []
-														: prev.knowledgeSources,
-												// Clear workflows if switching to knowledge
-												workflows:
-													pendingAgentType === "knowledge"
-														? []
-														: prev.workflows,
-											}));
-											setShowChangeTypeModal(false);
-										}
-									}
-								}}
-								disabled={
-									!pendingAgentType || pendingAgentType === config.agentType
-								}
-							>
-								{isEditing ? "Continue" : "Confirm Change"}
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
-
-			{/* Double Confirm Type Change Modal (for existing agents) */}
-			{showConfirmTypeChangeModal && pendingAgentType && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowConfirmTypeChangeModal(false)}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
-						<div className="flex items-center gap-3">
-							<div className="size-10 rounded-full bg-amber-100 flex items-center justify-center">
-								<AlertCircle className="size-5 text-amber-600" />
-							</div>
-							<div>
-								<h2 className="text-lg font-medium">Confirm Type Change</h2>
-								<p className="text-sm text-muted-foreground">
-									This action affects a saved agent
-								</p>
-							</div>
-						</div>
-
-						<div className="bg-muted/50 rounded-lg p-4 space-y-3">
-							<div className="flex items-center justify-between">
-								<span className="text-sm text-muted-foreground">
-									Current type:
-								</span>
-								<Badge variant="secondary" className="gap-1">
-									{config.agentType === "answer" && (
-										<MessageSquare className="size-3" />
-									)}
-									{config.agentType === "knowledge" && (
-										<FileText className="size-3" />
-									)}
-									{config.agentType === "workflow" && (
-										<Workflow className="size-3" />
-									)}
-									{config.agentType &&
-										AGENT_TYPE_INFO[config.agentType].shortLabel}
-								</Badge>
-							</div>
-							<div className="flex items-center justify-center">
-								<ArrowLeft className="size-4 text-muted-foreground rotate-180" />
-							</div>
-							<div className="flex items-center justify-between">
-								<span className="text-sm text-muted-foreground">New type:</span>
-								<Badge variant="default" className="gap-1">
-									{pendingAgentType === "answer" && (
-										<MessageSquare className="size-3" />
-									)}
-									{pendingAgentType === "knowledge" && (
-										<FileText className="size-3" />
-									)}
-									{pendingAgentType === "workflow" && (
-										<Workflow className="size-3" />
-									)}
-									{AGENT_TYPE_INFO[pendingAgentType].shortLabel}
-								</Badge>
-							</div>
-						</div>
-
-						<div className="bg-red-50 border border-red-200 rounded-lg p-3">
-							<p className="text-sm font-medium text-red-800 mb-1">Warning</p>
-							<p className="text-sm text-red-700">
-								Changing the agent type for <strong>{config.name}</strong> will
-								modify how this agent works. Users who interact with this agent
-								may experience different behavior.
-							</p>
-						</div>
-
-						<div className="flex justify-end gap-2 pt-2">
-							<Button
-								variant="outline"
-								onClick={() => {
-									setShowConfirmTypeChangeModal(false);
-									setShowChangeTypeModal(true);
-								}}
-							>
-								Go Back
-							</Button>
-							<Button
-								variant="destructive"
-								onClick={() => {
-									setConfig((prev) => ({
-										...prev,
-										agentType: pendingAgentType,
-										// Clear knowledge sources if switching to workflow
-										knowledgeSources:
-											pendingAgentType === "workflow"
-												? []
-												: prev.knowledgeSources,
-										// Clear workflows if switching to knowledge
-										workflows:
-											pendingAgentType === "knowledge" ? [] : prev.workflows,
-									}));
-									setShowConfirmTypeChangeModal(false);
-									setPendingAgentType(null);
-								}}
-							>
-								Confirm Change
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
+			{/* Double Confirm Type Change Modal */}
+			<ConfirmTypeChangeModal
+				open={showConfirmTypeChangeModal}
+				onOpenChange={setShowConfirmTypeChangeModal}
+				currentType={config.agentType}
+				pendingType={pendingAgentType}
+				agentName={config.name}
+				onGoBack={() => {
+					setShowConfirmTypeChangeModal(false);
+					setShowChangeTypeModal(true);
+				}}
+				onConfirm={() => {
+					setConfig((prev) => ({
+						...prev,
+						agentType: pendingAgentType,
+						knowledgeSources: pendingAgentType === "workflow" ? [] : prev.knowledgeSources,
+						workflows: pendingAgentType === "knowledge" ? [] : prev.workflows,
+					}));
+					setShowConfirmTypeChangeModal(false);
+					setPendingAgentType(null);
+				}}
+			/>
 
 			{/* Publish Confirmation Modal */}
 			<PublishModal
@@ -2975,452 +2763,60 @@ export default function AgentBuilderPage() {
 			/>
 
 			{/* Instructions Expanded Modal */}
-			{showInstructionsModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowInstructionsModal(false)}
-					/>
-					<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden">
-						<button
-							onClick={() => setShowInstructionsModal(false)}
-							className="absolute top-4 right-4 text-muted-foreground hover:text-foreground z-10"
-						>
-							<X className="size-5" />
-						</button>
-						<div className="flex-1 overflow-y-auto p-6">
-							<Textarea
-								value={config.instructions}
-								onChange={(e) =>
-									setConfig((prev) => ({
-										...prev,
-										instructions: e.target.value,
-									}))
-								}
-								placeholder={"## Role\n\n## Backstory\n\n## Goal\n\n## Task"}
-								className="min-h-[400px] resize-none text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
-							/>
-						</div>
-						<div className="px-6 py-4 border-t">
-							<p className="text-xs text-muted-foreground">
-								Update instructions as needed
-							</p>
-						</div>
-					</div>
-				</div>
-			)}
+			<InstructionsExpandedModal
+				open={showInstructionsModal}
+				onOpenChange={setShowInstructionsModal}
+				value={config.instructions}
+				onChange={(value) => setConfig((prev) => ({ ...prev, instructions: value }))}
+			/>
 
-			{/* Create New Workflow Modal (v3/Jarvis) */}
-			{showCreateWorkflowModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => {
-							setShowCreateWorkflowModal(false);
-							setNewWorkflowDescription("");
-						}}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-						{/* Header */}
-						<div className="flex items-center justify-between px-6 py-4 border-b">
-							<h2 className="text-lg font-medium">New workflow</h2>
-							<button
-								onClick={() => {
-									setShowCreateWorkflowModal(false);
-									setNewWorkflowDescription("");
-								}}
-								className="text-muted-foreground hover:text-foreground"
-							>
-								<X className="size-5" />
-							</button>
-						</div>
-
-						{/* Content */}
-						<div className="flex-1 overflow-y-auto p-6 space-y-6">
-							{/* Chat input area */}
-							<div className="bg-muted/30 rounded-xl p-8 min-h-[200px] flex flex-col items-center justify-center">
-								<h3 className="text-xl font-medium mb-4">
-									Describe your workflow
-								</h3>
-								<div className="w-full max-w-lg relative">
-									<Textarea
-										value={newWorkflowDescription}
-										onChange={(e) => setNewWorkflowDescription(e.target.value)}
-										placeholder="Every time I receive an email, review the content and..."
-										className="min-h-[80px] resize-none pr-12"
-									/>
-									<button
-										className="absolute right-3 bottom-3 size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-50"
-										disabled={!newWorkflowDescription.trim()}
-										onClick={() => {
-											toast.info("Workflow creation with AI coming in v3");
-										}}
-									>
-										<Send className="size-4" />
-									</button>
-								</div>
-								<button
-									className="mt-4 text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
-									onClick={() => {
-										toast.info("Start from scratch coming in v3");
-									}}
-								>
-									Start from scratch
-									<ChevronDown className="size-4 -rotate-90" />
-								</button>
-							</div>
-
-							{/* Example templates */}
-							<div className="space-y-3">
-								<h4 className="text-sm font-medium text-muted-foreground">
-									Start from an example
-								</h4>
-								<div className="grid grid-cols-2 gap-3">
-									<button
-										className="flex items-start gap-3 p-4 border rounded-xl text-left hover:bg-muted/50 transition-colors"
-										onClick={() => {
-											setNewWorkflowDescription(
-												"Before each meeting, prepare a concise pre-read with key context from past meetings",
-											);
-										}}
-									>
-										<div className="size-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-											<Calendar className="size-5 text-purple-600" />
-										</div>
-										<div>
-											<p className="text-sm font-medium">
-												Prepare me for meetings
-											</p>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Before each meeting, you'll receive a concise pre-read
-												with key context from past meeting...
-											</p>
-										</div>
-									</button>
-									<button
-										className="flex items-start gap-3 p-4 border rounded-xl text-left hover:bg-muted/50 transition-colors"
-										onClick={() => {
-											setNewWorkflowDescription(
-												"Automatically look at incoming emails and determine if they should be replied to",
-											);
-										}}
-									>
-										<div className="size-10 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
-											<Mail className="size-5 text-rose-500" />
-										</div>
-										<div>
-											<p className="text-sm font-medium">Draft email replies</p>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Automatically looks at incoming emails and determines if
-												they should be replied to. If so, ...
-											</p>
-										</div>
-									</button>
-									<button
-										className="flex items-start gap-3 p-4 border rounded-xl text-left hover:bg-muted/50 transition-colors"
-										onClick={() => {
-											setNewWorkflowDescription(
-												"Reset a user's password in Active Directory after verifying their identity",
-											);
-										}}
-									>
-										<div className="size-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-											<Key className="size-5 text-blue-600" />
-										</div>
-										<div>
-											<p className="text-sm font-medium">Password reset</p>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Verify user identity and reset their password in Active
-												Directory...
-											</p>
-										</div>
-									</button>
-									<button
-										className="flex items-start gap-3 p-4 border rounded-xl text-left hover:bg-muted/50 transition-colors"
-										onClick={() => {
-											setNewWorkflowDescription(
-												"Provision new hire accounts across all required systems",
-											);
-										}}
-									>
-										<div className="size-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-											<Users className="size-5 text-emerald-600" />
-										</div>
-										<div>
-											<p className="text-sm font-medium">New hire onboarding</p>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Provision accounts and access for new employees across
-												all required systems...
-											</p>
-										</div>
-									</button>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			)}
+			{/* Create New Workflow Modal */}
+			<CreateWorkflowModal
+				open={showCreateWorkflowModal}
+				onOpenChange={setShowCreateWorkflowModal}
+			/>
 
 			{/* Add Skill Modal */}
-			{showAddSkillModal && (() => {
-				const closeModal = () => {
-					setShowAddSkillModal(false);
-					setSkillSearchQuery("");
-					setSelectedSkills([]);
-					setSkillsTab("available");
-				};
-
-				const filterBySearch = (skill) =>
-					!skillSearchQuery ||
-					skill.name.toLowerCase().includes(skillSearchQuery.toLowerCase()) ||
-					skill.author.toLowerCase().includes(skillSearchQuery.toLowerCase());
-
-				const allSkillsPool = [...AVAILABLE_SKILLS, ...getPublishedWorkflowSkills()];
-
-				const availableSkills = allSkillsPool.filter(
-					(s) => s.linkedAgent === null && !config.workflows.includes(s.name),
-				).filter(filterBySearch);
-
-				const allSkills = allSkillsPool.filter(filterBySearch);
-
-				const displayedSkills = skillsTab === "available" ? availableSkills : allSkills;
-
-				const getIconBg = (author: string) =>
-					/IT|System|Compliance/i.test(author) ? "bg-violet-200" : "bg-amber-100";
-
-				return (
-					<div className="fixed inset-0 z-50 flex items-center justify-center">
-						<div className="absolute inset-0 bg-black/50" onClick={closeModal} />
-						<div className="relative bg-white rounded-xl shadow-lg w-full max-w-lg h-[600px] overflow-hidden flex flex-col">
-							{/* Close */}
-							<button
-								onClick={closeModal}
-								className="absolute right-4 top-4 text-muted-foreground/70 hover:text-foreground z-10"
-							>
-								<X className="size-4" />
-							</button>
-							{/* Header + Search + Tabs */}
-							<div className="px-6 pt-6 flex flex-col gap-4">
-								<div>
-									<h2 className="text-lg font-semibold">Add skills</h2>
-									<p className="text-sm text-muted-foreground mt-1.5">
-										Help users understand what this agent can help them with by adding skills
-									</p>
-								</div>
-								<div className="relative">
-									<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-									<Input
-										placeholder="Search skills..."
-										className="pl-9 rounded-lg"
-										value={skillSearchQuery}
-										onChange={(e) => setSkillSearchQuery(e.target.value)}
-									/>
-								</div>
-								<Tabs value={skillsTab} onValueChange={(v) => setSkillsTab(v)}>
-									<TabsList className="w-full">
-										<TabsTrigger value="available" className="flex-1">
-											Available
-											<Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">
-												{availableSkills.length}
-											</Badge>
-										</TabsTrigger>
-										<TabsTrigger value="all" className="flex-1">
-											All
-											<Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">
-												{allSkills.length}
-											</Badge>
-										</TabsTrigger>
-									</TabsList>
-								</Tabs>
-							</div>
-
-							{/* Skills list */}
-							<div className="flex-1 overflow-y-auto max-h-[400px] mt-5">
-								{displayedSkills.map((skill) => {
-									const isAlreadyAdded = config.workflows.includes(skill.name);
-									const isLinkedToOther = skill.linkedAgent !== null && !isAlreadyAdded;
-									const isSelected = selectedSkills.includes(skill.name);
-									const SkillIcon = skill.icon;
-
-									return (
-										<div
-											key={skill.id}
-											className={cn(
-												"flex items-start gap-[10px] px-6 py-[10px] border-b",
-												isLinkedToOther && "opacity-60",
-											)}
-										>
-											<div
-												className={cn(
-													"size-5 rounded-sm flex items-center justify-center flex-shrink-0 mt-0.5",
-													getIconBg(skill.author),
-												)}
-											>
-												<SkillIcon className="size-3" />
-											</div>
-											<div className="min-w-0 flex-1">
-												<p className="text-sm font-medium leading-none">{skill.name}</p>
-												<p className="text-sm text-muted-foreground leading-5">{skill.author}</p>
-											</div>
-											<div className="flex-shrink-0">
-												{isAlreadyAdded ? (
-													<span className="text-xs text-muted-foreground">Added</span>
-												) : isLinkedToOther ? (
-													<div className="text-right">
-														<p className="text-xs text-primary">Duplicate in Actions</p>
-														<p className="text-xs text-muted-foreground">used in {skill.linkedAgent}</p>
-													</div>
-												) : (
-													<Switch
-														checked={isSelected}
-														onCheckedChange={(checked) => {
-															setSelectedSkills((prev) =>
-																checked
-																	? [...prev, skill.name]
-																	: prev.filter((s) => s !== skill.name),
-															);
-														}}
-													/>
-												)}
-											</div>
-										</div>
-									);
-								})}
-								{displayedSkills.length === 0 && (
-									<div className="py-8 text-center text-sm text-muted-foreground">
-										No skills found matching "{skillSearchQuery}"
-									</div>
-								)}
-							</div>
-
-							{/* Footer */}
-							<div className="px-6 py-3 flex justify-end gap-2">
-								<Button variant="outline" size="sm" onClick={closeModal}>
-									Cancel
-								</Button>
-								<Button
-									size="sm"
-									disabled={selectedSkills.length === 0}
-									onClick={() => {
-										const newStarters: string[] = [];
-										selectedSkills.forEach((skillName) => {
-											const skill = AVAILABLE_SKILLS.find(
-												(s) => s.name === skillName,
-											);
-											if (skill?.starters) {
-												skill.starters.slice(0, 1).forEach((starter) => {
-													if (!newStarters.includes(starter)) {
-														newStarters.push(starter);
-													}
-												});
-											}
-										});
-
-										setConfig((prev) => {
-											const existingStarters = prev.conversationStarters;
-											const startersToAdd = newStarters.filter(
-												(s) => !existingStarters.includes(s),
-											);
-											const availableSlots = 6 - existingStarters.length;
-											const finalNewStarters = startersToAdd.slice(
-												0,
-												availableSlots,
-											);
-
-											return {
-												...prev,
-												workflows: [...prev.workflows, ...selectedSkills],
-												conversationStarters: [
-													...existingStarters,
-													...finalNewStarters,
-												],
-											};
-										});
-										closeModal();
-									}}
-								>
-									Add{" "}
-									{selectedSkills.length > 0
-										? `(${selectedSkills.length})`
-										: ""}
-								</Button>
-							</div>
-						</div>
-					</div>
-				);
-			})()}
+			<AddSkillModal
+				open={showAddSkillModal}
+				onOpenChange={setShowAddSkillModal}
+				availableSkills={[...AVAILABLE_SKILLS, ...getPublishedWorkflowSkills()]}
+				currentWorkflows={config.workflows}
+				onAdd={(skillNames, newStarters) => {
+					setConfig((prev) => {
+						const existingStarters = prev.conversationStarters;
+						const startersToAdd = newStarters.filter((s) => !existingStarters.includes(s));
+						const availableSlots = 6 - existingStarters.length;
+						const finalNewStarters = startersToAdd.slice(0, availableSlots);
+						return {
+							...prev,
+							workflows: [...prev.workflows, ...skillNames],
+							conversationStarters: [...existingStarters, ...finalNewStarters],
+						};
+					});
+				}}
+			/>
 
 			{/* Unlink Workflow Confirmation Modal */}
-			{showUnlinkConfirm && workflowToUnlink && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => {
-							setShowUnlinkConfirm(false);
-							setWorkflowToUnlink(null);
-						}}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
-						<div className="flex items-center justify-between">
-							<h2 className="text-lg font-medium">Unlink Workflow</h2>
-							<button
-								onClick={() => {
-									setShowUnlinkConfirm(false);
-									setWorkflowToUnlink(null);
-								}}
-								className="text-muted-foreground hover:text-foreground"
-							>
-								<X className="size-5" />
-							</button>
-						</div>
-
-						<div className="space-y-3">
-							<p className="text-sm text-muted-foreground">
-								<strong>{workflowToUnlink.name}</strong> is currently linked to{" "}
-								<strong>{workflowToUnlink.linkedAgentName}</strong>.
-							</p>
-							<div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-								<p className="text-sm text-amber-800">
-									Unlinking this workflow will remove it from the other agent.
-									Each workflow can only be connected to one agent at a time.
-								</p>
-							</div>
-						</div>
-
-						<div className="flex justify-end gap-2 pt-2">
-							<Button
-								variant="outline"
-								onClick={() => {
-									setShowUnlinkConfirm(false);
-									setWorkflowToUnlink(null);
-								}}
-							>
-								Cancel
-							</Button>
-							<Button
-								onClick={() => {
-									// Add the workflow to this agent
-									setConfig((prev) => ({
-										...prev,
-										workflows: [...prev.workflows, workflowToUnlink.name],
-									}));
-									setShowUnlinkConfirm(false);
-									setWorkflowToUnlink(null);
-									toast.success(
-										`${workflowToUnlink.name} unlinked from ${workflowToUnlink.linkedAgentName} and added to this agent`,
-									);
-								}}
-							>
-								Unlink & Add
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
+			<UnlinkWorkflowModal
+				open={showUnlinkConfirm}
+				onOpenChange={(open) => {
+					setShowUnlinkConfirm(open);
+					if (!open) setWorkflowToUnlink(null);
+				}}
+				workflow={workflowToUnlink}
+				onConfirm={() => {
+					setConfig((prev) => ({
+						...prev,
+						workflows: [...prev.workflows, workflowToUnlink.name],
+					}));
+					setShowUnlinkConfirm(false);
+					setWorkflowToUnlink(null);
+					toast.success(
+						`${workflowToUnlink.name} unlinked from ${workflowToUnlink.linkedAgentName} and added to this agent`,
+					);
+				}}
+			/>
 			{/* Demo mode trigger button */}
 			{!demoMode && (
 				<button
