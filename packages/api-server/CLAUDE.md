@@ -16,19 +16,19 @@ pnpm --filter rita-api-server docs:generate  # Regenerate OpenAPI spec
 
 - **pg Pool** (`config/database.ts`) — raw SQL queries via `pool.query()`
 - **Kysely** (`config/kyselyContext.ts`) — type-safe query builder, used in newer services
-- **RLS** — `withOrgContext(pool, orgId, callback)` sets `app.current_org` for row-level security
+- **RLS** — `withOrgContext(userId, organizationId, callback)` sets `app.current_user_id` and `app.current_organization_id` session variables. Kysely variant: `withKyselyOrgContext`. Pool is captured internally, not passed as param.
 - **Migrations** — SQL files in `src/database/migrations/`, run with `pnpm migrate`
 
 ## Patterns
 
 ### Services
-Class-based with pool/kysely injected. Singleton via getter function.
+Class-based with pool/kysely injected. Most are instantiated directly in route files. A few use singleton getters (`getRabbitMQService()`, `getSSEService()`, `getSessionService()`, `getFeatureFlagService()`).
 ```typescript
-export class FooService {
-  constructor(private pool: Pool) {}
-  async doThing() { ... }
-}
-export const getFooService = () => new FooService(pool);
+// Direct instantiation (most services)
+const memberService = new MemberService(pool);
+
+// Singleton getter (shared stateful services)
+export const getRabbitMQService = () => instance;
 ```
 
 ### Routes
