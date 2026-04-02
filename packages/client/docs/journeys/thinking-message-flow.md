@@ -15,43 +15,56 @@ How a workflow progress step travels from Actions Platform to the "Thinking..." 
 ## End-to-End Flow
 
 ```
-Actions Platform → Webhook → Rita API → RabbitMQ → SSE → Store → Reasoning UI
+User sends message
+     ↓
+Rita API sends webhook TO Platform (POST /api/Webhooks/postEvent/{tenantId})
+     ↓
+Platform processes workflow (multiple steps)
+     ↓
+Platform publishes each step directly to RabbitMQ (chat.responses queue)
+     ↓
+Rita RabbitMQ consumer → DB → SSE → Frontend Store → Reasoning UI
 ```
+
+Rita does NOT receive a webhook back. Platform writes directly to the shared RabbitMQ instance.
 
 ## Steps
 
-1. **actions-platform** — Workflow step completes on Actions Platform
-   > Platform runs a workflow (e.g., "Requirements Analyst is working..."). Each step produces a status update.
+1. **user** — Sends a message in the iframe chat
+   > Message is created in DB, webhook sent to Platform via `WebhookService.sendTenantMessageEvent()`.
 
-2. **actions-platform** — Platform sends webhook to Rita (`POST /api/Webhooks/postEvent/{tenantId}`)
-   > Payload includes the RabbitMQ routing fields: `message_id`, `conversation_id`, `tenant_id`, and a `response` field containing the reasoning text.
+2. **rita-api** — Sends `workflow_trigger` webhook to Actions Platform
+   > `POST {actionsApiBaseUrl}/api/Webhooks/postEvent/{tenantId}` with the full Valkey config (tokens, context, conversation_id, message_id, customer_message).
 
-3. **rabbitmq-service** — Rita API receives webhook, publishes to `chat.responses` queue
-   > `packages/api-server/src/services/rabbitmq.ts` — the webhook handler parses the response and publishes to RabbitMQ.
+3. **actions-platform** — Receives webhook, starts workflow execution
+   > Platform runs the workflow. Each step (agent working, verifying, generating code) produces a status update published directly to RabbitMQ.
 
-4. **rabbitmq-service** — RabbitMQ consumer processes message, creates assistant message in DB
-   > `packages/api-server/src/services/rabbitmq.ts:587` — creates a new message with `metadata.reasoning.content` set to the step text. Sets `turn_complete: false` to signal more messages are coming.
+4. **actions-platform** — Publishes each reasoning step to `chat.responses` RabbitMQ queue
+   > Each step is a separate message with `metadata.reasoning.content` set to the step text and `turn_complete: false`. Platform writes directly to the shared RabbitMQ instance — no webhook back to Rita.
 
-5. **sse-service** — Sends `new_message` SSE event to the user's iframe connection
-   > `packages/api-server/src/services/rabbitmq.ts:599` — calls `getSSEService().sendToUser()` with the message data. SSE event type: `new_message`.
+5. **rabbitmq-service** — Rita consumer picks up message, creates assistant message in DB
+   > `packages/api-server/src/services/rabbitmq.ts` — one DB row per queue message, metadata stored as JSONB unchanged.
 
-6. **conversation-store** — Frontend SSE handler receives event, adds message to store
-   > `packages/client/src/contexts/SSEContext.tsx:94` — `handleMessage()` creates a `Message` object with `metadata.reasoning` and calls `addMessage()`.
+6. **sse-service** — Sends `new_message` SSE event to the user's iframe connection
+   > `getSSEService().sendToUser()` routes the event by userId + organizationId from the session.
 
-7. **conversation-store** — Store merges consecutive reasoning messages into one part
-   > `packages/client/src/stores/conversationStore.ts:126` — `mergeConsecutiveReasoning()` combines multiple reasoning-only messages into a single part with newline-separated content.
+7. **conversation-store** — Frontend SSE handler receives event, adds message to store
+   > `packages/client/src/contexts/SSEContext.tsx` — creates a `Message` object with `metadata.reasoning` and calls `addMessage()`.
 
-8. **reasoning** — Reasoning accordion renders with structured steps
-   > `packages/client/src/components/ai-elements/reasoning.tsx` — the `<Reasoning>` component renders a collapsible accordion. While streaming, shows animated clock icon and "Thinking..." title.
+8. **conversation-store** — Store merges consecutive reasoning messages into one part
+   > `mergeConsecutiveReasoning()` joins multiple `reasoning.content` strings with `\n\n` into one multi-line string.
 
-9. **reasoning-steps** — Each line parsed into a visual step with icon and status
-   > `packages/client/src/components/ai-elements/reasoning-steps.tsx` — parses newline-separated content. Classifies each line by keywords (agent → Bot icon, verify → Search icon, code → Code icon). Active step shows spinner. Duplicates collapsed with ×N badge. UUIDs hidden.
+9. **reasoning** — Reasoning accordion renders with structured steps
+   > `<Reasoning>` component renders a collapsible accordion. While streaming, shows animated clock icon and "Thinking..." title.
 
-10. **actions-platform** — Final message arrives with `turn_complete: true`
-    > Last SSE event has `message` text (the actual response) and `metadata.turn_complete: true`. No `reasoning` field on the final message.
+10. **reasoning-steps** — Each line parsed into a visual step with icon and status
+    > Parses newline-separated content. API-specified icons via `[icon:name,color:value]` prefix, or keyword classification fallback. Active step shows spinner. Duplicates collapsed with ×N badge. UUIDs hidden.
 
-11. **reasoning** — Accordion auto-closes, shows "Thought for N seconds"
-    > 1 second after streaming ends, the accordion collapses. Trigger text changes from "Thinking..." to "Thought for N seconds". Response text renders below.
+11. **actions-platform** — Final message arrives with `turn_complete: true`
+    > Last queue message has response text and optional `metadata.completion` for styled result card. No `reasoning` field on the final message.
+
+12. **reasoning + completion-card** — Accordion auto-closes, completion card renders
+    > Accordion collapses after 2s, shows "Thought for N seconds". If `metadata.completion` present, renders styled card (green/red/amber) instead of plain text. Confetti on first success.
 
 ## SSE Event Format
 
