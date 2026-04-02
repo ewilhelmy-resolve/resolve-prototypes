@@ -447,6 +447,104 @@ function generateMockResponse(
 	const parts: MessagePart[] = [];
 
 	// Check for test trigger words first
+
+	// test-error: Simulate a failed workflow
+	if (content.includes("test-error") || content.includes("fail") || content.includes("break")) {
+		const steps = [
+			"Starting agent",
+			"Requirements Analyst is working...",
+			"Verifying if activity with same name already exists",
+			"Verifying if activity with same name already exists",
+			"Verifying if activity with same name already exists",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: "Activity creation failed because an activity with the same name already exists in this tenant.",
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "error",
+					title: "Activity creation failed",
+					details: {
+						error: "Name already exists",
+						suggestion: "Try a different activity name",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
+	// test-warning: Simulate a workflow with warnings
+	if (content.includes("test-warning") || content.includes("warn") || content.includes("check")) {
+		const steps = [
+			"Starting agent",
+			"Software Developer is working...",
+			"Using generate_python_code...",
+			"Using validate_python_code...",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'DataProcessor' has been created with ID ${activityId}, but code validation found 2 warnings that should be reviewed.`,
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "warning",
+					title: "Activity created with warnings",
+					details: {
+						name: "DataProcessor",
+						id: String(activityId),
+						warnings: "2 validation warnings",
+						suggestion: "Review generated code before deploying",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
+	// test-workflow / add / multiply / create activity: Simulate successful workflow
 	if (content.startsWith("test-workflow") || content.includes("add") || content.includes("multiply") || content.includes("create activity")) {
 		// Simulate real Actions Platform workflow with step-by-step reasoning
 		// Each reasoning step is a separate response (matches real SSE behavior)
