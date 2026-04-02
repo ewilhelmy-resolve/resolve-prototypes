@@ -86,7 +86,7 @@ export type ReasoningProps = ComponentProps<typeof Collapsible> & {
   duration?: number;
 };
 
-const AUTO_CLOSE_DELAY = 1000;
+const AUTO_CLOSE_DELAY = 2000;
 const MS_IN_S = 1000;
 
 /**
@@ -241,7 +241,7 @@ export const ReasoningContent = memo(
       <CollapsibleContent
         className={cn(
           "mt-4 text-sm",
-          "data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in",
+          "data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[ending-style]:duration-500 data-[open]:animate-in data-[open]:duration-300",
           className
         )}
         {...props}
