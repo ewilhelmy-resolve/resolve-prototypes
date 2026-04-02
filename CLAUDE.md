@@ -169,10 +169,10 @@ Client build uses `vite build` without `tsc`. Type checking runs separately via 
 Iframe-embeddable version for host pages on same domain.
 
 - Minimal UI (no sidebar/nav)
-- Public guest access (no Keycloak)
+- Host-delegated auth — user authenticates via shared Keycloak on Actions Platform, session passed via Valkey
 - Intent tracking via `intent-eid` param
 - Routes: `/iframe/chat`, `/iframe/chat/:conversationId`
-- All iframe users share `public-guest-user` account
+- Embedded as: `<iframe src="/iframe/chat?sessionKey={valkey-guid}">`
 - See `packages/client/IFRAME.md` for integration guide
 
 ## Documentation Strategy
