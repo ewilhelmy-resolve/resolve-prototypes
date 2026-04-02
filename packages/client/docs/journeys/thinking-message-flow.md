@@ -76,7 +76,7 @@ Each reasoning step is a separate SSE event:
 }
 ```
 
-Final message (no reasoning, has response text):
+Final message — plain text (backward compatible):
 
 ```json
 {
@@ -92,6 +92,30 @@ Final message (no reasoning, has response text):
   }
 }
 ```
+
+Final message — with rich completion card (optional, recommended):
+
+```json
+{
+  "type": "new_message",
+  "data": {
+    "messageId": "uuid",
+    "conversationId": "uuid",
+    "role": "assistant",
+    "message": "Activity 'MultiplyTwoNumbers' created with ID 3261.",
+    "metadata": {
+      "turn_complete": true,
+      "completion": {
+        "status": "success",
+        "title": "Activity created successfully",
+        "details": { "name": "MultiplyTwoNumbers", "id": "3261", "steps_completed": 8 }
+      }
+    }
+  }
+}
+```
+
+The `completion` field is optional. Without it, the response renders as plain markdown. With it, the UI renders a styled card (green for success, red for error, amber for warning) with confetti on first success.
 
 ## Step Text → Icon Mapping
 

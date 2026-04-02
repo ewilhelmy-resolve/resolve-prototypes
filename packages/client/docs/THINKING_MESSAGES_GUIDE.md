@@ -129,6 +129,63 @@ Hover:   Shows full text as tooltip
 
 When the final message arrives with `turn_complete: true` and no `reasoning`, the accordion auto-closes (1 second delay) and shows "Thought for N seconds" in the trigger.
 
+### Rich Completion Card (Optional)
+
+To trigger a styled completion card instead of plain text, include a `completion` object in the final message metadata:
+
+```json
+{
+  "type": "new_message",
+  "data": {
+    "messageId": "uuid",
+    "conversationId": "uuid",
+    "role": "assistant",
+    "message": "Activity 'MultiplyTwoNumbers' has been successfully created with ID 3261.",
+    "metadata": {
+      "turn_complete": true,
+      "completion": {
+        "status": "success",
+        "title": "Activity created successfully",
+        "details": {
+          "name": "MultiplyTwoNumbers",
+          "id": "3261",
+          "steps_completed": 8
+        }
+      }
+    }
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `completion.status` | `"success"` \| `"error"` \| `"warning"` | Yes | Controls card color (green/red/amber) |
+| `completion.title` | string | Yes | Card heading text |
+| `completion.details` | `Record<string, string \| number>` | No | Key-value pairs shown below the heading |
+| `completion.confetti` | boolean | No | Fire confetti animation (default: `true` for first success) |
+
+**Without `completion`:** The response renders as plain markdown (current behavior, fully backward compatible).
+
+**With `completion`:** The response renders inside a styled card with icon, color, and optional details — making the result feel like a completed achievement rather than just another chat message.
+
+### Error Completion
+
+```json
+{
+  "metadata": {
+    "turn_complete": true,
+    "completion": {
+      "status": "error",
+      "title": "Activity creation failed",
+      "details": {
+        "error": "Name already exists",
+        "suggestion": "Try a different activity name"
+      }
+    }
+  }
+}
+```
+
 ## N-1 Compatibility
 
 All changes are backward compatible:

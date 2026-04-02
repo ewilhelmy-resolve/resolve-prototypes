@@ -78,6 +78,23 @@ export interface Message {
 			size?: number;
 		}>;
 		turn_complete?: boolean; // UI hint: true = turn finished, false/undefined = more messages coming
+		/**
+		 * Rich completion card — renders a styled result card instead of plain text.
+		 * Sent by Platform on the final message (with turn_complete: true).
+		 *
+		 * - status "success" → green card with confetti (first time only)
+		 * - status "error" → red card
+		 * - status "warning" → amber card
+		 * - details → key-value pairs shown below the title
+		 *
+		 * Without this field, the response renders as plain markdown (backward compatible).
+		 */
+		completion?: {
+			status: "success" | "error" | "warning";
+			title: string;
+			details?: Record<string, string | number>;
+			confetti?: boolean;
+		};
 		// Dynamic UI schema - when present, render UI components from JSON schema
 		ui_schema?: UISchema;
 		// UI form request fields (metadata.type === "ui_form_request")
