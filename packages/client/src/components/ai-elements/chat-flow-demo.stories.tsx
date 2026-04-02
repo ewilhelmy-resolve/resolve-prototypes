@@ -156,9 +156,11 @@ function ChatFlowDemo() {
 		return () => clearTimeout(timer);
 	}, [phase, reasoningLines]);
 
-	// Fire confetti on completion
+	// Fire confetti only on first completion
+	const hasConfettied = useRef(false);
 	useEffect(() => {
-		if (phase === "complete") {
+		if (phase === "complete" && !hasConfettied.current) {
+			hasConfettied.current = true;
 			confetti({
 				particleCount: 80,
 				spread: 60,
