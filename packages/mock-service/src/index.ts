@@ -476,15 +476,27 @@ function generateMockResponse(
 				},
 			});
 		}
-		// Final response with actual content
+		// Final response with completion card metadata
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
 		responses.push({
 			message_id: messagePayload.message_id,
 			conversation_id: messagePayload.conversation_id,
 			tenant_id: messagePayload.tenant_id,
 			user_id: messagePayload.user_id,
-			response: `Activity 'CustomActivity' has been successfully created with ID ${Math.floor(Math.random() * 9000) + 1000}. This activity handles your "${messagePayload.customer_message}" request.`,
+			response: `Activity 'CustomActivity' has been successfully created with ID ${activityId}. This activity handles your "${messagePayload.customer_message}" request.`,
 			response_group_id: responseGroupId,
-			metadata: { turn_complete: true },
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "success",
+					title: "Activity created successfully",
+					details: {
+						name: "CustomActivity",
+						id: String(activityId),
+						steps_completed: steps.length,
+					},
+				},
+			},
 		});
 		return responses;
 	} else if (content.startsWith("test1")) {
