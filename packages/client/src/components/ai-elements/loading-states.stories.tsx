@@ -213,6 +213,32 @@ function SuccessCheck() {
 	);
 }
 
+// --- Completion Card ---
+
+function CompletionCard() {
+	return (
+		<div className="border border-green-500/20 bg-green-500/5 rounded-lg px-4 py-3 space-y-2 max-w-md animate-in zoom-in-95 fade-in-0 duration-500">
+			<div className="flex items-center gap-2">
+				<div className="h-6 w-6 rounded-full bg-green-500/15 flex items-center justify-center">
+					<svg className="h-3.5 w-3.5 text-green-500" viewBox="0 0 16 16" fill="none">
+						<path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+							style={{ strokeDasharray: 20, strokeDashoffset: 20, animation: "drawCheck 0.4s ease-out 0.2s forwards" }} />
+					</svg>
+				</div>
+				<span className="text-sm font-medium text-green-700 dark:text-green-400">Activity created successfully</span>
+			</div>
+			<div className="flex items-center gap-4 text-xs text-muted-foreground pl-8">
+				<span>MultiplyTwoNumbers</span>
+				<span className="text-muted-foreground/40">|</span>
+				<span>ID: 3261</span>
+				<span className="text-muted-foreground/40">|</span>
+				<span>8 steps completed</span>
+			</div>
+			<style>{`@keyframes drawCheck { to { stroke-dashoffset: 0; } }`}</style>
+		</div>
+	);
+}
+
 // --- Storybook Stories ---
 
 const meta: Meta = {
@@ -262,6 +288,7 @@ export const AllOptions: StoryObj = {
 
 			<Section title="Completion" description="When a step or workflow finishes">
 				<Row label="Animated checkmark"><SuccessCheck /></Row>
+				<div className="mt-2"><CompletionCard /></div>
 			</Section>
 		</div>
 	),
