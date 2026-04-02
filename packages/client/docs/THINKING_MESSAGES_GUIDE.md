@@ -78,16 +78,67 @@ This shows "Research & Analysis" instead of "Thinking..." in the accordion trigg
 
 ## Frontend Step Classification
 
-The UI automatically classifies each step line and assigns an icon:
+### Option A: Keyword Classification (Default)
 
-| Pattern in text | Type | Icon | Example |
-|----------------|------|------|---------|
-| "is working", "analyst", "developer", "agent" | agent | Bot | "Requirements Analyst is working..." |
-| "polling", "execution status", "waiting" | poll | Workflow | "Polling for execution status updates" |
-| "verifying", "checking", "validating", "searching" | verify | Search | "Verifying if activity exists" |
-| "generate", "code", "compil", "build" | code | Code | "Using generate_python_code..." |
-| "starting", "running", "execut", "trigger" | action | Zap | "Starting agent" |
-| everything else | generic | Zap | — |
+The UI classifies each step line by keywords and assigns an icon automatically:
+
+| Pattern in text | Icon | Example |
+|----------------|------|---------|
+| "is working", "analyst", "developer", "agent" | Bot | "Requirements Analyst is working..." |
+| "polling", "execution status", "waiting" | Workflow | "Polling for execution status updates" |
+| "verifying", "checking", "validating", "searching" | Search | "Verifying if activity exists" |
+| "generate", "code", "compil", "build" | Code | "Using generate_python_code..." |
+| "starting", "running", "execut", "trigger" | Zap | "Starting agent" |
+| everything else | Zap | — |
+
+### Option B: Explicit Icon and Color (Recommended)
+
+Prefix the step text with `[icon:name]` or `[icon:name,color:value]` to control exactly what appears:
+
+```json
+{ "reasoning": { "content": "[icon:shield,color:green] Validating security credentials" } }
+```
+
+The directive prefix is stripped from display — user only sees "Validating security credentials" with a green Shield icon.
+
+**Available icons:**
+
+| Name | Icon | Best for |
+|------|------|----------|
+| `bot` | Bot | AI agents working |
+| `search` | Search | Verification, lookup |
+| `code` | Code | Code generation, compilation |
+| `zap` | Zap | Initialization, execution |
+| `workflow` | Workflow | Polling, orchestration |
+| `shield` | Shield | Security, validation |
+| `database` | Database | Data queries, storage |
+| `globe` | Globe | External API calls |
+| `file` | File | File operations, manifests |
+| `settings` | Settings | Configuration |
+| `alert` | Alert | Warnings, attention |
+| `clock` | Clock | Timing, scheduling |
+
+**Available indicator colors:**
+
+| Name | Color | Use for |
+|------|-------|---------|
+| `primary` | Blue (default) | Normal processing |
+| `green` | Green | Security passed, success |
+| `amber` | Amber | Warnings, external calls |
+| `red` | Red | Errors, critical steps |
+| `purple` | Purple | Data/AI operations |
+
+**Examples:**
+```
+[icon:zap] Initializing workflow engine
+[icon:shield,color:green] Validating security credentials
+[icon:database,color:purple] Querying knowledge base
+[icon:globe,color:amber] Calling external API
+[icon:bot,color:primary] AI Agent analyzing results
+[icon:code,color:green] Generating solution code
+```
+
+Without any `[...]` prefix → falls back to keyword classification (Option A). Fully backward compatible.
 
 ### Writing Better Step Messages
 

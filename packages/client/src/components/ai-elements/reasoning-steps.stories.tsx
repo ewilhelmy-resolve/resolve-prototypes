@@ -68,6 +68,71 @@ export const ShortContent: StoryObj<typeof ReasoningSteps> = {
 	},
 };
 
+export const ExplicitIcons: StoryObj<typeof ReasoningSteps> = {
+	args: {
+		content: `[icon:zap] Initializing workflow engine
+[icon:shield,color:green] Validating security credentials
+[icon:database,color:purple] Querying knowledge base
+[icon:globe,color:amber] Calling external API
+[icon:bot,color:primary] AI Agent analyzing results
+[icon:code,color:green] Generating solution code
+[icon:search] Verifying output integrity
+[icon:settings,color:amber] Applying configuration
+[icon:file] Writing activity manifest
+[icon:shield,color:green] Final security scan`,
+		isStreaming: false,
+	},
+};
+
+export const ExplicitIconsStreaming: StoryObj = {
+	render: () => {
+		const lines = [
+			"[icon:zap] Initializing workflow engine",
+			"[icon:shield,color:green] Validating security credentials",
+			"[icon:database,color:purple] Querying knowledge base",
+			"[icon:globe,color:amber] Calling external API",
+			"[icon:bot,color:primary] AI Agent analyzing results",
+			"[icon:code,color:green] Generating solution code",
+			"[icon:search] Verifying output integrity",
+			"[icon:settings,color:amber] Applying configuration",
+			"[icon:file] Writing activity manifest",
+			"[icon:shield,color:green] Final security scan",
+		];
+		const [visibleLines, setVisibleLines] = useState(1);
+
+		useEffect(() => {
+			if (visibleLines >= lines.length) return;
+			const timer = setTimeout(() => {
+				setVisibleLines((v) => v + 1);
+			}, 1200);
+			return () => clearTimeout(timer);
+		}, [visibleLines, lines.length]);
+
+		const content = lines.slice(0, visibleLines).join("\n");
+		const isStreaming = visibleLines < lines.length;
+
+		return (
+			<div className="max-w-lg">
+				<p className="text-xs text-muted-foreground mb-4">
+					API-specified icons and colors — streaming live
+				</p>
+				<ReasoningSteps content={content} isStreaming={isStreaming} />
+			</div>
+		);
+	},
+};
+
+export const ColorVariants: StoryObj<typeof ReasoningSteps> = {
+	args: {
+		content: `[icon:zap,color:primary] Primary indicator (blue)
+[icon:shield,color:green] Green indicator
+[icon:alert,color:amber] Amber indicator
+[icon:alert,color:red] Red indicator
+[icon:database,color:purple] Purple indicator`,
+		isStreaming: true,
+	},
+};
+
 export const ManyDuplicates: StoryObj<typeof ReasoningSteps> = {
 	args: {
 		content: `Starting agent

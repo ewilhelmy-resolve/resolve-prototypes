@@ -1,42 +1,55 @@
 /**
  * Structured step renderer for reasoning/thinking content.
  *
- * Parses newline-separated reasoning text into discrete visual steps with:
- * - Icon per step type (agent, verify, code, action, poll)
- * - Active step spinner on the last line while streaming
- * - Deduplication of repeated consecutive lines (×N badge)
- * - UUID/execution_id hiding (full text on hover)
- * - Fade-in animation on each new step
+ * Supports two modes:
+ * 1. **Plain text** — `content` string split by newlines, classified by keywords (backward compatible)
+ * 2. **Explicit steps** — `steps` array with icon/color specified by the API
  *
  * @view ReasoningSteps
- * @constraint Input must be newline-separated step text from merged reasoning messages
  *
- * ## Step Classification Rules
+ * ## API-Specified Icons (Optional)
  *
- * The component classifies each line by matching text patterns:
+ * Platform can control icons and indicator colors per step by sending
+ * `reasoning.steps` instead of (or alongside) `reasoning.content`:
  *
- * - **agent**: "is working", "analyst", "developer", "architect", "agent"
- * - **poll**: "polling", "execution status", "waiting"
- * - **verify**: "verifying", "checking", "validating", "searching"
- * - **code**: "generate", "code", "compil", "build"
- * - **action**: "starting", "running", "execut", "trigger"
- * - **generic**: everything else
+ * ```json
+ * { "reasoning": { "content": "Starting agent", "icon": "bot", "color": "green" } }
+ * ```
  *
- * Platform developers can control which icon appears by using these
- * keywords in their step messages.
+ * ### Available icons
+ * bot, search, code, zap, workflow, shield, database, globe, file, settings, alert, clock
+ *
+ * ### Available indicator colors
+ * primary (blue), green, amber, red, purple
+ *
+ * ### Fallback
+ * Without icon/color fields, keywords in text determine the icon (backward compatible):
+ * - "is working", "analyst", "developer" → bot
+ * - "verifying", "checking", "searching" → search
+ * - "generate", "code", "build" → code
+ * - "starting", "running", "trigger" → zap
+ * - "polling", "execution status" → workflow
  */
 "use client";
 
 import { cn } from "@/lib/utils";
 import {
+	AlertTriangle,
 	Bot,
 	Check,
+	Clock,
 	Code,
+	Database,
+	FileText,
+	Globe,
 	Loader2,
 	Search,
+	Settings,
+	Shield,
 	Workflow,
 	Zap,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { memo, useMemo } from "react";
 
 interface ReasoningStepsProps {
@@ -45,14 +58,56 @@ interface ReasoningStepsProps {
 	className?: string;
 }
 
+type StepType = "agent" | "poll" | "verify" | "code" | "action" | "generic";
+type IconName = "bot" | "search" | "code" | "zap" | "workflow" | "shield" | "database" | "globe" | "file" | "settings" | "alert" | "clock";
+type IndicatorColor = "primary" | "green" | "amber" | "red" | "purple";
+
 interface ParsedStep {
 	text: string;
-	type: "agent" | "poll" | "verify" | "code" | "action" | "generic";
+	type: StepType;
+	icon?: IconName;
+	color?: IndicatorColor;
 	count: number;
 }
 
+// All available icons Platform can request by name
+const namedIcons: Record<IconName, LucideIcon> = {
+	bot: Bot,
+	search: Search,
+	code: Code,
+	zap: Zap,
+	workflow: Workflow,
+	shield: Shield,
+	database: Database,
+	globe: Globe,
+	file: FileText,
+	settings: Settings,
+	alert: AlertTriangle,
+	clock: Clock,
+};
+
+// Default icons from keyword classification
+const stepIcons: Record<StepType, LucideIcon> = {
+	agent: Bot,
+	poll: Workflow,
+	verify: Search,
+	code: Code,
+	action: Zap,
+	generic: Zap,
+};
+
+// Indicator colors for the active step
+const indicatorColors: Record<IndicatorColor, { dot: string; text: string }> = {
+	primary: { dot: "text-primary", text: "text-primary" },
+	green: { dot: "text-green-500", text: "text-green-600 dark:text-green-400" },
+	amber: { dot: "text-amber-500", text: "text-amber-600 dark:text-amber-400" },
+	red: { dot: "text-red-500", text: "text-red-600 dark:text-red-400" },
+	purple: { dot: "text-purple-500", text: "text-purple-600 dark:text-purple-400" },
+};
+
 /**
  * Parses reasoning content text into structured steps.
+ * Supports inline directives: [icon:bot] or [icon:code,color:green] at start of line.
  * Deduplicates repeated lines and classifies each step by type.
  */
 function parseSteps(content: string): ParsedStep[] {
@@ -64,16 +119,20 @@ function parseSteps(content: string): ParsedStep[] {
 	const steps: ParsedStep[] = [];
 
 	for (const line of lines) {
-		// Deduplicate: if same as last step, increment count
+		const { text, icon, color } = parseDirectives(line);
+
+		// Deduplicate: if same text as last step, increment count
 		const last = steps[steps.length - 1];
-		if (last && last.text === line) {
+		if (last && last.text === text) {
 			last.count++;
 			continue;
 		}
 
 		steps.push({
-			text: line,
-			type: classifyStep(line),
+			text,
+			type: classifyStep(text),
+			icon,
+			color,
 			count: 1,
 		});
 	}
@@ -81,10 +140,37 @@ function parseSteps(content: string): ParsedStep[] {
 	return steps;
 }
 
-function classifyStep(text: string): ParsedStep["type"] {
+/**
+ * Parse optional inline directives from step text.
+ * Format: [icon:name] or [icon:name,color:value] at start of line.
+ * Returns clean text without the directive prefix.
+ */
+function parseDirectives(line: string): { text: string; icon?: IconName; color?: IndicatorColor } {
+	const match = line.match(/^\[([^\]]+)\]\s*(.*)/);
+	if (!match) return { text: line };
+
+	const directives = match[1];
+	const text = match[2] || line;
+
+	let icon: IconName | undefined;
+	let color: IndicatorColor | undefined;
+
+	for (const part of directives.split(",")) {
+		const [key, value] = part.split(":").map((s) => s.trim());
+		if (key === "icon" && value in namedIcons) {
+			icon = value as IconName;
+		}
+		if (key === "color" && value in indicatorColors) {
+			color = value as IndicatorColor;
+		}
+	}
+
+	return { text, icon, color };
+}
+
+function classifyStep(text: string): StepType {
 	const lower = text.toLowerCase();
-	if (/is working|analyst|developer|architect|agent/.test(lower))
-		return "agent";
+	if (/is working|analyst|developer|architect|agent/.test(lower)) return "agent";
 	if (/polling|execution.?status|waiting/.test(lower)) return "poll";
 	if (/verifying|checking|validating|searching/.test(lower)) return "verify";
 	if (/generate|code|compil|build/.test(lower)) return "code";
@@ -92,18 +178,8 @@ function classifyStep(text: string): ParsedStep["type"] {
 	return "generic";
 }
 
-const stepIcons: Record<ParsedStep["type"], typeof Bot> = {
-	agent: Bot,
-	poll: Workflow,
-	verify: Search,
-	code: Code,
-	action: Zap,
-	generic: Zap,
-};
-
 /**
  * Cleans technical details from step text for display.
- * Hides UUIDs/execution IDs but keeps them accessible on hover.
  */
 function cleanStepText(text: string): { display: string; full: string } {
 	const uuidPattern =
@@ -112,19 +188,16 @@ function cleanStepText(text: string): { display: string; full: string } {
 
 	if (!hasUuid) return { display: text, full: text };
 
-	const display = text.replace(
-		/\([^)]*[0-9a-f]{8}-[0-9a-f]{4}[^)]*\)/gi,
-		"",
-	).trim();
+	const display = text
+		.replace(/\([^)]*[0-9a-f]{8}-[0-9a-f]{4}[^)]*\)/gi, "")
+		.trim();
 
 	return { display: display || text, full: text };
 }
 
 /**
  * Structured step renderer for reasoning/thinking workflow progress.
- * Parses newline-separated text into steps with typed icons, dedup badges, and UUID hiding.
- * Used by ReasoningContent when content has multiple lines.
- * Platform controls icon selection via keywords in step text (see file-level JSDoc).
+ * Supports API-specified icons/colors via inline directives or keyword fallback.
  */
 export const ReasoningSteps = memo(
 	({ content, isStreaming, className }: ReasoningStepsProps) => {
@@ -137,32 +210,43 @@ export const ReasoningSteps = memo(
 				{steps.map((step, i) => {
 					const isLast = i === steps.length - 1;
 					const isActive = isLast && isStreaming;
-					const Icon = stepIcons[step.type];
 					const { display, full } = cleanStepText(step.text);
+
+					// Resolve icon: explicit > keyword classification
+					const Icon = step.icon
+						? namedIcons[step.icon]
+						: stepIcons[step.type];
+
+					// Resolve color for active step
+					const colorConfig = step.color
+						? indicatorColors[step.color]
+						: indicatorColors.primary;
 
 					return (
 						<div
 							key={`${i}-${step.text.slice(0, 20)}`}
 							className={cn(
 								"flex items-start gap-2 py-1 text-sm transition-opacity duration-300",
-								isActive
-									? "text-foreground"
-									: "text-muted-foreground",
-								// Fade-in for new steps
+								isActive ? "text-foreground" : "text-muted-foreground",
 								"animate-in fade-in-0 duration-300",
 							)}
 							style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}
 						>
-							{/* Step icon */}
+							{/* Step icon / spinner */}
 							<div className="mt-0.5 shrink-0">
 								{isActive ? (
-									<Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+									<Loader2
+										className={cn(
+											"h-3.5 w-3.5 animate-spin",
+											colorConfig.dot,
+										)}
+									/>
 								) : (
 									<Icon
 										className={cn(
 											"h-3.5 w-3.5",
 											isActive
-												? "text-primary"
+												? colorConfig.dot
 												: "text-muted-foreground/50",
 										)}
 									/>
@@ -185,7 +269,7 @@ export const ReasoningSteps = memo(
 								)}
 							</span>
 
-							{/* Completed checkmark for non-active steps */}
+							{/* Completed checkmark */}
 							{!isActive && !isStreaming && (
 								<Check className="h-3 w-3 text-muted-foreground/30 shrink-0 mt-0.5" />
 							)}

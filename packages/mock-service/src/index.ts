@@ -544,6 +544,61 @@ function generateMockResponse(
 		return responses;
 	}
 
+	// test-icons: Demo all icon and color options
+	if (content.includes("test-icons") || content.includes("show icons") || content.includes("demo icons")) {
+		const steps = [
+			"[icon:zap] Initializing workflow engine",
+			"[icon:shield,color:green] Validating security credentials",
+			"[icon:database,color:purple] Querying knowledge base",
+			"[icon:globe,color:amber] Calling external API",
+			"[icon:bot,color:primary] AI Agent analyzing results",
+			"[icon:code,color:green] Generating solution code",
+			"[icon:search] Verifying output integrity",
+			"[icon:settings,color:amber] Applying configuration",
+			"[icon:file] Writing activity manifest",
+			"[icon:shield,color:green] Final security scan",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Building Activity..." },
+					turn_complete: false,
+				},
+			});
+		}
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'SecureDataProcessor' created with ID ${activityId}. All security checks passed.`,
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "success",
+					title: "Activity created — all checks passed",
+					details: {
+						name: "SecureDataProcessor",
+						id: String(activityId),
+						steps_completed: steps.length,
+						security: "verified",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
 	// test-workflow / add / multiply / create activity: Simulate successful workflow
 	if (content.startsWith("test-workflow") || content.includes("add") || content.includes("multiply") || content.includes("create activity")) {
 		// Simulate real Actions Platform workflow with step-by-step reasoning
