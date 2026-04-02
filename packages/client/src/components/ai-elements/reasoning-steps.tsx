@@ -149,7 +149,7 @@ export const ReasoningSteps = memo(
 									? "text-foreground"
 									: "text-muted-foreground",
 								// Fade-in for new steps
-								"animate-in fade-in-0 slide-in-from-left-1 duration-300",
+								"animate-in fade-in-0 duration-300",
 							)}
 							style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}
 						>
@@ -179,7 +179,7 @@ export const ReasoningSteps = memo(
 							>
 								{display}
 								{step.count > 1 && (
-									<span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+									<span className="ms-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
 										x{step.count}
 									</span>
 								)}

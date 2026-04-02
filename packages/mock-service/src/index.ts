@@ -447,7 +447,47 @@ function generateMockResponse(
 	const parts: MessagePart[] = [];
 
 	// Check for test trigger words first
-	if (content.startsWith("test1")) {
+	if (content.startsWith("test-workflow") || content.includes("add") || content.includes("multiply") || content.includes("create activity")) {
+		// Simulate real Actions Platform workflow with step-by-step reasoning
+		// Each reasoning step is a separate response (matches real SSE behavior)
+		const steps = [
+			"Starting agent",
+			"Polling for execution status updates",
+			"Requirements Analyst is working...",
+			"Verifying if activity with same name already exists",
+			"Software Developer is working...",
+			"Using generate_python_code...",
+			"Using validate_python_code...",
+			"Using res_create_resolve_activity_basic...",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		// Final response with actual content
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'CustomActivity' has been successfully created with ID ${Math.floor(Math.random() * 9000) + 1000}. This activity handles your "${messagePayload.customer_message}" request.`,
+			response_group_id: responseGroupId,
+			metadata: { turn_complete: true },
+		});
+		return responses;
+	} else if (content.startsWith("test1")) {
 		// test1: Normal text message only
 		parts.push({
 			type: "text",
@@ -2240,16 +2280,25 @@ app.post("/api/Webhooks/postEvent/:tenantId", async (req, res) => {
 			const responses = generateMockResponse(messagePayload, undefined);
 
 			if (responses && responses.length > 0) {
-				// Delay before sending response
-				setTimeout(async () => {
-					for (const response of responses) {
+				// Send reasoning steps one at a time with delays (simulates real Platform)
+				const sendResponsesSequentially = async () => {
+					for (let i = 0; i < responses.length; i++) {
+						const response = responses[i];
+						const isReasoning = response.metadata?.type === "reasoning" ||
+							(response.metadata?.reasoning && !response.response);
+						const delay = i === 0
+							? MOCK_CONFIG.responseDelay
+							: isReasoning ? 1500 : 800;
+
+						await new Promise((resolve) => setTimeout(resolve, delay));
 						await publishResponse(response);
 						contextLogger.info(
-							{ responseType: response.metadata?.type },
+							{ responseType: response.metadata?.type, step: i + 1, total: responses.length },
 							"Published mock response to queue",
 						);
 					}
-				}, MOCK_CONFIG.responseDelay);
+				};
+				sendResponsesSequentially();
 			}
 
 			timer.end({ success: true, tenantId });

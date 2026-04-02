@@ -103,6 +103,27 @@ Final message (no reasoning, has response text):
 | "starting", "running", "trigger" | Zap | "Starting agent" |
 | "polling", "execution status" | Workflow | "Polling for status updates" |
 
+## Data Transformations (Verified)
+
+| Stage | What happens | Field |
+|-------|-------------|-------|
+| Platform → Queue | Each step is a separate message | `metadata.reasoning.content` = single step text |
+| Queue → DB | One DB row per queue message | `metadata` stored as JSONB unchanged |
+| DB → SSE | Passthrough — no transformation | `event.data.metadata` = DB metadata |
+| SSE → Store | Passthrough — no transformation | `Message.metadata` = event metadata |
+| Store merge | Consecutive reasoning `.content` joined with `\n\n` | `mergeConsecutiveReasoning()` |
+| Render | Multi-line string split by `\n`, classified by keywords | `ReasoningSteps` component |
+
+**Key insight:** `metadata` is opaque — flows unchanged from Platform through Queue → DB → SSE → Frontend. Only the store merge step transforms it (joining content strings).
+
+## RTL / Internationalization
+
+The reasoning steps UI supports RTL languages (Hebrew, Arabic):
+- Layout uses `flex` with `gap` (direction-neutral)
+- Margin uses `ms-` (margin-inline-start) not `ml-`
+- Animations use direction-neutral `fade-in` (no `slide-from-left`)
+- Text alignment follows document `dir` attribute
+
 ## Key Files
 
 | Layer | File | What it does |

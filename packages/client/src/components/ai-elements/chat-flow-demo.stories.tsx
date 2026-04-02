@@ -119,6 +119,7 @@ function ChatFlowDemo() {
 	const [inputValue, setInputValue] = useState("");
 	const [userMessage, setUserMessage] = useState("");
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const scrollToBottom = useCallback(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -200,7 +201,7 @@ function ChatFlowDemo() {
 	const responseContent = RESPONSE_TEXT.slice(0, Math.min(responseChars, RESPONSE_TEXT.length));
 
 	return (
-		<div className="flex flex-col h-[600px] w-[672px] border rounded-lg bg-background overflow-hidden">
+		<div className="flex flex-col h-[calc(100vh-80px)] w-[672px] border rounded-lg bg-background overflow-hidden">
 			{/* Chat messages area */}
 			<div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
 				{/* Welcome state */}
