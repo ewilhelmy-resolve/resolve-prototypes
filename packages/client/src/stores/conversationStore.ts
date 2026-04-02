@@ -18,14 +18,40 @@ export interface Message {
 		| "sent";
 	error_message?: string;
 
-	// NEW: Hybrid approach - metadata for rich types, grouping for UI
+	/**
+	 * Message metadata — drives all rich UI rendering.
+	 *
+	 * Sent via SSE `new_message` events from the API/Platform.
+	 * Each field maps to a specific UI component in the chat.
+	 *
+	 * @constraint All fields are optional for backward compatibility
+	 */
 	metadata?: {
-		// Each property is self-contained with its own content
+		/**
+		 * Reasoning/thinking step — renders in the "Thinking..." accordion.
+		 *
+		 * Each SSE message with `reasoning` becomes one step. Consecutive reasoning
+		 * messages are merged into a multi-step accordion with structured rendering.
+		 *
+		 * Step text is auto-classified by keywords for icon assignment:
+		 * - "is working" / "analyst" / "developer" → Bot icon
+		 * - "verifying" / "checking" → Search icon
+		 * - "generate" / "code" → Code icon
+		 * - "starting" / "running" → Zap icon
+		 * - "polling" / "execution status" → Workflow icon
+		 *
+		 * Duplicate consecutive steps are collapsed with ×N badge.
+		 * UUIDs in parentheses are auto-hidden (visible on hover).
+		 */
 		reasoning?: {
-			content: string; // Reasoning text content
-			title?: string; // Optional custom title (e.g., "Research & Analysis", "Planning")
-			duration?: number; // How long AI spent thinking
-			streaming?: boolean; // Real-time streaming state
+			/** The step text displayed in the accordion. Use action verbs and agent names for best icon matching. */
+			content: string;
+			/** Custom accordion header text. Default: "Thinking..." while streaming, "Thought for N seconds" after. */
+			title?: string;
+			/** Seconds spent thinking (auto-calculated from streaming duration if not provided). */
+			duration?: number;
+			/** Real-time streaming state — set by frontend, not typically sent from API. */
+			streaming?: boolean;
 		};
 		sources?: Array<{
 			url: string;

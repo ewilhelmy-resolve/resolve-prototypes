@@ -1,3 +1,50 @@
+/**
+ * Reasoning accordion — displays "Thinking..." workflow progress in an expandable panel.
+ *
+ * Driven by SSE messages with `metadata.reasoning`. Each message's `reasoning.content`
+ * is a single step line. Consecutive reasoning messages are merged by the store into
+ * one newline-separated string rendered as structured steps.
+ *
+ * @view Reasoning
+ * @journey send-chat-message
+ * @constraint Platform must send `turn_complete: false` on each reasoning message
+ *
+ * ## SSE Contract (for Platform/Actions developers)
+ *
+ * Send each workflow step as a separate SSE `new_message` event:
+ *
+ * ```json
+ * {
+ *   "metadata": {
+ *     "reasoning": {
+ *       "content": "Requirements Analyst is working...",
+ *       "title": "Thinking..."
+ *     },
+ *     "turn_complete": false
+ *   }
+ * }
+ * ```
+ *
+ * ### Step text patterns → UI icons
+ *
+ * | Pattern in text | Icon | Example |
+ * |----------------|------|---------|
+ * | "is working", "analyst", "developer" | Bot | "Requirements Analyst is working..." |
+ * | "verifying", "checking", "searching" | Search | "Verifying if activity exists" |
+ * | "generate", "code", "build" | Code | "Using generate_python_code..." |
+ * | "starting", "running", "trigger" | Zap | "Starting agent" |
+ * | "polling", "execution status" | Workflow | "Polling for status updates" |
+ *
+ * ### Automatic behaviors (no API changes needed)
+ *
+ * - Duplicate consecutive lines collapsed with ×N badge
+ * - UUIDs in parentheses hidden from display (visible on hover)
+ * - Active step (last line while streaming) shows spinner
+ * - Accordion auto-closes 1s after streaming ends
+ * - Custom title via `reasoning.title` (default: "Thinking...")
+ *
+ * @see packages/client/docs/THINKING_MESSAGES_GUIDE.md for full integration guide
+ */
 "use client";
 
 import { useControllableState } from "@/hooks/use-controllable-state";
@@ -42,6 +89,12 @@ export type ReasoningProps = ComponentProps<typeof Collapsible> & {
 const AUTO_CLOSE_DELAY = 1000;
 const MS_IN_S = 1000;
 
+/**
+ * Collapsible "Thinking..." accordion for workflow progress.
+ * Driven by SSE metadata.reasoning — shows structured steps with icons, dedup, and auto-close.
+ * Platform sends each step as a separate SSE new_message with reasoning.content.
+ * @see packages/client/docs/THINKING_MESSAGES_GUIDE.md
+ */
 export const Reasoning = memo(
   ({
     className,
@@ -132,6 +185,11 @@ const getThinkingMessage = (isStreaming: boolean, duration?: number, customTitle
   return <p>Thought for {duration} seconds</p>;
 };
 
+/**
+ * Trigger button for the Reasoning accordion. Shows animated clock while streaming,
+ * chevron for expand/collapse, and duration after completion.
+ * Custom title via `title` prop (default: "Thinking..." / "Thought for N seconds").
+ */
 export const ReasoningTrigger = memo(
   ({ className, title, children, ...props }: ReasoningTriggerProps) => {
     const { isStreaming, isOpen, duration } = useReasoning();
@@ -167,6 +225,11 @@ export type ReasoningContentProps = ComponentProps<
   children: string;
 };
 
+/**
+ * Content area for the Reasoning accordion.
+ * Multi-line content (workflow steps) renders via ReasoningSteps with icons, dedup, and UUID hiding.
+ * Single-line content renders as markdown via Response.
+ */
 export const ReasoningContent = memo(
   ({ className, children, ...props }: ReasoningContentProps) => {
     const { isStreaming } = useReasoning();

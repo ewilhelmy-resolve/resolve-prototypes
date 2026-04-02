@@ -1,3 +1,30 @@
+/**
+ * Structured step renderer for reasoning/thinking content.
+ *
+ * Parses newline-separated reasoning text into discrete visual steps with:
+ * - Icon per step type (agent, verify, code, action, poll)
+ * - Active step spinner on the last line while streaming
+ * - Deduplication of repeated consecutive lines (×N badge)
+ * - UUID/execution_id hiding (full text on hover)
+ * - Fade-in animation on each new step
+ *
+ * @view ReasoningSteps
+ * @constraint Input must be newline-separated step text from merged reasoning messages
+ *
+ * ## Step Classification Rules
+ *
+ * The component classifies each line by matching text patterns:
+ *
+ * - **agent**: "is working", "analyst", "developer", "architect", "agent"
+ * - **poll**: "polling", "execution status", "waiting"
+ * - **verify**: "verifying", "checking", "validating", "searching"
+ * - **code**: "generate", "code", "compil", "build"
+ * - **action**: "starting", "running", "execut", "trigger"
+ * - **generic**: everything else
+ *
+ * Platform developers can control which icon appears by using these
+ * keywords in their step messages.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -93,6 +120,12 @@ function cleanStepText(text: string): { display: string; full: string } {
 	return { display: display || text, full: text };
 }
 
+/**
+ * Structured step renderer for reasoning/thinking workflow progress.
+ * Parses newline-separated text into steps with typed icons, dedup badges, and UUID hiding.
+ * Used by ReasoningContent when content has multiple lines.
+ * Platform controls icon selection via keywords in step text (see file-level JSDoc).
+ */
 export const ReasoningSteps = memo(
 	({ content, isStreaming, className }: ReasoningStepsProps) => {
 		const steps = useMemo(() => parseSteps(content), [content]);
