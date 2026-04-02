@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import {  ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, memo, useContext, useEffect, useState } from "react";
+import { ReasoningSteps } from "./reasoning-steps";
 import { Response } from "./response";
 import { Clock } from "../animate-ui/icons/clock";
 
@@ -167,18 +168,29 @@ export type ReasoningContentProps = ComponentProps<
 };
 
 export const ReasoningContent = memo(
-  ({ className, children, ...props }: ReasoningContentProps) => (
-    <CollapsibleContent
-      className={cn(
-        "mt-4 text-sm",
-        "data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in",
-        className
-      )}
-      {...props}
-    >
-      <Response className="grid gap-2">{children}</Response>
-    </CollapsibleContent>
-  )
+  ({ className, children, ...props }: ReasoningContentProps) => {
+    const { isStreaming } = useReasoning();
+
+    // Use structured step renderer for multi-line reasoning (workflow status updates)
+    const hasMultipleLines = children.includes("\n") && children.split("\n").filter(Boolean).length > 1;
+
+    return (
+      <CollapsibleContent
+        className={cn(
+          "mt-4 text-sm",
+          "data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in",
+          className
+        )}
+        {...props}
+      >
+        {hasMultipleLines ? (
+          <ReasoningSteps content={children} isStreaming={isStreaming} />
+        ) : (
+          <Response className="grid gap-2">{children}</Response>
+        )}
+      </CollapsibleContent>
+    );
+  }
 );
 
 Reasoning.displayName = "Reasoning";
