@@ -40,7 +40,7 @@
  * - Duplicate consecutive lines collapsed with ×N badge
  * - UUIDs in parentheses hidden from display (visible on hover)
  * - Active step (last line while streaming) shows spinner
- * - Accordion auto-closes 1s after streaming ends
+ * - Accordion auto-closes 2s after streaming ends
  * - Custom title via `reasoning.title` (default: "Thinking...")
  *
  * @see packages/client/docs/THINKING_MESSAGES_GUIDE.md for full integration guide

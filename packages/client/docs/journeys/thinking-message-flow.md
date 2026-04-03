@@ -165,7 +165,7 @@ The reasoning steps UI supports RTL languages (Hebrew, Arabic):
 
 | Layer | File | What it does |
 |-------|------|-------------|
-| API webhook handler | `api-server/src/services/rabbitmq.ts` | Receives Platform webhook, publishes to RabbitMQ, sends SSE |
+| RabbitMQ consumer | `api-server/src/services/rabbitmq.ts` | Consumes messages from queue (published by Platform), creates DB rows, sends SSE |
 | SSE service | `api-server/src/services/sse.ts` | Routes events to user's iframe connection |
 | SSE client handler | `client/src/contexts/SSEContext.tsx` | Receives SSE events, dispatches to store |
 | Message store | `client/src/stores/conversationStore.ts` | Merges consecutive reasoning, groups messages |
