@@ -17,30 +17,30 @@ How a workflow progress step travels from Actions Platform to the "Thinking..." 
 ```
 User sends message
      ↓
-Rita API sends webhook TO Platform (POST /api/Webhooks/postEvent/{tenantId})
+Rita API sends webhook TO Actions Platform (POST /api/Webhooks/postEvent/{tenantId})
      ↓
-Platform processes workflow (multiple steps)
+Actions Platform processes workflow (multiple steps)
      ↓
-Platform publishes each step directly to RabbitMQ (chat.responses queue)
+Actions Platform publishes each step directly to RabbitMQ (chat.responses queue)
      ↓
 Rita RabbitMQ consumer → DB → SSE → Frontend Store → Reasoning UI
 ```
 
-Rita does NOT receive a webhook back. Platform writes directly to the shared RabbitMQ instance.
+Rita does NOT receive a webhook back. Actions Platform writes directly to the shared RabbitMQ instance.
 
 ## Steps
 
 1. **user** — Sends a message in the iframe chat
-   > Message is created in DB, webhook sent to Platform via `WebhookService.sendTenantMessageEvent()`.
+   > Message is created in DB, webhook sent to Actions Platform via `WebhookService.sendTenantMessageEvent()`.
 
 2. **rita-api** — Sends `workflow_trigger` webhook to Actions Platform
    > `POST {actionsApiBaseUrl}/api/Webhooks/postEvent/{tenantId}` with the full Valkey config (tokens, context, conversation_id, message_id, customer_message).
 
 3. **actions-platform** — Receives webhook, starts workflow execution
-   > Platform runs the workflow. Each step (agent working, verifying, generating code) produces a status update published directly to RabbitMQ.
+   > Actions Platform runs the workflow. Each step (agent working, verifying, generating code) produces a status update published directly to RabbitMQ.
 
 4. **actions-platform** — Publishes each reasoning step to `chat.responses` RabbitMQ queue
-   > Each step is a separate message with `metadata.reasoning.content` set to the step text and `turn_complete: false`. Platform writes directly to the shared RabbitMQ instance — no webhook back to Rita.
+   > Each step is a separate message with `metadata.reasoning.content` set to the step text and `turn_complete: false`. Actions Platform writes directly to the shared RabbitMQ instance — no webhook back to Rita.
 
 5. **rabbitmq-service** — Rita consumer picks up message, creates assistant message in DB
    > `packages/api-server/src/services/rabbitmq.ts` — one DB row per queue message, metadata stored as JSONB unchanged.
@@ -144,14 +144,14 @@ The `completion` field is optional. Without it, the response renders as plain ma
 
 | Stage | What happens | Field |
 |-------|-------------|-------|
-| Platform → Queue | Each step is a separate message | `metadata.reasoning.content` = single step text |
+| Actions Platform → Queue | Each step is a separate message | `metadata.reasoning.content` = single step text |
 | Queue → DB | One DB row per queue message | `metadata` stored as JSONB unchanged |
 | DB → SSE | Passthrough — no transformation | `event.data.metadata` = DB metadata |
 | SSE → Store | Passthrough — no transformation | `Message.metadata` = event metadata |
 | Store merge | Consecutive reasoning `.content` joined with `\n\n` | `mergeConsecutiveReasoning()` |
 | Render | Multi-line string split by `\n`, classified by keywords | `ReasoningSteps` component |
 
-**Key insight:** `metadata` is opaque — flows unchanged from Platform through Queue → DB → SSE → Frontend. Only the store merge step transforms it (joining content strings).
+**Key insight:** `metadata` is opaque — flows unchanged from Actions Platform through Queue → DB → SSE → Frontend. Only the store merge step transforms it (joining content strings).
 
 ## RTL / Internationalization
 
@@ -165,10 +165,10 @@ The reasoning steps UI supports RTL languages (Hebrew, Arabic):
 
 | Layer | File | What it does |
 |-------|------|-------------|
-| RabbitMQ consumer | `api-server/src/services/rabbitmq.ts` | Consumes messages from queue (published by Platform), creates DB rows, sends SSE |
+| RabbitMQ consumer | `api-server/src/services/rabbitmq.ts` | Consumes messages from queue (published by Actions Platform), creates DB rows, sends SSE |
 | SSE service | `api-server/src/services/sse.ts` | Routes events to user's iframe connection |
 | SSE client handler | `client/src/contexts/SSEContext.tsx` | Receives SSE events, dispatches to store |
 | Message store | `client/src/stores/conversationStore.ts` | Merges consecutive reasoning, groups messages |
 | Reasoning accordion | `client/src/components/ai-elements/reasoning.tsx` | Collapsible panel with auto-close |
 | Step renderer | `client/src/components/ai-elements/reasoning-steps.tsx` | Parses text, assigns icons, dedup, UUID hiding |
-| Integration guide | `client/docs/THINKING_MESSAGES_GUIDE.md` | Full API contract for Platform developers |
+| Integration guide | `client/docs/THINKING_MESSAGES_GUIDE.md` | Full API contract for Actions Platform developers |

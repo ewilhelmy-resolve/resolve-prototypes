@@ -21,7 +21,7 @@ export interface Message {
 	/**
 	 * Message metadata — drives all rich UI rendering.
 	 *
-	 * Sent via SSE `new_message` events from the API/Platform.
+	 * Sent via SSE `new_message` events from the API/Actions Platform.
 	 * Each field maps to a specific UI component in the chat.
 	 *
 	 * @constraint All fields are optional for backward compatibility
@@ -80,7 +80,7 @@ export interface Message {
 		turn_complete?: boolean; // UI hint: true = turn finished, false/undefined = more messages coming
 		/**
 		 * Rich completion card — renders a styled result card instead of plain text.
-		 * Sent by Platform on the final message (with turn_complete: true).
+		 * Sent by Actions Platform on the final message (with turn_complete: true).
 		 *
 		 * - status "success" → green card with confetti (first time only)
 		 * - status "error" → red card

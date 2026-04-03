@@ -10,7 +10,7 @@ When the API sends an SSE message with `metadata.reasoning`, the chat UI renders
 API sends SSE events → reasoning messages merged → accordion renders structured steps
 ```
 
-## Sending Thinking Messages (API / Platform)
+## Sending Thinking Messages (API / Actions Platform)
 
 Each thinking step is a separate SSE `new_message` event. The frontend merges consecutive reasoning-only messages automatically.
 

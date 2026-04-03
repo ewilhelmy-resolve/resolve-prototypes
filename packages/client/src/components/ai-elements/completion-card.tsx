@@ -11,7 +11,7 @@ import { memo, useEffect, useRef } from "react";
  *
  * @view CompletionCard
  *
- * ## Platform Contract
+ * ## Actions Platform Contract
  *
  * Send `metadata.completion` on the final message to render a styled result card:
  *
@@ -74,7 +74,7 @@ let hasConfettiFired = false;
 
 /**
  * Rich completion card for workflow results.
- * Renders a styled card (green/red/amber) when Platform sends metadata.completion on the final message.
+ * Renders a styled card (green/red/amber) when Actions Platform sends metadata.completion on the final message.
  * Success status fires confetti once per session. Details render as key-value pairs below the title.
  * Without metadata.completion, the response renders as plain markdown (backward compatible).
  * @see packages/client/docs/THINKING_MESSAGES_GUIDE.md

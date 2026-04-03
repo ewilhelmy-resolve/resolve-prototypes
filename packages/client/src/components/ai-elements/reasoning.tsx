@@ -7,9 +7,9 @@
  *
  * @view Reasoning
  * @journey send-chat-message
- * @constraint Platform must send `turn_complete: false` on each reasoning message
+ * @constraint Actions Platform must send `turn_complete: false` on each reasoning message
  *
- * ## SSE Contract (for Platform/Actions developers)
+ * ## SSE Contract (for Actions Platform developers)
  *
  * Send each workflow step as a separate SSE `new_message` event:
  *
@@ -92,7 +92,7 @@ const MS_IN_S = 1000;
 /**
  * Collapsible "Thinking..." accordion for workflow progress.
  * Driven by SSE metadata.reasoning — shows structured steps with icons, dedup, and auto-close.
- * Platform sends each step as a separate SSE new_message with reasoning.content.
+ * Actions Platform sends each step as a separate SSE new_message with reasoning.content.
  * @see packages/client/docs/THINKING_MESSAGES_GUIDE.md
  */
 export const Reasoning = memo(

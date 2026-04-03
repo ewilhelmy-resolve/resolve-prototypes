@@ -9,7 +9,7 @@
  *
  * ## API-Specified Icons (Optional)
  *
- * Platform can control icons and indicator colors per step by sending
+ * Actions Platform can control icons and indicator colors per step by sending
  * `reasoning.steps` instead of (or alongside) `reasoning.content`:
  *
  * ```json
@@ -70,7 +70,7 @@ interface ParsedStep {
 	count: number;
 }
 
-// All available icons Platform can request by name
+// All available icons Actions Platform can request by name
 const namedIcons: Record<IconName, LucideIcon> = {
 	bot: Bot,
 	search: Search,
