@@ -12,6 +12,8 @@ tags: ["iframe", "jarvis", "workflow"]
 
 How a workflow progress step travels from Actions Platform to the "Thinking..." accordion in the UI.
 
+**See [Thinking UI Reference](/views/thinking-ui-reference)** for all available icons, colors, and completion card states that Actions Platform can use.
+
 ## End-to-End Flow
 
 ```
