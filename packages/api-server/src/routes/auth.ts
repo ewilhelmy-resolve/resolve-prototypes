@@ -25,6 +25,7 @@ import { ErrorResponseSchema } from "../schemas/common.js";
 import { getSessionService } from "../services/sessionService.js";
 import { WebhookService } from "../services/WebhookService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
+import { checkRateLimit } from "../utils/rateLimit.js";
 
 // ============================================================================
 // OpenAPI Documentation Registration
@@ -301,38 +302,6 @@ const SIGNUP_MAX_REQUESTS = 5;
 const SIGNUP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RESEND_MAX_REQUESTS = 1;
 const RESEND_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-
-// Skip rate limits on staging/dev (only enforce in production)
-const clientUrl = process.env.CLIENT_URL || "";
-const isNonProduction =
-	clientUrl.includes("onboarding.resolve.io") ||
-	clientUrl.includes("localhost");
-
-// Simple in-memory rate limiter (fixed-window counter)
-const rateLimiter = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(
-	key: string,
-	maxRequests: number,
-	windowMs: number,
-): boolean {
-	if (isNonProduction) return true;
-
-	const now = Date.now();
-	const limit = rateLimiter.get(key);
-
-	if (!limit || now > limit.resetAt) {
-		rateLimiter.set(key, { count: 1, resetAt: now + windowMs });
-		return true;
-	}
-
-	if (limit.count >= maxRequests) {
-		return false;
-	}
-
-	limit.count++;
-	return true;
-}
 
 /**
  * Signup endpoint - Creates a pending user and triggers webhook for email verification

@@ -18,6 +18,7 @@ import { InvitationService } from "../services/InvitationService.js";
 import { WebhookService } from "../services/WebhookService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 import type { SendInvitationsRequest } from "../types/invitation.js";
+import { checkRateLimit } from "../utils/rateLimit.js";
 
 // ============================================================================
 // OpenAPI Documentation Registration
@@ -208,38 +209,6 @@ const router = express.Router();
 const webhookService = new WebhookService();
 // Note: pool is still needed for InvitationService instantiation
 const invitationService = new InvitationService(pool, webhookService);
-
-// Skip rate limits on staging/dev (only enforce in production)
-const clientUrl = process.env.CLIENT_URL || "";
-const isNonProduction =
-	clientUrl.includes("onboarding.resolve.io") ||
-	clientUrl.includes("localhost");
-
-// Simple in-memory rate limiter
-const rateLimiter = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(
-	key: string,
-	maxRequests: number,
-	windowMs: number,
-): boolean {
-	if (isNonProduction) return true;
-
-	const now = Date.now();
-	const limit = rateLimiter.get(key);
-
-	if (!limit || now > limit.resetAt) {
-		rateLimiter.set(key, { count: 1, resetAt: now + windowMs });
-		return true;
-	}
-
-	if (limit.count >= maxRequests) {
-		return false;
-	}
-
-	limit.count++;
-	return true;
-}
 
 /**
  * POST /api/invitations/send
