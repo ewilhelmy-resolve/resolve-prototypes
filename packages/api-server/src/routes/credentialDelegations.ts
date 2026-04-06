@@ -35,7 +35,7 @@ registry.registerPath({
 	tags: ["Credential Delegations"],
 	summary: "Create credential delegation",
 	description:
-		"Create a new credential delegation and send email to IT admin. Rate limited to 10 per org per day.",
+		"Create a new credential delegation and send email to IT admin. Rate limited to 50 per org per day.",
 	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
 	request: {
 		body: {
@@ -68,7 +68,7 @@ registry.registerPath({
 			content: { "application/json": { schema: ErrorResponseSchema } },
 		},
 		429: {
-			description: "Rate limit exceeded (10/day)",
+			description: "Rate limit exceeded (50/day)",
 			content: { "application/json": { schema: ErrorResponseSchema } },
 		},
 		500: {
