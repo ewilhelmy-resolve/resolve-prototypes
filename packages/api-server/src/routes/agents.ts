@@ -91,6 +91,26 @@ registry.registerPath({
 const router = express.Router();
 const agenticService = new AgenticService();
 
+const AVATAR_COLORS = ["teal", "purple", "sky", "indigo", "emerald"];
+
+function parseUserInfo(
+	value: string | null,
+): { initials: string; color: string } | null {
+	if (!value || /^[\d.:/]+$/.test(value)) return null; // IP address or empty
+	// Extract initials from email (e.g. "edgar.moreno@resolve.io" → "EM")
+	const name = value.split("@")[0];
+	const parts = name.split(/[._-]/);
+	const initials = parts
+		.slice(0, 2)
+		.map((p) => p[0]?.toUpperCase() || "")
+		.join("");
+	// Deterministic color from string hash
+	let hash = 0;
+	for (const ch of value) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+	const color = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+	return { initials: initials || "??", color };
+}
+
 function formatDate(isoDate: string | null): string {
 	if (!isoDate) return "";
 	const d = new Date(isoDate);
@@ -145,8 +165,8 @@ router.get("/", authenticateUser, async (req, res) => {
 			description: agent.description || "",
 			status: (agent.active ? "published" : "draft") as "published" | "draft",
 			skills: agent.eid ? [...new Set(tasksByAgent.get(agent.eid) || [])] : [],
-			updatedBy: null,
-			owner: null,
+			updatedBy: parseUserInfo(agent.sys_updated_by),
+			owner: parseUserInfo(agent.sys_created_by),
 			lastUpdated: formatDate(agent.sys_date_updated),
 		}));
 
