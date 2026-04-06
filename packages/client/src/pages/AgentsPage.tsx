@@ -17,13 +17,9 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "@/lib/toast";
 import { useLocation, useNavigate } from "react-router-dom";
-import { type Agent, AgentsTable } from "@/components/agents/AgentsTable";
-import {
-	type AgentTemplate,
-	AgentTemplateModal,
-} from "@/components/agents/AgentTemplateModal";
+import { AgentsTable } from "@/components/agents/AgentsTable";
+import { AgentTemplateModal } from "@/components/agents/AgentTemplateModal";
 import { CreateAgentDialog } from "@/components/agents/CreateAgentDialog";
 import { DeleteAgentModal } from "@/components/agents/DeleteAgentModal";
 import RitaLayout from "@/components/layouts/RitaLayout";
@@ -37,60 +33,9 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-
-// Mock data for agents table
-const mockAgents: Agent[] = [
-	{
-		id: "1",
-		name: "HelpDesk Advisor",
-		description: "Answers IT support questions",
-		status: "published",
-		skills: ["Reset password", "Unlock account", "Request system access"],
-		updatedBy: { initials: "CN", color: "teal" },
-		owner: { initials: "CN", color: "teal" },
-		lastUpdated: "16 Dec, 2025 11:44",
-	},
-	{
-		id: "2",
-		name: "Onboarding Compliance Checker",
-		description: "Answers from compliance docs",
-		status: "published",
-		skills: ["Verify I-9 forms", "Check background status", "Review tax docs"],
-		updatedBy: { initials: "KL", color: "purple" },
-		owner: { initials: "KL", color: "purple" },
-		lastUpdated: "06 Dec, 2025 12:03",
-	},
-	{
-		id: "3",
-		name: "Password Reset Bot",
-		description: "Automates password resets",
-		status: "draft",
-		skills: ["Password Reset"],
-		updatedBy: { initials: "AJ", color: "sky" },
-		owner: null,
-		lastUpdated: "03 Dec, 2025 13:27",
-	},
-	{
-		id: "4",
-		name: "PTO Balance Checker",
-		description: "Checks employee time off balances",
-		status: "published",
-		skills: ["Check PTO balance", "Request time off"],
-		updatedBy: { initials: "JS", color: "indigo" },
-		owner: { initials: "JS", color: "indigo" },
-		lastUpdated: "23 Nov, 2025 12:07",
-	},
-	{
-		id: "5",
-		name: "Employee Directory Bot",
-		description: "Looks up employee information",
-		status: "published",
-		skills: ["Lookup employee", "Find department", "Get contact info"],
-		updatedBy: { initials: "MM", color: "emerald" },
-		owner: { initials: "MM", color: "emerald" },
-		lastUpdated: "03 Nov, 2025 18:07",
-	},
-];
+import { MOCK_TABLE_AGENTS } from "@/constants/agentMocks";
+import { toast } from "@/lib/toast";
+import type { AgentTableRow, AgentTemplate } from "@/types/agent";
 
 type FilterStatus = "all" | "published" | "draft";
 type FilterOwner = "all" | "me" | "others";
@@ -114,11 +59,13 @@ export default function AgentsPage() {
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 	const [templateModalOpen, setTemplateModalOpen] = useState(false);
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
+	const [agentToDelete, setAgentToDelete] = useState<AgentTableRow | null>(
+		null,
+	);
 	const [showEducationBanner, setShowEducationBanner] = useState(true);
 
 	// Dynamic agents list (includes newly published agents)
-	const [agents, setAgents] = useState<Agent[]>(mockAgents);
+	const [agents, setAgents] = useState<AgentTableRow[]>(MOCK_TABLE_AGENTS);
 
 	// Handle newly published or unpublished agent from navigation state
 	useEffect(() => {
@@ -146,7 +93,7 @@ export default function AgentsPage() {
 					);
 				}
 				// Add new agent at the top
-				const newAgent: Agent = {
+				const newAgent: AgentTableRow = {
 					id: published.id,
 					name: published.name,
 					description: published.description,
@@ -176,11 +123,7 @@ export default function AgentsPage() {
 		if (state?.unpublishedAgent) {
 			const { id, name } = state.unpublishedAgent;
 			setAgents((prev) =>
-				prev.map((a) =>
-					a.id === id
-						? { ...a, status: "draft" as const }
-						: a,
-				),
+				prev.map((a) => (a.id === id ? { ...a, status: "draft" as const } : a)),
 			);
 			toast.info(`${name} moved to draft`, {
 				description: "Agent is no longer available to users.",
@@ -226,7 +169,7 @@ export default function AgentsPage() {
 		});
 	};
 
-	const handleAgentClick = (agent: Agent) => {
+	const handleAgentClick = (agent: AgentTableRow) => {
 		// Navigate to chat (view) page for published, builder for draft
 		if (agent.status === "published") {
 			navigate(`/agents/${agent.id}/chat`);
@@ -235,7 +178,7 @@ export default function AgentsPage() {
 		}
 	};
 
-	const handleDeleteClick = (agent: Agent) => {
+	const handleDeleteClick = (agent: AgentTableRow) => {
 		setAgentToDelete(agent);
 		setDeleteModalOpen(true);
 	};

@@ -54,7 +54,7 @@ export function SaveStatusIndicator({
 	const { icon, text, className: statusClassName } = getStatusDisplay();
 
 	return (
-		<div
+		<output
 			className={cn(
 				"flex items-center gap-1.5 text-xs font-medium transition-colors",
 				statusClassName,
@@ -63,6 +63,6 @@ export function SaveStatusIndicator({
 		>
 			{icon}
 			<span>{text}</span>
-		</div>
+		</output>
 	);
 }
