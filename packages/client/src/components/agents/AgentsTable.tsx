@@ -150,24 +150,30 @@ export function AgentsTable({
 							className="h-[84px] cursor-pointer"
 							onClick={() => onAgentClick?.(agent)}
 						>
-							<TableCell className="pl-4">
-								<div className="flex flex-col">
+							<TableCell className="pl-4 max-w-[300px]">
+								<div className="flex flex-col min-w-0">
 									<span className="text-primary font-medium truncate">
 										{agent.name}
 									</span>
-									<span className="text-muted-foreground text-sm truncate">
+									<span
+										className="text-muted-foreground text-sm truncate"
+										title={agent.description}
+									>
 										{agent.description}
 									</span>
 								</div>
 							</TableCell>
 							<TableCell>
 								{agent.skills && agent.skills.length > 0 ? (
-									<div className="flex items-center gap-1 max-w-[180px]">
+									<div
+										className="flex items-center gap-1 max-w-[200px]"
+										title={agent.skills.join(", ")}
+									>
 										<span className="text-sm text-muted-foreground truncate">
 											{agent.skills.slice(0, 2).join(", ")}
 										</span>
 										{agent.skills.length > 2 && (
-											<span className="text-xs text-muted-foreground whitespace-nowrap">
+											<span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
 												+{agent.skills.length - 2}
 											</span>
 										)}

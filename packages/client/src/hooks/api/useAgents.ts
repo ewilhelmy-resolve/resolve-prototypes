@@ -1,0 +1,88 @@
+import {
+	type InfiniteData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import { agentApi } from "@/services/api.ts";
+import type { AgentTableRow } from "@/types/agent";
+
+const AGENTS_PAGE_SIZE = 20;
+
+// Query keys
+export const agentKeys = {
+	all: ["agents"] as const,
+	lists: () => [...agentKeys.all, "list"] as const,
+	list: (filters: Record<string, string | undefined>) =>
+		[...agentKeys.lists(), filters] as const,
+	details: () => [...agentKeys.all, "detail"] as const,
+	detail: (id: string) => [...agentKeys.details(), id] as const,
+};
+
+export function useAgents(filters?: { name?: string; active?: string }) {
+	return useQuery({
+		queryKey: agentKeys.list(filters ?? {}),
+		queryFn: async () => {
+			const response = await agentApi.list(filters);
+			return response;
+		},
+		staleTime: 1000 * 60 * 2, // 2 minutes
+	});
+}
+
+export function useInfiniteAgents(filters?: {
+	name?: string;
+	active?: string;
+}) {
+	return useInfiniteQuery<
+		{
+			agents: AgentTableRow[];
+			limit: number;
+			offset: number;
+			hasMore: boolean;
+		},
+		Error,
+		InfiniteData<{
+			agents: AgentTableRow[];
+			limit: number;
+			offset: number;
+			hasMore: boolean;
+		}>,
+		string[],
+		number
+	>({
+		queryKey: [
+			...agentKeys.lists(),
+			"infinite",
+			filters ?? {},
+		] as unknown as string[],
+		queryFn: async ({ pageParam }) => {
+			const response = await agentApi.list({
+				...filters,
+				limit: AGENTS_PAGE_SIZE,
+				offset: pageParam,
+			});
+			return response;
+		},
+		getNextPageParam: (lastPage) => {
+			if (!lastPage.hasMore) return undefined;
+			return lastPage.offset + lastPage.limit;
+		},
+		initialPageParam: 0,
+		staleTime: 1000 * 60 * 2,
+	});
+}
+
+export function useDeleteAgent() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (eid: string) => {
+			return agentApi.delete(eid);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
+		},
+	});
+}
