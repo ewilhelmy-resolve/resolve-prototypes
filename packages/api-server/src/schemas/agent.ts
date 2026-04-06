@@ -60,7 +60,9 @@ export const AgentTableRowSchema = z
 export const AgentListResponseSchema = z
 	.object({
 		agents: z.array(AgentTableRowSchema),
-		total: z.number(),
+		limit: z.number(),
+		offset: z.number(),
+		hasMore: z.boolean(),
 	})
 	.openapi("AgentListResponse");
 

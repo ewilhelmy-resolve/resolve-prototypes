@@ -23,6 +23,7 @@ import { AgentsTable } from "@/components/agents/AgentsTable";
 import { AgentTemplateModal } from "@/components/agents/AgentTemplateModal";
 import { CreateAgentDialog } from "@/components/agents/CreateAgentDialog";
 import { DeleteAgentModal } from "@/components/agents/DeleteAgentModal";
+import { InfiniteScrollContainer } from "@/components/custom/infinite-scroll-container";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +35,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useAgents, useDeleteAgent } from "@/hooks/api/useAgents";
+import { useDeleteAgent, useInfiniteAgents } from "@/hooks/api/useAgents";
 import { toast } from "@/lib/toast";
 import type { AgentTableRow, AgentTemplate } from "@/types/agent";
 
@@ -65,19 +66,22 @@ export default function AgentsPage() {
 	);
 	const [showEducationBanner, setShowEducationBanner] = useState(true);
 
-	// Fetch agents from API
+	// Fetch agents from API with infinite scroll
+	const agentsFilters =
+		statusFilter !== "all"
+			? { active: statusFilter === "published" ? "true" : "false" }
+			: undefined;
 	const {
 		data: agentsData,
 		isLoading,
+		isFetchingNextPage,
+		hasNextPage,
+		fetchNextPage,
 		error: agentsError,
-	} = useAgents(
-		statusFilter !== "all"
-			? { active: statusFilter === "published" ? "true" : "false" }
-			: undefined,
-	);
+	} = useInfiniteAgents(agentsFilters);
 	const deleteAgent = useDeleteAgent();
 
-	const agents = agentsData?.agents ?? [];
+	const agents = agentsData?.pages.flatMap((p) => p.agents) ?? [];
 
 	// Handle newly published or unpublished agent from navigation state
 	useEffect(() => {
@@ -348,12 +352,18 @@ export default function AgentsPage() {
 								Failed to load agents. Please try again.
 							</div>
 						) : (
-							<AgentsTable
-								agents={filteredAgents}
-								onAgentClick={handleAgentClick}
-								onEdit={(agent) => navigate(`/agents/${agent.id}`)}
-								onDelete={handleDeleteClick}
-							/>
+							<InfiniteScrollContainer
+								hasMore={hasNextPage ?? false}
+								isLoading={isFetchingNextPage}
+								onLoadMore={() => fetchNextPage()}
+							>
+								<AgentsTable
+									agents={filteredAgents}
+									onAgentClick={handleAgentClick}
+									onEdit={(agent) => navigate(`/agents/${agent.id}`)}
+									onDelete={handleDeleteClick}
+								/>
+							</InfiniteScrollContainer>
 						)}
 					</div>
 				</div>

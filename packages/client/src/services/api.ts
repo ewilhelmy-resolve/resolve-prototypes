@@ -173,7 +173,9 @@ export const agentApi = {
 		const query = searchParams.toString();
 		return apiRequest<{
 			agents: import("@/types/agent").AgentTableRow[];
-			total: number;
+			limit: number;
+			offset: number;
+			hasMore: boolean;
 		}>(`/api/agents${query ? `?${query}` : ""}`);
 	},
 

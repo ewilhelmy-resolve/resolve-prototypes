@@ -150,7 +150,12 @@ router.get("/", authenticateUser, async (req, res) => {
 			lastUpdated: formatDate(agent.sys_date_updated),
 		}));
 
-		res.json({ agents: rows, total: rows.length });
+		res.json({
+			agents: rows,
+			limit: Number(limit),
+			offset: Number(offset),
+			hasMore: agents.length === Number(limit),
+		});
 	} catch (error: any) {
 		if (error?.response) {
 			logger.error(
