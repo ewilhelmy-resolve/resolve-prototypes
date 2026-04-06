@@ -209,6 +209,12 @@ const webhookService = new WebhookService();
 // Note: pool is still needed for InvitationService instantiation
 const invitationService = new InvitationService(pool, webhookService);
 
+// Skip rate limits on staging/dev (only enforce in production)
+const clientUrl = process.env.CLIENT_URL || "";
+const isNonProduction =
+	clientUrl.includes("onboarding.resolve.io") ||
+	clientUrl.includes("localhost");
+
 // Simple in-memory rate limiter
 const rateLimiter = new Map<string, { count: number; resetAt: number }>();
 
@@ -217,6 +223,8 @@ function checkRateLimit(
 	maxRequests: number,
 	windowMs: number,
 ): boolean {
+	if (isNonProduction) return true;
+
 	const now = Date.now();
 	const limit = rateLimiter.get(key);
 
@@ -264,11 +272,9 @@ router.post(
 			// Rate limiting (50 per org per hour)
 			const rateLimitKey = `invitations:${organizationId}`;
 			if (!checkRateLimit(rateLimitKey, 50, 60 * 60 * 1000)) {
-				return res
-					.status(429)
-					.json({
-						error: "Rate limit exceeded. Maximum 50 invitations per hour.",
-					});
+				return res.status(429).json({
+					error: "Rate limit exceeded. Maximum 50 invitations per hour.",
+				});
 			}
 
 			const result = await invitationService.sendInvitations(
@@ -368,12 +374,10 @@ router.post("/accept", async (req, res) => {
 					.json({ error: "Invitation expired", code: "INV002" });
 			}
 			if (error.message.includes("already exists")) {
-				return res
-					.status(400)
-					.json({
-						error: "An account with this email already exists",
-						code: "INV010",
-					});
+				return res.status(400).json({
+					error: "An account with this email already exists",
+					code: "INV010",
+				});
 			}
 		}
 

@@ -17,7 +17,7 @@ import type { WebhookService } from "./WebhookService.js";
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const TOKEN_EXPIRY_DAYS = 1;
-const RATE_LIMIT_PER_ORG_PER_DAY = 10;
+const RATE_LIMIT_PER_ORG_PER_DAY = 50;
 
 /**
  * Mapping of ITSM types to their related knowledge base connection types

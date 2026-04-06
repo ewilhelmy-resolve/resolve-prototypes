@@ -302,6 +302,12 @@ const SIGNUP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RESEND_MAX_REQUESTS = 1;
 const RESEND_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
+// Skip rate limits on staging/dev (only enforce in production)
+const clientUrl = process.env.CLIENT_URL || "";
+const isNonProduction =
+	clientUrl.includes("onboarding.resolve.io") ||
+	clientUrl.includes("localhost");
+
 // Simple in-memory rate limiter (fixed-window counter)
 const rateLimiter = new Map<string, { count: number; resetAt: number }>();
 
@@ -310,6 +316,8 @@ function checkRateLimit(
 	maxRequests: number,
 	windowMs: number,
 ): boolean {
+	if (isNonProduction) return true;
+
 	const now = Date.now();
 	const limit = rateLimiter.get(key);
 
