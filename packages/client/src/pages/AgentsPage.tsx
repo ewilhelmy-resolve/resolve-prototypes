@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useDeleteAgent, useInfiniteAgents } from "@/hooks/api/useAgents";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/toast";
 import type { AgentTableRow, AgentTemplate } from "@/types/agent";
 
@@ -55,6 +56,7 @@ interface PublishedAgentState {
 export default function AgentsPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { getUserEmail } = useAuth();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
 	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
@@ -104,8 +106,10 @@ export default function AgentsPage() {
 		}
 	}, [location.state]);
 
-	// Filter agents based on search (client-side — server handles status filter)
+	// Filter agents client-side (server handles status filter)
+	const currentEmail = getUserEmail();
 	const filteredAgents = agents.filter((agent) => {
+		// Search filter
 		if (searchQuery) {
 			const query = searchQuery.toLowerCase();
 			if (
@@ -114,6 +118,13 @@ export default function AgentsPage() {
 			) {
 				return false;
 			}
+		}
+		// Owner filter
+		if (ownerFilter === "me" && agent.ownerEmail !== currentEmail) {
+			return false;
+		}
+		if (ownerFilter === "others" && agent.ownerEmail === currentEmail) {
+			return false;
 		}
 		return true;
 	});

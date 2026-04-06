@@ -54,6 +54,10 @@ export const AgentTableRowSchema = z
 			.nullable()
 			.openapi({ description: "Agent owner" }),
 		lastUpdated: z.string().openapi({ description: "Last updated timestamp" }),
+		ownerEmail: z
+			.string()
+			.nullable()
+			.openapi({ description: "Raw sys_created_by value for owner filtering" }),
 	})
 	.openapi("AgentTableRow");
 

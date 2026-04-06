@@ -89,6 +89,7 @@ export interface AgentTableRow {
 		color: string;
 	} | null;
 	lastUpdated: string;
+	ownerEmail?: string | null;
 }
 
 // --- Message types ---

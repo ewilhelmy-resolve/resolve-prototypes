@@ -168,6 +168,7 @@ router.get("/", authenticateUser, async (req, res) => {
 			updatedBy: parseUserInfo(agent.sys_updated_by),
 			owner: parseUserInfo(agent.sys_created_by),
 			lastUpdated: formatDate(agent.sys_date_updated),
+			ownerEmail: agent.sys_created_by || null,
 		}));
 
 		res.json({
