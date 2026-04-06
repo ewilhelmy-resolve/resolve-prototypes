@@ -2,6 +2,17 @@
 @import "tw-animate-css";
 @import "@resolve-io/tokens";
 
+/* Override tokens @font-face with WOFF2 (64% smaller than TTF) */
+@font-face {
+	font-family: "Season Mix";
+	src:
+		url("/fonts/SeasonMix-Regular.woff2") format("woff2"),
+		url("/fonts/SeasonMix-Regular.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
 :root {
 	--radius: 0.625rem;
 	--chart-1: oklch(0.646 0.222 41.116);
