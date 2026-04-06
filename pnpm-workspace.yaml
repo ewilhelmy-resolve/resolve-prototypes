@@ -13,3 +13,7 @@ overrides:
 
 minimumReleaseAge: 4320 # 3 days in minutes (3 × 24 × 60)
 
+onlyBuiltDependencies:
+  - esbuild
+  - '@parcel/watcher'
+
