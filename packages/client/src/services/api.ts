@@ -156,6 +156,33 @@ export const conversationApi = {
 		apiRequest<{ message: any }>(`/api/messages/${messageId}`),
 };
 
+// Agent API (proxied through Rita API server → LLM Service)
+export const agentApi = {
+	list: (params?: {
+		name?: string;
+		active?: string;
+		limit?: number;
+		offset?: number;
+	}) => {
+		const searchParams = new URLSearchParams();
+		if (params?.name) searchParams.set("name", params.name);
+		if (params?.active) searchParams.set("active", params.active);
+		if (params?.limit != null) searchParams.set("limit", String(params.limit));
+		if (params?.offset != null)
+			searchParams.set("offset", String(params.offset));
+		const query = searchParams.toString();
+		return apiRequest<{
+			agents: import("@/types/agent").AgentTableRow[];
+			total: number;
+		}>(`/api/agents${query ? `?${query}` : ""}`);
+	},
+
+	delete: (eid: string) =>
+		apiRequest<{ success: boolean; message: string }>(`/api/agents/${eid}`, {
+			method: "DELETE",
+		}),
+};
+
 // Organization API
 export const organizationApi = {
 	getCurrentOrganization: () =>
