@@ -1555,6 +1555,7 @@ The system is performing well overall but requires attention to the identified s
 					interrupt: interruptFlag,
 					conversation_id: messagePayload.conversation_id,
 					ui_schema: uiSchema,
+					isCustomSchema: true,
 				}),
 			},
 		];

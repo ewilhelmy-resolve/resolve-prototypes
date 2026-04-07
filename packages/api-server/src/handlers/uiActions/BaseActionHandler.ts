@@ -20,8 +20,12 @@ import type {
 	UIActionWebhookPayload,
 } from "../../types/uiAction.js";
 
-export abstract class BaseActionHandler implements UIActionHandler {
-	protected abstract readonly actionTypes: string[];
+export class BaseActionHandler implements UIActionHandler {
+	protected readonly actionTypes: string[];
+
+	constructor(actionTypes: string[]) {
+		this.actionTypes = actionTypes;
+	}
 
 	canHandle(action: string): boolean {
 		return this.actionTypes.includes(action);

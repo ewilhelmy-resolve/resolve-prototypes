@@ -14,10 +14,13 @@ import type {
 	ActionHandlerResult,
 	UIActionHandler,
 } from "../../types/uiAction.js";
-import { ApprovalActionHandler } from "./ApprovalActionHandler.js";
-import { DeleteActionHandler } from "./DeleteActionHandler.js";
-import { SubmitActionHandler } from "./SubmitActionHandler.js";
-import { WorkflowActionHandler } from "./WorkflowActionHandler.js";
+import {
+	ApprovalActionType,
+	DeleteActionType,
+	SubmitActionType,
+	WorkflowActionType,
+} from "../../types/uiAction.js";
+import { BaseActionHandler } from "./BaseActionHandler.js";
 
 export class ActionHandlerRegistry {
 	private handlers: UIActionHandler[] = [];
@@ -25,12 +28,10 @@ export class ActionHandlerRegistry {
 	constructor() {
 		// Register handlers in priority order (first match wins)
 		this.handlers = [
-			new SubmitActionHandler(), // Category 1: Submit actions
-			new WorkflowActionHandler(), // Category 2: Workflow Management actions
-			new ApprovalActionHandler(), // Category 3: Approval/Review actions
-			new DeleteActionHandler(), // Category 4: Delete actions
-			// Note: Navigation and Cancel/Dismiss actions are client-side only
-			// and handled directly in the frontend (SchemaRenderer/ChatV1Content)
+			new BaseActionHandler(Object.values(SubmitActionType)),
+			new BaseActionHandler(Object.values(WorkflowActionType)),
+			new BaseActionHandler(Object.values(ApprovalActionType)),
+			new BaseActionHandler(Object.values(DeleteActionType)),
 		];
 	}
 

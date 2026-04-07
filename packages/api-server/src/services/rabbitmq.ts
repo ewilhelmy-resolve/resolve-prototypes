@@ -19,6 +19,7 @@ interface ParsedUIFormRequest {
 	interrupt?: boolean;
 	conversation_id?: string;
 	ui_schema: Record<string, unknown>;
+	isCustomSchema?: boolean;
 }
 
 // Connection state types
@@ -678,6 +679,7 @@ export class RabbitMQService {
 			activity_id,
 			ui_schema,
 			interrupt = true,
+			isCustomSchema,
 		} = formRequest;
 		const conversation_id =
 			formRequest.conversation_id || messageConversationId;
@@ -747,6 +749,7 @@ export class RabbitMQService {
 				activity_id,
 				ui_schema,
 				interrupt,
+				isCustomSchema,
 				status: "pending", // Form is pending user submission
 			};
 

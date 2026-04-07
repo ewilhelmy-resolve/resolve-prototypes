@@ -23,6 +23,7 @@ export interface IframeInboundMessage {
 		content?: string;
 		chatSessionId?: string; // Jarvis workflow tab ID
 		tabInstanceId?: string; // Jarvis user connection ID
+		isCustomSchema?: boolean;
 	};
 	requestId?: string; // For ACK tracking
 }
@@ -40,6 +41,7 @@ export interface IframeOutboundMessage {
 export interface HostMessageMetadata {
 	chatSessionId?: string;
 	tabInstanceId?: string;
+	isCustomSchema?: boolean;
 }
 
 interface UseIframeMessagingOptions {
@@ -129,6 +131,7 @@ export function useIframeMessaging({
 							await onSendMessage(payload.content, {
 								chatSessionId: payload.chatSessionId,
 								tabInstanceId: payload.tabInstanceId,
+								isCustomSchema: payload.isCustomSchema,
 							});
 							postToParent({ type: "ACK", requestId, success: true });
 						} catch (error) {

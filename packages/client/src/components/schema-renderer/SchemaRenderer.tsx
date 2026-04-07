@@ -17,8 +17,10 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useIframeMessaging } from "../../hooks/useIframeMessaging";
 import { toast } from "../../lib/toast";
 import type {
 	ConditionalProps,
@@ -66,6 +68,19 @@ import {
 } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { MermaidRenderer } from "./MermaidRenderer";
+
+// ============================================================================
+// Regex Safety
+// ============================================================================
+
+const MAX_PATTERN_LENGTH = 200;
+const NESTED_QUANTIFIER_RE = /([+*?]|\{\d+,?\d*\})\)?[+*?]|\(\?[^:)]/;
+
+/** Reject patterns that could cause catastrophic backtracking (ReDoS). */
+function isSafePattern(pattern: string): boolean {
+	if (pattern.length > MAX_PATTERN_LENGTH) return false;
+	return !NESTED_QUANTIFIER_RE.test(pattern);
+}
 
 // ============================================================================
 // Error Boundary
@@ -179,6 +194,8 @@ export function SchemaRenderer({
 	forceInlineModals,
 	disabled = false,
 }: SchemaRendererProps) {
+	const { t } = useTranslation("validation");
+	const { postToParent, isInIframe: iframeContext } = useIframeMessaging();
 	const [formData, setFormData] = useState<Record<string, string>>({});
 	const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 	const [modalFormData, setModalFormData] = useState<Record<string, string>>(
@@ -347,16 +364,26 @@ export function SchemaRenderer({
 				const effectiveMaxLength = maxLength || checksMaxLength?.max;
 
 				if (required && !value.trim()) {
-					errors[name] = `${label} is required`;
+					errors[name] = t("required.generic", { field: label });
 				} else if (value) {
 					if (effectiveMinLength && value.length < effectiveMinLength) {
-						errors[name] =
-							`${label} must be at least ${effectiveMinLength} characters`;
+						errors[name] = t("length.minLength", {
+							field: label,
+							min: effectiveMinLength,
+						});
 					} else if (effectiveMaxLength && value.length > effectiveMaxLength) {
-						errors[name] =
-							`${label} must be at most ${effectiveMaxLength} characters`;
-					} else if (pattern && !new RegExp(pattern).test(value)) {
-						errors[name] = `${label} is invalid`;
+						errors[name] = t("length.maxLength", {
+							field: label,
+							max: effectiveMaxLength,
+						});
+					} else if (pattern && isSafePattern(pattern)) {
+						try {
+							if (!new RegExp(pattern).test(value)) {
+								errors[name] = t("format.invalid", { field: label });
+							}
+						} catch {
+							// Invalid regex from schema — skip client validation
+						}
 					}
 				}
 			}
@@ -401,11 +428,11 @@ export function SchemaRenderer({
 
 				// Handle external link - ask host to open new tab when in iframe
 				if (result.externalUrl) {
-					if (isInIframe()) {
-						window.parent.postMessage(
-							{ type: "OPEN_URL", data: { url: result.externalUrl } },
-							"*",
-						);
+					if (iframeContext) {
+						postToParent({
+							type: "OPEN_URL",
+							data: { url: result.externalUrl },
+						});
 					} else {
 						window.open(result.externalUrl, "_blank", "noopener,noreferrer");
 					}
@@ -524,7 +551,6 @@ export function SchemaRenderer({
 					submitVariant === "destructive" ? "destructive" : "default",
 				preventBackdropClose: options?.preventBackdropClose,
 				onSubmit: (data) => {
-					console.log("LUNETA");
 					pendingModalSubmitRef.current = null;
 					if (submitAction) {
 						const logEntry = {
@@ -698,7 +724,6 @@ export function SchemaRenderer({
 						el={element}
 						disabled={disabled}
 						onClick={() => {
-							console.log("LUNETAAAA");
 							const opensDialog = p<string>(element, "opensDialog");
 							const action =
 								p<string>(element, "action") ||

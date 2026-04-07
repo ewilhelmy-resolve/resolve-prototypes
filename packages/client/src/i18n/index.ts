@@ -18,6 +18,7 @@ import validationEn from "./locales/en/validation.json";
 // Import namespaces - Spanish (Mexico) - partial, rest fallback to en
 import chatEsMX from "./locales/es-MX/chat.json";
 import commonEsMX from "./locales/es-MX/common.json";
+import validationEsMX from "./locales/es-MX/validation.json";
 
 export const defaultNS = "common";
 
@@ -55,6 +56,7 @@ export const resources = {
 	"es-MX": {
 		chat: chatEsMX,
 		common: commonEsMX,
+		validation: validationEsMX,
 	},
 } as const;
 

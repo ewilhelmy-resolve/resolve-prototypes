@@ -26,6 +26,7 @@ interface InlineFormRequestProps {
 	status: "pending" | "completed";
 	formData?: Record<string, string>;
 	submittedAt?: string;
+	isCustomSchema?: boolean;
 	onSubmit: (
 		requestId: string,
 		action: string,
@@ -59,6 +60,7 @@ export function InlineFormRequest({
 	submittedAt,
 	onSubmit,
 	onCancel,
+	isCustomSchema,
 }: InlineFormRequestProps) {
 	const [formData, setFormData] = useState<Record<string, string>>(
 		existingFormData || {},
@@ -76,7 +78,6 @@ export function InlineFormRequest({
 		submitLabel,
 		cancelLabel,
 		submitVariant,
-		isCustomSchema,
 	} = extractFormProps(parsed);
 	const rootEl = parsed.elements[parsed.root];
 	const isFormRoot = rootEl?.type === "Form";

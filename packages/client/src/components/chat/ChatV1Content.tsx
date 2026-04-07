@@ -560,6 +560,7 @@ function SimpleMessage({
 								status={message.metadata.status || "pending"}
 								formData={message.metadata.form_data}
 								submittedAt={message.metadata.submitted_at}
+								isCustomSchema={message.metadata.isCustomSchema}
 								onSubmit={onFormSubmit}
 								onCancel={onFormCancel}
 							/>
@@ -663,6 +664,7 @@ function SimpleMessage({
 											status={message.metadata.status || "pending"}
 											formData={message.metadata.form_data}
 											submittedAt={message.metadata.submitted_at}
+											isCustomSchema={message.metadata.isCustomSchema}
 											onSubmit={async (reqId, action, data) => {
 												setShowFallbackDialog(false);
 												await onFormSubmit(reqId, action, data);

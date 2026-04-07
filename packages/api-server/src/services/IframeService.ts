@@ -566,7 +566,7 @@ export class IframeService {
 
 				const webhookPayload = {
 					source: "rita-chat-iframe" as const,
-					action,
+					action: action || "ui_form_response",
 					tenant_id: webhookConfig.tenantId,
 					user_id: webhookConfig.userGuid,
 					workflow_id: existingMetadata.workflow_id,
