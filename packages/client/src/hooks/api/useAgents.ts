@@ -1,12 +1,11 @@
 import {
-	type InfiniteData,
 	useInfiniteQuery,
 	useMutation,
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
 import { agentApi } from "@/services/api.ts";
-import type { AgentConfig, AgentTableRow } from "@/types/agent";
+import type { AgentConfig } from "@/types/agent";
 
 const AGENTS_PAGE_SIZE = 20;
 
@@ -23,10 +22,7 @@ export const agentKeys = {
 export function useAgents(filters?: { name?: string; active?: string }) {
 	return useQuery({
 		queryKey: agentKeys.list(filters ?? {}),
-		queryFn: async () => {
-			const response = await agentApi.list(filters);
-			return response;
-		},
+		queryFn: () => agentApi.list(filters),
 		staleTime: 1000 * 60 * 2, // 2 minutes
 	});
 }
@@ -35,28 +31,8 @@ export function useInfiniteAgents(filters?: {
 	name?: string;
 	active?: string;
 }) {
-	return useInfiniteQuery<
-		{
-			agents: AgentTableRow[];
-			limit: number;
-			offset: number;
-			hasMore: boolean;
-		},
-		Error,
-		InfiniteData<{
-			agents: AgentTableRow[];
-			limit: number;
-			offset: number;
-			hasMore: boolean;
-		}>,
-		string[],
-		number
-	>({
-		queryKey: [
-			...agentKeys.lists(),
-			"infinite",
-			filters ?? {},
-		] as unknown as string[],
+	return useInfiniteQuery({
+		queryKey: [...agentKeys.lists(), "infinite", filters ?? {}] as const,
 		queryFn: async ({ pageParam }) => {
 			const response = await agentApi.list({
 				...filters,

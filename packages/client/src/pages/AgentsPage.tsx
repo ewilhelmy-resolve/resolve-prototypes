@@ -106,7 +106,8 @@ export default function AgentsPage() {
 		}
 	}, [location.state]);
 
-	// Filter agents client-side (server handles status filter)
+	// TODO: owner filter is client-side — pages may appear empty while hasMore=true.
+	// Move to server-side filter when LLM Service supports owner param.
 	const currentEmail = getUserEmail();
 	const filteredAgents = agents.filter((agent) => {
 		// Search filter
@@ -120,10 +121,10 @@ export default function AgentsPage() {
 			}
 		}
 		// Owner filter
-		if (ownerFilter === "me" && agent.ownerEmail !== currentEmail) {
+		if (ownerFilter === "me" && agent.owner !== currentEmail) {
 			return false;
 		}
-		if (ownerFilter === "others" && agent.ownerEmail === currentEmail) {
+		if (ownerFilter === "others" && agent.owner === currentEmail) {
 			return false;
 		}
 		return true;

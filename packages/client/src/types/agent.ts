@@ -83,7 +83,6 @@ export interface AgentTableRow {
 	updatedBy: string | null;
 	owner: string | null;
 	lastUpdated: string;
-	ownerEmail?: string | null;
 }
 
 // --- Message types ---

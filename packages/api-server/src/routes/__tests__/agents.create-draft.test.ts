@@ -73,7 +73,20 @@ describe("POST /api/agents - draft creation", () => {
 	beforeEach(() => {
 		app = express();
 		app.use(express.json());
-		app.use("/api/agents", agentRoutes);
+		// Simulate the authenticateUser middleware applied at mount in index.ts
+		app.use(
+			"/api/agents",
+			(req: any, _res: any, next: any) => {
+				req.user = {
+					id: "test-user-id",
+					activeOrganizationId: "test-org-id",
+					email: "test@example.com",
+					role: "owner",
+				};
+				next();
+			},
+			agentRoutes,
+		);
 		vi.clearAllMocks();
 	});
 

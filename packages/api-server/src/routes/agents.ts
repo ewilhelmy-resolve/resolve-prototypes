@@ -1,7 +1,6 @@
 import express from "express";
 import { logger } from "../config/logger.js";
 import { registry, z } from "../docs/openapi.js";
-import { authenticateUser } from "../middleware/auth.js";
 import {
 	AgentCheckNameQuerySchema,
 	AgentCheckNameResponseSchema,
@@ -367,7 +366,7 @@ function apiDataToAgentConfig(
  * GET /api/agents
  * List agents from LLM Service, enriched with skills from tasks
  */
-router.get("/", authenticateUser, async (req, res) => {
+router.get("/", async (req, res) => {
 	try {
 		const { name, active, limit, offset } = AgentListQuerySchema.parse(
 			req.query,
@@ -408,7 +407,6 @@ router.get("/", authenticateUser, async (req, res) => {
 			updatedBy: agent.sys_updated_by || null,
 			owner: agent.sys_created_by || null,
 			lastUpdated: formatDate(agent.sys_date_updated),
-			ownerEmail: agent.sys_created_by || null,
 		}));
 
 		res.json({
@@ -439,7 +437,7 @@ router.get("/", authenticateUser, async (req, res) => {
  * GET /api/agents/check-name
  * Check if an agent name is available
  */
-router.get("/check-name", authenticateUser, async (req, res) => {
+router.get("/check-name", async (req, res) => {
 	try {
 		const { name } = AgentCheckNameQuerySchema.parse(req.query);
 		const existing = await agenticService.getAgentByName(name);
@@ -467,7 +465,7 @@ router.get("/check-name", authenticateUser, async (req, res) => {
  * DELETE /api/agents/:eid
  * Delete an agent from LLM Service
  */
-router.delete("/:eid", authenticateUser, async (req, res) => {
+router.delete("/:eid", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const { eid } = req.params;
@@ -503,7 +501,7 @@ router.delete("/:eid", authenticateUser, async (req, res) => {
  * GET /api/agents/:eid
  * Get a single agent by EID, enriched with skills
  */
-router.get("/:eid", authenticateUser, async (req, res) => {
+router.get("/:eid", async (req, res) => {
 	try {
 		const { eid } = req.params;
 		const agent = await agenticService.getAgent(eid);
@@ -550,7 +548,7 @@ router.get("/:eid", authenticateUser, async (req, res) => {
  * POST /api/agents
  * Create a new agent in LLM Service
  */
-router.post("/", authenticateUser, async (req, res) => {
+router.post("/", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const body = AgentCreateBodySchema.parse(req.body);
@@ -573,18 +571,18 @@ router.post("/", authenticateUser, async (req, res) => {
 
 		// LLM Service may not respect active:false on create — force update if needed
 		const requestedActive = apiData.active;
+		let finalAgent = created;
 		if (requestedActive === false && (created as any).active === true) {
-			const updated = await agenticService.updateAgent((created as any).eid, {
+			finalAgent = await agenticService.updateAgent((created as any).eid, {
 				active: false,
 				sys_updated_by: authReq.user?.email,
 			});
-			Object.assign(created, updated);
 		}
 
 		res
 			.status(201)
 			.json(
-				apiDataToAgentConfig(created as unknown as Record<string, unknown>),
+				apiDataToAgentConfig(finalAgent as unknown as Record<string, unknown>),
 			);
 	} catch (error: any) {
 		if (error?.response) {
@@ -609,7 +607,7 @@ router.post("/", authenticateUser, async (req, res) => {
  * PUT /api/agents/:eid
  * Update an existing agent in LLM Service
  */
-router.put("/:eid", authenticateUser, async (req, res) => {
+router.put("/:eid", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const { eid } = req.params;

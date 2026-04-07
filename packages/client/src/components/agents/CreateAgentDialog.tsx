@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCheckAgentName } from "@/hooks/api/useAgents";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface CreateAgentDialogProps {
 	open: boolean;
@@ -36,7 +36,7 @@ export function CreateAgentDialog({
 }: CreateAgentDialogProps) {
 	const [agentName, setAgentName] = useState("");
 	const [touched, setTouched] = useState(false);
-	const debouncedName = useDebouncedValue(agentName.trim(), 300);
+	const debouncedName = useDebounce(agentName.trim(), 300);
 
 	const { data: nameCheck, isFetching: isChecking } =
 		useCheckAgentName(debouncedName);

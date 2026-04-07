@@ -35,7 +35,7 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
 	AddSkillModal,
@@ -63,7 +63,7 @@ import {
 } from "@/hooks/api/useAgents";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useClickOutside } from "@/hooks/useClickOutside";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type {
@@ -426,7 +426,7 @@ export default function AgentBuilderPage() {
 	}, []);
 
 	// Debounced name uniqueness check
-	const debouncedName = useDebouncedValue(config.name, 300);
+	const debouncedName = useDebounce(config.name, 300);
 	const nameToCheck =
 		debouncedName && debouncedName !== savedAgent?.name ? debouncedName : "";
 	const { data: nameCheck, isFetching: isCheckingName } =
@@ -482,12 +482,13 @@ export default function AgentBuilderPage() {
 	const [showIconPicker, setShowIconPicker] = useState(false);
 	const [iconSearchQuery, setIconSearchQuery] = useState("");
 	const iconPickerRef = useRef<HTMLDivElement>(null);
-	useClickOutside(iconPickerRef, () => {
+	const handleIconPickerClose = useCallback(() => {
 		if (showIconPicker) {
 			setShowIconPicker(false);
 			setIconSearchQuery("");
 		}
-	});
+	}, [showIconPicker]);
+	useClickOutside(iconPickerRef, handleIconPickerClose);
 
 	// Publish modal state
 	const [showPublishModal, setShowPublishModal] = useState(false);

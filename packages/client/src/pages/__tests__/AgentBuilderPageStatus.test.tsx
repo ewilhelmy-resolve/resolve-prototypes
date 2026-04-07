@@ -47,8 +47,8 @@ vi.mock("@/hooks/useClickOutside", () => ({
 	useClickOutside: vi.fn(),
 }));
 
-vi.mock("@/hooks/useDebouncedValue", () => ({
-	useDebouncedValue: (val: string) => val,
+vi.mock("@/hooks/useDebounce", () => ({
+	useDebounce: (val: string) => val,
 }));
 
 vi.mock("canvas-confetti", () => ({ default: vi.fn() }));
