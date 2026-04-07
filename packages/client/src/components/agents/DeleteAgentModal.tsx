@@ -3,23 +3,21 @@
  *
  * Two tiers:
  * - Draft/Disabled: Simple confirmation
- * - Published: Type-to-confirm with impact list and warning
- *
- * Uses AlertDialog for proper accessibility (focus trap, aria-modal, Escape key).
+ * - Published: Type-to-confirm with impact list, active dependencies warning
  */
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Trash2 } from "lucide-react";
 import { useState } from "react";
-import {
-	AlertDialog,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { AgentImpact, AgentStatus } from "@/types/agent";
 
@@ -40,6 +38,7 @@ export function DeleteAgentModal({
 	impact,
 	onConfirmDelete,
 }: DeleteAgentModalProps) {
+	const { t } = useTranslation("agents");
 	const [confirmText, setConfirmText] = useState("");
 
 	const isPublished = agentStatus === "published";
@@ -59,90 +58,131 @@ export function DeleteAgentModal({
 		onOpenChange(newOpen);
 	};
 
-	return (
-		<AlertDialog open={open} onOpenChange={handleOpenChange}>
-			<AlertDialogContent className="sm:max-w-sm">
-				<AlertDialogHeader>
-					<AlertDialogTitle>Delete {agentName}?</AlertDialogTitle>
-					<AlertDialogDescription className="sr-only">
-						Confirm deletion of agent {agentName}
-					</AlertDialogDescription>
-				</AlertDialogHeader>
+	const hasActiveDependencies =
+		(impact?.usersThisWeek != null && impact.usersThisWeek > 0) ||
+		(impact?.linkedWorkflows != null && impact.linkedWorkflows.length > 0);
 
-				{/* What will be removed */}
-				<div className="bg-neutral-50 rounded-md px-2 py-2">
-					<div className="flex flex-col gap-2">
-						<p className="text-sm font-bold text-foreground leading-none h-[18px] flex items-end">
-							What will be removed
-						</p>
-						<ul className="text-sm text-foreground list-disc ml-[21px] space-y-0.5">
-							{impact?.skills && impact.skills > 0 && (
-								<li>
-									{impact.skills} skill{impact.skills > 1 ? "s" : ""}
-								</li>
-							)}
-							{impact?.conversationStarters &&
-								impact.conversationStarters > 0 && (
+	return (
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<div className="flex items-start gap-3">
+						<div className="flex items-center justify-center size-10 rounded-full bg-red-100 shrink-0">
+							<Trash2 className="size-5 text-destructive" />
+						</div>
+						<div className="flex flex-col gap-0.5">
+							<DialogTitle className="text-lg font-semibold leading-snug">
+								{t("deleteModal.title", { agentName })}
+							</DialogTitle>
+							<DialogDescription>
+								{isPublished
+									? t("deleteModal.descriptionPublished")
+									: t("deleteModal.descriptionDraft")}
+							</DialogDescription>
+						</div>
+					</div>
+				</DialogHeader>
+
+				{/* Published agents: full impact details */}
+				{isPublished && (
+					<>
+						{/* What will be removed */}
+						<div className="bg-neutral-50 rounded-md px-4 py-3">
+							<p className="text-sm font-semibold text-foreground mb-2">
+								{t("deleteModal.whatWillBeRemoved")}
+							</p>
+							<ul className="text-sm text-muted-foreground list-disc ml-5 space-y-1">
+								<li>{t("deleteModal.configuration")}</li>
+								{impact?.skills != null && impact.skills > 0 && (
 									<li>
-										{impact.conversationStarters} conversation starter
-										{impact.conversationStarters > 1 ? "s" : ""}
+										{t("deleteModal.connectedSkills", {
+											count: impact.skills,
+										})}
 									</li>
 								)}
-							<li>Usage history & analytics</li>
-						</ul>
-					</div>
-				</div>
-
-				{/* Warning for published agents */}
-				{isPublished && (
-					<div className="bg-yellow-50 border border-yellow-500 rounded-md p-2 flex flex-col gap-1">
-						<div className="flex items-center gap-1">
-							<AlertTriangle className="size-6 text-yellow-600 shrink-0" />
-							<p className="text-sm font-bold text-foreground leading-7">
-								Warning
-							</p>
+								{impact?.conversationStarters != null &&
+									impact.conversationStarters > 0 && (
+										<li>
+											{t("deleteModal.conversationStarters", {
+												count: impact.conversationStarters,
+											})}
+										</li>
+									)}
+								<li>{t("deleteModal.usageHistory")}</li>
+							</ul>
 						</div>
-						<p className="text-sm text-muted-foreground leading-5">
-							Once removed, this agent will no longer be accessible to help
-							employees. This action cannot be undone.
-						</p>
-					</div>
+
+						{/* Active dependencies warning */}
+						{hasActiveDependencies && (
+							<div className="bg-yellow-50 border border-yellow-300 rounded-md px-4 py-3">
+								<div className="flex items-center gap-1.5 mb-1">
+									<AlertTriangle className="size-4 text-yellow-600 shrink-0" />
+									<p className="text-sm font-semibold text-yellow-700">
+										{t("deleteModal.activeDependencies")}
+									</p>
+								</div>
+								<div className="text-sm text-yellow-700 ml-[22px] space-y-0.5">
+									{impact?.usersThisWeek != null &&
+										impact.usersThisWeek > 0 && (
+											<p>
+												{t("deleteModal.usedByEmployees", {
+													count: impact.usersThisWeek,
+												})}
+											</p>
+										)}
+									{impact?.linkedWorkflows?.map((workflow) => (
+										<p key={workflow}>
+											{t("deleteModal.linkedToWorkflow", { workflow })}
+										</p>
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* Type to confirm */}
+						<div className="flex flex-col gap-2">
+							<p className="text-sm text-foreground">
+								{t("deleteModal.typeToConfirm", {
+									interpolation: { escapeValue: false },
+								})
+									.split(/<bold>|<\/bold>/)
+									.map((part, i) =>
+										i % 2 === 1 ? (
+											<span key={i} className="font-semibold">
+												{part}
+											</span>
+										) : (
+											part
+										),
+									)}
+							</p>
+							<Input
+								value={confirmText}
+								onChange={(e) => setConfirmText(e.target.value)}
+								placeholder={t("deleteModal.confirmPlaceholder")}
+								className="h-9 text-sm"
+								autoComplete="off"
+								aria-label={t("deleteModal.confirmLabel")}
+							/>
+						</div>
+					</>
 				)}
 
-				{!isPublished && (
-					<p className="text-sm text-muted-foreground leading-5">
-						This draft will be permanently removed. This action cannot be
-						undone.
-					</p>
-				)}
-
-				{/* Type to confirm for published agents */}
-				{isPublished && (
-					<div className="flex flex-col gap-2">
-						<p className="text-sm text-foreground leading-none">
-							Type &quot;delete&quot; to confirm
-						</p>
-						<Input
-							value={confirmText}
-							onChange={(e) => setConfirmText(e.target.value)}
-							placeholder="delete"
-							className="h-9 text-sm"
-							autoComplete="off"
-						/>
-					</div>
-				)}
-
-				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => handleOpenChange(false)}>
+						{t("deleteModal.cancel")}
+					</Button>
 					<Button
 						variant="destructive"
 						onClick={handleDelete}
 						disabled={!canDelete}
 					>
-						Delete agent
+						{isPublished
+							? t("deleteModal.deleteAgent")
+							: t("deleteModal.deleteDraft")}
 					</Button>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

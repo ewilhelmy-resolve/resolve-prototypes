@@ -1,0 +1,24 @@
+{
+	"deleteModal": {
+		"title": "Delete \"{{agentName}}\"?",
+		"descriptionPublished": "This action cannot be undone.",
+		"descriptionDraft": "This draft agent will be permanently removed.",
+		"whatWillBeRemoved": "What will be removed:",
+		"configuration": "Agent configuration & instructions",
+		"connectedSkills": "{{count}} connected skill",
+		"connectedSkills_other": "{{count}} connected skills",
+		"conversationStarters": "{{count}} conversation starter",
+		"conversationStarters_other": "{{count}} conversation starters",
+		"usageHistory": "Usage history & analytics",
+		"activeDependencies": "Active dependencies:",
+		"usedByEmployees": "Used by {{count}} employee this week",
+		"usedByEmployees_other": "Used by {{count}} employees this week",
+		"linkedToWorkflow": "Linked to {{workflow}} workflow",
+		"typeToConfirm": "Type <bold>\"delete\"</bold> to confirm",
+		"confirmPlaceholder": "delete",
+		"confirmLabel": "Type delete to confirm",
+		"cancel": "Cancel",
+		"deleteAgent": "Delete agent",
+		"deleteDraft": "Delete draft"
+	}
+}

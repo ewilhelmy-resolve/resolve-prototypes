@@ -400,11 +400,10 @@ export default function AgentsPage() {
 					agentName={agentToDelete.name}
 					agentStatus={agentToDelete.status}
 					impact={{
-						skills: agentToDelete.skills?.length || 0,
-						conversationStarters: 3, // Mock data
-						usersThisWeek: agentToDelete.status === "published" ? 24 : 0,
-						linkedWorkflows:
-							agentToDelete.status === "published" ? ["Password Reset"] : [],
+						skills: agentToDelete.skills?.length ?? 0,
+						conversationStarters: 0, // TODO: populate from API when available
+						usersThisWeek: 0, // TODO: populate from usage analytics API
+						linkedWorkflows: [], // TODO: populate from workflow associations API
 					}}
 					onConfirmDelete={handleConfirmDelete}
 				/>
