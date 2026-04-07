@@ -59,13 +59,16 @@ Follow `packages/client/src/hooks/api/useConversations.ts`:
 
 | Group | Primary Use | Reference |
 |---|---|---|
-| `/agents/metadata` | Agent CRUD, list for table | `references/api-endpoints.md` |
+| `/agents/metadata` | Agent CRUD, list, filter, duplicate | `references/api-endpoints.md` |
 | `/agents/tasks` | Sub-tasks with tools (skills) | `references/api-endpoints.md` |
+| `/agents/definitions` | Prepare agent definitions for execution | `references/api-endpoints.md` |
 | `/services/agentic` | Invoke agent execution | `references/async-execution-patterns.md` |
-| `/agents/messages` | Execution messages & polling | `references/async-execution-patterns.md` |
-| `/agents/states` | Execution state tracking | `references/async-execution-patterns.md` |
-| `/agents/conversations` | Conversation-execution mapping | `references/async-execution-patterns.md` |
-| `/tools/` | Tool CRUD & invocation | `references/api-endpoints.md` |
+| `/agents/messages` | Execution messages, polling, CRUD | `references/async-execution-patterns.md` |
+| `/agents/states` | Execution state tracking, CRUD | `references/async-execution-patterns.md` |
+| `/agents/conversations` | Conversation-execution mapping, CRUD | `references/async-execution-patterns.md` |
+| `/tools/` | Tool CRUD, filter, invoke, duplicate | `references/api-endpoints.md` |
+| `/agents/cleanup_*` | Maintenance (cleanup old messages) | `references/api-endpoints.md` |
+| `/agents/retrieve_data_*` | Datasource data retrieval | `references/api-endpoints.md` |
 
 ## Type Mapping (LLM Service → Rita Client)
 

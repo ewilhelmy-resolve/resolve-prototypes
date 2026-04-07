@@ -202,3 +202,112 @@ interface DuplicateAgentResponse {
   tasks: AgentTaskApiData[];
 }
 ```
+
+### PrepareAgentDefinitionsRequest
+```typescript
+interface PrepareAgentDefinitionsRequest {
+  agent_metadata_id: string;           // required
+  parameters?: Record<string, any>;
+  configs?: Record<string, any>;
+}
+```
+
+### CleanupAgentMessagesRequest
+```typescript
+interface CleanupAgentMessagesRequest {
+  batch_time_window?: number | string;  // default: 10
+}
+```
+
+### CleanupResponse
+```typescript
+interface CleanupResponse {
+  success: boolean;
+  message: string;
+}
+```
+
+### RetrieveDataFromDatasourceRequest
+```typescript
+interface RetrieveDataFromDatasourceRequest {
+  ds_config?: Record<string, any>;
+  sql_parameters?: Record<string, any>;
+  randomize?: boolean;                  // default: false
+  n?: number;                           // default: -1 (all)
+}
+```
+
+### RetrieveDataFromDatasourceResponse
+```typescript
+interface RetrieveDataFromDatasourceResponse {
+  success: boolean;
+  data?: any[];
+  count: number;                        // default: 0
+  message?: string;
+}
+```
+
+### RequestStopAgentRequest
+```typescript
+interface RequestStopAgentRequest {
+  execution_id: string;                 // required
+  tenant?: string;
+  sys_updated_by?: string;
+}
+```
+
+### DuplicateToolRequest
+```typescript
+interface DuplicateToolRequest {
+  existing_name: string;                // required
+  new_name: string;                     // required
+  reference_id?: string;
+  tenant?: string;
+  sys_created_by?: string;
+}
+```
+
+### ExecutePythonScriptRequest
+```typescript
+interface ExecutePythonScriptRequest {
+  script: string;                       // required — must define `def script(inputs, params)`
+  inputs?: Record<string, any>;
+  params?: Record<string, any>;
+  reference_id?: string;
+  tenant?: string;
+}
+```
+
+### ExecutePythonScriptResponse
+```typescript
+interface ExecutePythonScriptResponse {
+  success: boolean;
+  output?: string | Record<string, any>;
+  error?: string;
+  reference_id?: string;
+  tenant?: string;
+}
+```
+
+### ToolInvokeRequest
+```typescript
+interface ToolInvokeRequest {
+  tool_name: string;                    // required
+  input?: Record<string, any>;
+  for_agent?: boolean;                  // default: true
+  verbose?: boolean;                    // default: false
+  reference_id?: string;
+  tenant?: string;
+}
+```
+
+### ToolInvokeResponse
+```typescript
+interface ToolInvokeResponse {
+  success: boolean;
+  output?: string | Record<string, any>;
+  error?: string;
+  reference_id?: string;
+  tenant?: string;
+}
+```
