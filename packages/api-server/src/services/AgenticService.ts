@@ -112,6 +112,22 @@ export class AgenticService {
 		}
 	}
 
+	async getAgentByName(name: string): Promise<AgentMetadataApiData | null> {
+		try {
+			const response = await this.client.get<AgentMetadataApiData>(
+				`/agents/metadata/name/${encodeURIComponent(name)}`,
+			);
+			return response.data;
+		} catch (error: any) {
+			if (error?.response?.status === 404) return null;
+			logger.error(
+				{ name, error },
+				"Failed to get agent by name from LLM Service",
+			);
+			throw error;
+		}
+	}
+
 	async deleteAgent(
 		eid: string,
 	): Promise<{ success: boolean; message: string }> {
@@ -123,6 +139,37 @@ export class AgenticService {
 			return response.data;
 		} catch (error) {
 			logger.error({ eid, error }, "Failed to delete agent from LLM Service");
+			throw error;
+		}
+	}
+
+	async createAgent(
+		data: Partial<AgentMetadataApiData>,
+	): Promise<AgentMetadataApiData> {
+		try {
+			const response = await this.client.post<AgentMetadataApiData>(
+				"/agents/metadata",
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ error }, "Failed to create agent in LLM Service");
+			throw error;
+		}
+	}
+
+	async updateAgent(
+		eid: string,
+		data: Partial<AgentMetadataApiData>,
+	): Promise<AgentMetadataApiData> {
+		try {
+			const response = await this.client.put<AgentMetadataApiData>(
+				`/agents/metadata/eid/${eid}`,
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ eid, error }, "Failed to update agent in LLM Service");
 			throw error;
 		}
 	}

@@ -179,6 +179,26 @@ export const agentApi = {
 		}>(`/api/agents${query ? `?${query}` : ""}`);
 	},
 
+	checkName: (name: string) =>
+		apiRequest<{ available: boolean }>(
+			`/api/agents/check-name?name=${encodeURIComponent(name)}`,
+		),
+
+	get: (eid: string) =>
+		apiRequest<import("@/types/agent").AgentConfig>(`/api/agents/${eid}`),
+
+	create: (data: Partial<import("@/types/agent").AgentConfig>) =>
+		apiRequest<import("@/types/agent").AgentConfig>("/api/agents", {
+			method: "POST",
+			body: data,
+		}),
+
+	update: (eid: string, data: Partial<import("@/types/agent").AgentConfig>) =>
+		apiRequest<import("@/types/agent").AgentConfig>(`/api/agents/${eid}`, {
+			method: "PUT",
+			body: data,
+		}),
+
 	delete: (eid: string) =>
 		apiRequest<{ success: boolean; message: string }>(`/api/agents/${eid}`, {
 			method: "DELETE",

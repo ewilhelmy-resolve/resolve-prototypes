@@ -40,19 +40,13 @@ export const AgentTableRowSchema = z
 			.optional()
 			.openapi({ description: "Tool names from agent tasks" }),
 		updatedBy: z
-			.object({
-				initials: z.string(),
-				color: z.string(),
-			})
+			.string()
 			.nullable()
-			.openapi({ description: "Last updated by" }),
+			.openapi({ description: "Last updated by (email or identifier)" }),
 		owner: z
-			.object({
-				initials: z.string(),
-				color: z.string(),
-			})
+			.string()
 			.nullable()
-			.openapi({ description: "Agent owner" }),
+			.openapi({ description: "Agent owner (email or identifier)" }),
 		lastUpdated: z.string().openapi({ description: "Last updated timestamp" }),
 		ownerEmail: z
 			.string()
@@ -69,6 +63,92 @@ export const AgentListResponseSchema = z
 		hasMore: z.boolean(),
 	})
 	.openapi("AgentListResponse");
+
+// --- Agent Create/Update/Detail Schemas ---
+
+const AgentCapabilitiesSchema = z
+	.object({
+		webSearch: z.boolean().optional().default(true),
+		imageGeneration: z.boolean().optional().default(false),
+		useAllWorkspaceContent: z.boolean().optional().default(false),
+	})
+	.openapi("AgentCapabilities");
+
+export const AgentCreateBodySchema = z
+	.object({
+		name: z.string().min(1).openapi({ description: "Agent name (required)" }),
+		description: z.string().optional().default("").openapi({
+			description: "Agent description",
+		}),
+		instructions: z.string().optional().default("").openapi({
+			description: "Agent instructions / prompt (maps to markdown_text)",
+		}),
+		status: z
+			.enum(["published", "draft"])
+			.optional()
+			.default("draft")
+			.openapi({ description: "Agent status" }),
+		role: z.string().optional().default(""),
+		agentType: z
+			.enum(["answer", "knowledge", "workflow"])
+			.nullable()
+			.optional()
+			.default(null),
+		iconId: z.string().optional().default("bot"),
+		iconColorId: z.string().optional().default("slate"),
+		conversationStarters: z.array(z.string()).optional().default([]),
+		knowledgeSources: z.array(z.string()).optional().default([]),
+		workflows: z.array(z.string()).optional().default([]),
+		guardrails: z.array(z.string()).optional().default([]),
+		responsibilities: z.string().optional(),
+		completionCriteria: z.string().optional(),
+		capabilities: AgentCapabilitiesSchema.optional(),
+	})
+	.openapi("AgentCreateBody");
+
+export const AgentUpdateBodySchema =
+	AgentCreateBodySchema.partial().openapi("AgentUpdateBody");
+
+export const AgentDetailResponseSchema = z
+	.object({
+		id: z.string().openapi({ description: "Agent EID" }),
+		name: z.string(),
+		description: z.string(),
+		instructions: z.string(),
+		status: z.enum(["published", "draft"]),
+		role: z.string(),
+		agentType: z.enum(["answer", "knowledge", "workflow"]).nullable(),
+		iconId: z.string(),
+		iconColorId: z.string(),
+		conversationStarters: z.array(z.string()),
+		knowledgeSources: z.array(z.string()),
+		workflows: z.array(z.string()),
+		skills: z.array(z.string()).optional(),
+		guardrails: z.array(z.string()),
+		responsibilities: z.string().optional(),
+		completionCriteria: z.string().optional(),
+		capabilities: AgentCapabilitiesSchema,
+		createdAt: z.string().optional(),
+		updatedAt: z.string().optional(),
+	})
+	.openapi("AgentDetailResponse");
+
+export const AgentCheckNameQuerySchema = z
+	.object({
+		name: z
+			.string()
+			.min(1)
+			.openapi({ description: "Agent name to check availability" }),
+	})
+	.openapi("AgentCheckNameQuery");
+
+export const AgentCheckNameResponseSchema = z
+	.object({
+		available: z
+			.boolean()
+			.openapi({ description: "Whether the name is available" }),
+	})
+	.openapi("AgentCheckNameResponse");
 
 export const AgentDeleteResponseSchema = z
 	.object({

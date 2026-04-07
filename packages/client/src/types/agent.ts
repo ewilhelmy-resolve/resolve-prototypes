@@ -80,14 +80,8 @@ export interface AgentTableRow {
 	description: string;
 	status: AgentStatus;
 	skills?: string[];
-	updatedBy: {
-		initials: string;
-		color: string;
-	} | null;
-	owner: {
-		initials: string;
-		color: string;
-	} | null;
+	updatedBy: string | null;
+	owner: string | null;
 	lastUpdated: string;
 	ownerEmail?: string | null;
 }

@@ -10,7 +10,6 @@
 
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +26,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { AVATAR_COLORS } from "@/constants/agents";
 import { cn } from "@/lib/utils";
 import type { AgentTableRow } from "@/types/agent";
 
@@ -97,9 +95,7 @@ export function AgentsTable({
 				comparison = a.status.localeCompare(b.status);
 				break;
 			case "updatedBy":
-				comparison = (a.updatedBy?.initials || "").localeCompare(
-					b.updatedBy?.initials || "",
-				);
+				comparison = (a.updatedBy || "").localeCompare(b.updatedBy || "");
 				break;
 			case "lastUpdated":
 				comparison =
@@ -123,11 +119,7 @@ export function AgentsTable({
 							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-[136px]">
-							<SortableHeader
-								field="updatedBy"
-								align="center"
-								onSort={handleSort}
-							>
+							<SortableHeader field="updatedBy" onSort={handleSort}>
 								Updated by
 							</SortableHeader>
 						</TableHead>
@@ -190,21 +182,9 @@ export function AgentsTable({
 								</Badge>
 							</TableCell>
 							<TableCell>
-								<div className="flex justify-center">
-									{agent.updatedBy ? (
-										<Avatar className="size-10">
-											<AvatarFallback
-												className={cn(
-													AVATAR_COLORS[agent.updatedBy.color] || "bg-muted",
-												)}
-											>
-												{agent.updatedBy.initials}
-											</AvatarFallback>
-										</Avatar>
-									) : (
-										<span className="text-muted-foreground">--</span>
-									)}
-								</div>
+								<span className="text-sm text-muted-foreground truncate">
+									{agent.updatedBy || "--"}
+								</span>
 							</TableCell>
 							<TableCell className="text-right text-sm">
 								{agent.lastUpdated}

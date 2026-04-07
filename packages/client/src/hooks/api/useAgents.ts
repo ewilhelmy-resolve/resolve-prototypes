@@ -6,7 +6,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { agentApi } from "@/services/api.ts";
-import type { AgentTableRow } from "@/types/agent";
+import type { AgentConfig, AgentTableRow } from "@/types/agent";
 
 const AGENTS_PAGE_SIZE = 20;
 
@@ -71,6 +71,49 @@ export function useInfiniteAgents(filters?: {
 		},
 		initialPageParam: 0,
 		staleTime: 1000 * 60 * 2,
+	});
+}
+
+export function useAgent(eid: string | undefined) {
+	return useQuery({
+		queryKey: agentKeys.detail(eid ?? ""),
+		queryFn: () => agentApi.get(eid as string),
+		enabled: !!eid,
+		staleTime: 1000 * 60 * 2,
+	});
+}
+
+export function useCheckAgentName(name: string) {
+	return useQuery({
+		queryKey: [...agentKeys.all, "check-name", name],
+		queryFn: () => agentApi.checkName(name),
+		enabled: name.trim().length > 0,
+		staleTime: 1000 * 30,
+	});
+}
+
+export function useCreateAgent() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (data: Partial<AgentConfig>) => agentApi.create(data),
+		onSuccess: (newAgent) => {
+			if (newAgent.id) {
+				queryClient.setQueryData(agentKeys.detail(newAgent.id), newAgent);
+			}
+			queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
+		},
+	});
+}
+
+export function useUpdateAgent() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({ eid, data }: { eid: string; data: Partial<AgentConfig> }) =>
+			agentApi.update(eid, data),
+		onSuccess: (updatedAgent, { eid }) => {
+			queryClient.setQueryData(agentKeys.detail(eid), updatedAgent);
+			queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
+		},
 	});
 }
 
