@@ -11,6 +11,7 @@ import {
 	requestLoggingMiddleware,
 } from "./middleware/logging.js";
 import { rollbarErrorMiddleware } from "./middleware/rollbar.js";
+import agentRoutes from "./routes/agents.js";
 import authRoutes from "./routes/auth.js";
 import autopilotSettingsRoutes from "./routes/autopilotSettings.js";
 import clusterRoutes from "./routes/clusters.js";
@@ -132,6 +133,7 @@ app.use(
 	addUserContextToLogs,
 	autopilotSettingsRoutes,
 );
+app.use("/api/agents", authenticateUser, addUserContextToLogs, agentRoutes);
 app.use("/api/clusters", authenticateUser, addUserContextToLogs, clusterRoutes);
 app.use(
 	"/api/ml-models",
