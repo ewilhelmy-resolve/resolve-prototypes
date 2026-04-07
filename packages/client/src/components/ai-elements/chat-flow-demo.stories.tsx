@@ -78,20 +78,21 @@ function ThinkingAccordion({
 	isStreaming,
 }: { content: string; isStreaming: boolean }) {
 	const [isOpen, setIsOpen] = useState(true);
+	const [userInteracted, setUserInteracted] = useState(false);
 
 	useEffect(() => {
-		if (!isStreaming && isOpen) {
-			const timer = setTimeout(() => setIsOpen(false), 1000);
+		if (!isStreaming && isOpen && !userInteracted) {
+			const timer = setTimeout(() => setIsOpen(false), 2000);
 			return () => clearTimeout(timer);
 		}
-	}, [isStreaming, isOpen]);
+	}, [isStreaming, isOpen, userInteracted]);
 
 	return (
 		<div>
 			<button
 				type="button"
 				className="flex items-center gap-2 text-muted-foreground text-sm cursor-pointer hover:text-foreground transition-colors"
-				onClick={() => setIsOpen(!isOpen)}
+				onClick={() => { setUserInteracted(true); setIsOpen(!isOpen); }}
 			>
 				<Clock
 					animate={isStreaming ? "default" : false}
