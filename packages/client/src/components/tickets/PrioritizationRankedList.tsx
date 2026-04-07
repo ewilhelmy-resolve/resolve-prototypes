@@ -73,7 +73,9 @@ export function PrioritizationRankedList({
 }: PrioritizationRankedListProps) {
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
-	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
+	const enableAdvancedFeatures = useFeatureFlag(
+		"ENABLE_CLUSTER_ADVANCED_FEATURES",
+	);
 
 	const handleColumnSort = (col: SortableColumn) => {
 		const targetSort = COLUMN_TO_SORT[col];
@@ -109,7 +111,7 @@ export function PrioritizationRankedList({
 								{renderSortIcon(activeSortColumn, "tickets", sortDir)}
 							</button>
 						</TableHead>
-						{enableTicketsV2 && (
+						{enableAdvancedFeatures && (
 							<TableHead>{t("prioritizationList.columns.mttr")}</TableHead>
 						)}
 						<TableHead>
@@ -132,7 +134,9 @@ export function PrioritizationRankedList({
 								{renderSortIcon(activeSortColumn, "timeTaken", sortDir)}
 							</button>
 						</TableHead>
-						<TableHead>{t("prioritizationList.columns.kbStatus")}</TableHead>
+						{enableAdvancedFeatures && (
+							<TableHead>{t("prioritizationList.columns.kbStatus")}</TableHead>
+						)}
 						<TableHead>{t("prioritizationList.columns.updated")}</TableHead>
 					</TableRow>
 				</TableHeader>
@@ -148,16 +152,18 @@ export function PrioritizationRankedList({
 								{row.displayName}
 							</TableCell>
 							<TableCell>{row.cluster.ticket_count.toLocaleString()}</TableCell>
-							{enableTicketsV2 && (
+							{enableAdvancedFeatures && (
 								<TableCell>
 									{row.mttr != null ? formatMinutes(row.mttr) : "—"}
 								</TableCell>
 							)}
 							<TableCell>{formatCurrency(row.costImpact)}</TableCell>
 							<TableCell>{formatMinutes(row.timeTaken)}</TableCell>
-							<TableCell>
-								<GapIcon cluster={row.cluster} />
-							</TableCell>
+							{enableAdvancedFeatures && (
+								<TableCell>
+									<GapIcon cluster={row.cluster} />
+								</TableCell>
+							)}
 							<TableCell className="text-muted-foreground text-xs">
 								{formatRelativeTime(row.cluster.updated_at)}
 							</TableCell>

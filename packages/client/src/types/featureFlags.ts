@@ -19,6 +19,7 @@ export type FeatureFlagKey =
 	| "ENABLE_FRESHSERVICE"
 	| "ENABLE_MULTI_FILE_UPLOAD"
 	| "ENABLE_TICKETS_V2"
+	| "ENABLE_CLUSTER_ADVANCED_FEATURES"
 	| "ENABLE_WORKFLOWS"
 	| "ENABLE_LANGUAGE_SWITCHER"
 	// Auto Pilot flags (platform-controlled)
@@ -131,6 +132,14 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		key: "ENABLE_TICKETS_V2",
 		label: "Tickets",
 		description: "Enable new tickets page UI",
+		defaultValue: false,
+		category: "experimental",
+	},
+	ENABLE_CLUSTER_ADVANCED_FEATURES: {
+		key: "ENABLE_CLUSTER_ADVANCED_FEATURES",
+		label: "Cluster Advanced Features",
+		description:
+			"Enable KB articles, MTTR, reassignment rate, and gap badges in cluster pages",
 		defaultValue: false,
 		category: "experimental",
 	},

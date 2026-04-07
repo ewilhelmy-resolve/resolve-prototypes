@@ -12,6 +12,7 @@ import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar"
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { Button } from "@/components/ui/button";
 import { clusterKeys, useClusterDetails } from "@/hooks/useClusters";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import {
 	calculateEstMoneySaved,
@@ -60,6 +61,9 @@ export default function ClusterDetailPage() {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const enableAdvancedFeatures = useFeatureFlag(
+		"ENABLE_CLUSTER_ADVANCED_FEATURES",
+	);
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
 	const bannerRef = useRef<HTMLDivElement>(null);
 
@@ -165,8 +169,8 @@ export default function ClusterDetailPage() {
 
 	return (
 		<RitaLayout activePage="tickets">
-			{/* Feedback Banner */}
-			{bannerData.visible && (
+			{/* Feedback Banner (KB-related, behind flag) */}
+			{enableAdvancedFeatures && bannerData.visible && (
 				<div ref={bannerRef}>
 					<FeedbackBanner
 						variant={bannerData.variant}
@@ -177,7 +181,9 @@ export default function ClusterDetailPage() {
 				</div>
 			)}
 
-			<div className="flex min-h-screen flex-col lg:flex-row">
+			<div
+				className={`flex min-h-screen flex-col${enableAdvancedFeatures ? " lg:flex-row" : ""}`}
+			>
 				{/* Main Content */}
 				<div className="min-w-0 flex-1 p-4">
 					<div className="flex flex-col gap-4">
@@ -195,7 +201,7 @@ export default function ClusterDetailPage() {
 						</div>
 
 						{/* Cluster Metrics */}
-						<StatGroup columns={6}>
+						<StatGroup columns={enableAdvancedFeatures ? 6 : 4}>
 							<StatCard
 								value={cluster.ticket_count.toLocaleString()}
 								label={t("clusterDetail.stats.totalTickets")}
@@ -212,14 +218,18 @@ export default function ClusterDetailPage() {
 								value={formatTimeSaved(timeSavedMinutes)}
 								label={t("clusterDetail.stats.estTimeSaved")}
 							/>
-							<StatCard
-								value={STAT_NOT_AVAILABLE}
-								label={t("clusterDetail.stats.mttr")}
-							/>
-							<StatCard
-								value={STAT_NOT_AVAILABLE}
-								label={t("clusterDetail.stats.avgReassignmentRate")}
-							/>
+							{enableAdvancedFeatures && (
+								<StatCard
+									value={STAT_NOT_AVAILABLE}
+									label={t("clusterDetail.stats.mttr")}
+								/>
+							)}
+							{enableAdvancedFeatures && (
+								<StatCard
+									value={STAT_NOT_AVAILABLE}
+									label={t("clusterDetail.stats.avgReassignmentRate")}
+								/>
+							)}
 						</StatGroup>
 
 						{/* Table Section */}
@@ -232,15 +242,17 @@ export default function ClusterDetailPage() {
 					</div>
 				</div>
 
-				{/* Right Sidebar */}
-				<ClusterDetailSidebar
-					clusterId={id}
-					clusterName={title}
-					kbArticlesCount={cluster.kb_articles_count}
-					kbStatus={cluster.kb_status}
-					historicalTicketCount={cluster.historical_ticket_count}
-					onKnowledgeAdded={handleKnowledgeAdded}
-				/>
+				{/* Right Sidebar (KB-related, behind flag) */}
+				{enableAdvancedFeatures && (
+					<ClusterDetailSidebar
+						clusterId={id}
+						clusterName={title}
+						kbArticlesCount={cluster.kb_articles_count}
+						kbStatus={cluster.kb_status}
+						historicalTicketCount={cluster.historical_ticket_count}
+						onKnowledgeAdded={handleKnowledgeAdded}
+					/>
+				)}
 			</div>
 		</RitaLayout>
 	);

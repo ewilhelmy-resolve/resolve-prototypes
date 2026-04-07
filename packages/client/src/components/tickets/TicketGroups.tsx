@@ -116,7 +116,9 @@ interface TicketGroupsProps {
 
 export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
-	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
+	const enableAdvancedFeatures = useFeatureFlag(
+		"ENABLE_CLUSTER_ADVANCED_FEATURES",
+	);
 	const [viewMode, setViewMode] = useState<TopViewMode>("cards");
 	const [activeGapFilters, setActiveGapFilters] = useState<Set<GapFilterKey>>(
 		new Set(),
@@ -169,10 +171,10 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	// Sort options: base + flagged behind ENABLE_TICKETS_V2
 	const sortOptions = useMemo(
 		() =>
-			enableTicketsV2
+			enableAdvancedFeatures
 				? [...BASE_SORT_OPTIONS, ...FLAGGED_SORT_OPTIONS]
 				: BASE_SORT_OPTIONS,
-		[enableTicketsV2],
+		[enableAdvancedFeatures],
 	);
 
 	// Fetch clusters with server-side filters, sort, and pagination
@@ -357,36 +359,38 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							</Select>
 						)}
 
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm">
-									<Filter className="size-3.5" />
-									{t("groups.filter")}
-									{activeGapFilters.size > 0 && (
-										<Badge
-											variant="secondary"
-											className="ml-1 h-5 min-w-[20px] px-1.5 text-xs"
+						{enableAdvancedFeatures && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant="outline" size="sm">
+										<Filter className="size-3.5" />
+										{t("groups.filter")}
+										{activeGapFilters.size > 0 && (
+											<Badge
+												variant="secondary"
+												className="ml-1 h-5 min-w-[20px] px-1.5 text-xs"
+											>
+												{activeGapFilters.size}
+											</Badge>
+										)}
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									{GAP_FILTER_OPTIONS.map(({ key, i18nKey }) => (
+										<DropdownMenuItem
+											key={key}
+											onClick={() => toggleGapFilter(key)}
+											className={activeGapFilters.has(key) ? "bg-accent" : ""}
 										>
-											{activeGapFilters.size}
-										</Badge>
-									)}
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end">
-								{GAP_FILTER_OPTIONS.map(({ key, i18nKey }) => (
-									<DropdownMenuItem
-										key={key}
-										onClick={() => toggleGapFilter(key)}
-										className={activeGapFilters.has(key) ? "bg-accent" : ""}
-									>
-										<span className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-100">
-											<BookX className="h-3 w-3 text-yellow-600" />
-										</span>
-										{t(i18nKey)}
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
+											<span className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-100">
+												<BookX className="h-3 w-3 text-yellow-600" />
+											</span>
+											{t(i18nKey)}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
 
 						<Tabs
 							value={viewMode}
@@ -405,7 +409,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 				</div>
 
 				{/* Row 2: Active filter chips (only when filters applied) */}
-				{activeGapFilters.size > 0 && (
+				{enableAdvancedFeatures && activeGapFilters.size > 0 && (
 					<div className="flex items-center gap-2">
 						{[...activeGapFilters].map((key) => (
 							<div
