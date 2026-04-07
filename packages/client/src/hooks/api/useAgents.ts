@@ -19,7 +19,11 @@ export const agentKeys = {
 	detail: (id: string) => [...agentKeys.details(), id] as const,
 };
 
-export function useAgents(filters?: { name?: string; active?: string }) {
+export function useAgents(filters?: {
+	name?: string;
+	active?: string;
+	search?: string;
+}) {
 	return useQuery({
 		queryKey: agentKeys.list(filters ?? {}),
 		queryFn: () => agentApi.list(filters),
@@ -30,6 +34,7 @@ export function useAgents(filters?: { name?: string; active?: string }) {
 export function useInfiniteAgents(filters?: {
 	name?: string;
 	active?: string;
+	search?: string;
 }) {
 	return useInfiniteQuery({
 		queryKey: [...agentKeys.lists(), "infinite", filters ?? {}] as const,

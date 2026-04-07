@@ -174,6 +174,27 @@ export class AgenticService {
 		}
 	}
 
+	async filterAgents(
+		query: string,
+		opts?: { limit?: number; offset?: number; order_by?: string },
+	): Promise<AgentMetadataApiData[]> {
+		try {
+			const params: Record<string, string | number> = { query };
+			if (opts?.limit) params.limit = opts.limit;
+			if (opts?.offset) params.offset = opts.offset;
+			if (opts?.order_by) params.order_by = opts.order_by;
+
+			const response = await this.client.get<AgentMetadataApiData[]>(
+				"/agents/metadata/filter",
+				{ params },
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ error }, "Failed to filter agents from LLM Service");
+			throw error;
+		}
+	}
+
 	async listTasks(agentMetadataId?: string): Promise<AgentTaskApiData[]> {
 		try {
 			const params: Record<string, string | number> = {};

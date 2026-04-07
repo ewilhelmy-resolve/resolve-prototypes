@@ -161,12 +161,14 @@ export const agentApi = {
 	list: (params?: {
 		name?: string;
 		active?: string;
+		search?: string;
 		limit?: number;
 		offset?: number;
 	}) => {
 		const searchParams = new URLSearchParams();
 		if (params?.name) searchParams.set("name", params.name);
 		if (params?.active) searchParams.set("active", params.active);
+		if (params?.search) searchParams.set("search", params.search);
 		if (params?.limit != null) searchParams.set("limit", String(params.limit));
 		if (params?.offset != null)
 			searchParams.set("offset", String(params.offset));

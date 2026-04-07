@@ -368,17 +368,35 @@ function apiDataToAgentConfig(
  */
 router.get("/", async (req, res) => {
 	try {
-		const { name, active, limit, offset } = AgentListQuerySchema.parse(
+		const { name, search, active, limit, offset } = AgentListQuerySchema.parse(
 			req.query,
 		);
 
 		// Fetch agents from LLM Service
-		const agents = await agenticService.listAgents({
-			name,
-			active: active !== undefined ? active === "true" : undefined,
-			limit: Number(limit),
-			offset: Number(offset),
-		});
+		let agents: Awaited<ReturnType<typeof agenticService.listAgents>>;
+
+		if (search) {
+			// Build OR filter: name OR description match
+			const escaped = search.replace(/"/g, '\\"');
+			const searchFilter = `name__icontains="${escaped}"|description__icontains="${escaped}"`;
+			const activeFilter =
+				active !== undefined ? `active__exact=${active}` : "";
+			const query = activeFilter
+				? `(${searchFilter})&${activeFilter}`
+				: searchFilter;
+
+			agents = await agenticService.filterAgents(query, {
+				limit: Number(limit),
+				offset: Number(offset),
+			});
+		} else {
+			agents = await agenticService.listAgents({
+				name,
+				active: active !== undefined ? active === "true" : undefined,
+				limit: Number(limit),
+				offset: Number(offset),
+			});
+		}
 
 		// Batch-fetch all tasks to avoid N+1
 		let allTasks: Awaited<ReturnType<typeof agenticService.listTasks>> = [];

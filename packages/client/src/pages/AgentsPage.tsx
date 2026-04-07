@@ -58,6 +58,13 @@ export default function AgentsPage() {
 	const location = useLocation();
 	const { getUserEmail } = useAuth();
 	const [searchQuery, setSearchQuery] = useState("");
+	const [debouncedSearch, setDebouncedSearch] = useState("");
+
+	useEffect(() => {
+		const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+		return () => clearTimeout(timer);
+	}, [searchQuery]);
+
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
 	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -69,10 +76,13 @@ export default function AgentsPage() {
 	const [showEducationBanner, setShowEducationBanner] = useState(true);
 
 	// Fetch agents from API with infinite scroll
-	const agentsFilters =
-		statusFilter !== "all"
-			? { active: statusFilter === "published" ? "true" : "false" }
-			: undefined;
+	const agentsFilters: Record<string, string> = {};
+	if (statusFilter !== "all") {
+		agentsFilters.active = statusFilter === "published" ? "true" : "false";
+	}
+	if (debouncedSearch) {
+		agentsFilters.search = debouncedSearch;
+	}
 	const {
 		data: agentsData,
 		isLoading,
@@ -80,7 +90,9 @@ export default function AgentsPage() {
 		hasNextPage,
 		fetchNextPage,
 		error: agentsError,
-	} = useInfiniteAgents(agentsFilters);
+	} = useInfiniteAgents(
+		Object.keys(agentsFilters).length > 0 ? agentsFilters : undefined,
+	);
 	const deleteAgent = useDeleteAgent();
 
 	const agents = agentsData?.pages.flatMap((p) => p.agents) ?? [];
@@ -110,17 +122,7 @@ export default function AgentsPage() {
 	// Move to server-side filter when LLM Service supports owner param.
 	const currentEmail = getUserEmail();
 	const filteredAgents = agents.filter((agent) => {
-		// Search filter
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
-			if (
-				!agent.name.toLowerCase().includes(query) &&
-				!agent.description.toLowerCase().includes(query)
-			) {
-				return false;
-			}
-		}
-		// Owner filter
+		// Owner filter (client-side — LLM Service doesn't support owner param)
 		if (ownerFilter === "me" && agent.owner !== currentEmail) {
 			return false;
 		}

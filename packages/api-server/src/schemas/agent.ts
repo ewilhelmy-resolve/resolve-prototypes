@@ -7,6 +7,10 @@ import { z } from "../docs/openapi.js";
 export const AgentListQuerySchema = z
 	.object({
 		name: z.string().optional().openapi({ description: "Filter by name" }),
+		search: z.string().optional().openapi({
+			description:
+				"Search agents by name or description (server-side OR filter)",
+		}),
 		active: z
 			.enum(["true", "false"])
 			.optional()
