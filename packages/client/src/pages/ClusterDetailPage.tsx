@@ -1,13 +1,11 @@
-import { useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
-import { ArrowLeft, BookX, Info, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Info, Loader2, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
-import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
@@ -24,9 +22,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-	clusterKeys,
 	useClusterDetails,
-	useClusterHasAction,
 } from "@/hooks/useClusters";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
@@ -71,16 +67,13 @@ export default function ClusterDetailPage() {
 	const { t } = useTranslation("tickets");
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
-	const { data: hasAction } = useClusterHasAction(id);
 	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 	const [rateOverride, setRateOverride] = useState<number | null>(null);
 	const [timeOverride, setTimeOverride] = useState<number | null>(null);
 	const effectiveRate = rateOverride ?? blendedRatePerHour;
 	const effectiveTime = timeOverride ?? timeToTake;
 	const bannerRef = useRef<HTMLDivElement>(null);
-	const [knowledgeAdded, setKnowledgeAdded] = useState(false);
 
 	// Banner state for review completion
 	const [bannerData, setBannerData] = useState<{
@@ -136,23 +129,6 @@ export default function ClusterDetailPage() {
 
 	const _handleAutoPopulateEnabled = () => {
 		showBanner("enriched", t("clusterDetail.banners.enrichedTickets"));
-	};
-
-	const handleKnowledgeAdded = () => {
-		setKnowledgeAdded(true);
-		// Refetch cluster details (kb_status), KB articles, and clusters list
-		if (id) {
-			void queryClient.invalidateQueries({ queryKey: clusterKeys.detail(id) });
-			void queryClient.invalidateQueries({
-				queryKey: clusterKeys.kbArticleList(id),
-			});
-			void queryClient.invalidateQueries({ queryKey: clusterKeys.lists() });
-		}
-		showBanner(
-			"success",
-			t("clusterDetail.banners.knowledgeAdded"),
-			t("clusterDetail.banners.knowledgeAddedDesc"),
-		);
 	};
 
 	const _handleAutoRespondEnabled = (
@@ -242,20 +218,10 @@ export default function ClusterDetailPage() {
 								<ArrowLeft className="h-4 w-4" />
 							</Button>
 							<h1 className="text-xl font-medium">{title}</h1>
-							{cluster.kb_status === "GAP" && !knowledgeAdded && (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
-											<BookX className="h-3.5 w-3.5 text-yellow-600" />
-										</span>
-									</TooltipTrigger>
-									<TooltipContent>{t("gaps.knowledgeGap")}</TooltipContent>
-								</Tooltip>
-							)}
 						</div>
 
 						{/* Stats */}
-						<StatGroup columns={6}>
+						<StatGroup columns={4}>
 							<StatCard
 								value={cluster.ticket_count.toLocaleString()}
 								label={t("clusterDetail.stats.totalTickets")}
@@ -343,30 +309,12 @@ export default function ClusterDetailPage() {
 								}
 								loading={false}
 							/>
-							<StatCard
-								value="4.2hr"
-								label={t("clusterDetail.stats.mttr")}
-							/>
-							<StatCard
-								value="1.8"
-								label={t("clusterDetail.stats.avgReassignmentRate")}
-							/>
 						</StatGroup>
 
 						{/* Table Section */}
 						<ClusterDetailTable key={id} clusterId={id} totalCount={cluster.ticket_count} openCount={cluster.open_count} />
 					</div>
 				</div>
-
-				{/* Right Sidebar */}
-				<ClusterDetailSidebar
-					clusterId={id}
-					clusterName={title}
-					kbArticlesCount={cluster.kb_articles_count}
-					kbStatus={cluster.kb_status}
-					hasAction={hasAction ?? false}
-					onKnowledgeAdded={handleKnowledgeAdded}
-				/>
 			</div>
 		</RitaLayout>
 	);

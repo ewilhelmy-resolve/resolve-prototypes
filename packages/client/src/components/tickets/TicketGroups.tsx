@@ -1,15 +1,9 @@
-import { BookX, Filter, LayoutGrid, List, Search, X } from "lucide-react";
+import { LayoutGrid, List, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -23,7 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { StatusAlert } from "@/components/ui/status-alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActiveModel } from "@/hooks/useActiveModel";
-import { useClusterActions, useInfiniteClusters } from "@/hooks/useClusters";
+import { useInfiniteClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
@@ -38,19 +32,13 @@ import { PrioritizationRankedList } from "./PrioritizationRankedList";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 
-type GapFilterKey = "knowledge_gap";
 type TopViewMode = "cards" | "list";
 type SortOption = "volume" | RoiSortKey;
 
 const SORT_OPTIONS: { key: SortOption; i18nKey: string }[] = [
 	{ key: "volume", i18nKey: "groups.sortOptions.volume" },
 	{ key: "costImpact", i18nKey: "groups.sortOptions.cost" },
-	{ key: "mttr", i18nKey: "groups.sortOptions.mttr" },
 	{ key: "timeTaken", i18nKey: "groups.sortOptions.time" },
-];
-
-const GAP_FILTER_OPTIONS: { key: GapFilterKey; i18nKey: string }[] = [
-	{ key: "knowledge_gap", i18nKey: "groups.filterOptions.knowledgeGap" },
 ];
 
 function ImportProgressBanner({
@@ -91,9 +79,6 @@ interface TicketGroupsProps {
 export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
 	const [viewMode, setViewMode] = useState<TopViewMode>("cards");
-	const [activeGapFilters, setActiveGapFilters] = useState<Set<GapFilterKey>>(
-		new Set(),
-	);
 	const [activeSort, setActiveSort] = useState<SortOption>("volume");
 
 	// Search state with debounce
@@ -111,16 +96,10 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const isFailed = trainingState === TRAINING_STATES.FAILED;
 	const canShowClusters = trainingState === TRAINING_STATES.COMPLETE;
 
-	// Fetch cluster actions map (Resolve Action workflows)
-	const { data: actionsMap } = useClusterActions();
-
 	// Check if ITSM source is actively importing tickets
 	const { isIngesting, latestRun } = useIsIngesting();
 	const isFirstImport = isIngesting && !canShowClusters;
 
-	// Knowledge gap uses server-side kb_status filter
-	const hasKnowledgeGapFilter = activeGapFilters.has("knowledge_gap");
-	const kbStatusParam = hasKnowledgeGapFilter ? "GAP" : undefined;
 	const isCards = viewMode === "cards";
 	const isList = viewMode === "list";
 	const activePreset: RoiSortKey | null =
@@ -137,7 +116,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	} = useInfiniteClusters({
 		period,
 		limit: 100,
-		kb_status: kbStatusParam,
 		search: debouncedSearch || undefined,
 		enabled: canShowClusters,
 		sort: "volume",
@@ -161,14 +139,10 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 					c.subcluster_name?.toLowerCase().includes(q),
 			);
 		}
-		if (hasKnowledgeGapFilter) {
-			filtered = filtered.filter((c) => c.kb_status === "GAP");
-		}
 		return filtered;
 	}, [
 		infiniteData,
 		debouncedSearch,
-		hasKnowledgeGapFilter,
 	]);
 	const _totals = infiniteData?.pages[0]?.totals;
 	const isDataLoading = isInfiniteLoading;
@@ -191,7 +165,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		return new Map(
 			roiRanked.map((r) => [
 				r.cluster.id,
-				{ costImpact: r.costImpact, mttr: r.mttr },
+				{ costImpact: r.costImpact },
 			]),
 		);
 	}, [roiRanked]);
@@ -201,30 +175,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		if (activePreset) return roiRanked.map((r) => r.cluster);
 		return [...clusters].sort((a, b) => b.ticket_count - a.ticket_count);
 	}, [clusters, activePreset, roiRanked]);
-
-	const gapFilterLabels: Record<GapFilterKey, string> = {
-		knowledge_gap: t("groups.filterOptions.knowledgeGap"),
-	};
-
-	const toggleGapFilter = (key: GapFilterKey) => {
-		setActiveGapFilters((prev) => {
-			const next = new Set(prev);
-			if (next.has(key)) {
-				next.delete(key);
-			} else {
-				next.add(key);
-			}
-			return next;
-		});
-	};
-
-	const removeGapFilter = (key: GapFilterKey) => {
-		setActiveGapFilters((prev) => {
-			const next = new Set(prev);
-			next.delete(key);
-			return next;
-		});
-	};
 
 	// Show spinner while checking model state initially
 	if (isModelLoading) {
@@ -302,37 +252,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							</SelectContent>
 						</Select>
 
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm">
-									<Filter className="size-3.5" />
-									{t("groups.filter")}
-									{activeGapFilters.size > 0 && (
-										<Badge
-											variant="secondary"
-											className="ml-1 h-5 min-w-[20px] px-1.5 text-xs"
-										>
-											{activeGapFilters.size}
-										</Badge>
-									)}
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end">
-								{GAP_FILTER_OPTIONS.map(({ key, i18nKey }) => (
-									<DropdownMenuItem
-										key={key}
-										onClick={() => toggleGapFilter(key)}
-										className={activeGapFilters.has(key) ? "bg-accent" : ""}
-									>
-										<span className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-100">
-											<BookX className="h-3 w-3 text-yellow-600" />
-										</span>
-										{t(i18nKey)}
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
-
 						<Tabs
 							value={viewMode}
 							onValueChange={(v) => setViewMode(v as TopViewMode)}
@@ -348,34 +267,6 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 						</Tabs>
 					</div>
 				</div>
-
-				{/* Row 2: Active filter chips (only when filters applied) */}
-				{activeGapFilters.size > 0 && (
-					<div className="flex items-center gap-2">
-						{[...activeGapFilters].map((key) => (
-							<div
-								key={key}
-								className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-sm"
-							>
-								<span className="font-medium">{gapFilterLabels[key]}</span>
-								<button
-									type="button"
-									onClick={() => removeGapFilter(key)}
-									className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-								>
-									<X className="size-3" />
-								</button>
-							</div>
-						))}
-						<button
-							type="button"
-							onClick={() => setActiveGapFilters(new Set())}
-							className="text-sm text-muted-foreground hover:text-foreground"
-						>
-							{t("groups.clearFilters")}
-						</button>
-					</div>
-				)}
 
 				{hasNoModel ? (
 					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
@@ -433,10 +324,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 											)}
 											count={cluster.ticket_count}
 											openCount={cluster.needs_response_count}
-											knowledgeStatus={cluster.kb_status}
-											hasAction={actionsMap?.[cluster.id] ?? false}
 											costImpact={roi?.costImpact}
-											mttr={roi?.mttr}
 											updatedAt={cluster.updated_at}
 											newTicketCount={
 												Math.floor(
