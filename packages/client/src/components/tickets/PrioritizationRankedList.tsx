@@ -1,4 +1,3 @@
-import { BookX } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -10,11 +9,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { renderSortIcon } from "@/lib/table-utils";
 import {
 	type RoiSortKey,
@@ -114,25 +108,6 @@ export function PrioritizationRankedList({
 		return `${Math.round(val)}m`;
 	};
 
-	const gapIcons = (cluster: ClusterListItem) => {
-		const hasKnowledgeGap = cluster.kb_status === "GAP";
-		if (!hasKnowledgeGap) return null;
-		return (
-			<div className="flex items-center gap-1.5">
-				{hasKnowledgeGap && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
-								<BookX className="h-3.5 w-3.5 text-yellow-600" />
-							</span>
-						</TooltipTrigger>
-						<TooltipContent>Knowledge Gap</TooltipContent>
-					</Tooltip>
-				)}
-			</div>
-		);
-	};
-
 	return (
 		<div className="flex flex-col gap-4">
 			<Table>
@@ -148,16 +123,6 @@ export function PrioritizationRankedList({
 							>
 								{t("prioritizationList.columns.tickets")}
 								{renderSortIcon(sortCol, "tickets", sortDir)}
-							</button>
-						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								onClick={() => handleColumnSort("mttr")}
-								className="inline-flex items-center gap-1 cursor-pointer"
-							>
-								{t("prioritizationList.columns.mttr")}
-								{renderSortIcon(sortCol, "mttr", sortDir)}
 							</button>
 						</TableHead>
 						<TableHead>
@@ -180,7 +145,6 @@ export function PrioritizationRankedList({
 								{renderSortIcon(sortCol, "timeTaken", sortDir)}
 							</button>
 						</TableHead>
-						<TableHead>{t("prioritizationList.columns.kbStatus")}</TableHead>
 						<TableHead>Updated</TableHead>
 					</TableRow>
 				</TableHeader>
@@ -196,10 +160,8 @@ export function PrioritizationRankedList({
 								{row.displayName}
 							</TableCell>
 							<TableCell>{row.cluster.ticket_count.toLocaleString()}</TableCell>
-							<TableCell>{formatMinutes(row.mttr)}</TableCell>
 							<TableCell>{formatCurrency(row.costImpact)}</TableCell>
 							<TableCell>{formatMinutes(row.timeTaken)}</TableCell>
-							<TableCell>{gapIcons(row.cluster)}</TableCell>
 							<TableCell className="text-muted-foreground text-xs">
 								{(() => {
 									const newCount = Math.floor(

@@ -3,10 +3,10 @@
  *
  * Two tiers:
  * - Draft: Simple confirmation
- * - Published: Type-to-confirm with impact list
+ * - Published: Type-to-confirm with impact list and warning
  */
 
-import { AlertTriangle, Trash2, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,127 +56,93 @@ export function DeleteAgentModal({
 	if (!open) return null;
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center">
-			{/* Backdrop */}
+		<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
 			<div
 				className="absolute inset-0 bg-black/50"
 				onClick={handleClose}
 				onKeyDown={(e) => e.key === "Escape" && handleClose()}
 			/>
 
-			{/* Modal */}
-			<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
-				{/* Close button */}
+			<div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
 				<button
 					type="button"
 					onClick={handleClose}
-					className="absolute top-4 right-4 p-1 rounded-full hover:bg-muted transition-colors"
+					className="absolute top-[15px] right-[15px] opacity-70 hover:opacity-100"
 					aria-label="Close"
 				>
-					<X className="size-5 text-muted-foreground" />
+					<X className="size-4" />
 				</button>
 
 				{/* Header */}
-				<div className="flex items-start gap-4">
-					<div className="p-3 rounded-full bg-red-100">
-						<Trash2 className="size-6 text-red-600" />
-					</div>
-					<div className="flex-1 pt-1">
-						<h2 className="text-lg font-semibold text-foreground">
-							Delete "{agentName}"?
-						</h2>
-						<p className="text-sm text-muted-foreground mt-1">
-							{isPublished
-								? "This action cannot be undone."
-								: "This draft agent will be permanently removed."}
+				<p className="text-lg font-semibold leading-none text-foreground">
+					Delete {agentName}?
+				</p>
+
+				{/* What will be removed */}
+				<div className="bg-neutral-50 rounded-md px-2 py-2">
+					<div className="flex flex-col gap-2">
+						<p className="text-sm font-bold text-foreground leading-none h-[18px] flex items-end">
+							What will be removed
 						</p>
+						<ul className="text-sm text-foreground list-disc ml-[21px] space-y-0.5">
+							{impact?.skills && impact.skills > 0 && (
+								<li>
+									{impact.skills} skill{impact.skills > 1 ? "s" : ""}
+								</li>
+							)}
+							{impact?.conversationStarters &&
+								impact.conversationStarters > 0 && (
+									<li>
+										{impact.conversationStarters} conversation starter
+										{impact.conversationStarters > 1 ? "s" : ""}
+									</li>
+								)}
+							<li>Usage history & analytics</li>
+						</ul>
 					</div>
 				</div>
 
-				{/* Impact section - only for published agents */}
+				{/* Warning */}
 				{isPublished && (
-					<>
-						{/* What will be removed */}
-						<div className="bg-muted/50 rounded-lg p-4 space-y-2">
-							<p className="text-sm font-medium text-foreground">
-								What will be removed:
+					<div className="bg-yellow-50 border border-yellow-500 rounded-md p-2 flex flex-col gap-1">
+						<div className="flex items-center gap-1">
+							<AlertTriangle className="size-6 text-yellow-600 shrink-0" />
+							<p className="text-sm font-bold text-foreground leading-7">
+								Warning
 							</p>
-							<ul className="text-sm text-muted-foreground space-y-1">
-								<li className="flex items-center gap-2">
-									<span className="size-1.5 rounded-full bg-muted-foreground" />
-									Agent configuration & instructions
-								</li>
-								{impact?.skills && impact.skills > 0 && (
-									<li className="flex items-center gap-2">
-										<span className="size-1.5 rounded-full bg-muted-foreground" />
-										{impact.skills} connected skill
-										{impact.skills > 1 ? "s" : ""}
-									</li>
-								)}
-								{impact?.conversationStarters &&
-									impact.conversationStarters > 0 && (
-										<li className="flex items-center gap-2">
-											<span className="size-1.5 rounded-full bg-muted-foreground" />
-											{impact.conversationStarters} conversation starter
-											{impact.conversationStarters > 1 ? "s" : ""}
-										</li>
-									)}
-								<li className="flex items-center gap-2">
-									<span className="size-1.5 rounded-full bg-muted-foreground" />
-									Usage history & analytics
-								</li>
-							</ul>
 						</div>
-
-						{/* Active dependencies warning */}
-						{(impact?.usersThisWeek || impact?.linkedWorkflows?.length) && (
-							<div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-								<div className="flex items-center gap-2">
-									<AlertTriangle className="size-4 text-amber-600" />
-									<p className="text-sm font-medium text-amber-800">
-										Active dependencies:
-									</p>
-								</div>
-								<ul className="text-sm text-amber-700 space-y-1 ml-6">
-									{impact.usersThisWeek && impact.usersThisWeek > 0 && (
-										<li>
-											Used by {impact.usersThisWeek} employee
-											{impact.usersThisWeek > 1 ? "s" : ""} this week
-										</li>
-									)}
-									{impact.linkedWorkflows?.map((workflow) => (
-										<li key={workflow}>Linked to {workflow} workflow</li>
-									))}
-								</ul>
-							</div>
-						)}
-
-						{/* Type to confirm */}
-						<div className="space-y-2">
-							<label
-								htmlFor="confirm-delete"
-								className="text-sm text-muted-foreground"
-							>
-								Type{" "}
-								<span className="font-mono font-medium text-foreground">
-									"delete"
-								</span>{" "}
-								to confirm
-							</label>
-							<Input
-								id="confirm-delete"
-								value={confirmText}
-								onChange={(e) => setConfirmText(e.target.value)}
-								placeholder="delete"
-								className="font-mono"
-								autoComplete="off"
-							/>
-						</div>
-					</>
+						<p className="text-sm text-muted-foreground leading-5">
+							Once removed, this agent will no longer be accessible to help
+							employees. This action cannot be undone.
+						</p>
+					</div>
 				)}
 
-				{/* Actions */}
-				<div className="flex justify-end gap-3 pt-2">
+				{!isPublished && (
+					<p className="text-sm text-muted-foreground leading-5">
+						This draft will be permanently removed. This action cannot be
+						undone.
+					</p>
+				)}
+
+				{/* Type to confirm */}
+				{isPublished && (
+					<div className="flex flex-col gap-2">
+						<p className="text-sm text-foreground leading-none">
+							Type "delete" to confirm
+						</p>
+						<Input
+							value={confirmText}
+							onChange={(e) => setConfirmText(e.target.value)}
+							placeholder="delete"
+							className="h-9 text-sm"
+							autoComplete="off"
+						/>
+					</div>
+				)}
+
+				{/* Footer */}
+				<div className="flex items-center justify-end gap-2">
 					<Button variant="outline" onClick={handleClose}>
 						Cancel
 					</Button>
@@ -186,7 +152,7 @@ export function DeleteAgentModal({
 						disabled={!canDelete}
 						className={cn(!canDelete && "opacity-50 cursor-not-allowed")}
 					>
-						{isPublished ? "Delete agent" : "Delete draft"}
+						Delete agent
 					</Button>
 				</div>
 			</div>

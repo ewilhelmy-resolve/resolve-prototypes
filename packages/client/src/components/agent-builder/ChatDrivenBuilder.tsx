@@ -176,7 +176,6 @@ export function ChatDrivenBuilder({ initialAgent }: ChatDrivenBuilderProps) {
 	};
 
 	// Start conversation when agent type is selected
-	// biome-ignore lint/correctness/useExhaustiveDependencies: startDescribePhase uses component state
 	useEffect(() => {
 		if (agent.type && messages.length === 0) {
 			startDescribePhase();

@@ -1,11 +1,9 @@
-import { BookX } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { KBStatus } from "@/types/cluster";
 
 export function formatRelativeTime(iso: string): string {
 	const diff = Date.now() - new Date(iso).getTime();
@@ -30,14 +28,8 @@ interface TicketGroupStatProps {
 	count: number;
 	/** Number of tickets needing response */
 	openCount: number;
-	/** Knowledge base status */
-	knowledgeStatus: KBStatus;
-	/** Whether a Resolve Action workflow is linked to this cluster */
-	hasAction?: boolean;
 	/** Estimated monthly cost impact */
 	costImpact?: number;
-	/** Mean time to resolve in minutes */
-	mttr?: number;
 	/** Optional click handler - overrides default navigation */
 	onClick?: () => void;
 	/** Number of new tickets since last check */
@@ -56,10 +48,7 @@ export function TicketGroupStat({
 	title,
 	count,
 	openCount: _openCount,
-	knowledgeStatus,
-	hasAction: _hasAction,
 	costImpact,
-	mttr,
 	onClick,
 	newTicketCount,
 	updatedAt,
@@ -69,8 +58,6 @@ export function TicketGroupStat({
 	const handleClick = () => {
 		onClick ? onClick() : navigate(`/tickets/${id}`);
 	};
-
-	const hasKnowledgeGap = knowledgeStatus === "GAP";
 
 	return (
 		<button
@@ -86,45 +73,22 @@ export function TicketGroupStat({
 					<span className="text-[38px] font-normal leading-6 text-card-foreground">
 						{count.toLocaleString()}
 					</span>
-					{(costImpact != null || mttr != null) && (
+					{costImpact != null && (
 						<div className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
-							{costImpact != null && (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<span>
-											$
-											{costImpact >= 1000
-												? `${(costImpact / 1000).toFixed(1)}k`
-												: Math.round(costImpact).toLocaleString()}
-										</span>
-									</TooltipTrigger>
-									<TooltipContent>Cost Impact</TooltipContent>
-								</Tooltip>
-							)}
-							{costImpact != null && mttr != null && <span>·</span>}
-							{mttr != null && (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<span>{mttr}m</span>
-									</TooltipTrigger>
-									<TooltipContent>Mean Time to Resolve</TooltipContent>
-								</Tooltip>
-							)}
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span>
+										$
+										{costImpact >= 1000
+											? `${(costImpact / 1000).toFixed(1)}k`
+											: Math.round(costImpact).toLocaleString()}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent>Cost Impact</TooltipContent>
+							</Tooltip>
 						</div>
 					)}
 				</div>
-				{hasKnowledgeGap && (
-					<div className="flex items-center gap-1.5">
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
-									<BookX className="h-3.5 w-3.5 text-yellow-600" />
-								</span>
-							</TooltipTrigger>
-							<TooltipContent>Knowledge Gap</TooltipContent>
-						</Tooltip>
-					</div>
-				)}
 			</div>
 			{(newTicketCount != null && newTicketCount > 0) || updatedAt ? (
 				<div className="border-t border-border pt-3 mt-auto text-xs text-muted-foreground">

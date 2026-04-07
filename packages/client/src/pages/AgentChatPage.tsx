@@ -10,6 +10,7 @@
 
 import {
 	AlertCircle,
+	ArrowLeft,
 	Award,
 	BookOpen,
 	Bot,
@@ -338,78 +339,92 @@ export default function AgentChatPage() {
 			<div className="flex-1 flex flex-col relative">
 				{/* Chat header - no border */}
 				<header className="flex items-center justify-between px-4 py-3 bg-white">
-					{/* Agent selector dropdown */}
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" className="gap-2 px-2 h-auto py-1.5">
-								<div
-									className={cn(
-										"size-7 rounded-lg flex items-center justify-center",
-										color.bg,
-									)}
-								>
-									<Icon className={cn("size-4", color.text)} />
-								</div>
-								<span className="font-medium">{config.name}</span>
-								<ChevronDown className="size-4 text-muted-foreground" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="start" className="w-64">
-							{allAgents
-								.filter((a) => a.status === "published")
-								.map((agent) => {
-									const AgentIcon = ICON_MAP[agent.iconId] || Bot;
-									const agentColor =
-										COLOR_MAP[agent.iconColorId] || COLOR_MAP.slate;
-									const isSelected = agent.id === config.id;
+					<div className="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="icon"
+							className="size-8"
+							onClick={() => navigate("/agents")}
+						>
+							<ArrowLeft className="size-4" />
+						</Button>
+						{/* Agent selector dropdown */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="ghost" className="gap-2 px-2 h-auto py-1.5">
+									<div
+										className={cn(
+											"size-7 rounded-lg flex items-center justify-center",
+											color.bg,
+										)}
+									>
+										<Icon className={cn("size-4", color.text)} />
+									</div>
+									<span className="font-medium">{config.name}</span>
+									<ChevronDown className="size-4 text-muted-foreground" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start" className="w-64">
+								{allAgents
+									.filter((a) => a.status === "published")
+									.map((agent) => {
+										const AgentIcon = ICON_MAP[agent.iconId] || Bot;
+										const agentColor =
+											COLOR_MAP[agent.iconColorId] || COLOR_MAP.slate;
+										const isSelected = agent.id === config.id;
 
-									return (
-										<DropdownMenuItem
-											key={agent.id}
-											onClick={() => handleAgentSelect(agent)}
-											className="flex items-center gap-3 py-2"
-										>
-											<div
-												className={cn(
-													"size-7 rounded-lg flex items-center justify-center",
-													agentColor.bg,
-												)}
+										return (
+											<DropdownMenuItem
+												key={agent.id}
+												onClick={() => handleAgentSelect(agent)}
+												className="flex items-center gap-3 py-2"
 											>
-												<AgentIcon className={cn("size-4", agentColor.text)} />
-											</div>
-											<div className="flex-1 min-w-0">
-												<div className="flex items-center gap-2">
-													<span className="font-medium truncate">
-														{agent.name}
-													</span>
-													{agent.status === "published" && (
-														<span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">
-															Live
-														</span>
+												<div
+													className={cn(
+														"size-7 rounded-lg flex items-center justify-center",
+														agentColor.bg,
 													)}
+												>
+													<AgentIcon
+														className={cn("size-4", agentColor.text)}
+													/>
 												</div>
-											</div>
-											{isSelected && <Check className="size-4 text-primary" />}
-										</DropdownMenuItem>
-									);
-								})}
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onClick={() => navigate("/agents")}
-								className="gap-2"
-							>
-								<Search className="size-4" />
-								Browse more
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={() => navigate("/agents/create")}
-								className="gap-2"
-							>
-								<Plus className="size-4" />
-								Create new
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+												<div className="flex-1 min-w-0">
+													<div className="flex items-center gap-2">
+														<span className="font-medium truncate">
+															{agent.name}
+														</span>
+														{agent.status === "published" && (
+															<span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">
+																Live
+															</span>
+														)}
+													</div>
+												</div>
+												{isSelected && (
+													<Check className="size-4 text-primary" />
+												)}
+											</DropdownMenuItem>
+										);
+									})}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									onClick={() => navigate("/agents")}
+									className="gap-2"
+								>
+									<Search className="size-4" />
+									Browse more
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={() => navigate("/agents/create")}
+									className="gap-2"
+								>
+									<Plus className="size-4" />
+									Create new
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
 
 					{/* Edit button - right side of chat header */}
 					<Button
@@ -434,8 +449,13 @@ export default function AgentChatPage() {
 										<>
 											{/* Icon + name side by side */}
 											<div className="flex items-center justify-center gap-2 w-full">
-												<div className="size-[38px] rounded-lg bg-violet-200 flex items-center justify-center shrink-0">
-													<Icon className="size-6 text-violet-700" />
+												<div
+													className={cn(
+														"size-[38px] rounded-lg flex items-center justify-center shrink-0",
+														color.bg,
+													)}
+												>
+													<Icon className={cn("size-6", color.text)} />
 												</div>
 												<h2 className="text-xl font-bold">{config.name}</h2>
 											</div>

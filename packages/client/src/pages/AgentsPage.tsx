@@ -36,6 +36,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/lib/toast";
 
 // Mock data for agents table
 const mockAgents: Agent[] = [
@@ -101,6 +102,7 @@ interface PublishedAgentState {
 	agentType: "answer" | "knowledge" | "workflow" | null;
 	iconId: string;
 	iconColorId: string;
+	skills?: string[];
 }
 
 export default function AgentsPage() {
@@ -118,10 +120,11 @@ export default function AgentsPage() {
 	// Dynamic agents list (includes newly published agents)
 	const [agents, setAgents] = useState<Agent[]>(mockAgents);
 
-	// Handle newly published agent from navigation state
+	// Handle newly published or unpublished agent from navigation state
 	useEffect(() => {
 		const state = location.state as {
 			publishedAgent?: PublishedAgentState;
+			unpublishedAgent?: { id: string; name: string };
 		} | null;
 		if (state?.publishedAgent) {
 			const published = state.publishedAgent;
@@ -148,6 +151,7 @@ export default function AgentsPage() {
 					name: published.name,
 					description: published.description,
 					status: "published",
+					skills: published.skills || [],
 					updatedBy: { initials: "You", color: "blue" },
 					owner: { initials: "You", color: "blue" },
 					lastUpdated: new Date().toLocaleDateString("en-GB", {
@@ -161,7 +165,22 @@ export default function AgentsPage() {
 				return [newAgent, ...prev];
 			});
 
+			toast.success(`${published.name} published`, {
+				description: "Agent is now live and available to users.",
+			});
+
 			// Clear the state to prevent re-adding on refresh
+			window.history.replaceState({}, document.title);
+		}
+
+		if (state?.unpublishedAgent) {
+			const { id, name } = state.unpublishedAgent;
+			setAgents((prev) =>
+				prev.map((a) => (a.id === id ? { ...a, status: "draft" as const } : a)),
+			);
+			toast.info(`${name} moved to draft`, {
+				description: "Agent is no longer available to users.",
+			});
 			window.history.replaceState({}, document.title);
 		}
 	}, [location.state]);

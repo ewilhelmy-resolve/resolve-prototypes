@@ -128,7 +128,7 @@ export function ClustersPageHeader({
 				</div>
 			}
 			stats={
-				<StatGroup columns={5}>
+				<StatGroup columns={3}>
 					<StatCard
 						value={totalTickets.toLocaleString()}
 						label={t("header.stats.totalTickets")}
@@ -144,8 +144,6 @@ export function ClustersPageHeader({
 						label={t("header.stats.timeImpact")}
 						loading={showSkeletons}
 					/>
-					<StatCard value="3.8hr" label={t("header.stats.mttr")} />
-					<StatCard value="2.1" label={t("header.stats.avgReassignmentRate")} />
 				</StatGroup>
 			}
 		/>
