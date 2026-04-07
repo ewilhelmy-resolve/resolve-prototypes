@@ -561,6 +561,7 @@ export const clustersApi = {
 	list: (params?: import("../types/cluster").ClustersQueryParams) => {
 		const searchParams = new URLSearchParams();
 		if (params?.sort) searchParams.append("sort", params.sort);
+		if (params?.sort_dir) searchParams.append("sort_dir", params.sort_dir);
 		if (params?.period) searchParams.append("period", params.period);
 		if (params?.limit) searchParams.append("limit", params.limit.toString());
 		if (params?.offset !== undefined)

@@ -25,14 +25,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
-import {
-	type RoiSortKey,
-	rankClustersByRoi,
-} from "@/lib/tickets/prioritization";
+import { rankClustersByRoi } from "@/lib/tickets/prioritization";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
-import type { PeriodFilter } from "@/types/cluster";
+import type { ClusterSortOption, PeriodFilter } from "@/types/cluster";
 import { DEFAULT_MINIMUM_TICKETS } from "@/types/dataSource";
 import { TRAINING_STATES } from "@/types/mlModel";
 import { PrioritizationRankedList } from "./PrioritizationRankedList";
@@ -41,25 +39,38 @@ import { TicketGroupStat } from "./TicketGroupStat";
 
 type GapFilterKey = "knowledge_gap";
 type TopViewMode = "cards" | "list";
-type SortOption = "volume" | RoiSortKey;
+export type SortOption = "volume" | "timeTaken" | "costImpact" | "mttr";
 
 const PAGE_SIZE = 20;
 
-const SORT_OPTIONS = [
+const BASE_SORT_OPTIONS = [
 	{
 		key: "volume" as SortOption,
 		i18nKey: "groups.sortOptions.volume" as const,
 	},
 	{
-		key: "costImpact" as SortOption,
-		i18nKey: "groups.sortOptions.cost" as const,
-	},
-	{ key: "mttr" as SortOption, i18nKey: "groups.sortOptions.mttr" as const },
-	{
 		key: "timeTaken" as SortOption,
 		i18nKey: "groups.sortOptions.time" as const,
 	},
 ];
+
+const FLAGGED_SORT_OPTIONS = [
+	{
+		key: "costImpact" as SortOption,
+		i18nKey: "groups.sortOptions.cost" as const,
+	},
+	{
+		key: "mttr" as SortOption,
+		i18nKey: "groups.sortOptions.mttr" as const,
+	},
+];
+
+const API_SORT_MAP: Record<SortOption, ClusterSortOption> = {
+	volume: "volume",
+	timeTaken: "needs_response",
+	costImpact: "volume",
+	mttr: "volume",
+};
 
 const GAP_FILTER_OPTIONS = [
 	{
@@ -105,11 +116,13 @@ interface TicketGroupsProps {
 
 export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
+	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
 	const [viewMode, setViewMode] = useState<TopViewMode>("cards");
 	const [activeGapFilters, setActiveGapFilters] = useState<Set<GapFilterKey>>(
 		new Set(),
 	);
 	const [activeSort, setActiveSort] = useState<SortOption>("volume");
+	const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
 	// Search state with debounce
 	const [searchInput, setSearchInput] = useState("");
@@ -118,11 +131,19 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	// Offset pagination state
 	const [page, setPage] = useState(0);
 
-	// Reset page when filters change
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset on filter changes
+	// Reset page when filters or sort change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset on filter/sort changes
 	useEffect(() => {
 		setPage(0);
-	}, [period, debouncedSearch, activeGapFilters]);
+	}, [period, debouncedSearch, activeGapFilters, activeSort, sortDir]);
+
+	// Reset sort when switching from list → cards
+	useEffect(() => {
+		if (viewMode === "cards") {
+			setActiveSort("volume");
+			setSortDir("desc");
+		}
+	}, [viewMode]);
 
 	// Ticket settings for ROI computation
 	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
@@ -144,10 +165,17 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const kbStatusParam = hasKnowledgeGapFilter ? "GAP" : undefined;
 	const isCards = viewMode === "cards";
 	const isList = viewMode === "list";
-	const activePreset: RoiSortKey | null =
-		activeSort === "volume" ? null : activeSort;
 
-	// Fetch clusters with server-side filters and pagination
+	// Sort options: base + flagged behind ENABLE_TICKETS_V2
+	const sortOptions = useMemo(
+		() =>
+			enableTicketsV2
+				? [...BASE_SORT_OPTIONS, ...FLAGGED_SORT_OPTIONS]
+				: BASE_SORT_OPTIONS,
+		[enableTicketsV2],
+	);
+
+	// Fetch clusters with server-side filters, sort, and pagination
 	const {
 		data: clustersResponse,
 		isLoading,
@@ -159,7 +187,8 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		kb_status: kbStatusParam,
 		search: debouncedSearch || undefined,
 		enabled: canShowClusters,
-		sort: "volume",
+		sort: API_SORT_MAP[activeSort],
+		sort_dir: sortDir,
 	});
 
 	const clusters = clustersResponse?.data ?? [];
@@ -172,17 +201,11 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const handleNextPage = () => setPage((p) => p + 1);
 	const handlePrevPage = () => setPage((p) => Math.max(0, p - 1));
 
-	// Compute ROI data (needed for card metrics + list view)
+	// Compute ROI display values (no re-sorting — trust API order)
 	const roiRanked = useMemo(() => {
 		if (clusters.length === 0) return [];
-		return rankClustersByRoi(
-			clusters,
-			blendedRatePerHour,
-			avgMinutesPerTicket,
-			activePreset ?? "costImpact",
-			"desc",
-		);
-	}, [clusters, blendedRatePerHour, avgMinutesPerTicket, activePreset]);
+		return rankClustersByRoi(clusters, blendedRatePerHour, avgMinutesPerTicket);
+	}, [clusters, blendedRatePerHour, avgMinutesPerTicket]);
 
 	// ROI lookup for card view metrics
 	const roiMap = useMemo(() => {
@@ -194,11 +217,11 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		);
 	}, [roiRanked]);
 
-	// Sort: default = volume (ticket count desc), preset = ROI ranked
-	const sortedClusters = useMemo(() => {
-		if (activePreset) return roiRanked.map((r) => r.cluster);
-		return [...clusters].sort((a, b) => b.ticket_count - a.ticket_count);
-	}, [clusters, activePreset, roiRanked]);
+	// Handle sort change from list view column headers
+	const handleSortChange = (sort: SortOption, dir: "asc" | "desc") => {
+		setActiveSort(sort);
+		setSortDir(dir);
+	};
 
 	const gapFilterLabels: Record<GapFilterKey, string> = {
 		knowledge_gap: t("groups.filterOptions.knowledgeGap"),
@@ -313,24 +336,26 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							/>
 						</div>
 
-						<Select
-							value={activeSort}
-							onValueChange={(v) => setActiveSort(v as SortOption)}
-						>
-							<SelectTrigger className="w-auto h-8 text-sm">
-								<span className="text-muted-foreground mr-1">
-									{t("groups.sortBy")}:
-								</span>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{SORT_OPTIONS.map(({ key, i18nKey }) => (
-									<SelectItem key={key} value={key}>
-										{t(i18nKey)}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						{isCards && (
+							<Select
+								value={activeSort}
+								onValueChange={(v) => setActiveSort(v as SortOption)}
+							>
+								<SelectTrigger className="w-auto h-8 text-sm">
+									<span className="text-muted-foreground mr-1">
+										{t("groups.sortBy")}:
+									</span>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{sortOptions.map(({ key, i18nKey }) => (
+										<SelectItem key={key} value={key}>
+											{t(i18nKey)}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
 
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
@@ -480,7 +505,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 
 						{isCards && (
 							<div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
-								{sortedClusters.map((cluster) => {
+								{clusters.map((cluster) => {
 									const roi = roiMap.get(cluster.id);
 									return (
 										<TicketGroupStat
@@ -504,8 +529,9 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 						{isList && (
 							<PrioritizationRankedList
 								roiRanked={roiRanked}
-								activePreset={activePreset}
-								onPresetChange={(key) => setActiveSort(key)}
+								activeSort={activeSort}
+								sortDir={sortDir}
+								onSortChange={handleSortChange}
 							/>
 						)}
 

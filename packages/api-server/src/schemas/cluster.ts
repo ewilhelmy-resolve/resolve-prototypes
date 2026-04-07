@@ -33,9 +33,13 @@ export const ClusterConfigSchema = z
 export const ClusterListQuerySchema = z
 	.object({
 		sort: z
-			.enum(["volume", "automation", "recent"])
+			.enum(["volume", "automation", "recent", "needs_response"])
 			.optional()
 			.openapi({ description: "Sort order", default: "recent" }),
+		sort_dir: z
+			.enum(["asc", "desc"])
+			.optional()
+			.openapi({ description: "Sort direction", default: "desc" }),
 		period: z
 			.enum(["last30", "last90", "last6months", "lastyear"])
 			.optional()

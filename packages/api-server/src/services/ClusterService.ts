@@ -96,6 +96,7 @@ export class ClusterService {
 		totals: ClusterTotals;
 	}> {
 		const sort = options.sort || "recent";
+		const sortDir = options.sortDir || "desc";
 		const period = options.period;
 		const limit = Math.min(options.limit || DEFAULT_LIMIT, MAX_LIMIT);
 		const offset = options.offset || 0;
@@ -182,11 +183,17 @@ export class ClusterService {
 			);
 		}
 
-		// Sorting - always include id as tiebreaker for stable pagination
+		// Sorting - sort_dir applies to primary column only; tiebreakers stay fixed for stable pagination
 		switch (sort) {
 			case "volume":
 				query = query
-					.orderBy(sql`ts.ticket_count`, "desc")
+					.orderBy(sql`ts.ticket_count`, sortDir)
+					.orderBy("c.created_at", "desc")
+					.orderBy("c.id", "desc");
+				break;
+			case "needs_response":
+				query = query
+					.orderBy(sql`ts.needs_response_count`, sortDir)
 					.orderBy("c.created_at", "desc")
 					.orderBy("c.id", "desc");
 				break;
@@ -198,7 +205,7 @@ export class ClusterService {
 				break;
 			case "recent":
 			default:
-				query = query.orderBy("c.created_at", "desc").orderBy("c.id", "desc");
+				query = query.orderBy("c.created_at", sortDir).orderBy("c.id", "desc");
 		}
 
 		const rows = await query.limit(limit).offset(offset).execute();
