@@ -558,9 +558,10 @@ router.post("/", authenticateUser, async (req, res) => {
 			body as unknown as Record<string, unknown>,
 		);
 
-		// Set sys_created_by to the authenticated user's email
+		// Set audit fields to the authenticated user's email
 		if (authReq.user?.email) {
 			apiData.sys_created_by = authReq.user.email;
+			apiData.sys_updated_by = authReq.user.email;
 		}
 
 		logger.info(
@@ -569,6 +570,17 @@ router.post("/", authenticateUser, async (req, res) => {
 		);
 
 		const created = await agenticService.createAgent(apiData);
+
+		// LLM Service may not respect active:false on create — force update if needed
+		const requestedActive = apiData.active;
+		if (requestedActive === false && (created as any).active === true) {
+			const updated = await agenticService.updateAgent((created as any).eid, {
+				active: false,
+				sys_updated_by: authReq.user?.email,
+			});
+			Object.assign(created, updated);
+		}
+
 		res
 			.status(201)
 			.json(

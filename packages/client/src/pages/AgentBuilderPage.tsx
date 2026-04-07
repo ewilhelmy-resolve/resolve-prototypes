@@ -346,6 +346,9 @@ export default function AgentBuilderPage() {
 		error: loadError,
 	} = useAgent(agentId);
 
+	const isPublished = savedAgent?.status === "published";
+	const isDraft = savedAgent?.status === "draft";
+
 	// Track live EID (starts undefined for create, set after first save)
 	const [agentEid, setAgentEid] = useState<string | undefined>(agentId);
 	const createAgent = useCreateAgent();
@@ -394,6 +397,33 @@ export default function AgentBuilderPage() {
 			setHasLoadedFromApi(true);
 		}
 	}, [savedAgent, hasLoadedFromApi, isDuplicate]);
+
+	// Create draft immediately for new agents (ref survives strict-mode remount)
+	const hasCreatedDraft = useRef(false);
+	const [isCreatingDraft, setIsCreatingDraft] = useState(false);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run once on mount, ref guards re-execution
+	useEffect(() => {
+		if (!isEditing && !isDuplicate && !agentEid && !hasCreatedDraft.current) {
+			hasCreatedDraft.current = true;
+			setIsCreatingDraft(true);
+			// Safety timeout: clear loading indicator if API hangs
+			const timeout = setTimeout(() => setIsCreatingDraft(false), 5000);
+			createAgent
+				.mutateAsync({ name: config.name, status: "draft" })
+				.then((created) => {
+					if (created.id) {
+						setAgentEid(created.id);
+					}
+				})
+				.catch(() => {
+					hasCreatedDraft.current = false;
+				})
+				.finally(() => {
+					clearTimeout(timeout);
+					setIsCreatingDraft(false);
+				});
+		}
+	}, []);
 
 	// Debounced name uniqueness check
 	const debouncedName = useDebouncedValue(config.name, 300);
@@ -617,11 +647,10 @@ export default function AgentBuilderPage() {
 				const created = await createAgent.mutateAsync(data);
 				if (created.id) {
 					setAgentEid(created.id);
-					window.history.replaceState(null, "", `/agents/${created.id}`);
 				}
 			}
 		},
-		enabled: step === "done" || isEditing, // Only auto-save when in configure mode
+		enabled: (step === "done" && !!agentEid) || isEditing, // Only auto-save when draft exists
 	});
 
 	const [_messages] = useState<BuilderMessage[]>([
@@ -861,7 +890,7 @@ export default function AgentBuilderPage() {
 		return changes;
 	};
 
-	const configChanges = isEditing ? getConfigChanges() : [];
+	const configChanges = isPublished ? getConfigChanges() : [];
 	const hasChanges = configChanges.length > 0;
 
 	const handleConfirmPublish = async () => {
@@ -960,13 +989,19 @@ export default function AgentBuilderPage() {
 					</Button>
 					<h1 className="text-lg font-medium">{config.name}</h1>
 					<Badge
-						variant={isEditing || step === "done" ? "default" : "secondary"}
+						variant={
+							isPublished || (!savedAgent && step === "done")
+								? "default"
+								: "secondary"
+						}
 					>
-						{isEditing ? (
+						{isPublished ? (
 							<>
 								<Check className="size-3 mr-1" />
 								Published
 							</>
+						) : isDraft ? (
+							"Draft"
 						) : step === "done" ? (
 							<>
 								<Check className="size-3 mr-1" />
@@ -976,7 +1011,13 @@ export default function AgentBuilderPage() {
 							"Draft"
 						)}
 					</Badge>
-					{(step === "done" || isEditing) && (
+					{isCreatingDraft && (
+						<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+							<Loader2 className="size-3 animate-spin" />
+							Saving...
+						</span>
+					)}
+					{!isCreatingDraft && (step === "done" || isEditing) && (
 						<SaveStatusIndicator
 							status={saveStatus}
 							isDirty={isDirty}
@@ -1008,7 +1049,7 @@ export default function AgentBuilderPage() {
 						<Play className="size-4" />
 						Test
 					</Button>
-					{isEditing ? (
+					{isPublished ? (
 						<>
 							<Button
 								variant="outline"
