@@ -87,8 +87,8 @@ describe("ClustersPageHeader", () => {
 			showSkeletons: true,
 		});
 
-		// 3 stat cards have loading=true (skeleton), 2 static cards still show h3
-		expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(2);
+		// All 3 stat cards have loading=true, so no h3 headings are rendered
+		expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(0);
 	});
 
 	it("calls onSettingsClick when settings button is clicked", async () => {
