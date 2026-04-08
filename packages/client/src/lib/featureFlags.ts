@@ -14,9 +14,7 @@ import {
 const STORAGE_KEY = "rita_feature_flags";
 
 /** Renamed flags: old key → new key. Migrates localStorage on load. */
-const RENAMED_FLAGS: Record<string, FeatureFlagKey> = {
-	ENABLE_FRESHDESK: "ENABLE_FRESHSERVICE",
-};
+const RENAMED_FLAGS: Record<string, FeatureFlagKey> = {};
 
 /**
  * Feature flags manager singleton

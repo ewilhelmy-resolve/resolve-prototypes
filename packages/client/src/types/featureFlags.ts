@@ -13,12 +13,7 @@ export type FeatureFlagKey =
 	| "ENABLE_DEBUG_MODE"
 	| "ENABLE_EXPERIMENTAL_FEATURES"
 	| "ENABLE_AGENTS"
-	| "ENABLE_SERVICENOW"
-	| "ENABLE_JIRA"
-	| "ENABLE_IVANTI"
-	| "ENABLE_FRESHSERVICE"
 	| "ENABLE_MULTI_FILE_UPLOAD"
-	| "ENABLE_TICKETS_V2"
 	| "ENABLE_CLUSTER_ADVANCED_FEATURES"
 	| "ENABLE_WORKFLOWS"
 	| "ENABLE_LANGUAGE_SWITCHER"
@@ -93,45 +88,10 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		defaultValue: false,
 		category: "experimental",
 	},
-	ENABLE_SERVICENOW: {
-		key: "ENABLE_SERVICENOW",
-		label: "ServiceNow Integration",
-		description: "Enable ServiceNow KB and ITSM sync features",
-		defaultValue: false,
-		category: "experimental",
-	},
-	ENABLE_JIRA: {
-		key: "ENABLE_JIRA",
-		label: "Jira Integration",
-		description: "Enable Jira ITSM ticket sync features",
-		defaultValue: false,
-		category: "experimental",
-	},
-	ENABLE_IVANTI: {
-		key: "ENABLE_IVANTI",
-		label: "Ivanti Integration",
-		description: "Enable Ivanti ITSM ticket sync features",
-		defaultValue: false,
-		category: "experimental",
-	},
-	ENABLE_FRESHSERVICE: {
-		key: "ENABLE_FRESHSERVICE",
-		label: "Freshservice Integration",
-		description: "Enable Freshservice ITSM ticket sync features",
-		defaultValue: false,
-		category: "experimental",
-	},
 	ENABLE_MULTI_FILE_UPLOAD: {
 		key: "ENABLE_MULTI_FILE_UPLOAD",
 		label: "Multi-File Upload",
 		description: "Enable uploading multiple files at once in file inputs",
-		defaultValue: false,
-		category: "experimental",
-	},
-	ENABLE_TICKETS_V2: {
-		key: "ENABLE_TICKETS_V2",
-		label: "Tickets",
-		description: "Enable new tickets page UI",
 		defaultValue: false,
 		category: "experimental",
 	},

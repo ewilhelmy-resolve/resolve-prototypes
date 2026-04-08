@@ -24,7 +24,7 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { useProfilePermissions } from "@/hooks/api/useProfile";
-import { useFeatureFlag } from "@/hooks/useFeatureFlags";
+
 import { cn } from "@/lib/utils";
 
 interface RitaSettingsLayoutProps {
@@ -52,16 +52,6 @@ export default function RitaSettingsLayout({
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { isOwnerOrAdmin } = useProfilePermissions();
-	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
-	const isJiraEnabled = useFeatureFlag("ENABLE_JIRA");
-	const isIvantiEnabled = useFeatureFlag("ENABLE_IVANTI");
-	const isFreshserviceEnabled = useFeatureFlag("ENABLE_FRESHSERVICE");
-	const isAnyItsmEnabled =
-		isServiceNowEnabled ||
-		isJiraEnabled ||
-		isIvantiEnabled ||
-		isFreshserviceEnabled;
-
 	const handleBackToApp = () => {
 		// Navigate to root, which will redirect to the default app route
 		navigate("/");
@@ -151,22 +141,20 @@ export default function RitaSettingsLayout({
 														<span className="text-sm">Knowledge Sources</span>
 													</SidebarMenuSubButton>
 												</SidebarMenuSubItem>
-												{isAnyItsmEnabled && (
-													<SidebarMenuSubItem>
-														<SidebarMenuSubButton
-															className={cn(
-																"cursor-pointer",
-																isItsmSourcesActive &&
-																	"bg-accent text-accent-foreground",
-															)}
-															onClick={() =>
-																navigate("/settings/connections/itsm")
-															}
-														>
-															<span className="text-sm">ITSM Sources</span>
-														</SidebarMenuSubButton>
-													</SidebarMenuSubItem>
-												)}
+												<SidebarMenuSubItem>
+													<SidebarMenuSubButton
+														className={cn(
+															"cursor-pointer",
+															isItsmSourcesActive &&
+																"bg-accent text-accent-foreground",
+														)}
+														onClick={() =>
+															navigate("/settings/connections/itsm")
+														}
+													>
+														<span className="text-sm">ITSM Sources</span>
+													</SidebarMenuSubButton>
+												</SidebarMenuSubItem>
 											</SidebarMenuSub>
 										</CollapsibleContent>
 									</SidebarMenuItem>

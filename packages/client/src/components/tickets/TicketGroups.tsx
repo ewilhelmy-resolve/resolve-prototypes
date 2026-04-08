@@ -168,7 +168,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const isCards = viewMode === "cards";
 	const isList = viewMode === "list";
 
-	// Sort options: base + flagged behind ENABLE_TICKETS_V2
+	// Sort options: base + flagged behind ENABLE_CLUSTER_ADVANCED_FEATURES
 	const sortOptions = useMemo(
 		() =>
 			enableAdvancedFeatures
