@@ -11,6 +11,7 @@ import { AutomationReadinessMeter } from "@/components/tickets/AutomationReadine
 import { AutoPilotRecommendations } from "@/components/tickets/AutoPilotRecommendations";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
+import { CreateKnowledgeArticleSheet } from "@/components/tickets/CreateKnowledgeArticleSheet";
 import { EnableAutoPopulateSheet } from "@/components/tickets/EnableAutoPopulateSheet";
 import { EnableAutoRespondModal } from "@/components/tickets/EnableAutoRespondModal";
 import ReviewAIResponseSheet, { type ReviewTicket } from "@/components/tickets/ReviewAIResponseSheet";
@@ -79,6 +80,9 @@ export default function ClusterDetailPage() {
 	const [reviewIndex, setReviewIndex] = useState(0);
 	const [autoRespondEnabled, setAutoRespondEnabled] = useState(false);
 	const [autoPopulateEnabled, setAutoPopulateEnabled] = useState(false);
+	const [selectedTicketIds, setSelectedTicketIds] = useState<Set<string>>(new Set());
+	const [createKnowledgeOpen, setCreateKnowledgeOpen] = useState(false);
+	const [knowledgeAdded, setKnowledgeAdded] = useState(false);
 
 	// Banner state for review completion
 	const [bannerData, setBannerData] = useState<{
@@ -290,18 +294,24 @@ export default function ClusterDetailPage() {
 								<Button
 									variant="outline"
 									size="sm"
+									disabled={selectedTicketIds.size === 0}
 									onClick={() => { setReviewIndex(0); setReviewSheetOpen(true); }}
 								>
-									Review AI Responses
+									Review AI Responses{selectedTicketIds.size > 0 && ` (${selectedTicketIds.size})`}
 								</Button>
-								<span className="text-xs text-muted-foreground">
-									{cluster.open_count} tickets to review
-								</span>
 							</div>
 						)}
 
 						{/* Table Section */}
-						<ClusterDetailTable key={id} clusterId={id} totalCount={cluster.ticket_count} openCount={cluster.open_count} />
+						<ClusterDetailTable
+							key={id}
+							clusterId={id}
+							totalCount={cluster.ticket_count}
+							openCount={cluster.open_count}
+							enableSelect={phaseV3}
+							selectedIds={selectedTicketIds}
+							onSelectionChange={setSelectedTicketIds}
+						/>
 					</div>
 				</div>
 
@@ -318,11 +328,12 @@ export default function ClusterDetailPage() {
 							<AutomationReadinessMeter
 								reviewed={8}
 								total={12}
-								hasKnowledge={cluster.kb_status === "FOUND"}
-								trustedPercentage={cluster.kb_status === "FOUND" ? 85 : 0}
+								hasKnowledge={cluster.kb_status === "FOUND" || knowledgeAdded}
+								trustedPercentage={(cluster.kb_status === "FOUND" || knowledgeAdded) ? 85 : 0}
 								isAutomationEnabled={autoRespondEnabled}
 								onEnableAutoRespond={() => setAutoRespondOpen(true)}
-								onAddKnowledge={() => navigate("/settings/connections/knowledge")}
+								onAddKnowledge={() => setCreateKnowledgeOpen(true)}
+								onReviewKnowledge={() => navigate("/settings/connections/knowledge")}
 							/>
 							{(autoRespondEnabled || autoPopulateEnabled) && (
 								<AutomationMetricsCard
@@ -356,6 +367,15 @@ export default function ClusterDetailPage() {
 							{ label: "Assignment Group", currentValue: null, predictedValue: "IT Support L2" },
 						]}
 						onEnable={handleAutoPopulateEnabled}
+					/>
+					<CreateKnowledgeArticleSheet
+						open={createKnowledgeOpen}
+						onOpenChange={setCreateKnowledgeOpen}
+						ticketGroupName={title}
+						onKnowledgeAdded={() => {
+							setKnowledgeAdded(true);
+							showBanner("success", t("clusterDetail.banners.knowledgeAdded"), t("clusterDetail.banners.knowledgeAddedDesc"));
+						}}
 					/>
 					<ReviewAIResponseSheet
 						open={reviewSheetOpen}
