@@ -77,32 +77,13 @@ const AgentCapabilitiesSchema = z
 export const AgentCreateBodySchema = z
 	.object({
 		name: z.string().min(1).openapi({ description: "Agent name (required)" }),
-		description: z.string().optional().default("").openapi({
-			description: "Agent description",
-		}),
-		instructions: z.string().optional().default("").openapi({
-			description: "Agent instructions / prompt (maps to markdown_text)",
-		}),
 		status: z
 			.enum(["published", "draft"])
 			.optional()
 			.default("draft")
 			.openapi({ description: "Agent status" }),
-		role: z.string().optional().default(""),
-		agentType: z
-			.enum(["answer", "knowledge", "workflow"])
-			.nullable()
-			.optional()
-			.default(null),
 		iconId: z.string().optional().default("bot"),
 		iconColorId: z.string().optional().default("slate"),
-		conversationStarters: z.array(z.string()).optional().default([]),
-		knowledgeSources: z.array(z.string()).optional().default([]),
-		workflows: z.array(z.string()).optional().default([]),
-		guardrails: z.array(z.string()).optional().default([]),
-		responsibilities: z.string().optional(),
-		completionCriteria: z.string().optional(),
-		capabilities: AgentCapabilitiesSchema.optional(),
 	})
 	.openapi("AgentCreateBody");
 
@@ -113,21 +94,26 @@ export const AgentDetailResponseSchema = z
 	.object({
 		id: z.string().openapi({ description: "Agent EID" }),
 		name: z.string(),
-		description: z.string(),
-		instructions: z.string(),
 		status: z.enum(["published", "draft"]),
-		role: z.string(),
-		agentType: z.enum(["answer", "knowledge", "workflow"]).nullable(),
 		iconId: z.string(),
 		iconColorId: z.string(),
-		conversationStarters: z.array(z.string()),
-		knowledgeSources: z.array(z.string()),
-		workflows: z.array(z.string()),
+		// Local-only fields — returned with defaults for backward compat
+		description: z.string().optional().default(""),
+		instructions: z.string().optional().default(""),
+		role: z.string().optional().default(""),
+		agentType: z
+			.enum(["answer", "knowledge", "workflow"])
+			.nullable()
+			.optional()
+			.default(null),
+		conversationStarters: z.array(z.string()).optional().default([]),
+		knowledgeSources: z.array(z.string()).optional().default([]),
+		workflows: z.array(z.string()).optional().default([]),
 		skills: z.array(z.string()).optional(),
-		guardrails: z.array(z.string()),
+		guardrails: z.array(z.string()).optional().default([]),
 		responsibilities: z.string().optional(),
 		completionCriteria: z.string().optional(),
-		capabilities: AgentCapabilitiesSchema,
+		capabilities: AgentCapabilitiesSchema.optional(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional(),
 	})

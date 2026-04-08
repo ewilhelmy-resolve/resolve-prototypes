@@ -271,69 +271,38 @@ function formatDate(isoDate: string | null): string {
 
 /**
  * Map frontend AgentConfig body to LLM Service AgentMetadataApiData.
- * Rita-specific UI fields are stored in the `configs` JSON field.
+ * Only persisted fields (name, status, icon) are sent. Icon fields are
+ * stored under `configs.ui` with keys `icon` and `icon_color`.
  */
 function agentConfigToApiData(
 	body: Record<string, unknown>,
 ): Record<string, unknown> {
-	const {
-		name,
-		description,
-		instructions,
-		status,
-		// UI-specific fields → packed into configs
-		role,
-		agentType,
-		iconId,
-		iconColorId,
-		conversationStarters,
-		knowledgeSources,
-		workflows,
-		guardrails,
-		responsibilities,
-		completionCriteria,
-		capabilities,
-		...rest
-	} = body;
+	const { name, status, iconId, iconColorId, ...rest } = body;
 
 	const apiData: Record<string, unknown> = { ...rest };
 	if (name !== undefined) apiData.name = name;
-	if (description !== undefined) apiData.description = description;
-	if (instructions !== undefined) apiData.markdown_text = instructions;
 	if (status !== undefined) apiData.active = status === "published";
 
-	// Pack UI-specific fields into configs
-	const configs: Record<string, unknown> = {};
-	if (role !== undefined) configs.role = role;
-	if (agentType !== undefined) configs.agentType = agentType;
-	if (iconId !== undefined) configs.iconId = iconId;
-	if (iconColorId !== undefined) configs.iconColorId = iconColorId;
-	if (conversationStarters !== undefined)
-		configs.conversationStarters = conversationStarters;
-	if (knowledgeSources !== undefined)
-		configs.knowledgeSources = knowledgeSources;
-	if (workflows !== undefined) configs.workflows = workflows;
-	if (guardrails !== undefined) configs.guardrails = guardrails;
-	if (responsibilities !== undefined)
-		configs.responsibilities = responsibilities;
-	if (completionCriteria !== undefined)
-		configs.completionCriteria = completionCriteria;
-	if (capabilities !== undefined) configs.capabilities = capabilities;
-
-	if (Object.keys(configs).length > 0) apiData.configs = configs;
+	// Pack icon fields into configs.ui
+	const ui: Record<string, unknown> = {};
+	if (iconId !== undefined) ui.icon = iconId;
+	if (iconColorId !== undefined) ui.icon_color = iconColorId;
+	if (Object.keys(ui).length > 0) apiData.configs = { ui };
 
 	return apiData;
 }
 
 /**
  * Map LLM Service AgentMetadataApiData to frontend AgentConfig shape.
- * Unpacks `configs` JSON field and maps system fields.
+ * Reads icon from `configs.ui`, falls back to legacy `configs.iconId` / `configs.iconColorId`.
+ * Local-only fields return empty defaults.
  */
 function apiDataToAgentConfig(
 	agent: Record<string, unknown>,
 	skills: string[] = [],
 ): Record<string, unknown> {
 	const configs = (agent.configs as Record<string, unknown>) || {};
+	const ui = (configs.ui as Record<string, unknown>) || {};
 
 	return {
 		id: agent.eid || String(agent.id || ""),
@@ -341,18 +310,16 @@ function apiDataToAgentConfig(
 		description: agent.description || "",
 		instructions: agent.markdown_text || "",
 		status: agent.active ? "published" : "draft",
-		role: configs.role ?? "",
-		agentType: configs.agentType ?? null,
-		iconId: configs.iconId ?? "bot",
-		iconColorId: configs.iconColorId ?? "slate",
-		conversationStarters: configs.conversationStarters ?? [],
-		knowledgeSources: configs.knowledgeSources ?? [],
-		workflows: configs.workflows ?? [],
+		role: "",
+		agentType: null,
+		iconId: ui.icon ?? configs.iconId ?? "bot",
+		iconColorId: ui.icon_color ?? configs.iconColorId ?? "slate",
+		conversationStarters: [],
+		knowledgeSources: [],
+		workflows: [],
 		skills,
-		guardrails: configs.guardrails ?? [],
-		responsibilities: configs.responsibilities,
-		completionCriteria: configs.completionCriteria,
-		capabilities: configs.capabilities ?? {
+		guardrails: [],
+		capabilities: {
 			webSearch: true,
 			imageGeneration: false,
 			useAllWorkspaceContent: false,
