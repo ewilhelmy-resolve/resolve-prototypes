@@ -13,6 +13,7 @@ import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar"
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { EnableAutoPopulateSheet } from "@/components/tickets/EnableAutoPopulateSheet";
 import { EnableAutoRespondModal } from "@/components/tickets/EnableAutoRespondModal";
+import ReviewAIResponseSheet, { type ReviewTicket } from "@/components/tickets/ReviewAIResponseSheet";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import {
@@ -74,6 +75,8 @@ export default function ClusterDetailPage() {
 	const bannerRef = useRef<HTMLDivElement>(null);
 	const [autoRespondOpen, setAutoRespondOpen] = useState(false);
 	const [autoPopulateOpen, setAutoPopulateOpen] = useState(false);
+	const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
+	const [reviewIndex, setReviewIndex] = useState(0);
 	const [autoRespondEnabled, setAutoRespondEnabled] = useState(false);
 	const [autoPopulateEnabled, setAutoPopulateEnabled] = useState(false);
 
@@ -175,6 +178,19 @@ export default function ClusterDetailPage() {
 
 	const title = getClusterDisplayTitle(cluster.name, cluster.subcluster_name);
 
+	// Mock review tickets for v3 AI response review
+	const mockReviewTickets: ReviewTicket[] = [
+		{ id: "t1", externalId: "INC001234", title: "VPN not connecting after update", description: "User reports VPN client fails to connect after the latest Windows update.", priority: "high" },
+		{ id: "t2", externalId: "INC001235", title: "Email sync delay on mobile", description: "Emails are taking 30+ minutes to sync on the mobile app.", priority: "medium" },
+		{ id: "t3", externalId: "INC001236", title: "Printer offline in Building C", description: "The shared printer on floor 3 shows offline status for all users.", priority: "low" },
+	];
+
+	const mockAIResponse = {
+		content: "Based on similar resolved tickets, the VPN issue is likely caused by the recent Windows update modifying firewall rules. Please try: 1) Open Windows Firewall settings, 2) Re-enable the VPN exception rule, 3) Restart the VPN client.",
+		kbArticles: [{ id: "kb1", title: "VPN Troubleshooting Guide", relevanceScore: 0.92 }],
+		confidenceScore: 87,
+	};
+
 	return (
 		<RitaLayout activePage="tickets">
 			{/* Feedback Banner */}
@@ -268,6 +284,22 @@ export default function ClusterDetailPage() {
 							)}
 						</StatGroup>
 
+						{/* Review AI Responses (v3) */}
+						{phaseV3 && (
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => { setReviewIndex(0); setReviewSheetOpen(true); }}
+								>
+									Review AI Responses
+								</Button>
+								<span className="text-xs text-muted-foreground">
+									{cluster.open_count} tickets to review
+								</span>
+							</div>
+						)}
+
 						{/* Table Section */}
 						<ClusterDetailTable key={id} clusterId={id} totalCount={cluster.ticket_count} openCount={cluster.open_count} />
 					</div>
@@ -324,6 +356,18 @@ export default function ClusterDetailPage() {
 							{ label: "Assignment Group", currentValue: null, predictedValue: "IT Support L2" },
 						]}
 						onEnable={handleAutoPopulateEnabled}
+					/>
+					<ReviewAIResponseSheet
+						open={reviewSheetOpen}
+						onOpenChange={setReviewSheetOpen}
+						ticketGroupId={id}
+						tickets={mockReviewTickets}
+						currentIndex={reviewIndex}
+						aiResponse={mockAIResponse}
+						onNavigate={setReviewIndex}
+						onApprove={(ticketId) => console.log("Approved:", ticketId)}
+						onReject={(ticketId) => console.log("Rejected:", ticketId)}
+						onKeepReviewing={() => { setReviewIndex(0); }}
 					/>
 				</>
 			)}
