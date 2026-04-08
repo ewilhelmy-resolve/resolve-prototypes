@@ -227,12 +227,7 @@ export default function AgentsPage() {
 	};
 
 	const handleAgentClick = (agent: Agent) => {
-		// Navigate to chat (view) page for published, builder for draft
-		if (agent.status === "published") {
-			navigate(`/agents/${agent.id}/chat`);
-		} else {
-			navigate(`/agents/${agent.id}`);
-		}
+		navigate(`/agents/${agent.id}`);
 	};
 
 	const handleDeleteClick = (agent: Agent) => {
