@@ -6,9 +6,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
+import { AutomationMetricsCard } from "@/components/tickets/AutomationMetricsCard";
 import { AutomationReadinessMeter } from "@/components/tickets/AutomationReadinessMeter";
+import { AutoPilotRecommendations } from "@/components/tickets/AutoPilotRecommendations";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
+import { EnableAutoPopulateSheet } from "@/components/tickets/EnableAutoPopulateSheet";
 import { EnableAutoRespondModal } from "@/components/tickets/EnableAutoRespondModal";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
@@ -70,7 +73,9 @@ export default function ClusterDetailPage() {
 	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 	const bannerRef = useRef<HTMLDivElement>(null);
 	const [autoRespondOpen, setAutoRespondOpen] = useState(false);
+	const [autoPopulateOpen, setAutoPopulateOpen] = useState(false);
 	const [autoRespondEnabled, setAutoRespondEnabled] = useState(false);
+	const [autoPopulateEnabled, setAutoPopulateEnabled] = useState(false);
 
 	// Banner state for review completion
 	const [bannerData, setBannerData] = useState<{
@@ -115,6 +120,16 @@ export default function ClusterDetailPage() {
 				groupName: ticketGroupName,
 			}),
 		);
+	};
+
+	const handleAutoPopulateEnabled = () => {
+		setAutoPopulateEnabled(true);
+		showBanner("enriched", t("clusterDetail.banners.enrichedTickets"));
+	};
+
+	const handleRecommendationEnable = (type: string) => {
+		if (type === "auto_respond") setAutoRespondOpen(true);
+		else if (type === "auto_populate") setAutoPopulateOpen(true);
 	};
 
 	const handleDismissBanner = () => {
@@ -258,16 +273,16 @@ export default function ClusterDetailPage() {
 					</div>
 				</div>
 
-				{/* Knowledge Sidebar + Automation (v3) */}
+				{/* Knowledge Sidebar + Full Autopilot (v3) */}
 				{phaseV3 && (
-					<div className="w-full lg:w-80 lg:shrink-0 lg:border-l flex flex-col">
+					<div className="w-full lg:w-80 lg:shrink-0 lg:border-l flex flex-col gap-0 overflow-y-auto">
 						<ClusterDetailSidebar
 							clusterId={id}
 							clusterName={title}
 							kbArticlesCount={cluster.kb_articles_count}
 							kbStatus={cluster.kb_status}
 						/>
-						<div className="p-4">
+						<div className="flex flex-col gap-4 p-4">
 							<AutomationReadinessMeter
 								reviewed={8}
 								total={12}
@@ -277,20 +292,40 @@ export default function ClusterDetailPage() {
 								onEnableAutoRespond={() => setAutoRespondOpen(true)}
 								onAddKnowledge={() => navigate("/settings/connections/knowledge")}
 							/>
+							{(autoRespondEnabled || autoPopulateEnabled) && (
+								<AutomationMetricsCard
+									automated={autoRespondEnabled ? Math.floor(cluster.open_count * 0.12) : 0}
+								/>
+							)}
+							<AutoPilotRecommendations
+								onEnableClick={handleRecommendationEnable}
+							/>
 						</div>
 					</div>
 				)}
 			</div>
 
-			{/* Auto-Respond Modal (v3) */}
+			{/* Autopilot Modals (v3) */}
 			{phaseV3 && (
-				<EnableAutoRespondModal
-					open={autoRespondOpen}
-					onOpenChange={setAutoRespondOpen}
-					ticketGroupName={title}
-					openTicketsCount={cluster.open_count}
-					onAutoRespondEnabled={handleAutoRespondEnabled}
-				/>
+				<>
+					<EnableAutoRespondModal
+						open={autoRespondOpen}
+						onOpenChange={setAutoRespondOpen}
+						ticketGroupName={title}
+						openTicketsCount={cluster.open_count}
+						onAutoRespondEnabled={handleAutoRespondEnabled}
+					/>
+					<EnableAutoPopulateSheet
+						open={autoPopulateOpen}
+						onOpenChange={setAutoPopulateOpen}
+						predictions={[
+							{ label: "Priority", currentValue: null, predictedValue: "High" },
+							{ label: "Category", currentValue: null, predictedValue: "Network" },
+							{ label: "Assignment Group", currentValue: null, predictedValue: "IT Support L2" },
+						]}
+						onEnable={handleAutoPopulateEnabled}
+					/>
+				</>
 			)}
 		</RitaLayout>
 	);
