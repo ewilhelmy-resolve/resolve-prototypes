@@ -6,8 +6,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
+import { AutomationReadinessMeter } from "@/components/tickets/AutomationReadinessMeter";
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
+import { EnableAutoRespondModal } from "@/components/tickets/EnableAutoRespondModal";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import {
@@ -67,6 +69,8 @@ export default function ClusterDetailPage() {
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
 	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 	const bannerRef = useRef<HTMLDivElement>(null);
+	const [autoRespondOpen, setAutoRespondOpen] = useState(false);
+	const [autoRespondEnabled, setAutoRespondEnabled] = useState(false);
 
 	// Banner state for review completion
 	const [bannerData, setBannerData] = useState<{
@@ -97,37 +101,11 @@ export default function ClusterDetailPage() {
 		}));
 	};
 
-	const _handleReviewComplete = (stats: ReviewStats) => {
-		const { trusted, totalReviewed, confidenceImprovement } = stats;
-		if (confidenceImprovement > 0) {
-			showBanner(
-				"success",
-				t("clusterDetail.banners.reviewSuccess", { count: totalReviewed }),
-				t("clusterDetail.banners.reviewSuccessDesc", {
-					trusted,
-					improvement: confidenceImprovement,
-				}),
-			);
-		} else {
-			showBanner(
-				"destructive",
-				t("clusterDetail.banners.reviewNeedsImprovement"),
-				t("clusterDetail.banners.reviewNeedsImprovementDesc", {
-					count: totalReviewed,
-				}),
-				false,
-			);
-		}
-	};
-
-	const _handleAutoPopulateEnabled = () => {
-		showBanner("enriched", t("clusterDetail.banners.enrichedTickets"));
-	};
-
-	const _handleAutoRespondEnabled = (
+	const handleAutoRespondEnabled = (
 		ticketGroupName: string,
 		automatedPercentage: number,
 	) => {
+		setAutoRespondEnabled(true);
 		showBanner(
 			"enriched",
 			t("clusterDetail.banners.automatedWork", {
@@ -280,16 +258,40 @@ export default function ClusterDetailPage() {
 					</div>
 				</div>
 
-				{/* Knowledge Sidebar (v3) */}
+				{/* Knowledge Sidebar + Automation (v3) */}
 				{phaseV3 && (
-					<ClusterDetailSidebar
-						clusterId={id}
-						clusterName={title}
-						kbArticlesCount={cluster.kb_articles_count}
-						kbStatus={cluster.kb_status}
-					/>
+					<div className="w-full lg:w-80 lg:shrink-0 lg:border-l flex flex-col">
+						<ClusterDetailSidebar
+							clusterId={id}
+							clusterName={title}
+							kbArticlesCount={cluster.kb_articles_count}
+							kbStatus={cluster.kb_status}
+						/>
+						<div className="p-4">
+							<AutomationReadinessMeter
+								reviewed={8}
+								total={12}
+								hasKnowledge={cluster.kb_status === "FOUND"}
+								trustedPercentage={cluster.kb_status === "FOUND" ? 85 : 0}
+								isAutomationEnabled={autoRespondEnabled}
+								onEnableAutoRespond={() => setAutoRespondOpen(true)}
+								onAddKnowledge={() => navigate("/settings/connections/knowledge")}
+							/>
+						</div>
+					</div>
 				)}
 			</div>
+
+			{/* Auto-Respond Modal (v3) */}
+			{phaseV3 && (
+				<EnableAutoRespondModal
+					open={autoRespondOpen}
+					onOpenChange={setAutoRespondOpen}
+					ticketGroupName={title}
+					openTicketsCount={cluster.open_count}
+					onAutoRespondEnabled={handleAutoRespondEnabled}
+				/>
+			)}
 		</RitaLayout>
 	);
 }
