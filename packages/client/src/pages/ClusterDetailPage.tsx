@@ -288,16 +288,29 @@ export default function ClusterDetailPage() {
 							)}
 						</StatGroup>
 
-						{/* Review AI Responses (v3) */}
-						{phaseV3 && (
-							<div className="flex items-center gap-2">
+						{/* Bulk action bar (v3) — appears when tickets selected */}
+						{phaseV3 && selectedTicketIds.size > 0 && (
+							<div className="flex items-center gap-3 rounded-md border bg-muted/50 px-4 py-2">
+								<span className="text-sm font-medium">
+									{selectedTicketIds.size} selected
+								</span>
+								<div className="h-4 w-px bg-border" />
 								<Button
-									variant="outline"
+									variant="default"
 									size="sm"
-									disabled={selectedTicketIds.size === 0}
 									onClick={() => { setReviewIndex(0); setReviewSheetOpen(true); }}
 								>
-									Review AI Responses{selectedTicketIds.size > 0 && ` (${selectedTicketIds.size})`}
+									Review AI Responses
+								</Button>
+								<Button variant="outline" size="sm">
+									Bulk Edit
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => setSelectedTicketIds(new Set())}
+								>
+									Clear selection
 								</Button>
 							</div>
 						)}
@@ -388,6 +401,14 @@ export default function ClusterDetailPage() {
 						onApprove={(ticketId) => console.log("Approved:", ticketId)}
 						onReject={(ticketId) => console.log("Rejected:", ticketId)}
 						onKeepReviewing={() => { setReviewIndex(0); }}
+						onReviewComplete={(stats) => {
+							if (stats.confidenceImprovement > 50) fireConfetti();
+							showBanner(
+								"success",
+								t("clusterDetail.banners.reviewSuccess", { count: stats.totalReviewed }),
+								t("clusterDetail.banners.reviewSuccessDesc", { trusted: stats.trusted, improvement: stats.confidenceImprovement }),
+							);
+						}}
 					/>
 				</>
 			)}
