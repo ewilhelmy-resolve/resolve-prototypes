@@ -35,7 +35,7 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
 	AddSkillModal,
@@ -634,13 +634,23 @@ export default function AgentBuilderPage() {
 		prevWorkflowsLength.current = config.workflows.length;
 	}, [config.workflows.length, config.workflows]);
 
+	// Only persist name + icon fields to the API
+	const saveableData = useMemo(
+		() => ({
+			name: config.name,
+			iconId: config.iconId,
+			iconColorId: config.iconColorId,
+		}),
+		[config.name, config.iconId, config.iconColorId],
+	);
+
 	// Auto-save with 1.5s debounce
 	const {
 		status: saveStatus,
 		isDirty,
 		error: saveError,
 	} = useAutoSave({
-		data: config,
+		data: saveableData,
 		onSave: async (data) => {
 			if (agentEid) {
 				await updateAgent.mutateAsync({ eid: agentEid, data });
@@ -720,7 +730,7 @@ export default function AgentBuilderPage() {
 		setShowPublishModal(true);
 	};
 
-	// Calculate diff between current config and published config
+	// Calculate diff between current config and published config (persisted fields only)
 	const getConfigChanges = () => {
 		if (!publishedConfig) return [];
 
@@ -732,7 +742,6 @@ export default function AgentBuilderPage() {
 			type: "added" | "removed" | "changed";
 		}> = [];
 
-		// Name
 		if (config.name !== publishedConfig.name) {
 			changes.push({
 				field: "name",
@@ -743,138 +752,6 @@ export default function AgentBuilderPage() {
 			});
 		}
 
-		// Description
-		if (config.description !== publishedConfig.description) {
-			changes.push({
-				field: "description",
-				label: "Description",
-				from: publishedConfig.description || "(empty)",
-				to: config.description || "(empty)",
-				type: "changed",
-			});
-		}
-
-		// Skills (workflows)
-		const addedSkills = config.workflows.filter(
-			(s) => !publishedConfig.workflows.includes(s),
-		);
-		const removedSkills = publishedConfig.workflows.filter(
-			(s) => !config.workflows.includes(s),
-		);
-		addedSkills.forEach((skill) => {
-			changes.push({
-				field: "skills",
-				label: "Skill added",
-				from: "",
-				to: skill,
-				type: "added",
-			});
-		});
-		removedSkills.forEach((skill) => {
-			changes.push({
-				field: "skills",
-				label: "Skill removed",
-				from: skill,
-				to: "",
-				type: "removed",
-			});
-		});
-
-		// Knowledge sources
-		const addedKnowledge = config.knowledgeSources.filter(
-			(k) => !publishedConfig.knowledgeSources.includes(k),
-		);
-		const removedKnowledge = publishedConfig.knowledgeSources.filter(
-			(k) => !config.knowledgeSources.includes(k),
-		);
-		addedKnowledge.forEach((source) => {
-			changes.push({
-				field: "knowledge",
-				label: "Knowledge added",
-				from: "",
-				to: source,
-				type: "added",
-			});
-		});
-		removedKnowledge.forEach((source) => {
-			changes.push({
-				field: "knowledge",
-				label: "Knowledge removed",
-				from: source,
-				to: "",
-				type: "removed",
-			});
-		});
-
-		// Instructions
-		if (config.instructions !== publishedConfig.instructions) {
-			changes.push({
-				field: "instructions",
-				label: "Instructions",
-				from: "(modified)",
-				to: "(modified)",
-				type: "changed",
-			});
-		}
-
-		// Conversation starters
-		const startersChanged =
-			JSON.stringify(config.conversationStarters) !==
-			JSON.stringify(publishedConfig.conversationStarters);
-		if (startersChanged) {
-			changes.push({
-				field: "starters",
-				label: "Conversation starters",
-				from: `${publishedConfig.conversationStarters.length} items`,
-				to: `${config.conversationStarters.length} items`,
-				type: "changed",
-			});
-		}
-
-		// Guardrails
-		const guardrailsChanged =
-			JSON.stringify(config.guardrails) !==
-			JSON.stringify(publishedConfig.guardrails);
-		if (guardrailsChanged) {
-			changes.push({
-				field: "guardrails",
-				label: "Guardrails",
-				from: `${publishedConfig.guardrails.length} items`,
-				to: `${config.guardrails.length} items`,
-				type: "changed",
-			});
-		}
-
-		// Capabilities
-		if (
-			config.capabilities?.webSearch !== publishedConfig.capabilities?.webSearch
-		) {
-			changes.push({
-				field: "webSearch",
-				label: "Web search",
-				from: publishedConfig.capabilities?.webSearch ? "Enabled" : "Disabled",
-				to: config.capabilities?.webSearch ? "Enabled" : "Disabled",
-				type: "changed",
-			});
-		}
-		if (
-			config.capabilities?.useAllWorkspaceContent !==
-			publishedConfig.capabilities?.useAllWorkspaceContent
-		) {
-			changes.push({
-				field: "workspaceContent",
-				label: "Workspace knowledge",
-				from: publishedConfig.capabilities?.useAllWorkspaceContent
-					? "Enabled"
-					: "Disabled",
-				to: config.capabilities?.useAllWorkspaceContent
-					? "Enabled"
-					: "Disabled",
-				type: "changed",
-			});
-		}
-
-		// Icon
 		if (
 			config.iconId !== publishedConfig.iconId ||
 			config.iconColorId !== publishedConfig.iconColorId
@@ -896,7 +773,12 @@ export default function AgentBuilderPage() {
 
 	const handleConfirmPublish = async () => {
 		try {
-			const publishData = { ...config, status: "published" as const };
+			const publishData = {
+				name: config.name,
+				iconId: config.iconId,
+				iconColorId: config.iconColorId,
+				status: "published" as const,
+			};
 			if (agentEid) {
 				await updateAgent.mutateAsync({ eid: agentEid, data: publishData });
 			} else {
