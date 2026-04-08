@@ -156,6 +156,57 @@ export const conversationApi = {
 		apiRequest<{ message: any }>(`/api/messages/${messageId}`),
 };
 
+// Agent API (proxied through Rita API server → LLM Service)
+export const agentApi = {
+	list: (params?: {
+		name?: string;
+		active?: string;
+		search?: string;
+		limit?: number;
+		offset?: number;
+	}) => {
+		const searchParams = new URLSearchParams();
+		if (params?.name) searchParams.set("name", params.name);
+		if (params?.active) searchParams.set("active", params.active);
+		if (params?.search) searchParams.set("search", params.search);
+		if (params?.limit != null) searchParams.set("limit", String(params.limit));
+		if (params?.offset != null)
+			searchParams.set("offset", String(params.offset));
+		const query = searchParams.toString();
+		return apiRequest<{
+			agents: import("@/types/agent").AgentTableRow[];
+			limit: number;
+			offset: number;
+			hasMore: boolean;
+		}>(`/api/agents${query ? `?${query}` : ""}`);
+	},
+
+	checkName: (name: string) =>
+		apiRequest<{ available: boolean }>(
+			`/api/agents/check-name?name=${encodeURIComponent(name)}`,
+		),
+
+	get: (eid: string) =>
+		apiRequest<import("@/types/agent").AgentConfig>(`/api/agents/${eid}`),
+
+	create: (data: Partial<import("@/types/agent").AgentConfig>) =>
+		apiRequest<import("@/types/agent").AgentConfig>("/api/agents", {
+			method: "POST",
+			body: data,
+		}),
+
+	update: (eid: string, data: Partial<import("@/types/agent").AgentConfig>) =>
+		apiRequest<import("@/types/agent").AgentConfig>(`/api/agents/${eid}`, {
+			method: "PUT",
+			body: data,
+		}),
+
+	delete: (eid: string) =>
+		apiRequest<{ success: boolean; message: string }>(`/api/agents/${eid}`, {
+			method: "DELETE",
+		}),
+};
+
 // Organization API
 export const organizationApi = {
 	getCurrentOrganization: () =>

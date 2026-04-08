@@ -21,6 +21,7 @@ import {
 	HelpCircle,
 	Key,
 	Link2,
+	Loader2,
 	Lock,
 	MessageSquare,
 	Play,
@@ -34,7 +35,7 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
 	AddSkillModal,
@@ -53,9 +54,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MOCK_BUILDER_AGENTS } from "@/constants/agentMocks";
 import { AVAILABLE_ICONS, ICON_COLORS } from "@/constants/agents";
+import {
+	useAgent,
+	useCheckAgentName,
+	useCreateAgent,
+	useUpdateAgent,
+} from "@/hooks/api/useAgents";
 import { useAutoSave } from "@/hooks/useAutoSave";
+import { useClickOutside } from "@/hooks/useClickOutside";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type {
@@ -329,8 +337,22 @@ export default function AgentBuilderPage() {
 
 	// Check if we're editing an existing agent
 	const isEditing = !!agentId;
-	const savedAgent = agentId ? MOCK_BUILDER_AGENTS[agentId] : null;
 	const isDuplicate = !!duplicatedConfig;
+
+	// Fetch existing agent from API when editing
+	const {
+		data: savedAgent,
+		isLoading: isLoadingAgent,
+		error: loadError,
+	} = useAgent(agentId);
+
+	const isPublished = savedAgent?.status === "published";
+	const isDraft = savedAgent?.status === "draft";
+
+	// Track live EID (starts undefined for create, set after first save)
+	const [agentEid, setAgentEid] = useState<string | undefined>(agentId);
+	const createAgent = useCreateAgent();
+	const updateAgent = useUpdateAgent();
 
 	// Default to configure tab
 	const [_activeTab, _setActiveTab] = useState<"configure" | "access">(
@@ -343,29 +365,82 @@ export default function AgentBuilderPage() {
 	);
 	const [_isTyping, _setIsTyping] = useState(false);
 	const [config, setConfig] = useState<AgentConfig>(
-		duplicatedConfig ||
-			savedAgent || {
-				name: agentName,
-				description: "",
-				role: "",
-				responsibilities: "",
-				completionCriteria: "",
-				agentType: null,
-				knowledgeSources: [],
-				workflows: [],
-				hasRequiredConnections: false,
-				instructions: "",
-				conversationStarters: [],
-				guardrails: [],
-				iconId: "bot",
-				iconColorId: "slate",
-				capabilities: {
-					webSearch: true,
-					imageGeneration: false,
-					useAllWorkspaceContent: false,
-				},
+		duplicatedConfig || {
+			name: agentName,
+			description: "",
+			role: "",
+			responsibilities: "",
+			completionCriteria: "",
+			agentType: null,
+			knowledgeSources: [],
+			workflows: [],
+			hasRequiredConnections: false,
+			instructions: "",
+			conversationStarters: [],
+			guardrails: [],
+			iconId: "bot",
+			iconColorId: "slate",
+			capabilities: {
+				webSearch: true,
+				imageGeneration: false,
+				useAllWorkspaceContent: false,
 			},
+		},
 	);
+
+	// Seed config from API data when editing (once loaded)
+	const [hasLoadedFromApi, setHasLoadedFromApi] = useState(false);
+	useEffect(() => {
+		if (savedAgent && !hasLoadedFromApi && !isDuplicate) {
+			setConfig(savedAgent);
+			setStep("done");
+			setHasLoadedFromApi(true);
+		}
+	}, [savedAgent, hasLoadedFromApi, isDuplicate]);
+
+	// Create draft immediately for new agents (ref survives strict-mode remount)
+	const hasCreatedDraft = useRef(false);
+	const [isCreatingDraft, setIsCreatingDraft] = useState(false);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run once on mount, ref guards re-execution
+	useEffect(() => {
+		if (!isEditing && !isDuplicate && !agentEid && !hasCreatedDraft.current) {
+			hasCreatedDraft.current = true;
+			setIsCreatingDraft(true);
+			// Safety timeout: clear loading indicator if API hangs
+			const timeout = setTimeout(() => setIsCreatingDraft(false), 5000);
+			createAgent
+				.mutateAsync({ name: config.name, status: "draft" })
+				.then((created) => {
+					if (created.id) {
+						setAgentEid(created.id);
+					}
+				})
+				.catch(() => {
+					hasCreatedDraft.current = false;
+				})
+				.finally(() => {
+					clearTimeout(timeout);
+					setIsCreatingDraft(false);
+				});
+		}
+	}, []);
+
+	// Debounced name uniqueness check
+	const debouncedName = useDebounce(config.name, 300);
+	const nameToCheck =
+		debouncedName && debouncedName !== savedAgent?.name ? debouncedName : "";
+	const { data: nameCheck, isFetching: isCheckingName } =
+		useCheckAgentName(nameToCheck);
+	const nameTaken = nameCheck?.available === false;
+	const nameAvailable =
+		nameCheck?.available === true && debouncedName === config.name.trim();
+	const [nameTouched, setNameTouched] = useState(false);
+	const nameEmpty = nameTouched && config.name.trim().length === 0;
+	const [instructionsTouched, setInstructionsTouched] = useState(false);
+	const instructionsError =
+		instructionsTouched &&
+		config.instructions.trim().length === 0 &&
+		config.description.trim().length === 0;
 
 	const [_showConfirmButtons, _setShowConfirmButtons] = useState(false);
 
@@ -406,13 +481,31 @@ export default function AgentBuilderPage() {
 	// Icon picker state
 	const [showIconPicker, setShowIconPicker] = useState(false);
 	const [iconSearchQuery, setIconSearchQuery] = useState("");
+	const iconPickerRef = useRef<HTMLDivElement>(null);
+	const handleIconPickerClose = useCallback(() => {
+		if (showIconPicker) {
+			setShowIconPicker(false);
+			setIconSearchQuery("");
+		}
+	}, [showIconPicker]);
+	useClickOutside(iconPickerRef, handleIconPickerClose);
 
 	// Publish modal state
 	const [showPublishModal, setShowPublishModal] = useState(false);
 	const [showUnpublishModal, setShowUnpublishModal] = useState(false);
 
 	// Track the original published config for diff comparison (only for editing)
-	const [publishedConfig] = useState<AgentConfig | null>(savedAgent || null);
+	const publishedConfigRef = useRef<AgentConfig | null>(null);
+	useEffect(() => {
+		if (
+			savedAgent &&
+			!publishedConfigRef.current &&
+			savedAgent.status === "published"
+		) {
+			publishedConfigRef.current = structuredClone(savedAgent);
+		}
+	}, [savedAgent]);
+	const publishedConfig = publishedConfigRef.current;
 
 	// Workflow picker state
 	const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
@@ -549,13 +642,16 @@ export default function AgentBuilderPage() {
 	} = useAutoSave({
 		data: config,
 		onSave: async (data) => {
-			// Mock save - in production this would call the API
-			console.log("Auto-saving agent config:", data);
-			// Simulate network delay
-			await new Promise((resolve) => setTimeout(resolve, 500));
-			// In production: await agentApi.saveAgent(agentId, data);
+			if (agentEid) {
+				await updateAgent.mutateAsync({ eid: agentEid, data });
+			} else {
+				const created = await createAgent.mutateAsync(data);
+				if (created.id) {
+					setAgentEid(created.id);
+				}
+			}
 		},
-		enabled: step === "done" || isEditing, // Only auto-save when in configure mode
+		enabled: (step === "done" && !!agentEid) || isEditing, // Only auto-save when draft exists
 	});
 
 	const [_messages] = useState<BuilderMessage[]>([
@@ -795,11 +891,24 @@ export default function AgentBuilderPage() {
 		return changes;
 	};
 
-	const configChanges = isEditing ? getConfigChanges() : [];
+	const configChanges = isPublished ? getConfigChanges() : [];
 	const hasChanges = configChanges.length > 0;
 
-	const handleConfirmPublish = () => {
-		console.log("Publishing agent:", config);
+	const handleConfirmPublish = async () => {
+		try {
+			const publishData = { ...config, status: "published" as const };
+			if (agentEid) {
+				await updateAgent.mutateAsync({ eid: agentEid, data: publishData });
+			} else {
+				const created = await createAgent.mutateAsync(publishData);
+				if (created.id) setAgentEid(created.id);
+			}
+		} catch {
+			toast.error("Failed to publish agent");
+			setShowPublishModal(false);
+			return;
+		}
+
 		setShowPublishModal(false);
 
 		// Fire confetti celebration
@@ -832,7 +941,7 @@ export default function AgentBuilderPage() {
 		navigate("/agents", {
 			state: {
 				publishedAgent: {
-					id: isEditing ? agentId : Date.now().toString(),
+					id: agentEid || agentId || "",
 					name: config.name,
 					description: config.description,
 					agentType: config.agentType,
@@ -843,6 +952,28 @@ export default function AgentBuilderPage() {
 			},
 		});
 	};
+
+	// Loading state when fetching existing agent
+	if (isEditing && isLoadingAgent) {
+		return (
+			<div className="flex items-center justify-center h-screen bg-muted/50">
+				<div className="text-muted-foreground">Loading agent...</div>
+			</div>
+		);
+	}
+
+	if (isEditing && loadError) {
+		return (
+			<div className="flex flex-col items-center justify-center h-screen gap-4 bg-muted/50">
+				<div className="text-sm text-muted-foreground">
+					Failed to load agent. Please try again.
+				</div>
+				<Button variant="outline" onClick={() => navigate("/agents")}>
+					Back to agents
+				</Button>
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex flex-col h-screen bg-muted/50">
@@ -859,13 +990,19 @@ export default function AgentBuilderPage() {
 					</Button>
 					<h1 className="text-lg font-medium">{config.name}</h1>
 					<Badge
-						variant={isEditing || step === "done" ? "default" : "secondary"}
+						variant={
+							isPublished || (!savedAgent && step === "done")
+								? "default"
+								: "secondary"
+						}
 					>
-						{isEditing ? (
+						{isPublished ? (
 							<>
 								<Check className="size-3 mr-1" />
 								Published
 							</>
+						) : isDraft ? (
+							"Draft"
 						) : step === "done" ? (
 							<>
 								<Check className="size-3 mr-1" />
@@ -875,7 +1012,13 @@ export default function AgentBuilderPage() {
 							"Draft"
 						)}
 					</Badge>
-					{(step === "done" || isEditing) && (
+					{isCreatingDraft && (
+						<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+							<Loader2 className="size-3 animate-spin" />
+							Saving...
+						</span>
+					)}
+					{!isCreatingDraft && (step === "done" || isEditing) && (
 						<SaveStatusIndicator
 							status={saveStatus}
 							isDirty={isDirty}
@@ -892,7 +1035,7 @@ export default function AgentBuilderPage() {
 						variant="outline"
 						className="gap-2"
 						onClick={() =>
-							navigate(isEditing ? `/agents/${agentId}/test` : "/agents/test", {
+							navigate(agentEid ? `/agents/${agentEid}/test` : "/agents/test", {
 								state: { agentConfig: config },
 							})
 						}
@@ -907,7 +1050,7 @@ export default function AgentBuilderPage() {
 						<Play className="size-4" />
 						Test
 					</Button>
-					{isEditing ? (
+					{isPublished ? (
 						<>
 							<Button
 								variant="outline"
@@ -952,18 +1095,56 @@ export default function AgentBuilderPage() {
 								<Label htmlFor="agent-name" className="text-sm font-medium">
 									Name of agent
 								</Label>
-								<div className="flex items-center gap-4 mt-2">
-									<Input
-										id="agent-name"
-										value={config.name}
-										onChange={(e) =>
-											setConfig((prev) => ({ ...prev, name: e.target.value }))
-										}
-										placeholder="Enter agent name"
-										className="flex-1"
-									/>
+								<div className="flex items-start gap-4 mt-2">
+									<div className="flex-1">
+										<div className="relative">
+											<Input
+												id="agent-name"
+												value={config.name}
+												onChange={(e) => {
+													setConfig((prev) => ({
+														...prev,
+														name: e.target.value,
+													}));
+													if (!nameTouched) setNameTouched(true);
+												}}
+												onBlur={() => setNameTouched(true)}
+												placeholder="Enter agent name"
+												aria-invalid={nameEmpty || nameTaken}
+												aria-describedby="builder-name-feedback"
+											/>
+											{isCheckingName && config.name.trim() && (
+												<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+											)}
+										</div>
+										<div
+											id="builder-name-feedback"
+											aria-live="polite"
+											className="min-h-5 mt-1"
+										>
+											{nameEmpty && (
+												<p className="text-sm text-destructive">
+													Agent name is required
+												</p>
+											)}
+											{nameTaken && (
+												<p className="text-sm text-destructive">
+													An agent with this name already exists
+												</p>
+											)}
+											{nameAvailable && !nameEmpty && (
+												<p className="text-sm text-emerald-600 flex items-center gap-1">
+													<Check className="size-3.5" />
+													Name is available
+												</p>
+											)}
+										</div>
+									</div>
 									{/* Icon picker button */}
-									<div className="relative flex items-center">
+									<div
+										ref={iconPickerRef}
+										className="relative flex items-center"
+									>
 										<button
 											onClick={() => setShowIconPicker(!showIconPicker)}
 											className={cn(
@@ -1211,16 +1392,20 @@ export default function AgentBuilderPage() {
 										<Textarea
 											id="instructions"
 											value={config.instructions}
-											onChange={(e) =>
+											onChange={(e) => {
 												setConfig((prev) => ({
 													...prev,
 													instructions: e.target.value,
-												}))
-											}
+												}));
+												if (!instructionsTouched) setInstructionsTouched(true);
+											}}
+											onBlur={() => setInstructionsTouched(true)}
 											placeholder={
 												"## Role\n\n## Backstory\n\n## Goal\n\n## Task"
 											}
-											className="min-h-[80px] max-h-[120px] resize-none text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
+											aria-invalid={instructionsError}
+											aria-describedby="instructions-feedback"
+											className="min-h-[80px] resize-y text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
 										/>
 										<button
 											className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
@@ -1255,6 +1440,17 @@ export default function AgentBuilderPage() {
 										Updated based on skills
 									</p>
 								)}
+								<div
+									id="instructions-feedback"
+									aria-live="polite"
+									className="min-h-5 mt-1"
+								>
+									{instructionsError && (
+										<p className="text-sm text-destructive">
+											Instructions or description is required to publish
+										</p>
+									)}
+								</div>
 							</div>
 
 							{/* Conversation Starters Section */}
@@ -1697,12 +1893,24 @@ export default function AgentBuilderPage() {
 			<UnpublishModal
 				open={showUnpublishModal}
 				onOpenChange={setShowUnpublishModal}
-				onConfirm={() => {
+				onConfirm={async () => {
+					try {
+						if (agentEid) {
+							await updateAgent.mutateAsync({
+								eid: agentEid,
+								data: { status: "draft" },
+							});
+						}
+					} catch {
+						toast.error("Failed to unpublish agent");
+						setShowUnpublishModal(false);
+						return;
+					}
 					setShowUnpublishModal(false);
 					navigate("/agents", {
 						state: {
 							unpublishedAgent: {
-								id: agentId,
+								id: agentEid || agentId,
 								name: config.name,
 							},
 						},

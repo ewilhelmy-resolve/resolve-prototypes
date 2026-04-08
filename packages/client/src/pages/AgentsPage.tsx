@@ -11,6 +11,7 @@ import {
 	BookOpen,
 	ChevronDown,
 	FileText,
+	Loader2,
 	Plus,
 	Sparkles,
 	X,
@@ -22,6 +23,7 @@ import { AgentsTable } from "@/components/agents/AgentsTable";
 import { AgentTemplateModal } from "@/components/agents/AgentTemplateModal";
 import { CreateAgentDialog } from "@/components/agents/CreateAgentDialog";
 import { DeleteAgentModal } from "@/components/agents/DeleteAgentModal";
+import { InfiniteScrollContainer } from "@/components/custom/infinite-scroll-container";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +35,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { MOCK_TABLE_AGENTS } from "@/constants/agentMocks";
+import { useDeleteAgent, useInfiniteAgents } from "@/hooks/api/useAgents";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/toast";
 import type { AgentTableRow, AgentTemplate } from "@/types/agent";
 
@@ -53,7 +56,15 @@ interface PublishedAgentState {
 export default function AgentsPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { getUserEmail } = useAuth();
 	const [searchQuery, setSearchQuery] = useState("");
+	const [debouncedSearch, setDebouncedSearch] = useState("");
+
+	useEffect(() => {
+		const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+		return () => clearTimeout(timer);
+	}, [searchQuery]);
+
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
 	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -64,8 +75,27 @@ export default function AgentsPage() {
 	);
 	const [showEducationBanner, setShowEducationBanner] = useState(true);
 
-	// Dynamic agents list (includes newly published agents)
-	const [agents, setAgents] = useState<AgentTableRow[]>(MOCK_TABLE_AGENTS);
+	// Fetch agents from API with infinite scroll
+	const agentsFilters: Record<string, string> = {};
+	if (statusFilter !== "all") {
+		agentsFilters.active = statusFilter === "published" ? "true" : "false";
+	}
+	if (debouncedSearch) {
+		agentsFilters.search = debouncedSearch;
+	}
+	const {
+		data: agentsData,
+		isLoading,
+		isFetchingNextPage,
+		hasNextPage,
+		fetchNextPage,
+		error: agentsError,
+	} = useInfiniteAgents(
+		Object.keys(agentsFilters).length > 0 ? agentsFilters : undefined,
+	);
+	const deleteAgent = useDeleteAgent();
+
+	const agents = agentsData?.pages.flatMap((p) => p.agents) ?? [];
 
 	// Handle newly published or unpublished agent from navigation state
 	useEffect(() => {
@@ -74,82 +104,31 @@ export default function AgentsPage() {
 			unpublishedAgent?: { id: string; name: string };
 		} | null;
 		if (state?.publishedAgent) {
-			const published = state.publishedAgent;
-
-			// Add to agents table (or update if exists)
-			setAgents((prev) => {
-				const exists = prev.find((a) => a.id === published.id);
-				if (exists) {
-					// Update existing agent
-					return prev.map((a) =>
-						a.id === published.id
-							? {
-									...a,
-									name: published.name,
-									description: published.description,
-									status: "published" as const,
-								}
-							: a,
-					);
-				}
-				// Add new agent at the top
-				const newAgent: AgentTableRow = {
-					id: published.id,
-					name: published.name,
-					description: published.description,
-					status: "published",
-					skills: published.skills || [],
-					updatedBy: { initials: "You", color: "blue" },
-					owner: { initials: "You", color: "blue" },
-					lastUpdated: new Date().toLocaleDateString("en-GB", {
-						day: "2-digit",
-						month: "short",
-						year: "numeric",
-						hour: "2-digit",
-						minute: "2-digit",
-					}),
-				};
-				return [newAgent, ...prev];
-			});
-
-			toast.success(`${published.name} published`, {
+			toast.success(`${state.publishedAgent.name} published`, {
 				description: "Agent is now live and available to users.",
 			});
-
-			// Clear the state to prevent re-adding on refresh
 			window.history.replaceState({}, document.title);
 		}
 
 		if (state?.unpublishedAgent) {
-			const { id, name } = state.unpublishedAgent;
-			setAgents((prev) =>
-				prev.map((a) => (a.id === id ? { ...a, status: "draft" as const } : a)),
-			);
-			toast.info(`${name} moved to draft`, {
+			toast.info(`${state.unpublishedAgent.name} moved to draft`, {
 				description: "Agent is no longer available to users.",
 			});
 			window.history.replaceState({}, document.title);
 		}
 	}, [location.state]);
 
-	// Filter agents based on search and filters
+	// TODO: owner filter is client-side — pages may appear empty while hasMore=true.
+	// Move to server-side filter when LLM Service supports owner param.
+	const currentEmail = getUserEmail();
 	const filteredAgents = agents.filter((agent) => {
-		// Search filter
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
-			if (
-				!agent.name.toLowerCase().includes(query) &&
-				!agent.description.toLowerCase().includes(query)
-			) {
-				return false;
-			}
-		}
-
-		// Status filter
-		if (statusFilter !== "all" && agent.status !== statusFilter) {
+		// Owner filter (client-side — LLM Service doesn't support owner param)
+		if (ownerFilter === "me" && agent.owner !== currentEmail) {
 			return false;
 		}
-
+		if (ownerFilter === "others" && agent.owner === currentEmail) {
+			return false;
+		}
 		return true;
 	});
 
@@ -186,12 +165,16 @@ export default function AgentsPage() {
 	const handleConfirmDelete = () => {
 		if (!agentToDelete) return;
 
-		// Remove from agents list
-		setAgents((prev) => prev.filter((a) => a.id !== agentToDelete.id));
-
-		// Reset state
-		setAgentToDelete(null);
-		setDeleteModalOpen(false);
+		deleteAgent.mutate(agentToDelete.id, {
+			onSuccess: () => {
+				toast.success(`${agentToDelete.name} deleted`);
+				setAgentToDelete(null);
+				setDeleteModalOpen(false);
+			},
+			onError: () => {
+				toast.error("Failed to delete agent");
+			},
+		});
 	};
 
 	return (
@@ -374,12 +357,28 @@ export default function AgentsPage() {
 						</div>
 
 						{/* Agents table */}
-						<AgentsTable
-							agents={filteredAgents}
-							onAgentClick={handleAgentClick}
-							onEdit={(agent) => navigate(`/agents/${agent.id}`)}
-							onDelete={handleDeleteClick}
-						/>
+						{isLoading ? (
+							<div className="flex items-center justify-center py-12">
+								<Loader2 className="size-6 animate-spin text-muted-foreground" />
+							</div>
+						) : agentsError ? (
+							<div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+								Failed to load agents. Please try again.
+							</div>
+						) : (
+							<InfiniteScrollContainer
+								hasMore={hasNextPage ?? false}
+								isLoading={isFetchingNextPage}
+								onLoadMore={() => fetchNextPage()}
+							>
+								<AgentsTable
+									agents={filteredAgents}
+									onAgentClick={handleAgentClick}
+									onEdit={(agent) => navigate(`/agents/${agent.id}`)}
+									onDelete={handleDeleteClick}
+								/>
+							</InfiniteScrollContainer>
+						)}
 					</div>
 				</div>
 			</div>
@@ -403,11 +402,10 @@ export default function AgentsPage() {
 					agentName={agentToDelete.name}
 					agentStatus={agentToDelete.status}
 					impact={{
-						skills: agentToDelete.skills?.length || 0,
-						conversationStarters: 3, // Mock data
-						usersThisWeek: agentToDelete.status === "published" ? 24 : 0,
-						linkedWorkflows:
-							agentToDelete.status === "published" ? ["Password Reset"] : [],
+						skills: agentToDelete.skills?.length ?? 0,
+						conversationStarters: 0, // TODO: populate from API when available
+						usersThisWeek: 0, // TODO: populate from usage analytics API
+						linkedWorkflows: [], // TODO: populate from workflow associations API
 					}}
 					onConfirmDelete={handleConfirmDelete}
 				/>

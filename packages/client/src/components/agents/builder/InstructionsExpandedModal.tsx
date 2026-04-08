@@ -2,6 +2,7 @@
  * InstructionsExpandedModal - Full-screen instructions editor
  */
 
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -32,10 +33,13 @@ export function InstructionsExpandedModal({
 						className="min-h-[400px] resize-none text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
 					/>
 				</div>
-				<div className="px-6 py-4 border-t">
+				<div className="flex items-center justify-between px-6 py-4 border-t">
 					<p className="text-xs text-muted-foreground">
 						Update instructions as needed
 					</p>
+					<Button size="sm" onClick={() => onOpenChange(false)}>
+						Done
+					</Button>
 				</div>
 			</DialogContent>
 		</Dialog>

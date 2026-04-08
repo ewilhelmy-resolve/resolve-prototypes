@@ -221,7 +221,11 @@ export const AVAILABLE_ICONS = [
 	{ id: "home", icon: Home, keywords: ["house", "main", "dashboard"] },
 	{ id: "key", icon: Key, keywords: ["access", "password", "unlock"] },
 	{ id: "layers", icon: Layers, keywords: ["stack", "design", "levels"] },
-	{ id: "map", icon: Map, keywords: ["location", "navigation", "directions"] },
+	{
+		id: "map",
+		icon: MapIcon,
+		keywords: ["location", "navigation", "directions"],
+	},
 	{ id: "package", icon: Package, keywords: ["shipping", "delivery", "box"] },
 	{
 		id: "shopping-cart",

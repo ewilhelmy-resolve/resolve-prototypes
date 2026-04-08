@@ -247,6 +247,8 @@ jobs:
                    CONSUL_HTTP_ADDR: ${{ secrets.PROD_CONSUL_HTTP_ADDR }}
                    CONSUL_HTTP_TOKEN: ${{ secrets.PROD_CONSUL_HTTP_TOKEN }}
                    VALKEY_URL: ${{ secrets.VALKEY_URL_PROD }}
+                   LLM_SERVICE_URL: ${{ secrets.PROD_LLM_SERVICE_URL }}
+                   LLM_SERVICE_API_KEY: ${{ secrets.PROD_LLM_SERVICE_API_KEY }}
                  healthcheck:
                    test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
                    interval: 30s

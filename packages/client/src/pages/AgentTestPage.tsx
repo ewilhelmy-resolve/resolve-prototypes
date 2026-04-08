@@ -38,8 +38,8 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { MOCK_BUILDER_AGENTS } from "@/constants/agentMocks";
 import { AGENT_COLOR_MAP, AGENT_ICON_MAP } from "@/constants/agents";
+import { useAgent } from "@/hooks/api/useAgents";
 import { cn } from "@/lib/utils";
 import type { AgentConfig, ConfigSuggestion, TestMessage } from "@/types/agent";
 
@@ -58,13 +58,19 @@ export default function AgentTestPage() {
 	const stateConfig = (location.state?.config || location.state?.agentConfig) as
 		| AgentConfig
 		| undefined;
-	// TODO(react-19): Replace with use(fetchAgent(agentId)) when API is available
-	const urlConfig = agentId ? MOCK_BUILDER_AGENTS[agentId] : undefined;
-	const initialConfig = stateConfig || urlConfig;
+	const { data: apiConfig } = useAgent(agentId);
+	const initialConfig = stateConfig || apiConfig;
 
 	const [config, setConfig] = useState<AgentConfig | null>(
 		initialConfig || null,
 	);
+
+	// Seed config from API when accessed via direct URL (no navigation state)
+	useEffect(() => {
+		if (apiConfig && !config && !stateConfig) {
+			setConfig(apiConfig);
+		}
+	}, [apiConfig, config, stateConfig]);
 	const [messages, setMessages] = useState<TestMessage[]>([]);
 	const [input, setInput] = useState("");
 	const [feedbackInput, setFeedbackInput] = useState("");
