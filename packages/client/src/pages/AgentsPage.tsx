@@ -37,6 +37,15 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { usePhaseGate } from "@/hooks/usePhaseGate";
+import { type Phase, usePhaseStore } from "@/stores/phaseStore";
 
 // Mock data for agents table
 const mockAgents: Agent[] = [
@@ -108,6 +117,10 @@ interface PublishedAgentState {
 export default function AgentsPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const agentsPhase = usePhaseStore((state) => state.phases.agents);
+	const setPhase = usePhaseStore((state) => state.setPhase);
+	const phaseV2 = usePhaseGate("agents", "v2");
+	const phaseV3 = usePhaseGate("agents", "v3");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
 	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
@@ -227,6 +240,13 @@ export default function AgentsPage() {
 	};
 
 	const handleAgentClick = (agent: Agent) => {
+		// v1: no navigation (view-only list)
+		if (!phaseV2) return;
+		// v3: published agents → chat, draft → configure
+		if (phaseV3 && agent.status === "published") {
+			navigate(`/agents/${agent.id}/chat`);
+			return;
+		}
 		navigate(`/agents/${agent.id}`);
 	};
 
@@ -251,8 +271,23 @@ export default function AgentsPage() {
 			<div className="flex flex-col gap-6 p-4">
 				{/* Header */}
 				<div className="flex items-center justify-between">
-					<h1 className="text-xl font-serif text-card-foreground">Agents</h1>
-					<DropdownMenu>
+					<div className="flex items-center gap-2">
+						<h1 className="text-xl font-serif text-card-foreground">Agents</h1>
+						<Select
+							value={agentsPhase}
+							onValueChange={(v) => setPhase("agents", v as Phase)}
+						>
+							<SelectTrigger className="w-16 h-8 text-xs" aria-label="Agents phase">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="v1">v1</SelectItem>
+								<SelectItem value="v2">v2</SelectItem>
+								<SelectItem value="v3">v3</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+					{phaseV2 && <DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button className="gap-2">
 								<Plus className="size-4" />
@@ -287,7 +322,7 @@ export default function AgentsPage() {
 								</div>
 							</DropdownMenuItem>
 						</DropdownMenuContent>
-					</DropdownMenu>
+					</DropdownMenu>}
 				</div>
 
 				{/* Education banner */}
@@ -428,9 +463,9 @@ export default function AgentsPage() {
 						{/* Agents table */}
 						<AgentsTable
 							agents={filteredAgents}
-							onAgentClick={handleAgentClick}
-							onEdit={(agent) => navigate(`/agents/${agent.id}`)}
-							onDelete={handleDeleteClick}
+							onAgentClick={phaseV2 ? handleAgentClick : undefined}
+							onEdit={phaseV2 ? (agent) => navigate(`/agents/${agent.id}`) : undefined}
+							onDelete={phaseV2 ? handleDeleteClick : undefined}
 						/>
 					</div>
 				</div>

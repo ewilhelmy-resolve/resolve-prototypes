@@ -2,6 +2,7 @@ import { formatRelativeTime } from "./TicketGroupStat";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { usePhaseGate } from "@/hooks/usePhaseGate";
 import {
 	Table,
 	TableBody,
@@ -35,6 +36,7 @@ export function PrioritizationRankedList({
 }: PrioritizationRankedListProps) {
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
+	const phaseV3 = usePhaseGate("tickets", "v3");
 	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 
 	const [sortCol, setSortCol] = useState<SortColumn>(activePreset ?? "costImpact");
@@ -145,6 +147,11 @@ export function PrioritizationRankedList({
 								{renderSortIcon(sortCol, "timeTaken", sortDir)}
 							</button>
 						</TableHead>
+						{phaseV3 && (
+							<TableHead>
+								{t("prioritizationList.columns.mttr")}
+							</TableHead>
+						)}
 						<TableHead>Updated</TableHead>
 					</TableRow>
 				</TableHeader>
@@ -166,6 +173,7 @@ export function PrioritizationRankedList({
 							</TableCell>
 							<TableCell>{formatCurrency(row.costImpact)}</TableCell>
 							<TableCell>{formatMinutes(row.timeTaken)}</TableCell>
+							{phaseV3 && <TableCell>3.2hr</TableCell>}
 							<TableCell className="text-muted-foreground text-xs">
 								{(() => {
 									const newCount = Math.floor(row.cluster.needs_response_count * 0.3);

@@ -1,11 +1,12 @@
 import confetti from "canvas-confetti";
-import { ArrowLeft, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, BookX, Info, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { StatCard } from "@/components/StatCard";
 import { StatGroup } from "@/components/StatGroup";
+import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
@@ -17,6 +18,7 @@ import {
 import {
 	useClusterDetails,
 } from "@/hooks/useClusters";
+import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
@@ -60,6 +62,8 @@ export default function ClusterDetailPage() {
 	const { t } = useTranslation("tickets");
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
+	const phaseV2 = usePhaseGate("tickets", "v2");
+	const phaseV3 = usePhaseGate("tickets", "v3");
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
 	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 	const bannerRef = useRef<HTMLDivElement>(null);
@@ -207,10 +211,18 @@ export default function ClusterDetailPage() {
 								<ArrowLeft className="h-4 w-4" />
 							</Button>
 							<h1 className="text-xl font-medium">{title}</h1>
+							{phaseV3 && cluster.kb_status === "GAP" && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<BookX className="size-4 text-amber-500" />
+									</TooltipTrigger>
+									<TooltipContent>Knowledge Gap</TooltipContent>
+								</Tooltip>
+							)}
 						</div>
 
 						{/* Stats */}
-						<StatGroup columns={4}>
+						<StatGroup columns={phaseV3 ? 6 : phaseV2 ? 4 : 2}>
 							<StatCard
 								value={cluster.ticket_count.toLocaleString()}
 								label={t("clusterDetail.stats.totalTickets")}
@@ -221,34 +233,62 @@ export default function ClusterDetailPage() {
 								label={t("clusterDetail.stats.openTickets")}
 								loading={false}
 							/>
-							<StatCard
-								value={`$${(blendedRatePerHour * (timeToTake / 60) * cluster.ticket_count).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-								label={t("clusterDetail.stats.estMoneySaved")}
-								loading={false}
-							/>
-							<StatCard
-								value={`${Math.floor((timeToTake * cluster.ticket_count) / 60)}hr`}
-								label={
-									<span className="flex items-center gap-1">
-										{t("clusterDetail.stats.estTimeSaved")}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Info className="size-3 text-muted-foreground" />
-											</TooltipTrigger>
-											<TooltipContent side="bottom" className="max-w-[220px] text-xs">
-												{timeToTake} min × {cluster.ticket_count.toLocaleString()} tickets
-											</TooltipContent>
-										</Tooltip>
-									</span>
-								}
-								loading={false}
-							/>
+							{phaseV2 && (
+								<StatCard
+									value={`$${(blendedRatePerHour * (timeToTake / 60) * cluster.ticket_count).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+									label={t("clusterDetail.stats.estMoneySaved")}
+									loading={false}
+								/>
+							)}
+							{phaseV2 && (
+								<StatCard
+									value={`${Math.floor((timeToTake * cluster.ticket_count) / 60)}hr`}
+									label={
+										<span className="flex items-center gap-1">
+											{t("clusterDetail.stats.estTimeSaved")}
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Info className="size-3 text-muted-foreground" />
+												</TooltipTrigger>
+												<TooltipContent side="bottom" className="max-w-[220px] text-xs">
+													{timeToTake} min × {cluster.ticket_count.toLocaleString()} tickets
+												</TooltipContent>
+											</Tooltip>
+										</span>
+									}
+									loading={false}
+								/>
+							)}
+							{phaseV3 && (
+								<StatCard
+									value="4.2hr"
+									label={t("clusterDetail.stats.mttr")}
+									loading={false}
+								/>
+							)}
+							{phaseV3 && (
+								<StatCard
+									value="1.8"
+									label={t("clusterDetail.stats.avgReassignmentRate")}
+									loading={false}
+								/>
+							)}
 						</StatGroup>
 
 						{/* Table Section */}
 						<ClusterDetailTable key={id} clusterId={id} totalCount={cluster.ticket_count} openCount={cluster.open_count} />
 					</div>
 				</div>
+
+				{/* Knowledge Sidebar (v3) */}
+				{phaseV3 && (
+					<ClusterDetailSidebar
+						clusterId={id}
+						clusterName={title}
+						kbArticlesCount={cluster.kb_articles_count}
+						kbStatus={cluster.kb_status}
+					/>
+				)}
 			</div>
 		</RitaLayout>
 	);

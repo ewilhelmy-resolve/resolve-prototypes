@@ -1,9 +1,15 @@
-import { LayoutGrid, List, Search } from "lucide-react";
+import { BookX, Filter, LayoutGrid, List, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuCheckboxItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -20,6 +26,7 @@ import { useActiveModel } from "@/hooks/useActiveModel";
 import { useInfiniteClusters } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useIsIngesting } from "@/hooks/useIsIngesting";
+import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import {
 	type RoiSortKey,
@@ -35,11 +42,13 @@ import { TicketGroupStat } from "./TicketGroupStat";
 type TopViewMode = "cards" | "list";
 type SortOption = "volume" | RoiSortKey;
 
-const SORT_OPTIONS: { key: SortOption; i18nKey: string }[] = [
+const BASE_SORT_OPTIONS: { key: SortOption; i18nKey: string }[] = [
 	{ key: "volume", i18nKey: "groups.sortOptions.volume" },
 	{ key: "costImpact", i18nKey: "groups.sortOptions.cost" },
 	{ key: "timeTaken", i18nKey: "groups.sortOptions.time" },
 ];
+
+type FilterKey = "knowledge_gap";
 
 function ImportProgressBanner({
 	latestRun,
@@ -78,8 +87,29 @@ interface TicketGroupsProps {
 
 export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
+	const phaseV2 = usePhaseGate("tickets", "v2");
+	const phaseV3 = usePhaseGate("tickets", "v3");
 	const [viewMode, setViewMode] = useState<TopViewMode>("cards");
 	const [activeSort, setActiveSort] = useState<SortOption>("volume");
+	const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
+
+	// Build sort options based on phase
+	const sortOptions = useMemo(() => {
+		const opts = [...BASE_SORT_OPTIONS];
+		if (phaseV3) {
+			opts.push({ key: "mttr" as SortOption, i18nKey: "groups.sortOptions.mttr" });
+		}
+		return opts;
+	}, [phaseV3]);
+
+	const toggleFilter = (key: FilterKey) => {
+		setActiveFilters((prev) => {
+			const next = new Set(prev);
+			if (next.has(key)) next.delete(key);
+			else next.add(key);
+			return next;
+		});
+	};
 
 	// Search state with debounce
 	const [searchInput, setSearchInput] = useState("");
@@ -139,10 +169,14 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 					c.subcluster_name?.toLowerCase().includes(q),
 			);
 		}
+		if (activeFilters.has("knowledge_gap")) {
+			filtered = filtered.filter((c) => c.kb_status === "GAP");
+		}
 		return filtered;
 	}, [
 		infiniteData,
 		debouncedSearch,
+		activeFilters,
 	]);
 	const _totals = infiniteData?.pages[0]?.totals;
 	const isDataLoading = isInfiniteLoading;
@@ -233,40 +267,89 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 							/>
 						</div>
 
-						<Select
-							value={activeSort}
-							onValueChange={(v) => setActiveSort(v as SortOption)}
-						>
-							<SelectTrigger className="w-auto h-8 text-sm">
-								<span className="text-muted-foreground mr-1">
-									{t("groups.sortBy")}:
-								</span>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{SORT_OPTIONS.map(({ key, i18nKey }) => (
-									<SelectItem key={key} value={key}>
-										{t(i18nKey)}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						{phaseV2 && (
+							<Select
+								value={activeSort}
+								onValueChange={(v) => setActiveSort(v as SortOption)}
+							>
+								<SelectTrigger className="w-auto h-8 text-sm">
+									<span className="text-muted-foreground mr-1">
+										{t("groups.sortBy")}:
+									</span>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{sortOptions.map(({ key, i18nKey }) => (
+										<SelectItem key={key} value={key}>
+											{t(i18nKey)}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
 
-						<Tabs
-							value={viewMode}
-							onValueChange={(v) => setViewMode(v as TopViewMode)}
-						>
-							<TabsList>
-								<TabsTrigger value="cards">
-									<LayoutGrid className="size-3.5" />
-								</TabsTrigger>
-								<TabsTrigger value="list">
-									<List className="size-3.5" />
-								</TabsTrigger>
-							</TabsList>
-						</Tabs>
+						{phaseV3 && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant="outline" size="sm" className="gap-1.5">
+										<Filter className="size-3.5" />
+										Filter
+										{activeFilters.size > 0 && (
+											<Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+												{activeFilters.size}
+											</Badge>
+										)}
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent>
+									<DropdownMenuCheckboxItem
+										checked={activeFilters.has("knowledge_gap")}
+										onCheckedChange={() => toggleFilter("knowledge_gap")}
+									>
+										<BookX className="size-3.5 mr-2" />
+										Knowledge Gap
+									</DropdownMenuCheckboxItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
+
+						{phaseV2 && (
+							<Tabs
+								value={viewMode}
+								onValueChange={(v) => setViewMode(v as TopViewMode)}
+							>
+								<TabsList>
+									<TabsTrigger value="cards">
+										<LayoutGrid className="size-3.5" />
+									</TabsTrigger>
+									<TabsTrigger value="list">
+										<List className="size-3.5" />
+									</TabsTrigger>
+								</TabsList>
+							</Tabs>
+						)}
 					</div>
 				</div>
+
+				{/* Active filter chips */}
+				{phaseV3 && activeFilters.size > 0 && (
+					<div className="flex items-center gap-2">
+						{activeFilters.has("knowledge_gap") && (
+							<Badge variant="secondary" className="gap-1 pl-2 pr-1">
+								<BookX className="size-3" />
+								Knowledge Gap
+								<button
+									type="button"
+									onClick={() => toggleFilter("knowledge_gap")}
+									className="ml-1 rounded-full hover:bg-muted p-0.5"
+									aria-label="Remove knowledge gap filter"
+								>
+									<X className="size-3" />
+								</button>
+							</Badge>
+						)}
+					</div>
+				)}
 
 				{hasNoModel ? (
 					<div className="flex min-h-[300px] flex-col items-center justify-center gap-4">
@@ -324,6 +407,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 											)}
 											count={cluster.ticket_count}
 											openCount={cluster.needs_response_count}
+											showCostImpact={phaseV2}
 											costImpact={roi?.costImpact}
 											updatedAt={cluster.updated_at}
 											newTicketCount={
@@ -335,6 +419,8 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 														)
 													: undefined
 											}
+											knowledgeStatus={phaseV3 ? cluster.kb_status : undefined}
+											mttr={phaseV3 ? "3.2hr" : undefined}
 										/>
 									);
 								})}
