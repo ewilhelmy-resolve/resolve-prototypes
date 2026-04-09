@@ -232,7 +232,7 @@ export const ReasoningSteps = memo(
 							)}
 							style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}
 						>
-							{/* Step icon / spinner */}
+							{/* Step indicator: spinner for active, icon only if explicitly set */}
 							<div className="mt-0.5 shrink-0">
 								{isActive ? (
 									<Loader2
@@ -243,16 +243,13 @@ export const ReasoningSteps = memo(
 											colorConfig.dot,
 										)}
 									/>
-								) : (
+								) : step.icon ? (
 									<Icon
 										aria-hidden="true"
-										className={cn(
-											"h-3.5 w-3.5",
-											isActive
-												? colorConfig.dot
-												: "text-muted-foreground/50",
-										)}
+										className="h-3.5 w-3.5 text-muted-foreground/50"
 									/>
+								) : (
+									<span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/30 mt-1" aria-hidden="true" />
 								)}
 							</div>
 
@@ -272,10 +269,6 @@ export const ReasoningSteps = memo(
 								)}
 							</span>
 
-							{/* Completed checkmark */}
-							{!isActive && !isStreaming && (
-								<Check className="h-3 w-3 text-muted-foreground/30 shrink-0 mt-0.5" />
-							)}
 						</div>
 					);
 				})}

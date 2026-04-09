@@ -449,7 +449,7 @@ function generateMockResponse(
 	// Check for test trigger words first
 
 	// test-error: Simulate a failed workflow
-	if (content.includes("test-error") || content.includes("fail") || content.includes("break")) {
+	if (content.startsWith("test-error")) {
 		const steps = [
 			"Starting agent",
 			"Requirements Analyst is working...",
@@ -496,7 +496,7 @@ function generateMockResponse(
 	}
 
 	// test-warning: Simulate a workflow with warnings
-	if (content.includes("test-warning") || content.includes("warn") || content.includes("check")) {
+	if (content.startsWith("test-warning")) {
 		const steps = [
 			"Starting agent",
 			"Software Developer is working...",
@@ -545,7 +545,7 @@ function generateMockResponse(
 	}
 
 	// test-icons: Demo all icon and color options
-	if (content.includes("test-icons") || content.includes("show icons") || content.includes("demo icons")) {
+	if (content.startsWith("test-icons")) {
 		const steps = [
 			"[icon:zap] Initializing workflow engine",
 			"[icon:shield,color:green] Validating security credentials",
@@ -600,7 +600,7 @@ function generateMockResponse(
 	}
 
 	// test-workflow / add / multiply / create activity: Simulate successful workflow
-	if (content.startsWith("test-workflow") || content.includes("add") || content.includes("multiply") || content.includes("create activity")) {
+	if (content.startsWith("test-workflow")) {
 		// Simulate real Actions Platform workflow with step-by-step reasoning
 		// Each reasoning step is a separate response (matches real SSE behavior)
 		const steps = [
