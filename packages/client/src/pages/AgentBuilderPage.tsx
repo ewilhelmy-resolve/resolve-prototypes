@@ -240,6 +240,9 @@ export default function AgentBuilderPage() {
 	const duplicatedConfig = location.state?.duplicatedConfig as
 		| AgentConfig
 		| undefined;
+	const initialConfig = location.state?.initialConfig as
+		| AgentConfig
+		| undefined;
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	// Check if we're editing an existing agent
@@ -272,65 +275,41 @@ export default function AgentBuilderPage() {
 	);
 	const [_isTyping, _setIsTyping] = useState(false);
 	const [config, setConfig] = useState<AgentConfig>(
-		duplicatedConfig || {
-			name: agentName,
-			description: "",
-			role: "",
-			responsibilities: "",
-			completionCriteria: "",
-			agentType: null,
-			knowledgeSources: [],
-			workflows: [],
-			hasRequiredConnections: false,
-			instructions: "",
-			conversationStarters: [],
-			guardrails: [],
-			iconId: "bot",
-			iconColorId: "slate",
-			capabilities: {
-				webSearch: true,
-				imageGeneration: false,
-				useAllWorkspaceContent: false,
+		duplicatedConfig ||
+			initialConfig || {
+				name: agentName,
+				description: "",
+				role: "",
+				responsibilities: "",
+				completionCriteria: "",
+				agentType: null,
+				knowledgeSources: [],
+				workflows: [],
+				hasRequiredConnections: false,
+				instructions: "",
+				conversationStarters: [],
+				guardrails: [],
+				iconId: "bot",
+				iconColorId: "slate",
+				capabilities: {
+					webSearch: true,
+					imageGeneration: false,
+					useAllWorkspaceContent: false,
+				},
 			},
-		},
 	);
 
 	// Seed config from API data when editing (once loaded)
 	const [hasLoadedFromApi, setHasLoadedFromApi] = useState(false);
 	useEffect(() => {
-		if (savedAgent && !hasLoadedFromApi && !isDuplicate) {
+		if (savedAgent && !hasLoadedFromApi && !isDuplicate && !initialConfig) {
 			setConfig(savedAgent);
 			setStep("done");
 			setHasLoadedFromApi(true);
 		}
-	}, [savedAgent, hasLoadedFromApi, isDuplicate]);
+	}, [savedAgent, hasLoadedFromApi, isDuplicate, initialConfig]);
 
-	// Create draft immediately for new agents (ref survives strict-mode remount)
-	const hasCreatedDraft = useRef(false);
 	const [isCreatingDraft, setIsCreatingDraft] = useState(false);
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run once on mount, ref guards re-execution
-	useEffect(() => {
-		if (!isEditing && !isDuplicate && !agentEid && !hasCreatedDraft.current) {
-			hasCreatedDraft.current = true;
-			setIsCreatingDraft(true);
-			// Safety timeout: clear loading indicator if API hangs
-			const timeout = setTimeout(() => setIsCreatingDraft(false), 5000);
-			createAgent
-				.mutateAsync({ name: config.name, status: "draft" })
-				.then((created) => {
-					if (created.id) {
-						setAgentEid(created.id);
-					}
-				})
-				.catch(() => {
-					hasCreatedDraft.current = false;
-				})
-				.finally(() => {
-					clearTimeout(timeout);
-					setIsCreatingDraft(false);
-				});
-		}
-	}, []);
 
 	// Debounced name uniqueness check
 	const debouncedName = useDebounce(config.name, 300);
@@ -629,6 +608,27 @@ export default function AgentBuilderPage() {
 		navigate("/agents");
 	};
 
+	const handleCreate = async () => {
+		if (!config.name.trim() || nameTaken) return;
+		setIsCreatingDraft(true);
+		try {
+			const created = await createAgent.mutateAsync({
+				name: config.name,
+				status: "draft",
+			});
+			if (created.id) {
+				navigate(`/agents/${created.id}`, {
+					replace: true,
+					state: { initialConfig: config },
+				});
+			}
+		} catch {
+			toast.error("Failed to create agent");
+		} finally {
+			setIsCreatingDraft(false);
+		}
+	};
+
 	const handlePublish = () => {
 		// Show publish confirmation modal
 		setShowPublishModal(true);
@@ -798,13 +798,7 @@ export default function AgentBuilderPage() {
 							"Draft"
 						)}
 					</Badge>
-					{isCreatingDraft && (
-						<span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-							<Loader2 className="size-3 animate-spin" />
-							Saving...
-						</span>
-					)}
-					{!isCreatingDraft && (step === "done" || isEditing) && (
+					{(step === "done" || isEditing) && (
 						<SaveStatusIndicator
 							status={saveStatus}
 							isDirty={isDirty}
@@ -856,6 +850,14 @@ export default function AgentBuilderPage() {
 								)}
 							</Button>
 						</>
+					) : !isEditing && !agentEid ? (
+						<Button
+							onClick={handleCreate}
+							disabled={!config.name.trim() || nameTaken || isCreatingDraft}
+						>
+							{isCreatingDraft && <Loader2 className="size-4 animate-spin" />}
+							Create agent
+						</Button>
 					) : (
 						<Button
 							onClick={handlePublish}

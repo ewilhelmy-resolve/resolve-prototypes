@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -129,26 +130,6 @@ describe("AgentBuilderPage - Status Badge", () => {
 		mockCreateAgent.mutateAsync.mockResolvedValue({ id: "new-1" });
 	});
 
-	it("does not call replaceState during draft creation", async () => {
-		// replaceState triggers React Router v7 re-match → changes agentId → wrong badge
-		const spy = vi.spyOn(window.history, "replaceState");
-
-		mockedUseAgent.mockReturnValue({
-			data: undefined,
-			isLoading: false,
-			error: null,
-		} as ReturnType<typeof useAgent>);
-
-		renderPage("/agents/create");
-
-		await waitFor(() => {
-			expect(mockCreateAgent.mutateAsync).toHaveBeenCalled();
-		});
-
-		expect(spy).not.toHaveBeenCalled();
-		spy.mockRestore();
-	});
-
 	it("shows 'Draft' badge when editing a draft agent", async () => {
 		mockedUseAgent.mockReturnValue({
 			data: draftAgent,
@@ -245,13 +226,32 @@ describe("AgentBuilderPage - Action Buttons", () => {
 	});
 });
 
-describe("AgentBuilderPage - Draft on Create", () => {
+describe("AgentBuilderPage - Create Agent Button", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockCreateAgent.mutateAsync.mockResolvedValue({ id: "new-draft-1" });
 	});
 
-	it("calls createAgent on mount for new agents", async () => {
+	it("does NOT call createAgent on mount for new agents", async () => {
+		mockedUseAgent.mockReturnValue({
+			data: undefined,
+			isLoading: false,
+			error: null,
+		} as ReturnType<typeof useAgent>);
+
+		renderPage("/agents/create");
+
+		// Wait for render to settle
+		await waitFor(() => {
+			expect(
+				screen.getByRole("button", { name: /Create agent/i }),
+			).toBeInTheDocument();
+		});
+
+		expect(mockCreateAgent.mutateAsync).not.toHaveBeenCalled();
+	});
+
+	it("shows 'Create agent' button in create mode", async () => {
 		mockedUseAgent.mockReturnValue({
 			data: undefined,
 			isLoading: false,
@@ -261,13 +261,49 @@ describe("AgentBuilderPage - Draft on Create", () => {
 		renderPage("/agents/create");
 
 		await waitFor(() => {
+			expect(
+				screen.getByRole("button", { name: /Create agent/i }),
+			).toBeInTheDocument();
+		});
+
+		// Should not show Publish in create mode
+		expect(
+			screen.queryByRole("button", { name: /^Publish$/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("calls createAgent and navigates on click", async () => {
+		const user = userEvent.setup();
+
+		mockedUseAgent.mockReturnValue({
+			data: undefined,
+			isLoading: false,
+			error: null,
+		} as ReturnType<typeof useAgent>);
+
+		renderPage("/agents/create");
+
+		const createBtn = await screen.findByRole("button", {
+			name: /Create agent/i,
+		});
+		await user.click(createBtn);
+
+		await waitFor(() => {
 			expect(mockCreateAgent.mutateAsync).toHaveBeenCalledWith(
-				expect.objectContaining({ status: "draft" }),
+				expect.objectContaining({
+					name: "Untitled Agent",
+					status: "draft",
+				}),
 			);
+		});
+
+		expect(mockNavigate).toHaveBeenCalledWith("/agents/new-draft-1", {
+			replace: true,
+			state: expect.objectContaining({ initialConfig: expect.any(Object) }),
 		});
 	});
 
-	it("does NOT call createAgent when editing existing agent", async () => {
+	it("does NOT show 'Create agent' button when editing existing agent", async () => {
 		mockedUseAgent.mockReturnValue({
 			data: draftAgent,
 			isLoading: false,
@@ -280,36 +316,9 @@ describe("AgentBuilderPage - Draft on Create", () => {
 			expect(screen.getByText("Store Hours Manager")).toBeInTheDocument();
 		});
 
+		expect(
+			screen.queryByRole("button", { name: /Create agent/i }),
+		).not.toBeInTheDocument();
 		expect(mockCreateAgent.mutateAsync).not.toHaveBeenCalled();
-	});
-
-	it("clears 'Saving...' even when API hangs (safety timeout)", async () => {
-		vi.useFakeTimers({ shouldAdvanceTime: true });
-
-		// Simulate a mutation that never resolves (API hanging)
-		mockCreateAgent.mutateAsync.mockReturnValue(new Promise(() => {}));
-
-		mockedUseAgent.mockReturnValue({
-			data: undefined,
-			isLoading: false,
-			error: null,
-		} as ReturnType<typeof useAgent>);
-
-		renderPage("/agents/create");
-
-		// "Saving..." should appear initially
-		await waitFor(() => {
-			expect(screen.getByText("Saving...")).toBeInTheDocument();
-		});
-
-		// Advance past safety timeout (5s)
-		vi.advanceTimersByTime(6000);
-
-		// "Saving..." should disappear even though mutation never resolved
-		await waitFor(() => {
-			expect(screen.queryByText("Saving...")).not.toBeInTheDocument();
-		});
-
-		vi.useRealTimers();
 	});
 });
