@@ -46,12 +46,16 @@ export async function generateAvcjDocs(
 		chalk.green(`  Generated: ${userActors.length} actor docs (users)`),
 	);
 
-	// --- Views: pages only (kind === "page") ---
+	// --- Views: pages only (kind === "page"), enriched with route data ---
+	const routeMap = parseRouterFile(
+		path.join(outputDir, "../../packages/client/src/router.tsx"),
+	);
 	const pageViews = lexicon.views.filter((v) => v.kind === "page");
 	for (const view of pageViews) {
+		const routeInfo = routeMap.get(view.name);
 		writeFileSync(
 			path.join(outputDir, "views", `${view.id}.md`),
-			renderView(view),
+			renderPageView(view, routeInfo),
 		);
 	}
 	console.log(
@@ -202,6 +206,132 @@ function renderUserActor(actor: UserActor): string {
 }
 
 // --- Renderers ---
+
+// --- Route parser ---
+
+interface RouteInfo {
+	paths: string[];
+	access: "public" | "authenticated" | "admin";
+}
+
+function parseRouterFile(routerPath: string): Map<string, RouteInfo> {
+	const map = new Map<string, RouteInfo>();
+	try {
+		const content = readFileSync(routerPath, "utf-8");
+
+		// Match each route block: path + the element/JSX section after it
+		const routeBlockRegex = /path:\s*["']([^"']+)["'][\s\S]*?element:\s*([\s\S]*?)(?=path:|$)/g;
+
+		for (const match of content.matchAll(routeBlockRegex)) {
+			const routePath = match[1];
+			const elementBlock = match[2];
+
+			// Find the actual page component: <FooPage /> (ends with Page)
+			const pageMatch = elementBlock.match(/<(\w+Page)\s*\/?\s*>/);
+			if (!pageMatch) continue;
+			const componentName = pageMatch[1];
+
+			// Skip redirects
+			if (componentName === "Navigate") continue;
+
+			// Detect access level from surrounding context
+			const contextStart = Math.max(0, match.index - 300);
+			const context = content.slice(contextStart, match.index + match[0].length);
+
+			let access: RouteInfo["access"] = "public";
+			if (/RoleProtectedRoute/.test(context)) {
+				access = "admin";
+			} else if (/ProtectedRoute/.test(context)) {
+				access = "authenticated";
+			}
+
+			const existing = map.get(componentName);
+			if (existing) {
+				existing.paths.push(routePath);
+			} else {
+				map.set(componentName, { paths: [routePath], access });
+			}
+		}
+	} catch {
+		// Router file not found
+	}
+	return map;
+}
+
+function renderPageView(view: View, routeInfo?: RouteInfo): string {
+	const routes = routeInfo?.paths || (view.route ? [view.route] : []);
+	const access = routeInfo?.access || "authenticated";
+
+	const accessLabel =
+		access === "admin"
+			? "Admin only (owner/admin)"
+			: access === "authenticated"
+				? "All authenticated users"
+				: "Public (no auth)";
+
+	const frontmatter = [
+		"---",
+		"type: view",
+		`id: ${view.id}`,
+		`name: ${view.name}`,
+		"kind: page",
+		routes.length > 0 ? `route: "${routes[0]}"` : null,
+		`access: "${access}"`,
+		view.storybookPath ? `storybook: "${view.storybookPath}"` : null,
+		`package: ${view.sources[0]?.package || "client"}`,
+		"auto_generated: true",
+		"---",
+	]
+		.filter(Boolean)
+		.join("\n");
+
+	let body = `\n\n# ${view.name}\n\n`;
+
+	if (view.description) {
+		body += `${view.description}\n\n`;
+	}
+
+	// Route and access info
+	if (routes.length > 0) {
+		body += "## Route\n\n";
+		for (const r of routes) {
+			body += `- \`${r}\`\n`;
+		}
+		body += `\n**Access:** ${accessLabel}\n\n`;
+	}
+
+	// Actor mapping
+	if (access === "admin") {
+		body += "## Actors\n\n";
+		body += "- [Admin](../actors/admin.md) — full access\n";
+		body += "- [Standard User](../actors/standard-user.md) — access denied (constraint)\n\n";
+	} else if (access === "authenticated") {
+		body += "## Actors\n\n";
+		body += "- [Admin](../actors/admin.md) — full access\n";
+		body += "- [Standard User](../actors/standard-user.md) — full access\n\n";
+	}
+
+	if (view.props.length > 0) {
+		body += "## Props\n\n";
+		body +=
+			"| Prop | Type | Required | Description |\n|------|------|----------|-------------|\n";
+		for (const p of view.props) {
+			body += `| ${p.name} | \`${p.type}\` | ${p.required ? "Yes" : "No"} | ${p.description || "—"} |\n`;
+		}
+		body += "\n";
+	}
+
+	if (view.storybookPath) {
+		body += `## Storybook\n\n[View in Storybook](${view.storybookPath})\n\n`;
+	}
+
+	body += "## Source\n\n";
+	for (const s of view.sources) {
+		body += `- \`${s.file}:${s.line}\`\n`;
+	}
+
+	return frontmatter + body;
+}
 
 function renderView(view: View): string {
 	const frontmatter = [
