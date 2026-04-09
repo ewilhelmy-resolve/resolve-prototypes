@@ -23,14 +23,6 @@ vi.mock("@/lib/toast", () => ({
 	toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-vi.mock("@/components/agents/AgentTemplateModal", () => ({
-	AgentTemplateModal: () => null,
-}));
-
-vi.mock("@/components/agents/CreateAgentDialog", () => ({
-	CreateAgentDialog: () => null,
-}));
-
 vi.mock("@/components/agents/DeleteAgentModal", () => ({
 	DeleteAgentModal: () => null,
 }));
