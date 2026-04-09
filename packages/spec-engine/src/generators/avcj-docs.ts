@@ -26,8 +26,12 @@ export async function generateAvcjDocs(
 		"constraints",
 		"engineering",
 	];
+	// Clean and recreate directories to remove stale files from previous builds
+	const { rmSync } = await import("node:fs");
 	for (const dir of dirs) {
-		mkdirSync(path.join(outputDir, dir), { recursive: true });
+		const dirPath = path.join(outputDir, dir);
+		rmSync(dirPath, { recursive: true, force: true });
+		mkdirSync(dirPath, { recursive: true });
 	}
 
 	// --- Actors: hard-coded users ---
