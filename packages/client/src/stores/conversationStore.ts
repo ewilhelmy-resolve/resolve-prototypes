@@ -118,6 +118,7 @@ export function getMessageType(message: Message): string {
 	if (!message.metadata) return "text";
 
 	if (message.metadata.reasoning) return "reasoning";
+	if (message.metadata.completion) return "completion";
 	if (message.metadata.sources) return "sources";
 	if (message.metadata.tasks) return "tasks";
 	if (message.metadata.files) return "files";
@@ -209,7 +210,8 @@ function mergeConsecutiveReasoning(
 			(lastPart.message && lastPart.message.trim().length > 0) ||
 			lastPart.metadata?.sources ||
 			lastPart.metadata?.tasks ||
-			lastPart.metadata?.files;
+			lastPart.metadata?.files ||
+			lastPart.metadata?.completion;
 
 		const basePart = hasTextOrMetadata ? lastPart : reasoningParts[0];
 
@@ -314,6 +316,7 @@ export function groupMessages(flatMessages: Message[]): ChatMessage[] {
 				const hasMetadata =
 					part.metadata &&
 					(part.metadata.reasoning ||
+						part.metadata.completion ||
 						part.metadata.sources ||
 						part.metadata.tasks ||
 						part.metadata.files);

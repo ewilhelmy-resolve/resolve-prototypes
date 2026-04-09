@@ -183,7 +183,7 @@ function classifyStep(text: string): StepType {
  */
 function cleanStepText(text: string): { display: string; full: string } {
 	const uuidPattern =
-		/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+		/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i;
 	const hasUuid = uuidPattern.test(text);
 
 	if (!hasUuid) return { display: text, full: text };
@@ -224,7 +224,7 @@ export const ReasoningSteps = memo(
 
 					return (
 						<div
-							key={`${i}-${step.text.slice(0, 20)}`}
+							key={`step-${i}`}
 							className={cn(
 								"flex items-start gap-2 py-1 text-sm transition-opacity duration-300",
 								isActive ? "text-foreground" : "text-muted-foreground",
@@ -236,6 +236,8 @@ export const ReasoningSteps = memo(
 							<div className="mt-0.5 shrink-0">
 								{isActive ? (
 									<Loader2
+										role="status"
+										aria-label="Processing step"
 										className={cn(
 											"h-3.5 w-3.5 animate-spin",
 											colorConfig.dot,
@@ -243,6 +245,7 @@ export const ReasoningSteps = memo(
 									/>
 								) : (
 									<Icon
+										aria-hidden="true"
 										className={cn(
 											"h-3.5 w-3.5",
 											isActive
@@ -263,7 +266,7 @@ export const ReasoningSteps = memo(
 							>
 								{display}
 								{step.count > 1 && (
-									<span className="ms-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+									<span aria-label={`repeated ${step.count} times`} className="ms-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
 										x{step.count}
 									</span>
 								)}

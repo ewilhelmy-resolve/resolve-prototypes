@@ -36,6 +36,7 @@ interface CompletionCardProps {
 	title: string;
 	details?: Record<string, string | number>;
 	fireConfetti?: boolean;
+	conversationId?: string;
 	className?: string;
 }
 
@@ -69,8 +70,8 @@ const statusConfig = {
 	},
 };
 
-// Track confetti globally so it only fires once per session
-let hasConfettiFired = false;
+// Track confetti per conversation so it fires once per conversation, not once forever
+let confettiFiredForConversation: string | null = null;
 
 /**
  * Rich completion card for workflow results.
@@ -85,21 +86,21 @@ export const CompletionCard = memo(
 		title,
 		details,
 		fireConfetti = true,
+		conversationId,
 		className,
 	}: CompletionCardProps) => {
-		const config = statusConfig[status];
+		const config = statusConfig[status] ?? statusConfig.success;
 		const Icon = config.icon;
 		const confettiRef = useRef(false);
 
 		useEffect(() => {
-			if (
-				status === "success" &&
-				fireConfetti &&
-				!hasConfettiFired &&
-				!confettiRef.current
-			) {
+			const alreadyFired = conversationId
+				? confettiFiredForConversation === conversationId
+				: confettiRef.current;
+
+			if (status === "success" && fireConfetti && !alreadyFired) {
 				confettiRef.current = true;
-				hasConfettiFired = true;
+				if (conversationId) confettiFiredForConversation = conversationId;
 				confetti({
 					particleCount: 80,
 					spread: 60,
@@ -113,6 +114,8 @@ export const CompletionCard = memo(
 
 		return (
 			<div
+				role="status"
+				aria-live="polite"
 				className={cn(
 					"border rounded-lg px-4 py-3 space-y-2 animate-in zoom-in-95 fade-in-0 duration-500",
 					config.border,
@@ -146,7 +149,7 @@ export const CompletionCard = memo(
 						{detailEntries.map(([key, value], i) => (
 							<span key={key} className="flex items-center gap-1">
 								{i > 0 && (
-									<span className="text-muted-foreground/40 me-3">|</span>
+									<span aria-hidden="true" className="text-muted-foreground/40 me-3">|</span>
 								)}
 								{String(value)}
 							</span>
