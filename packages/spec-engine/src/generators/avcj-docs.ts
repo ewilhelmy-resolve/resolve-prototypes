@@ -34,8 +34,8 @@ export async function generateAvcjDocs(
 		mkdirSync(dirPath, { recursive: true });
 	}
 
-	// --- Actors: hard-coded users ---
-	const userActors = getSystemActors();
+	// --- Actors: from data/actors.json ---
+	const userActors = loadActors(outputDir);
 	for (const actor of userActors) {
 		writeFileSync(
 			path.join(outputDir, "actors", `${actor.id}.md`),
@@ -46,16 +46,14 @@ export async function generateAvcjDocs(
 		chalk.green(`  Generated: ${userActors.length} actor docs (users)`),
 	);
 
-	// --- Views: pages only (kind === "page"), enriched with route data ---
-	const routeMap = parseRouterFile(
-		path.join(outputDir, "../../packages/client/src/router.tsx"),
-	);
+	// --- Views: pages only, enriched with route data from data/routes.json ---
+	const routeData = loadRoutes(outputDir);
 	const pageViews = lexicon.views.filter((v) => v.kind === "page");
 	for (const view of pageViews) {
-		const routeInfo = routeMap.get(view.name);
+		const routes = routeData.filter((r) => r.page === view.name);
 		writeFileSync(
 			path.join(outputDir, "views", `${view.id}.md`),
-			renderPageView(view, routeInfo),
+			renderPageView(view, routes.length > 0 ? routes : undefined),
 		);
 	}
 	console.log(
@@ -149,6 +147,34 @@ interface UserActor {
 	role: string;
 	description: string;
 	permissions: string[];
+	constraints?: string[];
+	blocked_routes?: string[];
+	auth_flow?: string;
+}
+
+interface RouteEntry {
+	path: string;
+	page: string;
+	access: "public" | "authenticated" | "admin";
+	description: string;
+}
+
+function loadActors(outputDir: string): UserActor[] {
+	const actorsPath = path.join(outputDir, "../../packages/spec-engine/data/actors.json");
+	try {
+		return JSON.parse(readFileSync(actorsPath, "utf-8"));
+	} catch {
+		return getSystemActors();
+	}
+}
+
+function loadRoutes(outputDir: string): RouteEntry[] {
+	const routesPath = path.join(outputDir, "../../packages/spec-engine/data/routes.json");
+	try {
+		return JSON.parse(readFileSync(routesPath, "utf-8"));
+	} catch {
+		return [];
+	}
 }
 
 function getSystemActors(): UserActor[] {
@@ -234,6 +260,24 @@ function renderUserActor(actor: UserActor): string {
 		body += `- ${p}\n`;
 	}
 
+	if (actor.constraints && actor.constraints.length > 0) {
+		body += "\n## Constraints\n\n";
+		for (const c of actor.constraints) {
+			body += `- ${c}\n`;
+		}
+	}
+
+	if (actor.blocked_routes && actor.blocked_routes.length > 0) {
+		body += "\n## Blocked Routes\n\n";
+		for (const r of actor.blocked_routes) {
+			body += `- \`${r}\`\n`;
+		}
+	}
+
+	if (actor.auth_flow) {
+		body += `\n## Auth Flow\n\n${actor.auth_flow}\n`;
+	}
+
 	return frontmatter + body;
 }
 
@@ -290,9 +334,10 @@ function parseRouterFile(routerPath: string): Map<string, RouteInfo> {
 	return map;
 }
 
-function renderPageView(view: View, routeInfo?: RouteInfo): string {
-	const routes = routeInfo?.paths || (view.route ? [view.route] : []);
-	const access = routeInfo?.access || "authenticated";
+function renderPageView(view: View, routeEntries?: RouteEntry[]): string {
+	const routes = routeEntries?.map((r) => r.path) || (view.route ? [view.route] : []);
+	const access = routeEntries?.[0]?.access || "authenticated";
+	const pageDescription = routeEntries?.[0]?.description;
 
 	const accessLabel =
 		access === "admin"
@@ -319,7 +364,9 @@ function renderPageView(view: View, routeInfo?: RouteInfo): string {
 
 	let body = `\n\n# ${view.name}\n\n`;
 
-	if (view.description) {
+	if (pageDescription) {
+		body += `${pageDescription}\n\n`;
+	} else if (view.description) {
 		body += `${view.description}\n\n`;
 	}
 
