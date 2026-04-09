@@ -17,10 +17,8 @@ import {
 	Check,
 	ChevronDown,
 	Clock,
-	FileText,
 	HelpCircle,
 	Key,
-	Link2,
 	Loader2,
 	Lock,
 	MessageSquare,
@@ -50,7 +48,6 @@ import {
 import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,96 +69,6 @@ import type {
 	ConversationStep,
 	DebugTraceStep,
 } from "@/types/agent";
-
-// Mock available knowledge sources in the org (uploads + connections)
-const AVAILABLE_KNOWLEDGE_SOURCES = [
-	// Uploads
-	{
-		id: "hr-policies",
-		name: "HR Policies",
-		description: "Company HR policies and guidelines",
-		type: "upload",
-		tags: ["hr", "policy", "employee"],
-	},
-	{
-		id: "benefits-guide",
-		name: "Benefits Guide",
-		description: "Health insurance, 401k, and other benefits",
-		type: "upload",
-		tags: ["hr", "benefits", "insurance", "401k"],
-	},
-	{
-		id: "pto-handbook",
-		name: "PTO Handbook",
-		description: "Time off policies and procedures",
-		type: "upload",
-		tags: ["hr", "pto", "vacation", "time off"],
-	},
-	{
-		id: "employee-faq",
-		name: "Employee FAQ",
-		description: "Common questions and answers",
-		type: "upload",
-		tags: ["hr", "faq", "employee"],
-	},
-	{
-		id: "onboarding-docs",
-		name: "Onboarding Documents",
-		description: "New hire information",
-		type: "upload",
-		tags: ["hr", "onboarding", "new hire"],
-	},
-	{
-		id: "it-security-policy",
-		name: "IT Security Policy",
-		description: "Security guidelines and compliance",
-		type: "upload",
-		tags: ["it", "security", "compliance"],
-	},
-	{
-		id: "expense-policy",
-		name: "Expense Policy",
-		description: "Travel and expense reimbursement rules",
-		type: "upload",
-		tags: ["finance", "expense", "travel"],
-	},
-	{
-		id: "code-of-conduct",
-		name: "Code of Conduct",
-		description: "Employee behavior guidelines",
-		type: "upload",
-		tags: ["hr", "compliance", "conduct"],
-	},
-	// Connections
-	{
-		id: "confluence-hr",
-		name: "Confluence - HR Space",
-		description: "HR team Confluence workspace",
-		type: "connection",
-		tags: ["hr", "confluence"],
-	},
-	{
-		id: "sharepoint-policies",
-		name: "SharePoint - Company Policies",
-		description: "Central policy repository",
-		type: "connection",
-		tags: ["policy", "sharepoint"],
-	},
-	{
-		id: "notion-wiki",
-		name: "Notion - Company Wiki",
-		description: "Internal knowledge base",
-		type: "connection",
-		tags: ["wiki", "notion"],
-	},
-	{
-		id: "gdrive-hr",
-		name: "Google Drive - HR Folder",
-		description: "HR shared drive",
-		type: "connection",
-		tags: ["hr", "gdrive"],
-	},
-];
 
 // Available skills for the Add Skill modal
 // linkedAgent: null = available, string = name of agent using this skill
@@ -514,9 +421,6 @@ export default function AgentBuilderPage() {
 		name: string;
 		linkedAgentName: string;
 	} | null>(null);
-
-	// Knowledge picker state
-	const [knowledgeSearchQuery, setKnowledgeSearchQuery] = useState("");
 
 	// Create new workflow modal state
 	const [showCreateWorkflowModal, setShowCreateWorkflowModal] = useState(false);
@@ -1152,38 +1056,39 @@ export default function AgentBuilderPage() {
 								</div>
 							</div>
 
-							{/* Description - Collapsible */}
-							{!showDescription && !config.description?.trim() ? (
-								<button
-									onClick={() => setShowDescription(true)}
-									className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-								>
-									<Plus className="size-4" />
-									<span>Add description</span>
-								</button>
-							) : (
-								<div>
-									<Label
-										htmlFor="agent-description"
-										className="text-sm font-medium"
+							{/* Description - Collapsible, only visible when editing */}
+							{isEditing &&
+								(!showDescription && !config.description?.trim() ? (
+									<button
+										onClick={() => setShowDescription(true)}
+										className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
 									>
-										Description
-									</Label>
-									<Textarea
-										id="agent-description"
-										value={config.description}
-										onChange={(e) =>
-											setConfig((prev) => ({
-												...prev,
-												description: e.target.value,
-											}))
-										}
-										placeholder="Answers IT support questions and helps employees troubleshoot common technical issues."
-										className="mt-2 min-h-[60px] resize-none text-muted-foreground"
-										autoFocus={showDescription && !config.description}
-									/>
-								</div>
-							)}
+										<Plus className="size-4" />
+										<span>Add description</span>
+									</button>
+								) : (
+									<div>
+										<Label
+											htmlFor="agent-description"
+											className="text-sm font-medium"
+										>
+											Description
+										</Label>
+										<Textarea
+											id="agent-description"
+											value={config.description}
+											onChange={(e) =>
+												setConfig((prev) => ({
+													...prev,
+													description: e.target.value,
+												}))
+											}
+											placeholder="Answers IT support questions and helps employees troubleshoot common technical issues."
+											className="mt-2 min-h-[60px] resize-none text-muted-foreground"
+											autoFocus={showDescription && !config.description}
+										/>
+									</div>
+								))}
 
 							{/* Skills Section */}
 							<div id="skills-section" className="space-y-2">
@@ -1474,241 +1379,6 @@ export default function AgentBuilderPage() {
 										</Button>
 									</div>
 								)}
-							</div>
-
-							{/* Knowledge Section */}
-							<div className="space-y-2">
-								<div>
-									<Label className="text-sm font-medium">Knowledge</Label>
-									<p className="text-sm text-muted-foreground mt-1">
-										Give your agent general knowledge to answer best
-									</p>
-								</div>
-
-								{/* Search input */}
-								<div className="relative">
-									{/* biome-ignore lint/a11y/useKeyWithClickEvents: wrapper focuses inner input */}
-									{/* biome-ignore lint/a11y/noStaticElementInteractions: click-to-focus wrapper */}
-									<div
-										className="border rounded-md px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:border-muted-foreground/50 transition-colors"
-										onClick={() => {
-											if (!config.capabilities.useAllWorkspaceContent) {
-												const input = document.getElementById(
-													"knowledge-search-input",
-												);
-												input?.focus();
-											}
-										}}
-									>
-										<Search className="size-3 text-muted-foreground" />
-										<input
-											id="knowledge-search-input"
-											type="text"
-											placeholder="Browse files from connected integrations or uploads"
-											className={cn(
-												"flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground",
-												config.capabilities.useAllWorkspaceContent &&
-													"opacity-50 cursor-not-allowed",
-											)}
-											value={knowledgeSearchQuery}
-											onChange={(e) => setKnowledgeSearchQuery(e.target.value)}
-											disabled={config.capabilities.useAllWorkspaceContent}
-										/>
-									</div>
-
-									{/* Dropdown results */}
-									{knowledgeSearchQuery.trim() &&
-										!config.capabilities.useAllWorkspaceContent && (
-											<div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-[300px] overflow-y-auto z-20">
-												{AVAILABLE_KNOWLEDGE_SOURCES.filter((source) => {
-													const query = knowledgeSearchQuery.toLowerCase();
-													return (
-														source.name.toLowerCase().includes(query) ||
-														source.description.toLowerCase().includes(query) ||
-														source.tags.some((tag) =>
-															tag.toLowerCase().includes(query),
-														)
-													);
-												}).map((source) => {
-													const isAlreadyAdded =
-														config.knowledgeSources.includes(source.name);
-													return (
-														<button
-															key={source.id}
-															className={cn(
-																"w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-muted/50 transition-colors",
-																isAlreadyAdded && "opacity-50",
-															)}
-															onClick={() => {
-																if (isAlreadyAdded) return;
-																setConfig((prev) => ({
-																	...prev,
-																	knowledgeSources: [
-																		...prev.knowledgeSources,
-																		source.name,
-																	],
-																}));
-																setKnowledgeSearchQuery("");
-															}}
-															disabled={isAlreadyAdded}
-														>
-															<div
-																className={cn(
-																	"size-5 rounded flex items-center justify-center flex-shrink-0",
-																	source.type === "upload"
-																		? "bg-amber-100"
-																		: "bg-blue-100",
-																)}
-															>
-																{source.type === "upload" ? (
-																	<FileText className="size-3 text-foreground" />
-																) : (
-																	<Link2 className="size-3 text-foreground" />
-																)}
-															</div>
-															<span className="text-sm flex-1">
-																{source.name}
-															</span>
-															{isAlreadyAdded && (
-																<Check className="size-4 text-primary" />
-															)}
-														</button>
-													);
-												})}
-												{AVAILABLE_KNOWLEDGE_SOURCES.filter((source) => {
-													const query = knowledgeSearchQuery.toLowerCase();
-													return (
-														source.name.toLowerCase().includes(query) ||
-														source.description.toLowerCase().includes(query) ||
-														source.tags.some((tag) =>
-															tag.toLowerCase().includes(query),
-														)
-													);
-												}).length === 0 && (
-													<div className="px-4 py-6 text-center text-muted-foreground">
-														<p className="text-sm">No matching sources found</p>
-													</div>
-												)}
-											</div>
-										)}
-								</div>
-
-								{/* Knowledge container with documents and toggles */}
-								<div className="border rounded-lg">
-									{/* Documents section - only show when not using all workspace */}
-									{!config.capabilities.useAllWorkspaceContent &&
-										config.knowledgeSources.length > 0 && (
-											<div className="p-2">
-												<p className="text-sm text-muted-foreground px-2 py-1">
-													Documents ({config.knowledgeSources.length})
-												</p>
-												<div className="px-2 space-y-1">
-													{config.knowledgeSources.map((sourceName, index) => {
-														const sourceData = AVAILABLE_KNOWLEDGE_SOURCES.find(
-															(s) => s.name === sourceName,
-														);
-														const isConnection =
-															sourceData?.type === "connection";
-														return (
-															<div
-																key={index}
-																className="flex items-center gap-2.5 py-1"
-															>
-																<div
-																	className={cn(
-																		"size-5 rounded flex items-center justify-center flex-shrink-0",
-																		isConnection
-																			? "bg-blue-100"
-																			: "bg-amber-100",
-																	)}
-																>
-																	{isConnection ? (
-																		<Link2 className="size-3 text-foreground" />
-																	) : (
-																		<FileText className="size-3 text-foreground" />
-																	)}
-																</div>
-																<span className="text-xs flex-1">
-																	{sourceName}
-																</span>
-																<button
-																	onClick={() => {
-																		const updated =
-																			config.knowledgeSources.filter(
-																				(_, i) => i !== index,
-																			);
-																		setConfig((prev) => ({
-																			...prev,
-																			knowledgeSources: updated,
-																		}));
-																	}}
-																	className="p-2 text-muted-foreground hover:text-foreground"
-																>
-																	<X className="size-3" />
-																</button>
-															</div>
-														);
-													})}
-												</div>
-											</div>
-										)}
-
-									{/* Toggle options */}
-									<div className="px-4">
-										<div className="flex items-start gap-3 py-3">
-											<Checkbox
-												checked={config.capabilities.webSearch}
-												onCheckedChange={(checked) =>
-													setConfig((prev) => ({
-														...prev,
-														capabilities: {
-															...prev.capabilities,
-															webSearch: !!checked,
-														},
-													}))
-												}
-												className="mt-0.5"
-											/>
-											<div className="flex-1">
-												<p className="text-sm font-medium">
-													Search the web for information
-												</p>
-												<p className="text-sm text-muted-foreground mt-1">
-													Let the agent search and reference information found
-													on the websites
-												</p>
-											</div>
-										</div>
-										<div className="border-t" />
-										<div className="flex items-start gap-3 py-3">
-											<Checkbox
-												checked={config.capabilities.useAllWorkspaceContent}
-												onCheckedChange={(checked) => {
-													setConfig((prev) => ({
-														...prev,
-														capabilities: {
-															...prev.capabilities,
-															useAllWorkspaceContent: !!checked,
-														},
-													}));
-													if (checked) {
-														setKnowledgeSearchQuery("");
-													}
-												}}
-												className="mt-0.5"
-											/>
-											<div className="flex-1">
-												<p className="text-sm font-medium">
-													Enable all workspace knowledge
-												</p>
-												<p className="text-sm text-muted-foreground mt-1">
-													Let the agent use all shared integrations, files, and
-													other assets in this workspace
-												</p>
-											</div>
-										</div>
-									</div>
-								</div>
 							</div>
 						</div>
 					</div>
