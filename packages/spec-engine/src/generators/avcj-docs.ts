@@ -154,19 +154,37 @@ interface UserActor {
 function getSystemActors(): UserActor[] {
 	return [
 		{
-			id: "admin",
-			name: "Admin",
-			role: "owner | admin",
+			id: "owner",
+			name: "Owner",
+			role: "owner",
 			description:
-				"Organization administrator with full access to settings, member management, data source configuration, and all features.",
+				"Organization creator with full control. Only role that can manage organization-level settings (rename, delete org). Can do everything Admin can do plus org management.",
 			permissions: [
-				"Manage organization settings",
-				"Invite and remove members",
+				"Manage organization settings (rename, delete)",
+				"Create new organizations",
+				"Invite and remove members (including admins)",
 				"Configure data source connections",
 				"Access credential delegation",
 				"View all conversations and files",
 				"Manage feature flags",
 				"Access developer tools",
+				"Cannot be demoted if last owner (constraint: LAST_OWNER)",
+			],
+		},
+		{
+			id: "admin",
+			name: "Admin",
+			role: "admin",
+			description:
+				"Organization administrator. Can manage members, data sources, and most features. Cannot manage organization-level settings or demote/remove owners.",
+			permissions: [
+				"Invite and remove members (not owners)",
+				"Configure data source connections",
+				"Access credential delegation",
+				"View all conversations and files",
+				"Manage feature flags",
+				"Access developer tools",
+				"Cannot modify owner role (constraint: INSUFFICIENT_PERMISSIONS)",
 			],
 		},
 		{
@@ -174,12 +192,26 @@ function getSystemActors(): UserActor[] {
 			name: "Standard User",
 			role: "user",
 			description:
-				"Regular organization member with access to chat, files, and their own conversations. Cannot manage settings or other members.",
+				"Regular organization member. Can use chat and manage their own content. Cannot access settings, member management, or data source configuration.",
 			permissions: [
 				"Create and view own conversations",
-				"Upload and manage files",
+				"Upload and manage own files",
 				"View knowledge base articles",
 				"Use chat features",
+				"View own profile",
+			],
+		},
+		{
+			id: "iframe-user",
+			name: "Iframe User",
+			role: "member (JIT-provisioned)",
+			description:
+				"User accessing Rita through the Actions Platform iframe embed. Identity comes from Valkey session (Jarvis GUID), not Keycloak login. Automatically provisioned on first iframe load.",
+			permissions: [
+				"Chat within iframe context",
+				"Interact with workflow results",
+				"Submit UI forms",
+				"Session scoped to Valkey key from host platform",
 			],
 		},
 	];
@@ -301,14 +333,17 @@ function renderPageView(view: View, routeInfo?: RouteInfo): string {
 	}
 
 	// Actor mapping
+	body += "## Actors\n\n";
 	if (access === "admin") {
-		body += "## Actors\n\n";
+		body += "- [Owner](../actors/owner.md) — full access\n";
 		body += "- [Admin](../actors/admin.md) — full access\n";
 		body += "- [Standard User](../actors/standard-user.md) — access denied (constraint)\n\n";
 	} else if (access === "authenticated") {
-		body += "## Actors\n\n";
+		body += "- [Owner](../actors/owner.md) — full access\n";
 		body += "- [Admin](../actors/admin.md) — full access\n";
 		body += "- [Standard User](../actors/standard-user.md) — full access\n\n";
+	} else {
+		body += "- [Iframe User](../actors/iframe-user.md) — Valkey session auth\n\n";
 	}
 
 	if (view.props.length > 0) {
