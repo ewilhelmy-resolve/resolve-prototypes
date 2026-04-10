@@ -1,0 +1,1636 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ChatV1Content rendering > assistant message with reasoning + text + sources > renders full multi-part response 1`] = `
+<div>
+  <div
+    class="h-full flex flex-col relative"
+  >
+    <div
+      class="relative overflow-y-auto flex-1"
+      role="log"
+    >
+      <div
+        style="height: 100%; width: 100%;"
+      >
+        <div
+          class="p-4 px-6 py-6"
+        >
+          <div
+            class="max-w-4xl mx-auto"
+          >
+            <div
+              class="h-1"
+            />
+            <div
+              class="group flex w-full items-end gap-2 py-4 is-assistant flex-row-reverse justify-start"
+            >
+              <div
+                class="flex flex-col w-full"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words group-[.is-user]:min-w-[200px] group-[.is-user]:max-w-[80%] group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground group-[.is-assistant]:text-foreground"
+                >
+                  <div
+                    class="not-prose mb-4"
+                    data-open=""
+                    data-slot="collapsible"
+                  >
+                    <button
+                      aria-controls="base-ui-:r6:"
+                      aria-disabled="false"
+                      aria-expanded="true"
+                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                      data-panel-open=""
+                      data-slot="collapsible-trigger"
+                      tabindex="0"
+                      type="button"
+                    >
+                      <svg
+                        class="size-4"
+                        fill="none"
+                        height="28"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="28"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="10"
+                        />
+                        <line
+                          style="transform: none; transform-origin: 50% 50%; transform-box: fill-box;"
+                          x1="12"
+                          x2="16"
+                          y1="12"
+                          y2="14"
+                        />
+                        <line
+                          style="transform: none; transform-origin: 50% 50%; transform-box: fill-box;"
+                          x1="12"
+                          x2="12"
+                          y1="6"
+                          y2="12"
+                        />
+                      </svg>
+                      <p>
+                        Planning
+                      </p>
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-chevron-down size-4 transition-transform rotate-180"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="m6 9 6 6 6-6"
+                        />
+                      </svg>
+                    </button>
+                    <div
+                      class="mt-4 text-sm data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
+                      data-open=""
+                      data-slot="collapsible-content"
+                      id="base-ui-:r6:"
+                      style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
+                    >
+                      <div
+                        class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 grid gap-2"
+                      >
+                        <p>
+                          Checking KB articles for password reset procedures.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                  >
+                    <p>
+                      Based on the documentation, here is the answer.
+                    </p>
+                  </div>
+                  <div
+                    data-testid="citations"
+                  />
+                </div>
+                <div
+                  class="flex items-center justify-between gap-2"
+                >
+                  <div
+                    class="flex items-center gap-1"
+                  >
+                    <button
+                      class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent rounded-md text-xs relative size-9 p-1.5 text-muted-foreground hover:text-foreground"
+                      data-slot="tooltip-trigger"
+                      id="base-ui-:ra:"
+                      type="button"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-copy size-3"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <rect
+                          height="14"
+                          rx="2"
+                          ry="2"
+                          width="14"
+                          x="8"
+                          y="8"
+                        />
+                        <path
+                          d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+                        />
+                      </svg>
+                      <span
+                        class="sr-only"
+                      >
+                        Copy message
+                      </span>
+                    </button>
+                  </div>
+                  <div
+                    class="text-xs text-gray-500 transition-opacity opacity-0"
+                  >
+                    Dec 31, 2024, 04:00 PM
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="px-6 py-4 border-gray-200 bg-white"
+    >
+      <div
+        class="max-w-4xl mx-auto"
+      >
+        <span
+          aria-hidden="true"
+          class="hidden"
+        />
+        <input
+          class="hidden"
+          type="file"
+        />
+        <form
+          class="w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm rounded-b-none"
+        >
+          <div
+            class="flex flex-col"
+          >
+            <div
+              aria-live="polite"
+              class="overflow-hidden transition-[height] duration-200 ease-out"
+              style="height: 0px;"
+            >
+              <div
+                class="flex flex-wrap gap-2 p-3 pt-3"
+              />
+            </div>
+            <textarea
+              class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex border text-base transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0 field-sizing-content bg-transparent dark:bg-transparent max-h-48 min-h-16 focus-visible:ring-0"
+              data-slot="textarea"
+              disabled=""
+              name="message"
+              placeholder="input.placeholder"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-1"
+          >
+            <div
+              class="flex items-center gap-1 [&_button:first-child]:rounded-bl-xl"
+            />
+            <button
+              class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 w-9 gap-1.5 rounded-lg"
+              disabled=""
+              type="submit"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-send size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
+                />
+                <path
+                  d="m21.854 2.147-10.94 10.939"
+                />
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div
+          class="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2"
+        >
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            input.noKnowledgeUser
+          </p>
+        </div>
+      </div>
+    </div>
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+  </div>
+</div>
+`;
+
+exports[`ChatV1Content rendering > assistant message with reasoning accordion > renders reasoning-only grouped message 1`] = `
+<div>
+  <div
+    class="h-full flex flex-col relative"
+  >
+    <div
+      class="relative overflow-y-auto flex-1"
+      role="log"
+    >
+      <div
+        style="height: 100%; width: 100%;"
+      >
+        <div
+          class="p-4 px-6 py-6"
+        >
+          <div
+            class="max-w-4xl mx-auto"
+          >
+            <div
+              class="h-1"
+            />
+            <div
+              class="group flex w-full items-end gap-2 is-assistant flex-row-reverse justify-start py-1"
+            >
+              <div
+                class="flex flex-col w-full"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words group-[.is-user]:min-w-[200px] group-[.is-user]:max-w-[80%] group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground group-[.is-assistant]:text-foreground p-0"
+                >
+                  <div
+                    class="not-prose mb-0"
+                    data-open=""
+                    data-slot="collapsible"
+                  >
+                    <button
+                      aria-controls="base-ui-:r4:"
+                      aria-disabled="false"
+                      aria-expanded="true"
+                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                      data-panel-open=""
+                      data-slot="collapsible-trigger"
+                      tabindex="0"
+                      type="button"
+                    >
+                      <svg
+                        class="size-4"
+                        fill="none"
+                        height="28"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="28"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="10"
+                        />
+                        <line
+                          style="transform: none; transform-origin: 50% 50%; transform-box: fill-box;"
+                          x1="12"
+                          x2="16"
+                          y1="12"
+                          y2="14"
+                        />
+                        <line
+                          style="transform: none; transform-origin: 50% 50%; transform-box: fill-box;"
+                          x1="12"
+                          x2="12"
+                          y1="6"
+                          y2="12"
+                        />
+                      </svg>
+                      <p>
+                        Research & Analysis
+                      </p>
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-chevron-down size-4 transition-transform rotate-180"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="m6 9 6 6 6-6"
+                        />
+                      </svg>
+                    </button>
+                    <div
+                      class="mt-4 text-sm data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
+                      data-open=""
+                      data-slot="collapsible-content"
+                      id="base-ui-:r4:"
+                      style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
+                    >
+                      <div
+                        class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 grid gap-2"
+                      >
+                        <p>
+                          Let me think about this step by step...
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="px-6 py-4 border-gray-200 bg-white"
+    >
+      <div
+        class="max-w-4xl mx-auto"
+      >
+        <span
+          aria-hidden="true"
+          class="hidden"
+        />
+        <input
+          class="hidden"
+          type="file"
+        />
+        <form
+          class="w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm rounded-b-none"
+        >
+          <div
+            class="flex flex-col"
+          >
+            <div
+              aria-live="polite"
+              class="overflow-hidden transition-[height] duration-200 ease-out"
+              style="height: 0px;"
+            >
+              <div
+                class="flex flex-wrap gap-2 p-3 pt-3"
+              />
+            </div>
+            <textarea
+              class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex border text-base transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0 field-sizing-content bg-transparent dark:bg-transparent max-h-48 min-h-16 focus-visible:ring-0"
+              data-slot="textarea"
+              disabled=""
+              name="message"
+              placeholder="input.placeholder"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-1"
+          >
+            <div
+              class="flex items-center gap-1 [&_button:first-child]:rounded-bl-xl"
+            />
+            <button
+              class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 w-9 gap-1.5 rounded-lg"
+              disabled=""
+              type="submit"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-send size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
+                />
+                <path
+                  d="m21.854 2.147-10.94 10.939"
+                />
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div
+          class="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2"
+        >
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            input.noKnowledgeUser
+          </p>
+        </div>
+      </div>
+    </div>
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+  </div>
+</div>
+`;
+
+exports[`ChatV1Content rendering > assistant message with tasks > renders task accordion 1`] = `
+<div>
+  <div
+    class="h-full flex flex-col relative"
+  >
+    <div
+      class="relative overflow-y-auto flex-1"
+      role="log"
+    >
+      <div
+        style="height: 100%; width: 100%;"
+      >
+        <div
+          class="p-4 px-6 py-6"
+        >
+          <div
+            class="max-w-4xl mx-auto"
+          >
+            <div
+              class="h-1"
+            />
+            <div
+              class="group flex w-full items-end gap-2 py-4 is-assistant flex-row-reverse justify-start"
+            >
+              <div
+                class="flex flex-col w-full"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words group-[.is-user]:min-w-[200px] group-[.is-user]:max-w-[80%] group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground group-[.is-assistant]:text-foreground"
+                >
+                  <div
+                    class="mt-4 space-y-2"
+                  >
+                    <div
+                      data-open=""
+                      data-slot="collapsible"
+                    >
+                      <div
+                        aria-controls="base-ui-:rb:"
+                        aria-disabled="false"
+                        aria-expanded="true"
+                        class="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground group"
+                        data-panel-open=""
+                        data-slot="collapsible-trigger"
+                        tabindex="0"
+                        type="button"
+                      >
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-search size-4"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="m21 21-4.34-4.34"
+                          />
+                          <circle
+                            cx="11"
+                            cy="11"
+                            r="8"
+                          />
+                        </svg>
+                        <p
+                          class="text-sm"
+                        >
+                          Prerequisites
+                        </p>
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-chevron-down size-4 transition-transform group-data-[panel-open]:rotate-180"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="m6 9 6 6 6-6"
+                          />
+                        </svg>
+                      </div>
+                      <div
+                        class="data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-popover-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
+                        data-open=""
+                        data-slot="collapsible-content"
+                        id="base-ui-:rb:"
+                        style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
+                      >
+                        <div
+                          class="mt-4 space-y-2 border-muted border-l-2 pl-4"
+                        >
+                          <div
+                            class="text-muted-foreground text-sm"
+                          >
+                            Install Node.js
+                          </div>
+                          <div
+                            class="text-muted-foreground text-sm"
+                          >
+                            Install pnpm
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      data-closed=""
+                      data-slot="collapsible"
+                    >
+                      <div
+                        aria-disabled="false"
+                        aria-expanded="false"
+                        class="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground group"
+                        data-slot="collapsible-trigger"
+                        tabindex="0"
+                        type="button"
+                      >
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-search size-4"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="m21 21-4.34-4.34"
+                          />
+                          <circle
+                            cx="11"
+                            cy="11"
+                            r="8"
+                          />
+                        </svg>
+                        <p
+                          class="text-sm"
+                        >
+                          Setup
+                        </p>
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-chevron-down size-4 transition-transform group-data-[panel-open]:rotate-180"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="m6 9 6 6 6-6"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex items-center justify-between gap-2"
+                >
+                  <div />
+                  <div
+                    class="text-xs text-gray-500 transition-opacity opacity-0"
+                  >
+                    Dec 31, 2024, 04:00 PM
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="px-6 py-4 border-gray-200 bg-white"
+    >
+      <div
+        class="max-w-4xl mx-auto"
+      >
+        <span
+          aria-hidden="true"
+          class="hidden"
+        />
+        <input
+          class="hidden"
+          type="file"
+        />
+        <form
+          class="w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm rounded-b-none"
+        >
+          <div
+            class="flex flex-col"
+          >
+            <div
+              aria-live="polite"
+              class="overflow-hidden transition-[height] duration-200 ease-out"
+              style="height: 0px;"
+            >
+              <div
+                class="flex flex-wrap gap-2 p-3 pt-3"
+              />
+            </div>
+            <textarea
+              class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex border text-base transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0 field-sizing-content bg-transparent dark:bg-transparent max-h-48 min-h-16 focus-visible:ring-0"
+              data-slot="textarea"
+              disabled=""
+              name="message"
+              placeholder="input.placeholder"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-1"
+          >
+            <div
+              class="flex items-center gap-1 [&_button:first-child]:rounded-bl-xl"
+            />
+            <button
+              class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 w-9 gap-1.5 rounded-lg"
+              disabled=""
+              type="submit"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-send size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
+                />
+                <path
+                  d="m21.854 2.147-10.94 10.939"
+                />
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div
+          class="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2"
+        >
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            input.noKnowledgeUser
+          </p>
+        </div>
+      </div>
+    </div>
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+  </div>
+</div>
+`;
+
+exports[`ChatV1Content rendering > empty conversation > renders without messages 1`] = `
+<div>
+  <div
+    class="h-full flex flex-col relative"
+  >
+    <div
+      class="relative overflow-y-auto flex-1"
+      role="log"
+    >
+      <div
+        style="height: 100%; width: 100%;"
+      >
+        <div
+          class="p-4 px-6 py-6"
+        >
+          <div
+            class="max-w-4xl mx-auto"
+          >
+            <div
+              class="min-h-[60vh] flex items-center justify-center"
+            >
+              <div
+                class="flex flex-col items-center justify-center gap-8 py-12"
+              >
+                <div
+                  class="text-center space-y-2"
+                >
+                  <h2
+                    class="text-3xl font-semibold text-foreground"
+                  >
+                    emptyState.title
+                  </h2>
+                  <p
+                    class="text-base text-muted-foreground"
+                  >
+                    emptyState.descriptionNoKnowledge
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="px-6 py-4 border-gray-200 bg-white"
+    >
+      <div
+        class="max-w-4xl mx-auto"
+      >
+        <span
+          aria-hidden="true"
+          class="hidden"
+        />
+        <input
+          class="hidden"
+          type="file"
+        />
+        <form
+          class="w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm rounded-b-none"
+        >
+          <div
+            class="flex flex-col"
+          >
+            <div
+              aria-live="polite"
+              class="overflow-hidden transition-[height] duration-200 ease-out"
+              style="height: 0px;"
+            >
+              <div
+                class="flex flex-wrap gap-2 p-3 pt-3"
+              />
+            </div>
+            <textarea
+              class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex border text-base transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0 field-sizing-content bg-transparent dark:bg-transparent max-h-48 min-h-16 focus-visible:ring-0"
+              data-slot="textarea"
+              disabled=""
+              name="message"
+              placeholder="input.placeholder"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-1"
+          >
+            <div
+              class="flex items-center gap-1 [&_button:first-child]:rounded-bl-xl"
+            />
+            <button
+              class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 w-9 gap-1.5 rounded-lg"
+              disabled=""
+              type="submit"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-send size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
+                />
+                <path
+                  d="m21.854 2.147-10.94 10.939"
+                />
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div
+          class="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2"
+        >
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            input.noKnowledgeUser
+          </p>
+        </div>
+      </div>
+    </div>
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+  </div>
+</div>
+`;
+
+exports[`ChatV1Content rendering > full mixed conversation > renders user text, assistant reasoning, assistant text+sources, user text, assistant tasks 1`] = `
+<div>
+  <div
+    class="h-full flex flex-col relative"
+  >
+    <div
+      class="relative overflow-y-auto flex-1"
+      role="log"
+    >
+      <div
+        style="height: 100%; width: 100%;"
+      >
+        <div
+          class="p-4 px-6 py-6"
+        >
+          <div
+            class="max-w-4xl mx-auto"
+          >
+            <div
+              class="h-1"
+            />
+            <div
+              class="group flex w-full items-end gap-2 py-4 is-user justify-end"
+            >
+              <div
+                class="flex flex-col"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words min-w-[200px] max-w-[80%] px-4 py-3 group-[.is-user]:bg-secondary group-[.is-user]:text-secondary-foreground group-[.is-assistant]:bg-secondary group-[.is-assistant]:text-foreground"
+                >
+                  <div
+                    class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                  >
+                    <p>
+                      How do I set up the project?
+                    </p>
+                  </div>
+                </div>
+                <div
+                  class="text-xs text-gray-500 mt-1 transition-opacity opacity-0"
+                >
+                  Dec 31, 2024, 04:00 PM
+                </div>
+              </div>
+            </div>
+            <div
+              class="group flex w-full items-end gap-2 py-4 is-assistant flex-row-reverse justify-start"
+            >
+              <div
+                class="flex flex-col w-full"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words group-[.is-user]:min-w-[200px] group-[.is-user]:max-w-[80%] group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground group-[.is-assistant]:text-foreground"
+                >
+                  <div
+                    class="not-prose mb-4"
+                    data-open=""
+                    data-slot="collapsible"
+                  >
+                    <button
+                      aria-controls="base-ui-:re:"
+                      aria-disabled="false"
+                      aria-expanded="true"
+                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                      data-panel-open=""
+                      data-slot="collapsible-trigger"
+                      tabindex="0"
+                      type="button"
+                    >
+                      <svg
+                        class="size-4"
+                        fill="none"
+                        height="28"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="28"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="10"
+                        />
+                        <line
+                          style="transform: none; transform-origin: 50% 50%; transform-box: fill-box;"
+                          x1="12"
+                          x2="16"
+                          y1="12"
+                          y2="14"
+                        />
+                        <line
+                          style="transform: none; transform-origin: 50% 50%; transform-box: fill-box;"
+                          x1="12"
+                          x2="12"
+                          y1="6"
+                          y2="12"
+                        />
+                      </svg>
+                      <p>
+                        Research
+                      </p>
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-chevron-down size-4 transition-transform rotate-180"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="m6 9 6 6 6-6"
+                        />
+                      </svg>
+                    </button>
+                    <div
+                      class="mt-4 text-sm data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
+                      data-open=""
+                      data-slot="collapsible-content"
+                      id="base-ui-:re:"
+                      style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
+                    >
+                      <div
+                        class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 grid gap-2"
+                      >
+                        <p>
+                          Looking up setup documentation...
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                  >
+                    <p>
+                      Here is how to set up the project.
+                    </p>
+                  </div>
+                  <div
+                    data-testid="citations"
+                  />
+                </div>
+                <div
+                  class="flex items-center justify-between gap-2"
+                >
+                  <div
+                    class="flex items-center gap-1"
+                  >
+                    <button
+                      class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent rounded-md text-xs relative size-9 p-1.5 text-muted-foreground hover:text-foreground"
+                      data-slot="tooltip-trigger"
+                      id="base-ui-:ri:"
+                      type="button"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-copy size-3"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <rect
+                          height="14"
+                          rx="2"
+                          ry="2"
+                          width="14"
+                          x="8"
+                          y="8"
+                        />
+                        <path
+                          d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+                        />
+                      </svg>
+                      <span
+                        class="sr-only"
+                      >
+                        Copy message
+                      </span>
+                    </button>
+                  </div>
+                  <div
+                    class="text-xs text-gray-500 transition-opacity opacity-0"
+                  >
+                    Dec 31, 2024, 04:00 PM
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="group flex w-full items-end gap-2 py-4 is-user justify-end"
+            >
+              <div
+                class="flex flex-col"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words min-w-[200px] max-w-[80%] px-4 py-3 group-[.is-user]:bg-secondary group-[.is-user]:text-secondary-foreground group-[.is-assistant]:bg-secondary group-[.is-assistant]:text-foreground"
+                >
+                  <div
+                    class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                  >
+                    <p>
+                      Can you break that down into tasks?
+                    </p>
+                  </div>
+                </div>
+                <div
+                  class="text-xs text-gray-500 mt-1 transition-opacity opacity-0"
+                >
+                  Dec 31, 2024, 04:00 PM
+                </div>
+              </div>
+            </div>
+            <div
+              class="group flex w-full items-end gap-2 py-4 is-assistant flex-row-reverse justify-start"
+            >
+              <div
+                class="flex flex-col w-full"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words group-[.is-user]:min-w-[200px] group-[.is-user]:max-w-[80%] group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground group-[.is-assistant]:text-foreground"
+                >
+                  <div
+                    class="mt-4 space-y-2"
+                  >
+                    <div
+                      data-open=""
+                      data-slot="collapsible"
+                    >
+                      <div
+                        aria-controls="base-ui-:rk:"
+                        aria-disabled="false"
+                        aria-expanded="true"
+                        class="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground group"
+                        data-panel-open=""
+                        data-slot="collapsible-trigger"
+                        tabindex="0"
+                        type="button"
+                      >
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-search size-4"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="m21 21-4.34-4.34"
+                          />
+                          <circle
+                            cx="11"
+                            cy="11"
+                            r="8"
+                          />
+                        </svg>
+                        <p
+                          class="text-sm"
+                        >
+                          Environment
+                        </p>
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-chevron-down size-4 transition-transform group-data-[panel-open]:rotate-180"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="m6 9 6 6 6-6"
+                          />
+                        </svg>
+                      </div>
+                      <div
+                        class="data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-popover-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
+                        data-open=""
+                        data-slot="collapsible-content"
+                        id="base-ui-:rk:"
+                        style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
+                      >
+                        <div
+                          class="mt-4 space-y-2 border-muted border-l-2 pl-4"
+                        >
+                          <div
+                            class="text-muted-foreground text-sm"
+                          >
+                            Install deps
+                          </div>
+                          <div
+                            class="text-muted-foreground text-sm"
+                          >
+                            Configure .env
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      data-closed=""
+                      data-slot="collapsible"
+                    >
+                      <div
+                        aria-disabled="false"
+                        aria-expanded="false"
+                        class="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground group"
+                        data-slot="collapsible-trigger"
+                        tabindex="0"
+                        type="button"
+                      >
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-search size-4"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="m21 21-4.34-4.34"
+                          />
+                          <circle
+                            cx="11"
+                            cy="11"
+                            r="8"
+                          />
+                        </svg>
+                        <p
+                          class="text-sm"
+                        >
+                          Run
+                        </p>
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-chevron-down size-4 transition-transform group-data-[panel-open]:rotate-180"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="m6 9 6 6 6-6"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex items-center justify-between gap-2"
+                >
+                  <div />
+                  <div
+                    class="text-xs text-gray-500 transition-opacity opacity-0"
+                  >
+                    Dec 31, 2024, 04:00 PM
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="px-6 py-4 border-gray-200 bg-white"
+    >
+      <div
+        class="max-w-4xl mx-auto"
+      >
+        <span
+          aria-hidden="true"
+          class="hidden"
+        />
+        <input
+          class="hidden"
+          type="file"
+        />
+        <form
+          class="w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm rounded-b-none"
+        >
+          <div
+            class="flex flex-col"
+          >
+            <div
+              aria-live="polite"
+              class="overflow-hidden transition-[height] duration-200 ease-out"
+              style="height: 0px;"
+            >
+              <div
+                class="flex flex-wrap gap-2 p-3 pt-3"
+              />
+            </div>
+            <textarea
+              class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex border text-base transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0 field-sizing-content bg-transparent dark:bg-transparent max-h-48 min-h-16 focus-visible:ring-0"
+              data-slot="textarea"
+              disabled=""
+              name="message"
+              placeholder="input.placeholder"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-1"
+          >
+            <div
+              class="flex items-center gap-1 [&_button:first-child]:rounded-bl-xl"
+            />
+            <button
+              class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 w-9 gap-1.5 rounded-lg"
+              disabled=""
+              type="submit"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-send size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
+                />
+                <path
+                  d="m21.854 2.147-10.94 10.939"
+                />
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div
+          class="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2"
+        >
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            input.noKnowledgeUser
+          </p>
+        </div>
+      </div>
+    </div>
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+  </div>
+</div>
+`;
+
+exports[`ChatV1Content rendering > simple text exchange > renders user + assistant plain text 1`] = `
+<div>
+  <div
+    class="h-full flex flex-col relative"
+  >
+    <div
+      class="relative overflow-y-auto flex-1"
+      role="log"
+    >
+      <div
+        style="height: 100%; width: 100%;"
+      >
+        <div
+          class="p-4 px-6 py-6"
+        >
+          <div
+            class="max-w-4xl mx-auto"
+          >
+            <div
+              class="h-1"
+            />
+            <div
+              class="group flex w-full items-end gap-2 py-4 is-user justify-end"
+            >
+              <div
+                class="flex flex-col"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words min-w-[200px] max-w-[80%] px-4 py-3 group-[.is-user]:bg-secondary group-[.is-user]:text-secondary-foreground group-[.is-assistant]:bg-secondary group-[.is-assistant]:text-foreground"
+                >
+                  <div
+                    class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                  >
+                    <p>
+                      What is Kubernetes?
+                    </p>
+                  </div>
+                </div>
+                <div
+                  class="text-xs text-gray-500 mt-1 transition-opacity opacity-0"
+                >
+                  Dec 31, 2024, 04:00 PM
+                </div>
+              </div>
+            </div>
+            <div
+              class="group flex w-full items-end gap-2 py-4 is-assistant flex-row-reverse justify-start"
+            >
+              <div
+                class="flex flex-col"
+                role="group"
+              >
+                <div
+                  class="is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm break-words group-[.is-user]:min-w-[200px] group-[.is-user]:max-w-[80%] group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground group-[.is-assistant]:text-foreground"
+                >
+                  <div
+                    class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                  >
+                    <p>
+                      Kubernetes is a container orchestration platform.
+                    </p>
+                  </div>
+                </div>
+                <div
+                  class="flex items-center justify-between gap-2"
+                >
+                  <div
+                    class="flex items-center gap-1"
+                  >
+                    <button
+                      class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent rounded-md text-xs relative size-9 p-1.5 text-muted-foreground hover:text-foreground"
+                      data-slot="tooltip-trigger"
+                      id="base-ui-:r3:"
+                      type="button"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-copy size-3"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <rect
+                          height="14"
+                          rx="2"
+                          ry="2"
+                          width="14"
+                          x="8"
+                          y="8"
+                        />
+                        <path
+                          d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+                        />
+                      </svg>
+                      <span
+                        class="sr-only"
+                      >
+                        Copy message
+                      </span>
+                    </button>
+                  </div>
+                  <div
+                    class="text-xs text-gray-500 transition-opacity opacity-0"
+                  >
+                    Dec 31, 2024, 04:00 PM
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="px-6 py-4 border-gray-200 bg-white"
+    >
+      <div
+        class="max-w-4xl mx-auto"
+      >
+        <span
+          aria-hidden="true"
+          class="hidden"
+        />
+        <input
+          class="hidden"
+          type="file"
+        />
+        <form
+          class="w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm rounded-b-none"
+        >
+          <div
+            class="flex flex-col"
+          >
+            <div
+              aria-live="polite"
+              class="overflow-hidden transition-[height] duration-200 ease-out"
+              style="height: 0px;"
+            >
+              <div
+                class="flex flex-wrap gap-2 p-3 pt-3"
+              />
+            </div>
+            <textarea
+              class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex border text-base transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0 field-sizing-content bg-transparent dark:bg-transparent max-h-48 min-h-16 focus-visible:ring-0"
+              data-slot="textarea"
+              disabled=""
+              name="message"
+              placeholder="input.placeholder"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-1"
+          >
+            <div
+              class="flex items-center gap-1 [&_button:first-child]:rounded-bl-xl"
+            />
+            <button
+              class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 w-9 gap-1.5 rounded-lg"
+              disabled=""
+              type="submit"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-send size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"
+                />
+                <path
+                  d="m21.854 2.147-10.94 10.939"
+                />
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div
+          class="mt-0 flex items-center rounded-b-[12px] border border-t-0 border-border bg-muted px-3 py-2"
+        >
+          <p
+            class="text-xs text-muted-foreground"
+          >
+            input.noKnowledgeUser
+          </p>
+        </div>
+      </div>
+    </div>
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+    <input
+      accept=".pdf,.doc,.docx,.md,.txt"
+      class="hidden"
+      type="file"
+    />
+  </div>
+</div>
+`;
