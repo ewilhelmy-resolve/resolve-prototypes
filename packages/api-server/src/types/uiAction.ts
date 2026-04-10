@@ -24,6 +24,9 @@ export enum SubmitActionType {
 	SAVE_CONFIG = "save_config",
 	SAVE_CREDENTIALS = "save_credentials",
 	SAVE_AUTH = "save_auth",
+	UI_FORM_RESPONSE = "ui_form_response",
+	UI_FORM_RESPONSE_APPROVED = "ui_form_response_approved",
+	UI_FORM_RESPONSE_REJECTED = "ui_form_response_rejected",
 }
 
 /**

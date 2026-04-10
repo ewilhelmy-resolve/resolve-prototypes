@@ -83,13 +83,16 @@ export function InlineFormRequest({
 	const isFormRoot = rootEl?.type === "Form";
 	const isCompleted = status === "completed";
 
-	const handleSubmit = async (dataOverride?: Record<string, string>) => {
-		if (!submitAction || isCompleted) return;
+	const handleSubmit = async (
+		action: string,
+		dataOverride?: Record<string, string>,
+	) => {
+		if (isCompleted) return;
 
 		setIsSubmitting(true);
 		setError(undefined);
 		try {
-			await onSubmit(requestId, submitAction, dataOverride || formData);
+			await onSubmit(requestId, action, dataOverride || formData);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to submit form");
 			setIsSubmitting(false);
@@ -118,12 +121,12 @@ export function InlineFormRequest({
 				...(payload.data as Record<string, string>),
 			}));
 		}
-		if (payload.action === "ui_form_response") {
+		if (payload.action.startsWith("ui_form_response")) {
 			const merged = {
 				...formData,
 				...(payload.data as Record<string, string>),
 			};
-			handleSubmit(merged);
+			handleSubmit(payload.action, merged);
 		}
 	};
 
@@ -180,7 +183,7 @@ export function InlineFormRequest({
 								| "ghost") || "default"
 						}
 						size="sm"
-						onClick={() => handleSubmit()}
+						onClick={() => handleSubmit(submitAction || "ui_form_response")}
 						disabled={isSubmitting}
 					>
 						{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

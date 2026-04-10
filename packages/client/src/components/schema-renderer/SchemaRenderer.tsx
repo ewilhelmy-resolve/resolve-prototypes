@@ -363,6 +363,16 @@ export function SchemaRenderer({
 					| undefined;
 				const effectiveMaxLength = maxLength || checksMaxLength?.max;
 
+				const checksPattern = (
+					el?.props?.checks as
+						| Array<{ [x: string]: any; type: string; message?: string }>
+						| undefined
+				)?.find((check) => check.type === "pattern");
+				const effectivePattern =
+					pattern ||
+					(checksPattern?.args as { regex: string } | undefined)?.regex;
+				const patternMessage = checksPattern?.message;
+
 				if (required && !value.trim()) {
 					errors[name] = t("required.generic", { field: label });
 				} else if (value) {
@@ -376,10 +386,11 @@ export function SchemaRenderer({
 							field: label,
 							max: effectiveMaxLength,
 						});
-					} else if (pattern && isSafePattern(pattern)) {
+					} else if (effectivePattern && isSafePattern(effectivePattern)) {
 						try {
-							if (!new RegExp(pattern).test(value)) {
-								errors[name] = t("format.invalid", { field: label });
+							if (!new RegExp(effectivePattern).test(value)) {
+								errors[name] =
+									patternMessage || t("format.invalid", { field: label });
 							}
 						} catch {
 							// Invalid regex from schema — skip client validation
