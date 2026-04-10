@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -35,6 +36,14 @@ interface ClusterDetailTableProps {
 	totalCount?: number;
 	/** Open ticket count from cluster details */
 	openCount?: number;
+	/** Enable checkbox multi-select column */
+	enableSelect?: boolean;
+	/** Controlled set of selected ticket IDs */
+	selectedIds?: Set<string>;
+	/** Callback when selection changes */
+	onSelectionChange?: (ids: Set<string>) => void;
+	/** Callback when "Review AI Responses" bulk action clicked */
+	onBulkReview?: () => void;
 }
 
 // Extract source from source_metadata (Freshservice stores source as a number)
@@ -60,6 +69,10 @@ export function ClusterDetailTable({
 	clusterId,
 	totalCount,
 	openCount: clusterOpenCount,
+	enableSelect = false,
+	selectedIds,
+	onSelectionChange,
+	onBulkReview,
 }: ClusterDetailTableProps) {
 	const { t } = useTranslation("tickets");
 	const [activeTab, setActiveTab] = useState<"open" | "all">("open");
@@ -138,6 +151,30 @@ export function ClusterDetailTable({
 		if (pagination?.next_cursor) {
 			setCursor(pagination.next_cursor);
 		}
+	};
+
+	// Selection handlers
+	const allVisibleSelected =
+		enableSelect &&
+		tickets.length > 0 &&
+		tickets.every((t) => selectedIds?.has(t.id));
+
+	const handleSelectAll = (checked: boolean) => {
+		if (!onSelectionChange) return;
+		const next = new Set(selectedIds);
+		for (const t of tickets) {
+			if (checked) next.add(t.id);
+			else next.delete(t.id);
+		}
+		onSelectionChange(next);
+	};
+
+	const handleSelectRow = (ticketId: string, checked: boolean) => {
+		if (!onSelectionChange) return;
+		const next = new Set(selectedIds);
+		if (checked) next.add(ticketId);
+		else next.delete(ticketId);
+		onSelectionChange(next);
 	};
 
 	if (isLoading) {
@@ -254,11 +291,45 @@ export function ClusterDetailTable({
 				)}
 			</div>
 
+			{/* Bulk action bar */}
+			{enableSelect && selectedIds && selectedIds.size > 0 && (
+				<div className="flex items-center gap-3 rounded-md border bg-muted/50 px-4 py-2">
+					<span className="text-sm font-medium">
+						{selectedIds.size} selected
+					</span>
+					<div className="h-4 w-px bg-border" />
+					{onBulkReview && (
+						<Button variant="default" size="sm" onClick={onBulkReview}>
+							Review AI Responses
+						</Button>
+					)}
+					<Button variant="outline" size="sm">
+						Bulk Edit
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => onSelectionChange?.(new Set())}
+					>
+						Clear selection
+					</Button>
+				</div>
+			)}
+
 			{/* Table */}
 			<div className="rounded-md border">
 				<Table>
 					<TableHeader>
 						<TableRow>
+							{enableSelect && (
+								<TableHead className="w-10">
+									<Checkbox
+										checked={allVisibleSelected}
+										onCheckedChange={(checked) => handleSelectAll(!!checked)}
+										aria-label="Select all tickets"
+									/>
+								</TableHead>
+							)}
 							<TableHead>
 								<Button
 									variant="ghost"
@@ -298,13 +369,27 @@ export function ClusterDetailTable({
 					<TableBody>
 						{tickets.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={7} className="h-24 text-center">
+								<TableCell
+									colSpan={enableSelect ? 8 : 7}
+									className="h-24 text-center"
+								>
 									{t("table.noTickets")}
 								</TableCell>
 							</TableRow>
 						) : (
 							tickets.map((row) => (
 								<TableRow key={row.id}>
+									{enableSelect && (
+										<TableCell>
+											<Checkbox
+												checked={selectedIds?.has(row.id) ?? false}
+												onCheckedChange={(checked) =>
+													handleSelectRow(row.id, !!checked)
+												}
+												aria-label={`Select ticket ${row.external_id || row.id}`}
+											/>
+										</TableCell>
+									)}
 									<TableCell className="font-medium">
 										<Link
 											to={`/tickets/${clusterId}/${row.id}`}
@@ -344,6 +429,11 @@ export function ClusterDetailTable({
 			<div className="flex items-center justify-between py-4">
 				<p className="text-sm text-muted-foreground">
 					{t("table.pagination.ticketsCount", { count: tickets.length })}
+					{enableSelect && selectedIds && selectedIds.size > 0 && (
+						<span className="ml-2 font-medium text-foreground">
+							· {selectedIds.size} selected
+						</span>
+					)}
 				</p>
 				<div className="flex gap-2">
 					<Button

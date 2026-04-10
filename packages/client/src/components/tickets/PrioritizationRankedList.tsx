@@ -9,6 +9,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { renderSortIcon } from "@/lib/table-utils";
 import {
 	type RoiSortKey,
@@ -35,6 +36,7 @@ export function PrioritizationRankedList({
 }: PrioritizationRankedListProps) {
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
+	const phaseV3 = usePhaseGate("tickets", "v3");
 	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
 
 	const [sortCol, setSortCol] = useState<SortColumn>(
@@ -145,6 +147,9 @@ export function PrioritizationRankedList({
 								{renderSortIcon(sortCol, "timeTaken", sortDir)}
 							</button>
 						</TableHead>
+						{phaseV3 && (
+							<TableHead>{t("prioritizationList.columns.mttr")}</TableHead>
+						)}
 						<TableHead>Updated</TableHead>
 					</TableRow>
 				</TableHeader>
@@ -162,6 +167,7 @@ export function PrioritizationRankedList({
 							<TableCell>{row.cluster.ticket_count.toLocaleString()}</TableCell>
 							<TableCell>{formatCurrency(row.costImpact)}</TableCell>
 							<TableCell>{formatMinutes(row.timeTaken)}</TableCell>
+							{phaseV3 && <TableCell>3.2hr</TableCell>}
 							<TableCell className="text-muted-foreground text-xs">
 								{(() => {
 									const newCount = Math.floor(

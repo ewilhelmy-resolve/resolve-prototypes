@@ -1,9 +1,11 @@
+import { BookX } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { KBStatus } from "@/types/cluster";
 
 export function formatRelativeTime(iso: string): string {
 	const diff = Date.now() - new Date(iso).getTime();
@@ -28,6 +30,8 @@ interface TicketGroupStatProps {
 	count: number;
 	/** Number of tickets needing response */
 	openCount: number;
+	/** Whether to show cost impact (hidden in v1) */
+	showCostImpact?: boolean;
 	/** Estimated monthly cost impact */
 	costImpact?: number;
 	/** Optional click handler - overrides default navigation */
@@ -36,6 +40,10 @@ interface TicketGroupStatProps {
 	newTicketCount?: number;
 	/** ISO date string of last update */
 	updatedAt?: string;
+	/** Knowledge base status — shows BookX icon when GAP (v3) */
+	knowledgeStatus?: KBStatus;
+	/** Mean time to resolve — displayed on card (v3) */
+	mttr?: string;
 }
 
 /**
@@ -48,10 +56,13 @@ export function TicketGroupStat({
 	title,
 	count,
 	openCount: _openCount,
+	showCostImpact = true,
 	costImpact,
 	onClick,
 	newTicketCount,
 	updatedAt,
+	knowledgeStatus,
+	mttr,
 }: TicketGroupStatProps) {
 	const navigate = useNavigate();
 
@@ -65,15 +76,25 @@ export function TicketGroupStat({
 			onClick={handleClick}
 			className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 cursor-pointer hover:bg-accent/50 transition-colors text-left"
 		>
-			<h2 className="text-base font-normal text-card-foreground leading-7">
-				{title}
-			</h2>
+			<div className="flex items-start justify-between">
+				<h2 className="text-base font-normal text-card-foreground leading-7">
+					{title}
+				</h2>
+				{knowledgeStatus === "GAP" && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<BookX className="size-4 text-amber-500 shrink-0 mt-1" />
+						</TooltipTrigger>
+						<TooltipContent>Knowledge Gap</TooltipContent>
+					</Tooltip>
+				)}
+			</div>
 			<div className="flex items-end justify-between">
 				<div className="flex items-baseline gap-2">
 					<span className="text-[38px] font-normal leading-6 text-card-foreground">
 						{count.toLocaleString()}
 					</span>
-					{costImpact != null && (
+					{showCostImpact && costImpact != null && (
 						<div className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -85,6 +106,17 @@ export function TicketGroupStat({
 									</span>
 								</TooltipTrigger>
 								<TooltipContent>Cost Impact</TooltipContent>
+							</Tooltip>
+						</div>
+					)}
+					{mttr && (
+						<div className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
+							<span>·</span>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span>{mttr}</span>
+								</TooltipTrigger>
+								<TooltipContent>MTTR</TooltipContent>
 							</Tooltip>
 						</div>
 					)}

@@ -75,6 +75,7 @@ import { useChatNavigation } from "@/hooks/useChatNavigation";
 import { useDataSources } from "@/hooks/useDataSources";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
@@ -119,6 +120,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const enableWorkflows = useFeatureFlag("ENABLE_WORKFLOWS");
 	const enableLanguageSwitcher = useFeatureFlag("ENABLE_LANGUAGE_SWITCHER");
 	const enableAgents = useFeatureFlag("ENABLE_AGENTS");
+	const phaseV2 = usePhaseGate("agents", "v1");
 
 	// RITA hooks
 	const { user, logout } = useAuth();
@@ -296,7 +298,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 										</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
-								{enableAgents && (
+								{enableAgents && phaseV2 && (
 									<SidebarMenuItem>
 										<SidebarMenuButton
 											className="flex items-center gap-2 px-2 py-2 h-8 rounded-md"

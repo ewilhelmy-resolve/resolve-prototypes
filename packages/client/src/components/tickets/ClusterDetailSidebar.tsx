@@ -70,7 +70,7 @@ export function ClusterDetailSidebar({
 	};
 
 	return (
-		<div className="w-full border-t p-4 lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0">
+		<div className="w-full border-t p-4 lg:border-t-0">
 			<div className="flex flex-col gap-4">
 				{/* Section label */}
 				<span className="text-sm text-muted-foreground">
