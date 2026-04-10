@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { ChatV2MessageRenderer } from "@/components/chat-v2/ChatV2MessageRenderer";
 import { groupMessages } from "@/lib/messageGrouping";
 import type { ChatMessage, Message } from "@/stores/conversationStore";
@@ -24,6 +24,8 @@ interface ShareResponse {
 
 export default function JarvisSharePage() {
 	const { conversationId } = useParams<{ conversationId: string }>();
+	const [searchParams] = useSearchParams();
+	const token = searchParams.get("token");
 	const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 	const [title, setTitle] = useState<string>("");
 	const [error, setError] = useState<string | null>(null);
@@ -33,13 +35,15 @@ export default function JarvisSharePage() {
 		if (!conversationId) return;
 
 		const apiBase = import.meta.env.VITE_API_URL || "";
+		const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
 
-		fetch(`${apiBase}/api/share/${conversationId}`)
+		fetch(`${apiBase}/api/share/${conversationId}${tokenParam}`)
 			.then((res) => {
-				if (!res.ok)
-					throw new Error(
-						res.status === 404 ? "Conversation not found" : "Failed to load",
-					);
+				if (!res.ok) {
+					if (res.status === 404) throw new Error("Conversation not found");
+					if (res.status === 403) throw new Error("Access denied");
+					throw new Error("Failed to load");
+				}
 				return res.json() as Promise<ShareResponse>;
 			})
 			.then((data) => {
@@ -63,7 +67,7 @@ export default function JarvisSharePage() {
 			})
 			.catch((err) => setError(err.message))
 			.finally(() => setLoading(false));
-	}, [conversationId]);
+	}, [conversationId, token]);
 
 	if (loading) {
 		return (
