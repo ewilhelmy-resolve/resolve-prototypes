@@ -47,7 +47,6 @@
  */
 "use client";
 
-import { useControllableState } from "@/hooks/use-controllable-state";
 import {
   Collapsible,
   CollapsibleContent,
@@ -106,15 +105,21 @@ export const Reasoning = memo(
     children,
     ...props
   }: ReasoningProps) => {
-    const [isOpen, setIsOpen] = useControllableState({
-      prop: open,
-      defaultProp: defaultOpen,
-      onChange: onOpenChange,
-    });
-    const [duration, setDuration] = useControllableState({
-      prop: durationProp,
-      defaultProp: 0,
-    });
+    const [isOpen, setIsOpenState] = useState(open ?? defaultOpen);
+    const [duration, setDuration] = useState(durationProp ?? 0);
+
+    // Sync with controlled prop if provided
+    useEffect(() => {
+      if (open !== undefined) setIsOpenState(open);
+    }, [open]);
+    useEffect(() => {
+      if (durationProp !== undefined) setDuration(durationProp);
+    }, [durationProp]);
+
+    const setIsOpen = (newOpen: boolean) => {
+      setIsOpenState(newOpen);
+      onOpenChange?.(newOpen);
+    };
 
     const [hasAutoClosed, setHasAutoClosed] = useState(false);
     const [userInteracted, setUserInteracted] = useState(false);

@@ -248,7 +248,7 @@ export const ReasoningSteps = memo(
 										className="h-3.5 w-3.5 text-muted-foreground/50"
 									/>
 								) : (
-									<span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/30 mt-1" aria-hidden="true" />
+									null
 								)}
 							</div>
 
