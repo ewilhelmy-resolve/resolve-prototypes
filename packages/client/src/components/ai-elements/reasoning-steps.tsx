@@ -227,9 +227,9 @@ export const ReasoningSteps = memo(
 							className={cn(
 								"flex items-start gap-2 py-1 text-sm transition-opacity duration-300",
 								isActive ? "text-foreground" : "text-muted-foreground",
-								"animate-in fade-in-0 duration-300",
+								isStreaming && "animate-in fade-in-0 duration-300",
 							)}
-							style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}
+							style={isStreaming ? { animationDelay: `${Math.min(i * 50, 300)}ms` } : undefined}
 						>
 							{/* Step indicator: spinner for active, icon only if explicitly set */}
 							<div className="mt-0.5 shrink-0">

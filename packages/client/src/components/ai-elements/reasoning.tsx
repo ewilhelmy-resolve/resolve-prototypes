@@ -239,7 +239,8 @@ export const ReasoningContent = memo(
     return (
       <div
         className={cn(
-          "mt-4 text-sm text-muted-foreground animate-in fade-in-0 slide-in-from-top-2 duration-300",
+          "mt-4 text-sm text-muted-foreground",
+          isStreaming && "animate-in fade-in-0 slide-in-from-top-2 duration-300",
           className
         )}
       >
