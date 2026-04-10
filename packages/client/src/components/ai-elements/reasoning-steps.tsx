@@ -36,7 +36,6 @@ import { cn } from "@/lib/utils";
 import {
 	AlertTriangle,
 	Bot,
-	Check,
 	Clock,
 	Code,
 	Database,
