@@ -288,33 +288,6 @@ export default function ClusterDetailPage() {
 							)}
 						</StatGroup>
 
-						{/* Bulk action bar (v3) — appears when tickets selected */}
-						{phaseV3 && selectedTicketIds.size > 0 && (
-							<div className="flex items-center gap-3 rounded-md border bg-muted/50 px-4 py-2">
-								<span className="text-sm font-medium">
-									{selectedTicketIds.size} selected
-								</span>
-								<div className="h-4 w-px bg-border" />
-								<Button
-									variant="default"
-									size="sm"
-									onClick={() => { setReviewIndex(0); setReviewSheetOpen(true); }}
-								>
-									Review AI Responses
-								</Button>
-								<Button variant="outline" size="sm">
-									Bulk Edit
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => setSelectedTicketIds(new Set())}
-								>
-									Clear selection
-								</Button>
-							</div>
-						)}
-
 						{/* Table Section */}
 						<ClusterDetailTable
 							key={id}
@@ -324,6 +297,7 @@ export default function ClusterDetailPage() {
 							enableSelect={phaseV3}
 							selectedIds={selectedTicketIds}
 							onSelectionChange={setSelectedTicketIds}
+							onBulkReview={() => { setReviewIndex(0); setReviewSheetOpen(true); }}
 						/>
 					</div>
 				</div>

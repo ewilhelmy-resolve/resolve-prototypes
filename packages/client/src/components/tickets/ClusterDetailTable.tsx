@@ -42,6 +42,8 @@ interface ClusterDetailTableProps {
 	selectedIds?: Set<string>;
 	/** Callback when selection changes */
 	onSelectionChange?: (ids: Set<string>) => void;
+	/** Callback when "Review AI Responses" bulk action clicked */
+	onBulkReview?: () => void;
 }
 
 // Extract source from source_metadata (Freshservice stores source as a number)
@@ -69,6 +71,7 @@ export function ClusterDetailTable({
 	enableSelect = false,
 	selectedIds,
 	onSelectionChange,
+	onBulkReview,
 }: ClusterDetailTableProps) {
 	const { t } = useTranslation("tickets");
 	const [activeTab, setActiveTab] = useState<"open" | "all">("open");
@@ -284,6 +287,31 @@ export function ClusterDetailTable({
 					</DropdownMenu>
 				)}
 			</div>
+
+			{/* Bulk action bar */}
+			{enableSelect && selectedIds && selectedIds.size > 0 && (
+				<div className="flex items-center gap-3 rounded-md border bg-muted/50 px-4 py-2">
+					<span className="text-sm font-medium">
+						{selectedIds.size} selected
+					</span>
+					<div className="h-4 w-px bg-border" />
+					{onBulkReview && (
+						<Button variant="default" size="sm" onClick={onBulkReview}>
+							Review AI Responses
+						</Button>
+					)}
+					<Button variant="outline" size="sm">
+						Bulk Edit
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => onSelectionChange?.(new Set())}
+					>
+						Clear selection
+					</Button>
+				</div>
+			)}
 
 			{/* Table */}
 			<div className="rounded-md border">
