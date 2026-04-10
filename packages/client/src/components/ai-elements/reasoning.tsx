@@ -72,7 +72,7 @@ const useReasoning = () => {
   return context;
 };
 
-export type ReasoningProps = ComponentProps<typeof Collapsible> & {
+export type ReasoningProps = ComponentProps<"div"> & {
   isStreaming?: boolean;
   open?: boolean;
   defaultOpen?: boolean;
@@ -144,14 +144,14 @@ export const Reasoning = memo(
       }
     }, [isStreaming, isOpen, defaultOpen, setIsOpen, hasAutoClosed, userInteracted]);
 
-    const handleOpenChange = (newOpen: boolean) => {
+    const toggleOpen = (newOpen: boolean) => {
       setUserInteracted(true);
       setIsOpen(newOpen);
     };
 
     return (
       <ReasoningContext.Provider
-        value={{ isStreaming, isOpen, setIsOpen, duration }}
+        value={{ isStreaming, isOpen, setIsOpen: toggleOpen, duration }}
       >
         <div className={cn("not-prose mb-4", className)} {...props}>
           {children}
@@ -161,7 +161,7 @@ export const Reasoning = memo(
   }
 );
 
-export type ReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
+export type ReasoningTriggerProps = ComponentProps<"button"> & {
   title?: string;
 };
 
