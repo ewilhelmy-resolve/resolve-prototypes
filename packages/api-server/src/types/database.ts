@@ -565,6 +565,10 @@ export interface Tickets {
 	priority: string | null;
 	requester: string | null;
 	/**
+	 * Close/resolution notes from ITSM system. Non-null indicates a historical ticket usable for knowledge generation.
+	 */
+	resolution: string | null;
+	/**
 	 * Rita processing status: NEEDS_RESPONSE or COMPLETED
 	 */
 	rita_status: Generated<string | null>;

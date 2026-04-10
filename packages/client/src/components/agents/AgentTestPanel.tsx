@@ -7,23 +7,10 @@
 import { ExternalLink, MessageSquare, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-interface AgentConfig {
-	name: string;
-	description: string;
-	instructions: string;
-	role: string;
-	iconId: string;
-	iconColorId: string;
-	agentType: "answer" | "knowledge" | "workflow" | null;
-	conversationStarters: string[];
-	knowledgeSources: string[];
-	workflows: string[];
-	guardrails: string[];
-}
+import type { AgentTestPanelConfig } from "@/types/agent";
 
 interface AgentTestPanelProps {
-	config: AgentConfig;
+	config: AgentTestPanelConfig;
 	onClose: () => void;
 	onTest?: () => void;
 	iconComponent: React.ReactNode;

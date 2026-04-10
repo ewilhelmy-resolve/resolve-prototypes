@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { BulkActions } from "@/components/BulkActions";
+import { ritaToast } from "@/components/custom/rita-toast";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog";
 import { AddKnowledgeMenu } from "@/components/knowledge-articles/AddKnowledgeMenu";
 import EmptyFilesState from "@/components/knowledge-articles/EmptyFilesState";
@@ -25,7 +26,6 @@ import { MainHeader } from "@/components/MainHeader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { ritaToast } from "@/components/ui/rita-toast";
 import {
 	Table,
 	TableBody,

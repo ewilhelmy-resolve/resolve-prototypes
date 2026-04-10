@@ -42,6 +42,7 @@ import {
 } from "@/components/ai-elements/task";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { Citations } from "@/components/citations";
+import { ritaToast } from "@/components/custom/rita-toast";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -57,7 +58,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { ritaToast } from "@/components/ui/rita-toast";
 import { SOURCE_METADATA, SOURCES } from "@/constants/connectionSources";
 import { useUploadFile } from "@/hooks/api/useFiles";
 import { useProfilePermissions } from "@/hooks/api/useProfile.ts";

@@ -9,55 +9,19 @@
  */
 
 import {
-	AlertCircle,
 	ArrowLeft,
-	Award,
-	BookOpen,
 	Bot,
-	Briefcase,
-	Calendar,
 	Check,
 	ChevronDown,
-	ClipboardList,
-	Coffee,
-	Database,
-	FileSpreadsheet,
-	Folder,
-	Globe,
-	GraduationCap,
-	Headphones,
-	Heart,
-	Home,
-	Key,
-	Landmark,
-	Layers,
-	LineChart,
-	Loader2,
-	Lock,
-	Mail,
-	Map as MapIcon,
-	Package,
-	PanelRightOpen,
-	Phone,
 	FilePen,
+	FileSpreadsheet,
+	Loader2,
+	PanelRightOpen,
 	Plus,
-	Rocket,
 	Search,
 	SendHorizontal,
-	Settings,
-	ShieldCheck,
 	ShieldEllipsis,
-	ShoppingCart,
-	Squirrel,
-	Star,
-	Target,
-	ThumbsUp,
-	TrendingUp,
-	Truck,
-	Users,
-	Wrench,
 	X,
-	Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -69,196 +33,18 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MOCK_CHAT_AGENTS } from "@/constants/agentMocks";
+import { AGENT_COLOR_MAP, AGENT_ICON_MAP } from "@/constants/agents";
 import { cn } from "@/lib/utils";
-
-// Icon mapping - extended
-const ICON_MAP: Record<string, React.ElementType> = {
-	squirrel: Squirrel,
-	bot: Bot,
-	headphones: Headphones,
-	"shield-check": ShieldCheck,
-	key: Key,
-	"book-open": BookOpen,
-	"trending-up": TrendingUp,
-	"clipboard-list": ClipboardList,
-	"line-chart": LineChart,
-	briefcase: Briefcase,
-	users: Users,
-	landmark: Landmark,
-	truck: Truck,
-	award: Award,
-	settings: Settings,
-	"alert-circle": AlertCircle,
-	rocket: Rocket,
-	"graduation-cap": GraduationCap,
-	heart: Heart,
-	zap: Zap,
-	globe: Globe,
-	lock: Lock,
-	mail: Mail,
-	phone: Phone,
-	star: Star,
-	target: Target,
-	"thumbs-up": ThumbsUp,
-	wrench: Wrench,
-	calendar: Calendar,
-	coffee: Coffee,
-	database: Database,
-	folder: Folder,
-	home: Home,
-	layers: Layers,
-	map: MapIcon,
-	package: Package,
-	"shopping-cart": ShoppingCart,
-};
-
-const COLOR_MAP: Record<string, { bg: string; text: string }> = {
-	slate: { bg: "bg-slate-800", text: "text-white" },
-	blue: { bg: "bg-blue-600", text: "text-white" },
-	emerald: { bg: "bg-emerald-600", text: "text-white" },
-	purple: { bg: "bg-purple-600", text: "text-white" },
-	orange: { bg: "bg-orange-500", text: "text-white" },
-	rose: { bg: "bg-rose-500", text: "text-white" },
-};
-
-// Mock agents data
-const MOCK_AGENTS: Record<string, AgentConfig> = {
-	"1": {
-		id: "1",
-		name: "HelpDesk Advisor",
-		description: "Answers IT support questions",
-		instructions:
-			"Help users with IT-related questions. Be patient and thorough.",
-		iconId: "headphones",
-		iconColorId: "blue",
-		agentType: "answer",
-		status: "published",
-		conversationStarters: [
-			"I need to reset my password",
-			"My VPN isn't connecting",
-			"How do I request software?",
-		],
-		knowledgeSources: [
-			{ id: "1", name: "IT Knowledge Base", type: "document" },
-			{ id: "2", name: "Software Catalog", type: "document" },
-			{ id: "3", name: "VPN Setup Guide", type: "document" },
-		],
-		skills: ["Reset password", "Unlock account", "Request system access"],
-	},
-	"2": {
-		id: "2",
-		name: "Onboarding Compliance Checker",
-		description: "Answers from compliance docs",
-		instructions:
-			"Only answer from approved compliance documents. Be accurate.",
-		iconId: "shield-check",
-		iconColorId: "emerald",
-		agentType: "knowledge",
-		status: "published",
-		conversationStarters: [
-			"Is my I-9 complete?",
-			"What background checks are required?",
-			"Where do I submit tax forms?",
-		],
-		knowledgeSources: [
-			{ id: "4", name: "Compliance Handbook", type: "document" },
-			{ id: "5", name: "HR Policies", type: "document" },
-		],
-		skills: ["Verify I-9 forms", "Check background status", "Review tax docs"],
-	},
-	"3": {
-		id: "3",
-		name: "Password Reset Bot",
-		description: "Automates password resets",
-		instructions: "Guide users through password reset workflow.",
-		iconId: "key",
-		iconColorId: "purple",
-		agentType: "workflow",
-		status: "draft",
-		conversationStarters: [
-			"I forgot my password",
-			"Reset my AD password",
-			"I'm locked out",
-		],
-		knowledgeSources: [],
-		skills: ["Password Reset"],
-	},
-	"4": {
-		id: "4",
-		name: "PTO Balance Checker",
-		description: "Checks employee time off balances",
-		instructions:
-			"Help employees check their PTO balances and request time off. Be helpful and accurate with dates.",
-		iconId: "calendar",
-		iconColorId: "indigo",
-		agentType: "answer",
-		status: "published",
-		conversationStarters: [
-			"How much PTO do I have?",
-			"I want to request time off",
-			"What are the PTO policies?",
-		],
-		knowledgeSources: [
-			{ id: "6", name: "HR Time Off Policies", type: "document" },
-			{ id: "7", name: "Holiday Calendar 2025", type: "document" },
-		],
-		skills: ["Check PTO balance", "Request time off"],
-	},
-	"5": {
-		id: "5",
-		name: "Employee Directory Bot",
-		description: "Looks up employee information",
-		instructions:
-			"Help users find employee contact information and organizational details. Respect privacy guidelines.",
-		iconId: "users",
-		iconColorId: "emerald",
-		agentType: "knowledge",
-		status: "published",
-		conversationStarters: [
-			"Find John Smith's email",
-			"Who is the head of Engineering?",
-			"What's Sarah's phone number?",
-		],
-		knowledgeSources: [
-			{ id: "8", name: "Employee Directory", type: "connection" },
-			{ id: "9", name: "Org Chart", type: "document" },
-		],
-		skills: ["Lookup employee", "Find department", "Get contact info"],
-	},
-};
-
-interface KnowledgeSource {
-	id: string;
-	name: string;
-	type: "document" | "connection";
-}
-
-interface AgentConfig {
-	id: string;
-	name: string;
-	description: string;
-	instructions: string;
-	iconId: string;
-	iconColorId: string;
-	agentType: "answer" | "knowledge" | "workflow" | null;
-	status: "draft" | "published";
-	conversationStarters: string[];
-	knowledgeSources: KnowledgeSource[];
-	skills: string[];
-}
-
-interface ChatMessage {
-	id: string;
-	role: "user" | "assistant";
-	content: string;
-}
+import type { AgentChatConfig, ChatMessage } from "@/types/agent";
 
 export default function AgentChatPage() {
 	const navigate = useNavigate();
 	const { id: agentId } = useParams<{ id: string }>();
 
-	const config = agentId ? MOCK_AGENTS[agentId] : null;
-	const allAgents = Object.values(MOCK_AGENTS);
+	// TODO(react-19): Replace with use(fetchAgent(agentId)) when API is available
+	const config = agentId ? MOCK_CHAT_AGENTS[agentId] : null;
+	const allAgents = Object.values(MOCK_CHAT_AGENTS);
 
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [input, setInput] = useState("");
@@ -297,9 +83,10 @@ export default function AgentChatPage() {
 		);
 	}
 
-	const Icon = ICON_MAP[config.iconId] || Bot;
-	const color = COLOR_MAP[config.iconColorId] || COLOR_MAP.slate;
+	const Icon = AGENT_ICON_MAP[config.iconId] || Bot;
+	const color = AGENT_COLOR_MAP[config.iconColorId] || AGENT_COLOR_MAP.slate;
 
+	// TODO(react-19): Use useTransition for non-blocking send
 	const handleSend = async () => {
 		if (!input.trim() || isLoading) return;
 
@@ -331,7 +118,7 @@ export default function AgentChatPage() {
 		inputRef.current?.focus();
 	};
 
-	const handleAgentSelect = (agent: AgentConfig) => {
+	const handleAgentSelect = (agent: AgentChatConfig) => {
 		navigate(`/agents/${agent.id}/chat`);
 	};
 
@@ -342,81 +129,91 @@ export default function AgentChatPage() {
 				{/* Chat header - no border */}
 				<header className="flex items-center justify-between px-4 py-3 bg-white">
 					<div className="flex items-center gap-1">
-					<Button variant="ghost" size="icon" className="size-8" onClick={() => navigate("/agents")}>
-						<ArrowLeft className="size-4" />
-					</Button>
-					{/* Agent selector dropdown */}
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" className="gap-2 px-2 h-auto py-1.5">
-								<div
-									className={cn(
-										"size-7 rounded-lg flex items-center justify-center",
-										color.bg,
-									)}
-								>
-									<Icon className={cn("size-4", color.text)} />
-								</div>
-								<span className="font-medium">{config.name}</span>
-								<ChevronDown className="size-4 text-muted-foreground" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="start" className="w-64">
-							{allAgents
-								.filter((a) => a.status === "published")
-								.map((agent) => {
-									const AgentIcon = ICON_MAP[agent.iconId] || Bot;
-									const agentColor =
-										COLOR_MAP[agent.iconColorId] || COLOR_MAP.slate;
-									const isSelected = agent.id === config.id;
+						<Button
+							variant="ghost"
+							size="icon"
+							className="size-8"
+							onClick={() => navigate("/agents")}
+						>
+							<ArrowLeft className="size-4" />
+						</Button>
+						{/* Agent selector dropdown */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="ghost" className="gap-2 px-2 h-auto py-1.5">
+									<div
+										className={cn(
+											"size-7 rounded-lg flex items-center justify-center",
+											color.bg,
+										)}
+									>
+										<Icon className={cn("size-4", color.text)} />
+									</div>
+									<span className="font-medium">{config.name}</span>
+									<ChevronDown className="size-4 text-muted-foreground" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start" className="w-64">
+								{allAgents
+									.filter((a) => a.status === "published")
+									.map((agent) => {
+										const AgentIcon = AGENT_ICON_MAP[agent.iconId] || Bot;
+										const agentColor =
+											AGENT_COLOR_MAP[agent.iconColorId] ||
+											AGENT_COLOR_MAP.slate;
+										const isSelected = agent.id === config.id;
 
-									return (
-										<DropdownMenuItem
-											key={agent.id}
-											onClick={() => handleAgentSelect(agent)}
-											className="flex items-center gap-3 py-2"
-										>
-											<div
-												className={cn(
-													"size-7 rounded-lg flex items-center justify-center",
-													agentColor.bg,
-												)}
+										return (
+											<DropdownMenuItem
+												key={agent.id}
+												onClick={() => handleAgentSelect(agent)}
+												className="flex items-center gap-3 py-2"
 											>
-												<AgentIcon className={cn("size-4", agentColor.text)} />
-											</div>
-											<div className="flex-1 min-w-0">
-												<div className="flex items-center gap-2">
-													<span className="font-medium truncate">
-														{agent.name}
-													</span>
-													{agent.status === "published" && (
-														<span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">
-															Live
-														</span>
+												<div
+													className={cn(
+														"size-7 rounded-lg flex items-center justify-center",
+														agentColor.bg,
 													)}
+												>
+													<AgentIcon
+														className={cn("size-4", agentColor.text)}
+													/>
 												</div>
-											</div>
-											{isSelected && <Check className="size-4 text-primary" />}
-										</DropdownMenuItem>
-									);
-								})}
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onClick={() => navigate("/agents")}
-								className="gap-2"
-							>
-								<Search className="size-4" />
-								Browse more
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={() => navigate("/agents/create")}
-								className="gap-2"
-							>
-								<Plus className="size-4" />
-								Create new
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+												<div className="flex-1 min-w-0">
+													<div className="flex items-center gap-2">
+														<span className="font-medium truncate">
+															{agent.name}
+														</span>
+														{agent.status === "published" && (
+															<span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">
+																Live
+															</span>
+														)}
+													</div>
+												</div>
+												{isSelected && (
+													<Check className="size-4 text-primary" />
+												)}
+											</DropdownMenuItem>
+										);
+									})}
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									onClick={() => navigate("/agents")}
+									className="gap-2"
+								>
+									<Search className="size-4" />
+									Browse more
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={() => navigate("/agents/create")}
+									className="gap-2"
+								>
+									<Plus className="size-4" />
+									Create new
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 
 					{/* Edit button - right side of chat header */}
@@ -442,7 +239,12 @@ export default function AgentChatPage() {
 										<>
 											{/* Icon + name side by side */}
 											<div className="flex items-center justify-center gap-2 w-full">
-												<div className={cn("size-[38px] rounded-lg flex items-center justify-center shrink-0", color.bg)}>
+												<div
+													className={cn(
+														"size-[38px] rounded-lg flex items-center justify-center shrink-0",
+														color.bg,
+													)}
+												>
 													<Icon className={cn("size-6", color.text)} />
 												</div>
 												<h2 className="text-xl font-bold">{config.name}</h2>
@@ -477,7 +279,9 @@ export default function AgentChatPage() {
 													key={msg.id}
 													className={cn(
 														"flex gap-3",
-														msg.role === "user" ? "justify-end" : "justify-start",
+														msg.role === "user"
+															? "justify-end"
+															: "justify-start",
 													)}
 												>
 													{msg.role === "assistant" && (
@@ -493,7 +297,9 @@ export default function AgentChatPage() {
 																: "bg-muted rounded-bl-md",
 														)}
 													>
-														<p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+														<p className="text-sm whitespace-pre-wrap">
+															{msg.content}
+														</p>
 													</div>
 												</div>
 											))}
@@ -665,7 +471,7 @@ export default function AgentChatPage() {
 }
 
 // Generate simulated response based on agent configuration
-function generateResponse(input: string, config: AgentConfig): string {
+function generateResponse(input: string, config: AgentChatConfig): string {
 	const lowerInput = input.toLowerCase();
 
 	// Check for skill/workflow matches

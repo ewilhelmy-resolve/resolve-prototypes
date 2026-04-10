@@ -12,6 +12,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import {
 	calculateEstMoneySaved,
 	calculateEstTimeSavedMinutes,
@@ -42,6 +43,9 @@ export function ClustersPageHeader({
 	lastSynced,
 }: ClustersPageHeaderProps) {
 	const { t } = useTranslation("tickets");
+	const enableAdvancedFeatures = useFeatureFlag(
+		"ENABLE_CLUSTER_ADVANCED_FEATURES",
+	);
 	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
 	const moneySaved = calculateEstMoneySaved(
@@ -126,7 +130,7 @@ export function ClustersPageHeader({
 				</div>
 			}
 			stats={
-				<StatGroup columns={5}>
+				<StatGroup columns={enableAdvancedFeatures ? 5 : 3}>
 					<StatCard
 						value={totalTickets.toLocaleString()}
 						label={t("header.stats.totalTickets")}
@@ -142,11 +146,18 @@ export function ClustersPageHeader({
 						label={t("header.stats.estTimeSaved")}
 						loading={showSkeletons}
 					/>
-					<StatCard value={STAT_NOT_AVAILABLE} label={t("header.stats.mttr")} />
-					<StatCard
-						value={STAT_NOT_AVAILABLE}
-						label={t("header.stats.avgReassignmentRate")}
-					/>
+					{enableAdvancedFeatures && (
+						<StatCard
+							value={STAT_NOT_AVAILABLE}
+							label={t("header.stats.mttr")}
+						/>
+					)}
+					{enableAdvancedFeatures && (
+						<StatCard
+							value={STAT_NOT_AVAILABLE}
+							label={t("header.stats.avgReassignmentRate")}
+						/>
+					)}
 				</StatGroup>
 			}
 		/>

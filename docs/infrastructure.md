@@ -102,7 +102,7 @@ All infrastructure runs via `docker compose up -d`. Application code (API server
 |-----------|---------|------|-------------|
 | **API Server** | Node 20 + Express + Kysely | 3000 | REST API, SSE, RabbitMQ consumers, webhook dispatch |
 | **Client** | React 18 + Vite | 5173 | SPA with Keycloak auth, TanStack Query, Zustand |
-| **Iframe App** | Vite (dev only, no Dockerfile) | 5174 | Embeddable chat widget, public guest access via Valkey sessions |
+| **Iframe App** | Vite (dev only, no Dockerfile) | 5174 | Embeddable chat widget, host-delegated auth via Valkey sessions |
 | **Mock Service** | Node 20 + Express | 3001 | Simulates external automation webhook for local dev |
 | **Keycloak Theme** | Tailwind CSS | — | Custom login/registration theme (built as JAR) |
 
@@ -153,7 +153,7 @@ All infrastructure runs via `docker compose up -d`. Application code (API server
 - **Purpose**: Iframe configuration cache, feature flags
 - **Key patterns**:
   - `rita:session:{guid}` — iframe session config (tenantId, userGuid, webhook credentials)
-  - Used for public guest access (no Keycloak) in iframe embed mode
+  - Used for host-delegated auth in iframe embed mode (user authenticates via shared Keycloak on host, session passed via Valkey)
 - **Persistence**: RDB snapshots to volume
 - **No auth** in local dev
 

@@ -18,6 +18,7 @@ import { InvitationService } from "../services/InvitationService.js";
 import { WebhookService } from "../services/WebhookService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 import type { SendInvitationsRequest } from "../types/invitation.js";
+import { checkRateLimit } from "../utils/rateLimit.js";
 
 // ============================================================================
 // OpenAPI Documentation Registration
@@ -209,30 +210,6 @@ const webhookService = new WebhookService();
 // Note: pool is still needed for InvitationService instantiation
 const invitationService = new InvitationService(pool, webhookService);
 
-// Simple in-memory rate limiter
-const rateLimiter = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(
-	key: string,
-	maxRequests: number,
-	windowMs: number,
-): boolean {
-	const now = Date.now();
-	const limit = rateLimiter.get(key);
-
-	if (!limit || now > limit.resetAt) {
-		rateLimiter.set(key, { count: 1, resetAt: now + windowMs });
-		return true;
-	}
-
-	if (limit.count >= maxRequests) {
-		return false;
-	}
-
-	limit.count++;
-	return true;
-}
-
 /**
  * POST /api/invitations/send
  * Send invitations to multiple emails
@@ -264,11 +241,9 @@ router.post(
 			// Rate limiting (50 per org per hour)
 			const rateLimitKey = `invitations:${organizationId}`;
 			if (!checkRateLimit(rateLimitKey, 50, 60 * 60 * 1000)) {
-				return res
-					.status(429)
-					.json({
-						error: "Rate limit exceeded. Maximum 50 invitations per hour.",
-					});
+				return res.status(429).json({
+					error: "Rate limit exceeded. Maximum 50 invitations per hour.",
+				});
 			}
 
 			const result = await invitationService.sendInvitations(
@@ -368,12 +343,10 @@ router.post("/accept", async (req, res) => {
 					.json({ error: "Invitation expired", code: "INV002" });
 			}
 			if (error.message.includes("already exists")) {
-				return res
-					.status(400)
-					.json({
-						error: "An account with this email already exists",
-						code: "INV010",
-					});
+				return res.status(400).json({
+					error: "An account with this email already exists",
+					code: "INV010",
+				});
 			}
 		}
 

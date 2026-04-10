@@ -46,9 +46,8 @@ describe("ClustersPageHeader", () => {
 		expect(screen.getByText("$1.3k")).toBeInTheDocument();
 		// Time: 200 × 15min = 3000min → "50hr"
 		expect(screen.getByText("50hr")).toBeInTheDocument();
-		// MTTR and reassignment show "--"
-		const dashes = screen.getAllByText("--");
-		expect(dashes).toHaveLength(2);
+		// MTTR and reassignment hidden behind ENABLE_CLUSTER_ADVANCED_FEATURES flag
+		expect(screen.queryByText("--")).not.toBeInTheDocument();
 	});
 
 	it("shows zero values when totalTickets is 0", () => {
@@ -79,8 +78,8 @@ describe("ClustersPageHeader", () => {
 			showSkeletons: true,
 		});
 
-		// MTTR and Reassignment always render (no loading prop), so 2 headings remain
-		expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(2);
+		// With flag off, MTTR/Reassignment hidden — no non-skeleton headings
+		expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(0);
 	});
 
 	it("calls onSettingsClick when settings button is clicked", async () => {
@@ -113,19 +112,20 @@ describe("ClustersPageHeader", () => {
 		await user.click(
 			screen.getByRole("button", { name: "groups.periods.last30Days" }),
 		);
-		await user.click(screen.getByText("groups.periods.last90Days"));
+		await user.click(await screen.findByText("groups.periods.last90Days"));
 		expect(onPeriodChange).toHaveBeenCalledWith("last90");
 	});
 
-	it("renders all five stat labels", () => {
+	it("renders three stat labels when advanced features flag is off", () => {
 		renderHeader({ totalTickets: 100 });
 
 		expect(screen.getByText("header.stats.totalTickets")).toBeInTheDocument();
 		expect(screen.getByText("header.stats.estMoneySaved")).toBeInTheDocument();
 		expect(screen.getByText("header.stats.estTimeSaved")).toBeInTheDocument();
-		expect(screen.getByText("header.stats.mttr")).toBeInTheDocument();
+		// MTTR and reassignment hidden behind ENABLE_CLUSTER_ADVANCED_FEATURES
+		expect(screen.queryByText("header.stats.mttr")).not.toBeInTheDocument();
 		expect(
-			screen.getByText("header.stats.avgReassignmentRate"),
-		).toBeInTheDocument();
+			screen.queryByText("header.stats.avgReassignmentRate"),
+		).not.toBeInTheDocument();
 	});
 });

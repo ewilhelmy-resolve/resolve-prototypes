@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-
+import { ritaToast } from "@/components/custom/rita-toast";
 import TicketSettingsDialog, {
 	type TicketSettingsValues,
 } from "@/components/dialogs/TicketSettingsDialog";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { ClustersPageHeader } from "@/components/tickets/ClustersPageHeader";
 import TicketGroups from "@/components/tickets/TicketGroups";
-import { ritaToast } from "@/components/ui/rita-toast";
 import { formatRelativeTime } from "@/constants/connectionSources";
 import {
 	useAutopilotSettings,

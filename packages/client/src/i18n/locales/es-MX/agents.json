@@ -1,0 +1,24 @@
+{
+	"deleteModal": {
+		"title": "Eliminar \"{{agentName}}\"?",
+		"descriptionPublished": "Esta acción no se puede deshacer.",
+		"descriptionDraft": "Este borrador de agente se eliminará permanentemente.",
+		"whatWillBeRemoved": "Lo que se eliminará:",
+		"configuration": "Configuración e instrucciones del agente",
+		"connectedSkills": "{{count}} habilidad conectada",
+		"connectedSkills_other": "{{count}} habilidades conectadas",
+		"conversationStarters": "{{count}} inicio de conversación",
+		"conversationStarters_other": "{{count}} inicios de conversación",
+		"usageHistory": "Historial de uso y análisis",
+		"activeDependencies": "Dependencias activas:",
+		"usedByEmployees": "Usado por {{count}} empleado esta semana",
+		"usedByEmployees_other": "Usado por {{count}} empleados esta semana",
+		"linkedToWorkflow": "Vinculado al flujo de trabajo {{workflow}}",
+		"typeToConfirm": "Escribe <bold>\"delete\"</bold> para confirmar",
+		"confirmPlaceholder": "delete",
+		"confirmLabel": "Escribe delete para confirmar",
+		"cancel": "Cancelar",
+		"deleteAgent": "Eliminar agente",
+		"deleteDraft": "Eliminar borrador"
+	}
+}

@@ -142,6 +142,9 @@ function renderJourney(journey: Journey): string {
 			if (step.endpoint) {
 				body += ` (\`${step.endpoint.method} ${step.endpoint.path}\`)`;
 			}
+			if (step.description) {
+				body += `\n   > ${step.description}`;
+			}
 			body += "\n";
 		}
 	}

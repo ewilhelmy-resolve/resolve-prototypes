@@ -22,6 +22,8 @@ interface ClusterDetailSidebarProps {
 	kbArticlesCount?: number;
 	/** Knowledge base status from cluster API */
 	kbStatus?: KBStatus;
+	/** Number of historical tickets for this cluster */
+	historicalTicketCount?: number;
 	/** Called when knowledge article is added */
 	onKnowledgeAdded?: () => void;
 }
@@ -37,6 +39,7 @@ export function ClusterDetailSidebar({
 	clusterName = "Cluster",
 	kbArticlesCount = 0,
 	kbStatus,
+	historicalTicketCount = 0,
 	onKnowledgeAdded,
 }: ClusterDetailSidebarProps) {
 	const { t } = useTranslation("tickets");
@@ -208,6 +211,7 @@ export function ClusterDetailSidebar({
 				onOpenChange={setCreateSheetOpen}
 				clusterId={clusterId}
 				ticketGroupName={clusterName}
+				historicalTicketCount={historicalTicketCount}
 				onAddKnowledge={handleKnowledgeGenerated}
 				onKnowledgeAdded={handleSheetKnowledgeAdded}
 			/>

@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ChevronDown, Search } from "lucide-react";
 import { Link, MemoryRouter } from "react-router-dom";
+import { Spinner } from "@/components/custom/spinner";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -11,8 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Spinner } from "@/components/ui/spinner";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 

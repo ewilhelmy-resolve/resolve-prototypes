@@ -38,12 +38,10 @@ export function rankClustersByRoi(
 	clusters: ClusterListItem[],
 	blendedRatePerHour: number,
 	avgMinutesPerTicket: number,
-	sortKey: RoiSortKey = "costImpact",
-	sortDir: "asc" | "desc" = "desc",
 ): RoiRankedCluster[] {
-	const items: RoiRankedCluster[] = clusters.map((cluster) => ({
+	return clusters.map((cluster, i) => ({
 		cluster,
-		rank: 0,
+		rank: i + 1,
 		displayName: getClusterDisplayTitle(cluster.name, cluster.subcluster_name),
 		costImpact: calculateEstMoneySaved(
 			blendedRatePerHour,
@@ -57,15 +55,6 @@ export function rankClustersByRoi(
 		mttr: undefined,
 		ctaState: deriveCTAState(cluster),
 	}));
-
-	items.sort((a, b) => {
-		const mul = sortDir === "desc" ? -1 : 1;
-		const aVal = a[sortKey] ?? 0;
-		const bVal = b[sortKey] ?? 0;
-		return mul * (aVal - bVal);
-	});
-
-	return items.map((item, i) => ({ ...item, rank: i + 1 }));
 }
 
 export function computeAggregateSavings(

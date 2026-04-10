@@ -6,6 +6,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { formatRelativeTime } from "@/lib/date-utils";
 import { formatMoneySaved } from "@/lib/format-utils";
 import type { KBStatus } from "@/types/cluster";
@@ -49,12 +50,16 @@ export function TicketGroupStat({
 }: TicketGroupStatProps) {
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
+	const enableAdvancedFeatures = useFeatureFlag(
+		"ENABLE_CLUSTER_ADVANCED_FEATURES",
+	);
 
 	const handleClick = () => {
 		onClick ? onClick() : navigate(`/tickets/${id}`);
 	};
 
-	const hasKnowledgeGap = knowledgeStatus === "GAP";
+	const hasKnowledgeGap = enableAdvancedFeatures && knowledgeStatus === "GAP";
+	const showMttr = enableAdvancedFeatures && mttr != null;
 
 	return (
 		<button
@@ -70,7 +75,7 @@ export function TicketGroupStat({
 					<span className="text-[38px] font-normal leading-6 text-card-foreground">
 						{count.toLocaleString()}
 					</span>
-					{(costImpact != null || mttr != null) && (
+					{(costImpact != null || showMttr) && (
 						<div className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
 							{costImpact != null && (
 								<Tooltip>
@@ -82,8 +87,8 @@ export function TicketGroupStat({
 									</TooltipContent>
 								</Tooltip>
 							)}
-							{costImpact != null && mttr != null && <span>·</span>}
-							{mttr != null && (
+							{costImpact != null && showMttr && <span>·</span>}
+							{showMttr && (
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<span>{mttr}m</span>

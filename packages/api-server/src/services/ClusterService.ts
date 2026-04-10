@@ -33,8 +33,6 @@ export class ClusterService {
 	): Promise<ClusterDetails | null> {
 		const result = await db
 			.selectFrom("clusters as c")
-			.leftJoin("cluster_kb_links as kb", "kb.cluster_id", "c.id")
-			.leftJoin("tickets as t", "t.cluster_id", "c.id")
 			.select([
 				"c.id",
 				"c.organization_id",
@@ -46,16 +44,22 @@ export class ClusterService {
 				"c.created_at",
 				"c.updated_at",
 			])
-			.select((eb) => [
-				eb.fn.count(sql`DISTINCT kb.id`).as("kb_articles_count"),
-				eb.fn.count(sql`DISTINCT t.id`).as("ticket_count"),
-				sql<number>`COALESCE(COUNT(DISTINCT t.id) FILTER (WHERE t.external_status = 'Open'), 0)`.as(
+			.select([
+				sql<number>`(SELECT COUNT(*) FROM cluster_kb_links WHERE cluster_id = c.id)`.as(
+					"kb_articles_count",
+				),
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id)`.as(
+					"ticket_count",
+				),
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND external_status = 'Open')`.as(
 					"open_count",
+				),
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND resolution IS NOT NULL)`.as(
+					"historical_ticket_count",
 				),
 			])
 			.where("c.id", "=", clusterId)
 			.where("c.organization_id", "=", organizationId)
-			.groupBy("c.id")
 			.executeTakeFirst();
 
 		if (!result) {
@@ -73,6 +77,7 @@ export class ClusterService {
 			kb_articles_count: Number(result.kb_articles_count),
 			ticket_count: Number(result.ticket_count),
 			open_count: Number(result.open_count),
+			historical_ticket_count: Number(result.historical_ticket_count),
 			created_at: result.created_at as Date,
 			updated_at: result.updated_at as Date,
 		};
@@ -91,6 +96,7 @@ export class ClusterService {
 		totals: ClusterTotals;
 	}> {
 		const sort = options.sort || "recent";
+		const sortDir = options.sortDir || "desc";
 		const period = options.period;
 		const limit = Math.min(options.limit || DEFAULT_LIMIT, MAX_LIMIT);
 		const offset = options.offset || 0;
@@ -177,11 +183,17 @@ export class ClusterService {
 			);
 		}
 
-		// Sorting - always include id as tiebreaker for stable pagination
+		// Sorting - sort_dir applies to primary column only; tiebreakers stay fixed for stable pagination
 		switch (sort) {
 			case "volume":
 				query = query
-					.orderBy(sql`ts.ticket_count`, "desc")
+					.orderBy(sql`ts.ticket_count`, sortDir)
+					.orderBy("c.created_at", "desc")
+					.orderBy("c.id", "desc");
+				break;
+			case "needs_response":
+				query = query
+					.orderBy(sql`ts.needs_response_count`, sortDir)
 					.orderBy("c.created_at", "desc")
 					.orderBy("c.id", "desc");
 				break;
@@ -193,7 +205,7 @@ export class ClusterService {
 				break;
 			case "recent":
 			default:
-				query = query.orderBy("c.created_at", "desc").orderBy("c.id", "desc");
+				query = query.orderBy("c.created_at", sortDir).orderBy("c.id", "desc");
 		}
 
 		const rows = await query.limit(limit).offset(offset).execute();

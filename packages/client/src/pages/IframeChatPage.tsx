@@ -21,6 +21,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Code,
+	Database,
 	Download,
 	ScrollText,
 	Send,
@@ -32,6 +33,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader } from "../components/ai-elements/loader";
 import ChatV1Content from "../components/chat/ChatV1Content";
+import { ValkeySessionPanel } from "../components/devtools/ValkeySessionPanel";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
 import { Button } from "../components/ui/button";
 import {
@@ -743,12 +745,14 @@ function IframeDevTools({
 	onDownloadMetadata,
 	onShowActivityLog,
 	onShowPlatformSimulator,
+	onShowValkeySession,
 	isMockMode,
 }: {
 	onDownloadConversation: () => void;
 	onDownloadMetadata: () => void;
 	onShowActivityLog: () => void;
 	onShowPlatformSimulator?: () => void;
+	onShowValkeySession?: () => void;
 	isMockMode?: boolean;
 }) {
 	const devToolsEnabled = useFeatureFlag("ENABLE_IFRAME_DEV_TOOLS");
@@ -759,7 +763,11 @@ function IframeDevTools({
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-accent">
+				<Button
+					size="icon"
+					variant="ghost"
+					className="h-8 w-8 hover:bg-accent cursor-pointer"
+				>
 					<Wrench className="h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
@@ -785,6 +793,17 @@ function IframeDevTools({
 				{/* Download tools - only when dev tools feature flag enabled */}
 				{devToolsEnabled && (
 					<>
+						<DropdownMenuSeparator />
+						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+							Inspect
+						</DropdownMenuLabel>
+						<DropdownMenuItem
+							onClick={onShowValkeySession}
+							className="cursor-pointer"
+						>
+							<Database className="mr-2 h-4 w-4" />
+							Valkey Session
+						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
 							Downloads
@@ -1026,6 +1045,7 @@ export default function IframeChatPage() {
 
 	// Mock platform panel state (only in mock mode - backend is skipped)
 	const [showPlatformPanel, setShowPlatformPanel] = useState(mockMode);
+	const [showValkeyPanel, setShowValkeyPanel] = useState(false);
 
 	const navigate = useNavigate();
 	const apiUrl = import.meta.env.VITE_API_URL || "";
@@ -1526,6 +1546,7 @@ export default function IframeChatPage() {
 				onDownloadMetadata={downloadMetadata}
 				onShowActivityLog={() => setShowDebug(true)}
 				onShowPlatformSimulator={() => setShowPlatformPanel(true)}
+				onShowValkeySession={() => setShowValkeyPanel(true)}
 				isMockMode={isDevMode}
 			/>
 		</>
@@ -1556,6 +1577,14 @@ export default function IframeChatPage() {
 				/>
 			)}
 			<DebugPanel {...debugPanelProps} />
+			{showValkeyPanel && sessionKey && (
+				<ValkeySessionPanel
+					sessionKey={sessionKey}
+					apiUrl={apiUrl}
+					initialPayload={valkeyPayload}
+					onClose={() => setShowValkeyPanel(false)}
+				/>
+			)}
 		</IframeChatLayout>
 	);
 }

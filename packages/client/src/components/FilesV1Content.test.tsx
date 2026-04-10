@@ -11,14 +11,20 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FILE_SOURCE, FILE_STATUS } from "@/lib/constants";
 import FilesV1Content from "./FilesV1Content";
 
 // Mock ritaToast
-vi.mock("@/components/ui/rita-toast", () => ({
+vi.mock("@/components/custom/rita-toast", () => ({
 	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
@@ -29,15 +35,26 @@ vi.mock("@/components/ui/rita-toast", () => ({
 
 // Mock BulkActions component
 vi.mock("@/components/BulkActions", () => ({
-	BulkActions: ({ selectedItems, onDelete, onClose, itemLabel, isLoading, remainingCount }: any) => (
+	BulkActions: ({
+		selectedItems,
+		onDelete,
+		onClose,
+		itemLabel,
+		isLoading,
+		remainingCount,
+	}: any) => (
 		<div data-testid="bulk-actions">
 			<span>
 				{isLoading && remainingCount != null
 					? `${remainingCount} ${itemLabel} remaining`
 					: `${selectedItems.length} ${itemLabel} selected`}
 			</span>
-			<button onClick={onDelete} disabled={isLoading}>Delete Selected</button>
-			<button onClick={onClose} disabled={isLoading}>Clear Selection</button>
+			<button onClick={onDelete} disabled={isLoading}>
+				Delete Selected
+			</button>
+			<button onClick={onClose} disabled={isLoading}>
+				Clear Selection
+			</button>
 		</div>
 	),
 }));
@@ -117,9 +134,9 @@ vi.mock("@/hooks/api/useFiles", () => ({
 		error: null,
 	})),
 	fileKeys: {
-		all: ['files'],
-		lists: () => ['files', 'list'],
-		list: (params: any) => ['files', 'list', params],
+		all: ["files"],
+		lists: () => ["files", "list"],
+		list: (params: any) => ["files", "list", params],
 	},
 }));
 
@@ -152,7 +169,12 @@ describe("FilesV1Content", () => {
 		vi.clearAllMocks();
 		// Default mock implementation: return all files
 		mockUseFiles.mockReturnValue({
-			data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+			data: {
+				documents: mockFiles,
+				total: mockFiles.length,
+				limit: 50,
+				offset: 0,
+			},
 			isLoading: false,
 			error: null,
 		});
@@ -321,7 +343,7 @@ describe("FilesV1Content", () => {
 
 			// Initial call should have empty search
 			expect(mockUseFiles).toHaveBeenLastCalledWith(
-				expect.objectContaining({ search: "" })
+				expect.objectContaining({ search: "" }),
 			);
 
 			// Type "confluence"
@@ -329,7 +351,7 @@ describe("FilesV1Content", () => {
 
 			// Should not update search query immediately (still empty string)
 			expect(mockUseFiles).toHaveBeenLastCalledWith(
-				expect.objectContaining({ search: "" })
+				expect.objectContaining({ search: "" }),
 			);
 
 			// Fast-forward 500ms
@@ -339,7 +361,7 @@ describe("FilesV1Content", () => {
 
 			// Now should call API with search term
 			expect(mockUseFiles).toHaveBeenCalledWith(
-				expect.objectContaining({ search: "confluence" })
+				expect.objectContaining({ search: "confluence" }),
 			);
 		});
 
@@ -370,10 +392,10 @@ describe("FilesV1Content", () => {
 
 			// Should NOT have called API with "con" or "confluence" yet
 			expect(mockUseFiles).not.toHaveBeenCalledWith(
-				expect.objectContaining({ search: "con" })
+				expect.objectContaining({ search: "con" }),
 			);
 			expect(mockUseFiles).not.toHaveBeenCalledWith(
-				expect.objectContaining({ search: "confluence" })
+				expect.objectContaining({ search: "confluence" }),
 			);
 
 			// Wait remaining 200ms (total 500ms from second input)
@@ -383,7 +405,7 @@ describe("FilesV1Content", () => {
 
 			// Now should call API with final search term only
 			expect(mockUseFiles).toHaveBeenLastCalledWith(
-				expect.objectContaining({ search: "confluence" })
+				expect.objectContaining({ search: "confluence" }),
 			);
 		});
 
@@ -396,7 +418,12 @@ describe("FilesV1Content", () => {
 					: mockFiles;
 
 				return {
-					data: { documents: filtered, total: filtered.length, limit: 50, offset: 0 },
+					data: {
+						documents: filtered,
+						total: filtered.length,
+						limit: 50,
+						offset: 0,
+					},
 					isLoading: false,
 					error: null,
 				};
@@ -483,7 +510,7 @@ describe("FilesV1Content", () => {
 
 			// Check pagination reset
 			expect(mockUseFiles).toHaveBeenLastCalledWith(
-				expect.objectContaining({ offset: 0, search: "test" })
+				expect.objectContaining({ offset: 0, search: "test" }),
 			);
 		});
 	});
@@ -570,8 +597,12 @@ describe("FilesV1Content", () => {
 			);
 
 			// Create invalid file (image)
-			const invalidFile = new File(["content"], "image.jpg", { type: "image/jpeg" });
-			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+			const invalidFile = new File(["content"], "image.jpg", {
+				type: "image/jpeg",
+			});
+			const input = document.querySelector(
+				'input[type="file"]',
+			) as HTMLInputElement;
 
 			// Simulate file selection
 			Object.defineProperty(input, "files", {
@@ -581,7 +612,7 @@ describe("FilesV1Content", () => {
 			fireEvent.change(input);
 
 			// Should show error toast for invalid file type
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			await waitFor(() => {
 				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({
@@ -599,8 +630,12 @@ describe("FilesV1Content", () => {
 			);
 
 			// Create valid file (PDF)
-			const validFile = new File(["content"], "document.pdf", { type: "application/pdf" });
-			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+			const validFile = new File(["content"], "document.pdf", {
+				type: "application/pdf",
+			});
+			const input = document.querySelector(
+				'input[type="file"]',
+			) as HTMLInputElement;
 
 			// Simulate file selection
 			Object.defineProperty(input, "files", {
@@ -610,7 +645,7 @@ describe("FilesV1Content", () => {
 			fireEvent.change(input);
 
 			// Should show uploading toast
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			await waitFor(() => {
 				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({
@@ -638,8 +673,12 @@ describe("FilesV1Content", () => {
 			);
 
 			// Create invalid file
-			const invalidFile = new File(["content"], "image.png", { type: "image/png" });
-			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+			const invalidFile = new File(["content"], "image.png", {
+				type: "image/png",
+			});
+			const input = document.querySelector(
+				'input[type="file"]',
+			) as HTMLInputElement;
 
 			// Simulate file selection
 			Object.defineProperty(input, "files", {
@@ -738,7 +777,12 @@ describe("FilesV1Content", () => {
 					};
 				}
 				return {
-					data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+					data: {
+						documents: mockFiles,
+						total: mockFiles.length,
+						limit: 50,
+						offset: 0,
+					},
 					isLoading: false,
 					error: null,
 				};
@@ -780,7 +824,12 @@ describe("FilesV1Content", () => {
 			vi.useFakeTimers();
 
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -811,7 +860,12 @@ describe("FilesV1Content", () => {
 		it("displays action menu for each file", async () => {
 			// Restore default mock before this test
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -843,7 +897,12 @@ describe("FilesV1Content", () => {
 		it("shows correct file count in footer", async () => {
 			// Restore default mock before this test
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -895,7 +954,12 @@ describe("FilesV1Content", () => {
 	describe("Bulk Actions", () => {
 		it("shows BulkActions component when files are selected", async () => {
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -918,7 +982,12 @@ describe("FilesV1Content", () => {
 
 		it("hides search and filters when BulkActions is shown", async () => {
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -930,7 +999,9 @@ describe("FilesV1Content", () => {
 			);
 
 			// Initially search is visible
-			expect(screen.getByPlaceholderText(/search.placeholder/i)).toBeInTheDocument();
+			expect(
+				screen.getByPlaceholderText(/search.placeholder/i),
+			).toBeInTheDocument();
 
 			// Select first file
 			const checkboxes = screen.getAllByRole("checkbox");
@@ -939,12 +1010,19 @@ describe("FilesV1Content", () => {
 
 			// Search should be hidden and BulkActions visible
 			expect(await screen.findByTestId("bulk-actions")).toBeInTheDocument();
-			expect(screen.queryByPlaceholderText(/search.placeholder/i)).not.toBeInTheDocument();
+			expect(
+				screen.queryByPlaceholderText(/search.placeholder/i),
+			).not.toBeInTheDocument();
 		});
 
 		it("clears selection when Clear Selection button is clicked", async () => {
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -968,13 +1046,20 @@ describe("FilesV1Content", () => {
 			fireEvent.click(clearButton);
 
 			// BulkActions should disappear and search should reappear
-			expect(await screen.findByPlaceholderText(/search.placeholder/i)).toBeInTheDocument();
+			expect(
+				await screen.findByPlaceholderText(/search.placeholder/i),
+			).toBeInTheDocument();
 			expect(screen.queryByTestId("bulk-actions")).not.toBeInTheDocument();
 		});
 
 		it("opens bulk delete confirmation dialog", async () => {
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -998,13 +1083,22 @@ describe("FilesV1Content", () => {
 			fireEvent.click(deleteButton);
 
 			// Confirmation dialog should appear
-			expect(await screen.findByText("dialogs.bulkDeleteTitle")).toBeInTheDocument();
-			expect(screen.getByText(/dialogs.bulkDeleteDescription/)).toBeInTheDocument();
+			expect(
+				await screen.findByText("dialogs.bulkDeleteTitle"),
+			).toBeInTheDocument();
+			expect(
+				screen.getByText(/dialogs.bulkDeleteDescription/),
+			).toBeInTheDocument();
 		});
 
 		it("selects all files when select-all checkbox is clicked", async () => {
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -1029,7 +1123,12 @@ describe("FilesV1Content", () => {
 	describe("Toast Notifications", () => {
 		it("does not show fixed toast divs", async () => {
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -1041,7 +1140,7 @@ describe("FilesV1Content", () => {
 			);
 
 			// Should not have any fixed bottom-right toast divs
-			const fixedToasts = container.querySelectorAll('.fixed.bottom-4.right-4');
+			const fixedToasts = container.querySelectorAll(".fixed.bottom-4.right-4");
 			expect(fixedToasts.length).toBe(0);
 		});
 	});
@@ -1049,7 +1148,12 @@ describe("FilesV1Content", () => {
 	describe("Upload Progress Bar", () => {
 		it("does not show progress bar when no upload is in progress", () => {
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -1061,15 +1165,21 @@ describe("FilesV1Content", () => {
 			);
 
 			// Progress bar should not be visible
-			expect(screen.queryByText(/uploadProgress.uploading/i)).not.toBeInTheDocument();
+			expect(
+				screen.queryByText(/uploadProgress.uploading/i),
+			).not.toBeInTheDocument();
 		});
 
 		it("shows progress bar when uploading multiple files", async () => {
 			// Mock upload mutation to track progress
-			const mockMutateAsync = vi.fn().mockImplementation(() =>
-				new Promise((resolve) => {
-					setTimeout(() => resolve({ document: { filename: 'test.pdf' } }), 100);
-				})
+			const mockMutateAsync = vi.fn().mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						setTimeout(
+							() => resolve({ document: { filename: "test.pdf" } }),
+							100,
+						);
+					}),
 			);
 
 			const { useUploadFile } = await import("@/hooks/api/useFiles");
@@ -1083,7 +1193,12 @@ describe("FilesV1Content", () => {
 			} as any);
 
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -1095,10 +1210,18 @@ describe("FilesV1Content", () => {
 			);
 
 			// Create multiple valid files
-			const file1 = new File(["content1"], "doc1.pdf", { type: "application/pdf" });
-			const file2 = new File(["content2"], "doc2.pdf", { type: "application/pdf" });
-			const file3 = new File(["content3"], "doc3.pdf", { type: "application/pdf" });
-			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+			const file1 = new File(["content1"], "doc1.pdf", {
+				type: "application/pdf",
+			});
+			const file2 = new File(["content2"], "doc2.pdf", {
+				type: "application/pdf",
+			});
+			const file3 = new File(["content3"], "doc3.pdf", {
+				type: "application/pdf",
+			});
+			const input = document.querySelector(
+				'input[type="file"]',
+			) as HTMLInputElement;
 
 			// Simulate file selection
 			Object.defineProperty(input, "files", {
@@ -1109,15 +1232,21 @@ describe("FilesV1Content", () => {
 
 			// Progress bar should appear for multiple files
 			await waitFor(() => {
-				expect(screen.getByText(/uploadProgress.uploading/i)).toBeInTheDocument();
+				expect(
+					screen.getByText(/uploadProgress.uploading/i),
+				).toBeInTheDocument();
 			});
 		});
 
 		it("shows correct progress count during multi-file upload", async () => {
-			const mockMutateAsync = vi.fn().mockImplementation(() =>
-				new Promise<{ document: { filename: string } }>((resolve) => {
-					setTimeout(() => resolve({ document: { filename: 'test.pdf' } }), 100);
-				})
+			const mockMutateAsync = vi.fn().mockImplementation(
+				() =>
+					new Promise<{ document: { filename: string } }>((resolve) => {
+						setTimeout(
+							() => resolve({ document: { filename: "test.pdf" } }),
+							100,
+						);
+					}),
 			);
 
 			const { useUploadFile } = await import("@/hooks/api/useFiles");
@@ -1131,7 +1260,12 @@ describe("FilesV1Content", () => {
 			} as any);
 
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -1143,9 +1277,15 @@ describe("FilesV1Content", () => {
 			);
 
 			// Create multiple valid files
-			const file1 = new File(["content1"], "doc1.pdf", { type: "application/pdf" });
-			const file2 = new File(["content2"], "doc2.pdf", { type: "application/pdf" });
-			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+			const file1 = new File(["content1"], "doc1.pdf", {
+				type: "application/pdf",
+			});
+			const file2 = new File(["content2"], "doc2.pdf", {
+				type: "application/pdf",
+			});
+			const input = document.querySelector(
+				'input[type="file"]',
+			) as HTMLInputElement;
 
 			// Simulate file selection
 			Object.defineProperty(input, "files", {
@@ -1156,12 +1296,16 @@ describe("FilesV1Content", () => {
 
 			// Progress should show total count - i18n mock returns the key
 			await waitFor(() => {
-				expect(screen.getByText(/uploadProgress.progress/i)).toBeInTheDocument();
+				expect(
+					screen.getByText(/uploadProgress.progress/i),
+				).toBeInTheDocument();
 			});
 		});
 
 		it("does not show progress bar for single file upload", async () => {
-			const mockMutateAsync = vi.fn().mockResolvedValue({ document: { filename: 'test.pdf' } });
+			const mockMutateAsync = vi
+				.fn()
+				.mockResolvedValue({ document: { filename: "test.pdf" } });
 
 			const { useUploadFile } = await import("@/hooks/api/useFiles");
 			vi.mocked(useUploadFile).mockReturnValue({
@@ -1174,7 +1318,12 @@ describe("FilesV1Content", () => {
 			} as any);
 
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -1186,8 +1335,12 @@ describe("FilesV1Content", () => {
 			);
 
 			// Create single valid file
-			const file = new File(["content"], "document.pdf", { type: "application/pdf" });
-			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+			const file = new File(["content"], "document.pdf", {
+				type: "application/pdf",
+			});
+			const input = document.querySelector(
+				'input[type="file"]',
+			) as HTMLInputElement;
 
 			// Simulate file selection
 			Object.defineProperty(input, "files", {
@@ -1197,11 +1350,15 @@ describe("FilesV1Content", () => {
 			fireEvent.change(input);
 
 			// Progress bar should NOT appear for single file
-			expect(screen.queryByText(/uploadProgress.uploading/i)).not.toBeInTheDocument();
+			expect(
+				screen.queryByText(/uploadProgress.uploading/i),
+			).not.toBeInTheDocument();
 		});
 
 		it("clears progress bar after upload completes", async () => {
-			const mockMutateAsync = vi.fn().mockResolvedValue({ document: { filename: 'test.pdf' } });
+			const mockMutateAsync = vi
+				.fn()
+				.mockResolvedValue({ document: { filename: "test.pdf" } });
 
 			const { useUploadFile } = await import("@/hooks/api/useFiles");
 			vi.mocked(useUploadFile).mockReturnValue({
@@ -1214,7 +1371,12 @@ describe("FilesV1Content", () => {
 			} as any);
 
 			mockUseFiles.mockReturnValue({
-				data: { documents: mockFiles, total: mockFiles.length, limit: 50, offset: 0 },
+				data: {
+					documents: mockFiles,
+					total: mockFiles.length,
+					limit: 50,
+					offset: 0,
+				},
 				isLoading: false,
 				error: null,
 			});
@@ -1226,9 +1388,15 @@ describe("FilesV1Content", () => {
 			);
 
 			// Create multiple valid files
-			const file1 = new File(["content1"], "doc1.pdf", { type: "application/pdf" });
-			const file2 = new File(["content2"], "doc2.pdf", { type: "application/pdf" });
-			const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+			const file1 = new File(["content1"], "doc1.pdf", {
+				type: "application/pdf",
+			});
+			const file2 = new File(["content2"], "doc2.pdf", {
+				type: "application/pdf",
+			});
+			const input = document.querySelector(
+				'input[type="file"]',
+			) as HTMLInputElement;
 
 			// Simulate file selection
 			Object.defineProperty(input, "files", {
@@ -1244,7 +1412,9 @@ describe("FilesV1Content", () => {
 
 			// Progress bar should be cleared after upload
 			await waitFor(() => {
-				expect(screen.queryByText(/uploadProgress.uploading/i)).not.toBeInTheDocument();
+				expect(
+					screen.queryByText(/uploadProgress.uploading/i),
+				).not.toBeInTheDocument();
 			});
 		});
 	});

@@ -43,6 +43,7 @@ export interface ClusterDetails extends Cluster {
 	kb_articles_count: number;
 	ticket_count: number;
 	open_count: number;
+	historical_ticket_count: number;
 }
 
 /**
@@ -63,7 +64,11 @@ export interface ClusterListItem {
 /**
  * Sort options for cluster list
  */
-export type ClusterSortOption = "volume" | "automation" | "recent";
+export type ClusterSortOption =
+	| "volume"
+	| "automation"
+	| "recent"
+	| "needs_response";
 
 /**
  * Period filter for ticket counts
@@ -75,6 +80,7 @@ export type PeriodFilter = "last30" | "last90" | "last6months" | "lastyear";
  */
 export interface ClusterListQueryOptions {
 	sort?: ClusterSortOption;
+	sortDir?: "asc" | "desc";
 	period?: PeriodFilter;
 	limit?: number;
 	offset?: number;

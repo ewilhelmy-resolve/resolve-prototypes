@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ritaToast } from "@/components/custom/rita-toast";
 import { Label } from "@/components/ui/label";
-import { ritaToast } from "@/components/ui/rita-toast";
 import { Switch } from "@/components/ui/switch";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useUpdateDataSource } from "@/hooks/useDataSources";

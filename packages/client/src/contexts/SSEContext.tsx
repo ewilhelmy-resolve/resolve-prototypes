@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import i18n from "@/i18n";
 import { credentialErrorI18nKey } from "../components/connection-sources/utils";
-import { ritaToast } from "../components/ui/rita-toast";
+import { ritaToast } from "../components/custom/rita-toast";
 import { type FileDocument, fileKeys } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";

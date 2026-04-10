@@ -292,10 +292,11 @@ router.post("/validate-instantiation", async (req, res) => {
 });
 
 /**
- * Debug endpoint - check Valkey status and configuration
+ * Debug endpoint - check Valkey status, config, and optionally inspect a session
  * GET /api/iframe/debug
+ * GET /api/iframe/debug?sessionKey=xxx — includes Valkey payload (sensitive fields redacted)
  */
-router.get("/debug", async (_req, res) => {
+router.get("/debug", async (req, res) => {
 	const valkeyStatus = getValkeyStatus();
 	const envVars = {
 		VALKEY_URL: process.env.VALKEY_URL ? "set" : "not set",
@@ -303,11 +304,42 @@ router.get("/debug", async (_req, res) => {
 		ACTIONS_API_URL: process.env.ACTIONS_API_URL ? "set" : "not set",
 	};
 
-	res.json({
+	const response: Record<string, unknown> = {
 		timestamp: new Date().toISOString(),
 		valkey: valkeyStatus,
 		environment: envVars,
-	});
+	};
+
+	const sessionKey =
+		typeof req.query.sessionKey === "string" ? req.query.sessionKey : null;
+	if (sessionKey) {
+		try {
+			const iframeService = getIframeService();
+			const { config, debug } =
+				await iframeService.fetchValkeyPayloadWithDebug(sessionKey);
+
+			response.session = {
+				valkeyKey: `rita:session:${sessionKey}`,
+				found: !!config,
+				debug,
+				payload: config
+					? {
+							...config,
+							accessToken: config.accessToken ? "[REDACTED]" : undefined,
+							refreshToken: config.refreshToken ? "[REDACTED]" : undefined,
+							clientKey: config.clientKey ? "[REDACTED]" : undefined,
+						}
+					: null,
+			};
+		} catch (error) {
+			response.session = {
+				valkeyKey: `rita:session:${sessionKey}`,
+				error: (error as Error).message,
+			};
+		}
+	}
+
+	res.json(response);
 });
 
 /**

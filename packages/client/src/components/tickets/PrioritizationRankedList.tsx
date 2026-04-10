@@ -1,5 +1,4 @@
 import { BookX } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -15,24 +14,28 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { formatRelativeTime } from "@/lib/date-utils";
 import { renderSortIcon } from "@/lib/table-utils";
-import type {
-	RoiRankedCluster,
-	RoiSortKey,
-} from "@/lib/tickets/prioritization";
+import type { RoiRankedCluster } from "@/lib/tickets/prioritization";
 import type { ClusterListItem } from "@/types/cluster";
+import type { SortOption } from "./TicketGroups";
+
+/** Column keys that map to a parent SortOption for server-side sorting */
+type SortableColumn = "tickets" | "costImpact" | "timeTaken";
+
+const COLUMN_TO_SORT: Record<SortableColumn, SortOption> = {
+	tickets: "volume",
+	costImpact: "volume",
+	timeTaken: "timeTaken",
+};
 
 interface PrioritizationRankedListProps {
-	/** Pre-computed ROI ranked clusters from parent */
 	roiRanked: RoiRankedCluster[];
-	/** Active preset sort key, controlled by parent (null = default volume) */
-	activePreset: RoiSortKey | null;
-	/** Callback when column sort overrides the preset */
-	onPresetChange?: (key: RoiSortKey) => void;
+	activeSort: SortOption;
+	sortDir: "asc" | "desc";
+	onSortChange: (sort: SortOption, dir: "asc" | "desc") => void;
 }
-
-type SortColumn = "tickets" | "open" | RoiSortKey;
 
 function formatCurrency(val: number) {
 	return `$${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -64,54 +67,32 @@ function GapIcon({ cluster }: { cluster: ClusterListItem }) {
 
 export function PrioritizationRankedList({
 	roiRanked,
-	activePreset,
-	onPresetChange,
+	activeSort,
+	sortDir,
+	onSortChange,
 }: PrioritizationRankedListProps) {
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
-
-	const [sortCol, setSortCol] = useState<SortColumn>(
-		activePreset ?? "costImpact",
+	const enableAdvancedFeatures = useFeatureFlag(
+		"ENABLE_CLUSTER_ADVANCED_FEATURES",
 	);
-	const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-	// Sync internal sort when parent preset changes
-	useEffect(() => {
-		if (activePreset) {
-			setSortCol(activePreset);
-			setSortDir("desc");
-		}
-	}, [activePreset]);
-
-	const handleColumnSort = (col: SortColumn) => {
-		if (sortCol === col) {
-			setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+	const handleColumnSort = (col: SortableColumn) => {
+		const targetSort = COLUMN_TO_SORT[col];
+		if (activeSort === targetSort) {
+			onSortChange(targetSort, sortDir === "desc" ? "asc" : "desc");
 		} else {
-			setSortCol(col);
-			setSortDir("desc");
-			if (col !== "tickets" && col !== "open" && onPresetChange) {
-				onPresetChange(col);
-			}
+			onSortChange(targetSort, "desc");
 		}
 	};
 
-	const sorted = useMemo(() => {
-		if (sortCol === "tickets") {
-			const mul = sortDir === "desc" ? -1 : 1;
-			return [...roiRanked].sort(
-				(a, b) => mul * (a.cluster.ticket_count - b.cluster.ticket_count),
-			);
-		}
-		if (sortCol === "open") {
-			const mul = sortDir === "desc" ? -1 : 1;
-			return [...roiRanked].sort(
-				(a, b) =>
-					mul *
-					(a.cluster.needs_response_count - b.cluster.needs_response_count),
-			);
-		}
-		return roiRanked;
-	}, [roiRanked, sortCol, sortDir]);
+	// Determine which column is visually "active" based on activeSort
+	const activeSortColumn: string =
+		activeSort === "volume"
+			? "tickets"
+			: activeSort === "timeTaken"
+				? "timeTaken"
+				: "";
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -127,19 +108,12 @@ export function PrioritizationRankedList({
 								className="inline-flex items-center gap-1 cursor-pointer"
 							>
 								{t("prioritizationList.columns.tickets")}
-								{renderSortIcon(sortCol, "tickets", sortDir)}
+								{renderSortIcon(activeSortColumn, "tickets", sortDir)}
 							</button>
 						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								onClick={() => handleColumnSort("mttr")}
-								className="inline-flex items-center gap-1 cursor-pointer"
-							>
-								{t("prioritizationList.columns.mttr")}
-								{renderSortIcon(sortCol, "mttr", sortDir)}
-							</button>
-						</TableHead>
+						{enableAdvancedFeatures && (
+							<TableHead>{t("prioritizationList.columns.mttr")}</TableHead>
+						)}
 						<TableHead>
 							<button
 								type="button"
@@ -147,7 +121,7 @@ export function PrioritizationRankedList({
 								className="inline-flex items-center gap-1 cursor-pointer"
 							>
 								{t("prioritizationList.columns.costImpact")}
-								{renderSortIcon(sortCol, "costImpact", sortDir)}
+								{renderSortIcon(activeSortColumn, "tickets", sortDir)}
 							</button>
 						</TableHead>
 						<TableHead>
@@ -157,15 +131,17 @@ export function PrioritizationRankedList({
 								className="inline-flex items-center gap-1 cursor-pointer"
 							>
 								{t("prioritizationList.columns.timeTaken")}
-								{renderSortIcon(sortCol, "timeTaken", sortDir)}
+								{renderSortIcon(activeSortColumn, "timeTaken", sortDir)}
 							</button>
 						</TableHead>
-						<TableHead>{t("prioritizationList.columns.kbStatus")}</TableHead>
+						{enableAdvancedFeatures && (
+							<TableHead>{t("prioritizationList.columns.kbStatus")}</TableHead>
+						)}
 						<TableHead>{t("prioritizationList.columns.updated")}</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{sorted.map((row, idx) => (
+					{roiRanked.map((row, idx) => (
 						<TableRow
 							key={row.cluster.id}
 							onClick={() => navigate(`/tickets/${row.cluster.id}`)}
@@ -176,14 +152,18 @@ export function PrioritizationRankedList({
 								{row.displayName}
 							</TableCell>
 							<TableCell>{row.cluster.ticket_count.toLocaleString()}</TableCell>
-							<TableCell>
-								{row.mttr != null ? formatMinutes(row.mttr) : "—"}
-							</TableCell>
+							{enableAdvancedFeatures && (
+								<TableCell>
+									{row.mttr != null ? formatMinutes(row.mttr) : "—"}
+								</TableCell>
+							)}
 							<TableCell>{formatCurrency(row.costImpact)}</TableCell>
 							<TableCell>{formatMinutes(row.timeTaken)}</TableCell>
-							<TableCell>
-								<GapIcon cluster={row.cluster} />
-							</TableCell>
+							{enableAdvancedFeatures && (
+								<TableCell>
+									<GapIcon cluster={row.cluster} />
+								</TableCell>
+							)}
 							<TableCell className="text-muted-foreground text-xs">
 								{formatRelativeTime(row.cluster.updated_at)}
 							</TableCell>

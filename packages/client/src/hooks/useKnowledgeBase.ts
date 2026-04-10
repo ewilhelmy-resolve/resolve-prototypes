@@ -9,7 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ritaToast } from "@/components/ui/rita-toast";
+import { ritaToast } from "@/components/custom/rita-toast";
 import {
 	type FileDocument,
 	fileKeys,

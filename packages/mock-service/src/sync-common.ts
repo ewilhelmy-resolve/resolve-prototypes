@@ -242,6 +242,18 @@ export async function syncProviderData(
 				? "Customer request: "
 				: "General support request for ";
 
+		// Resolution templates for closed tickets (~40% of tickets)
+		const resolutionTemplates: Record<string, string[]> = {};
+		for (const clusterName of config.clusterNames) {
+			resolutionTemplates[clusterName] = [
+				`Resolved by applying standard fix for ${clusterName}. Verified with the user that the issue is no longer occurring.`,
+				`Issue resolved. Root cause was identified and corrected. User confirmed ${clusterName.toLowerCase()} is working as expected.`,
+				`Completed troubleshooting for ${clusterName}. Applied configuration change and tested successfully.`,
+				`Followed KB article steps to resolve. User verified the fix and confirmed the issue is resolved.`,
+				`Escalated to L2, root cause identified. Applied fix and monitored for 24 hours. No recurrence.`,
+			];
+		}
+
 		for (const [clusterName, clusterId] of clusterMap) {
 			const ticketsPerCluster = 5 + Math.floor(Math.random() * 11);
 
@@ -272,12 +284,23 @@ export async function syncProviderData(
 					config.descriptionSuffixes,
 				);
 
+				// ~40% of tickets are closed with resolution (historical)
+				const isClosed = Math.random() < 0.4;
+				const resolutions = resolutionTemplates[clusterName] || [
+					"Issue resolved. Verified with user.",
+				];
+				const resolution = isClosed
+					? resolutions[Math.floor(Math.random() * resolutions.length)]
+					: null;
+				const externalStatus = isClosed ? "Closed" : config.externalStatus;
+				const ritaStatus = isClosed ? "COMPLETED" : "NEEDS_RESPONSE";
+
 				const insertResult = await client.query(
 					`INSERT INTO tickets (
             organization_id, cluster_id, data_source_connection_id,
             external_id, subject, description, external_status, rita_status, source_metadata, created_at,
-            requester, assigned_to, priority
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'NEEDS_RESPONSE', $8, $9, $10, $11, $12)
+            requester, assigned_to, priority, resolution
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           ON CONFLICT (organization_id, external_id) DO NOTHING`,
 					[
 						organizationId,
@@ -286,12 +309,14 @@ export async function syncProviderData(
 						externalId,
 						subject,
 						description,
-						config.externalStatus,
+						externalStatus,
+						ritaStatus,
 						JSON.stringify(sourceMetadata),
 						createdAt,
 						requester,
 						agent || null,
 						priority,
+						resolution,
 					],
 				);
 

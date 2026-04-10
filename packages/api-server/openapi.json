@@ -3502,13 +3502,25 @@
 					{
 						"schema": {
 							"type": "string",
-							"enum": ["volume", "automation", "recent"],
+							"enum": ["volume", "automation", "recent", "needs_response"],
 							"default": "recent",
 							"description": "Sort order"
 						},
 						"required": false,
 						"description": "Sort order",
 						"name": "sort",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["asc", "desc"],
+							"default": "desc",
+							"description": "Sort direction"
+						},
+						"required": false,
+						"description": "Sort direction",
+						"name": "sort_dir",
 						"in": "query"
 					},
 					{
@@ -4600,7 +4612,7 @@
 			"post": {
 				"tags": ["Credential Delegations"],
 				"summary": "Create credential delegation",
-				"description": "Create a new credential delegation and send email to IT admin. Rate limited to 10 per org per day.",
+				"description": "Create a new credential delegation and send email to IT admin. Rate limited to 50 per org per day.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -4670,7 +4682,7 @@
 						}
 					},
 					"429": {
-						"description": "Rate limit exceeded (10/day)",
+						"description": "Rate limit exceeded (50/day)",
 						"content": {
 							"application/json": {
 								"schema": {

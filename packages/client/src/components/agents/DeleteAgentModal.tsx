@@ -2,28 +2,30 @@
  * DeleteAgentModal - Confirmation modal for deleting agents
  *
  * Two tiers:
- * - Draft: Simple confirmation
- * - Published: Type-to-confirm with impact list and warning
+ * - Draft/Disabled: Simple confirmation
+ * - Published: Type-to-confirm with impact list, active dependencies warning
  */
 
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-
-interface AgentImpact {
-	skills?: number;
-	conversationStarters?: number;
-	usersThisWeek?: number;
-	linkedWorkflows?: string[];
-}
+import type { AgentImpact, AgentStatus } from "@/types/agent";
 
 interface DeleteAgentModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	agentName: string;
-	agentStatus: "draft" | "published";
+	agentStatus: AgentStatus;
 	impact?: AgentImpact;
 	onConfirmDelete: () => void;
 }
@@ -36,6 +38,7 @@ export function DeleteAgentModal({
 	impact,
 	onConfirmDelete,
 }: DeleteAgentModalProps) {
+	const { t } = useTranslation("agents");
 	const [confirmText, setConfirmText] = useState("");
 
 	const isPublished = agentStatus === "published";
@@ -48,106 +51,138 @@ export function DeleteAgentModal({
 		setConfirmText("");
 	};
 
-	const handleClose = () => {
-		onOpenChange(false);
-		setConfirmText("");
+	const handleOpenChange = (newOpen: boolean) => {
+		if (!newOpen) {
+			setConfirmText("");
+		}
+		onOpenChange(newOpen);
 	};
 
-	if (!open) return null;
+	const hasActiveDependencies =
+		(impact?.usersThisWeek != null && impact.usersThisWeek > 0) ||
+		(impact?.linkedWorkflows != null && impact.linkedWorkflows.length > 0);
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-			<div
-				className="absolute inset-0 bg-black/50"
-				onClick={handleClose}
-				onKeyDown={(e) => e.key === "Escape" && handleClose()}
-			/>
-
-			<div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-				<button
-					type="button"
-					onClick={handleClose}
-					className="absolute top-[15px] right-[15px] opacity-70 hover:opacity-100"
-					aria-label="Close"
-				>
-					<X className="size-4" />
-				</button>
-
-				{/* Header */}
-				<p className="text-lg font-semibold leading-none text-foreground">
-					Delete {agentName}?
-				</p>
-
-				{/* What will be removed */}
-				<div className="bg-neutral-50 rounded-md px-2 py-2">
-					<div className="flex flex-col gap-2">
-						<p className="text-sm font-bold text-foreground leading-none h-[18px] flex items-end">
-							What will be removed
-						</p>
-						<ul className="text-sm text-foreground list-disc ml-[21px] space-y-0.5">
-							{impact?.skills && impact.skills > 0 && (
-								<li>{impact.skills} skill{impact.skills > 1 ? "s" : ""}</li>
-							)}
-							{impact?.conversationStarters && impact.conversationStarters > 0 && (
-								<li>{impact.conversationStarters} conversation starter{impact.conversationStarters > 1 ? "s" : ""}</li>
-							)}
-							<li>Usage history & analytics</li>
-						</ul>
-					</div>
-				</div>
-
-				{/* Warning */}
-				{isPublished && (
-					<div className="bg-yellow-50 border border-yellow-500 rounded-md p-2 flex flex-col gap-1">
-						<div className="flex items-center gap-1">
-							<AlertTriangle className="size-6 text-yellow-600 shrink-0" />
-							<p className="text-sm font-bold text-foreground leading-7">
-								Warning
-							</p>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<div className="flex items-start gap-3">
+						<div className="flex items-center justify-center size-10 rounded-full bg-red-100 shrink-0">
+							<Trash2 className="size-5 text-destructive" />
 						</div>
-						<p className="text-sm text-muted-foreground leading-5">
-							Once removed, this agent will no longer be accessible to help employees. This action cannot be undone.
-						</p>
+						<div className="flex flex-col gap-0.5">
+							<DialogTitle className="text-lg font-semibold leading-snug">
+								{t("deleteModal.title", { agentName })}
+							</DialogTitle>
+							<DialogDescription>
+								{isPublished
+									? t("deleteModal.descriptionPublished")
+									: t("deleteModal.descriptionDraft")}
+							</DialogDescription>
+						</div>
 					</div>
-				)}
+				</DialogHeader>
 
-				{!isPublished && (
-					<p className="text-sm text-muted-foreground leading-5">
-						This draft will be permanently removed. This action cannot be undone.
-					</p>
-				)}
-
-				{/* Type to confirm */}
+				{/* Published agents: full impact details */}
 				{isPublished && (
-					<div className="flex flex-col gap-2">
-						<p className="text-sm text-foreground leading-none">
-							Type "delete" to confirm
-						</p>
-						<Input
-							value={confirmText}
-							onChange={(e) => setConfirmText(e.target.value)}
-							placeholder="delete"
-							className="h-9 text-sm"
-							autoComplete="off"
-						/>
-					</div>
+					<>
+						{/* What will be removed */}
+						<div className="bg-neutral-50 rounded-md px-4 py-3">
+							<p className="text-sm font-semibold text-foreground mb-2">
+								{t("deleteModal.whatWillBeRemoved")}
+							</p>
+							<ul className="text-sm text-muted-foreground list-disc ml-5 space-y-1">
+								<li>{t("deleteModal.configuration")}</li>
+								{impact?.skills != null && impact.skills > 0 && (
+									<li>
+										{t("deleteModal.connectedSkills", {
+											count: impact.skills,
+										})}
+									</li>
+								)}
+								{impact?.conversationStarters != null &&
+									impact.conversationStarters > 0 && (
+										<li>
+											{t("deleteModal.conversationStarters", {
+												count: impact.conversationStarters,
+											})}
+										</li>
+									)}
+								<li>{t("deleteModal.usageHistory")}</li>
+							</ul>
+						</div>
+
+						{/* Active dependencies warning */}
+						{hasActiveDependencies && (
+							<div className="bg-yellow-50 border border-yellow-300 rounded-md px-4 py-3">
+								<div className="flex items-center gap-1.5 mb-1">
+									<AlertTriangle className="size-4 text-yellow-600 shrink-0" />
+									<p className="text-sm font-semibold text-yellow-700">
+										{t("deleteModal.activeDependencies")}
+									</p>
+								</div>
+								<div className="text-sm text-yellow-700 ml-[22px] space-y-0.5">
+									{impact?.usersThisWeek != null &&
+										impact.usersThisWeek > 0 && (
+											<p>
+												{t("deleteModal.usedByEmployees", {
+													count: impact.usersThisWeek,
+												})}
+											</p>
+										)}
+									{impact?.linkedWorkflows?.map((workflow) => (
+										<p key={workflow}>
+											{t("deleteModal.linkedToWorkflow", { workflow })}
+										</p>
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* Type to confirm */}
+						<div className="flex flex-col gap-2">
+							<p className="text-sm text-foreground">
+								{t("deleteModal.typeToConfirm", {
+									interpolation: { escapeValue: false },
+								})
+									.split(/<bold>|<\/bold>/)
+									.map((part, i) =>
+										i % 2 === 1 ? (
+											<span key={i} className="font-semibold">
+												{part}
+											</span>
+										) : (
+											part
+										),
+									)}
+							</p>
+							<Input
+								value={confirmText}
+								onChange={(e) => setConfirmText(e.target.value)}
+								placeholder={t("deleteModal.confirmPlaceholder")}
+								className="h-9 text-sm"
+								autoComplete="off"
+								aria-label={t("deleteModal.confirmLabel")}
+							/>
+						</div>
+					</>
 				)}
 
-				{/* Footer */}
-				<div className="flex items-center justify-end gap-2">
-					<Button variant="outline" onClick={handleClose}>
-						Cancel
+				<DialogFooter>
+					<Button variant="outline" onClick={() => handleOpenChange(false)}>
+						{t("deleteModal.cancel")}
 					</Button>
 					<Button
 						variant="destructive"
 						onClick={handleDelete}
 						disabled={!canDelete}
-						className={cn(!canDelete && "opacity-50 cursor-not-allowed")}
 					>
-						Delete agent
+						{isPublished
+							? t("deleteModal.deleteAgent")
+							: t("deleteModal.deleteDraft")}
 					</Button>
-				</div>
-			</div>
-		</div>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

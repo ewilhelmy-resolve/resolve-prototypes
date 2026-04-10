@@ -1,26 +1,15 @@
 "use client";
 
 import { Globe } from "lucide-react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	KNOWLEDGE_SOURCES_ORDER,
 	SOURCES,
 } from "@/constants/connectionSources";
-import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import SourcesListPage from "./SourcesListPage";
 
 export default function KnowledgeSources() {
 	const { t } = useTranslation("settings");
-	const isServiceNowEnabled = useFeatureFlag("ENABLE_SERVICENOW");
-
-	const enabledKbSources: string[] = useMemo(
-		() =>
-			isServiceNowEnabled
-				? [SOURCES.CONFLUENCE, SOURCES.SERVICENOW]
-				: [SOURCES.CONFLUENCE],
-		[isServiceNowEnabled],
-	);
 
 	return (
 		<SourcesListPage
@@ -35,7 +24,7 @@ export default function KnowledgeSources() {
 			comingSoonLabel={t("knowledgeSources.comingSoon")}
 			lastSyncLabel={t("knowledgeSources.lastSync", { time: "{time}" })}
 			sourcesOrder={KNOWLEDGE_SOURCES_ORDER}
-			enabledSources={enabledKbSources}
+			enabledSources={KNOWLEDGE_SOURCES_ORDER}
 			basePath="/settings/connections/knowledge"
 			iconOverrides={{
 				[SOURCES.WEB_SEARCH]: <Globe className="h-5 w-5 flex-shrink-0" />,

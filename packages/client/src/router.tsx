@@ -32,17 +32,11 @@ import KnowledgeSources from "./pages/settings/KnowledgeSources";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TermsOfService from "./pages/TermsOfService";
 import TicketDetailPage from "./pages/TicketDetailPage";
-import TicketsPage from "./pages/TicketsPage";
+
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
-
-// Feature-flagged tickets page wrapper
-function TicketsPageWithFlag() {
-	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
-	return enableTicketsV2 ? <ClustersPage /> : <TicketsPage />;
-}
 
 // Feature-flagged agents gate
 function AgentsFeatureGate({ children }: { children: React.ReactNode }) {
@@ -171,7 +165,7 @@ const router = createBrowserRouter([
 		path: "/tickets",
 		element: (
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
-				<TicketsPageWithFlag />
+				<ClustersPage />
 			</RoleProtectedRoute>
 		),
 	},

@@ -271,6 +271,7 @@ router.get("/", async (req, res) => {
 			authReq.user.activeOrganizationId,
 			{
 				sort: query.sort,
+				sortDir: query.sort_dir,
 				period: query.period,
 				limit: query.limit,
 				offset: query.offset,
