@@ -447,7 +447,212 @@ function generateMockResponse(
 	const parts: MessagePart[] = [];
 
 	// Check for test trigger words first
-	if (content.startsWith("test1")) {
+
+	// test-error: Simulate a failed workflow
+	if (content.startsWith("test-error")) {
+		const steps = [
+			"Starting agent",
+			"Requirements Analyst is working...",
+			"Verifying if activity with same name already exists",
+			"Verifying if activity with same name already exists",
+			"Verifying if activity with same name already exists",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: "Activity creation failed because an activity with the same name already exists in this tenant.",
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "error",
+					title: "Activity creation failed",
+					details: {
+						error: "Name already exists",
+						suggestion: "Try a different activity name",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
+	// test-warning: Simulate a workflow with warnings
+	if (content.startsWith("test-warning")) {
+		const steps = [
+			"Starting agent",
+			"Software Developer is working...",
+			"Using generate_python_code...",
+			"Using validate_python_code...",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'DataProcessor' has been created with ID ${activityId}, but code validation found 2 warnings that should be reviewed.`,
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "warning",
+					title: "Activity created with warnings",
+					details: {
+						name: "DataProcessor",
+						id: String(activityId),
+						warnings: "2 validation warnings",
+						suggestion: "Review generated code before deploying",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
+	// test-icons: Demo all icon and color options
+	if (content.startsWith("test-icons")) {
+		const steps = [
+			"[icon:zap] Initializing workflow engine",
+			"[icon:shield,color:green] Validating security credentials",
+			"[icon:database,color:purple] Querying knowledge base",
+			"[icon:globe,color:amber] Calling external API",
+			"[icon:bot,color:primary] AI Agent analyzing results",
+			"[icon:code,color:green] Generating solution code",
+			"[icon:search] Verifying output integrity",
+			"[icon:settings,color:amber] Applying configuration",
+			"[icon:file] Writing activity manifest",
+			"[icon:shield,color:green] Final security scan",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Building Activity..." },
+					turn_complete: false,
+				},
+			});
+		}
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'SecureDataProcessor' created with ID ${activityId}. All security checks passed.`,
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "success",
+					title: "Activity created — all checks passed",
+					details: {
+						name: "SecureDataProcessor",
+						id: String(activityId),
+						steps_completed: steps.length,
+						security: "verified",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
+	// test-workflow / add / multiply / create activity: Simulate successful workflow
+	if (content.startsWith("test-workflow")) {
+		// Simulate real Actions Platform workflow with step-by-step reasoning
+		// Each reasoning step is a separate response (matches real SSE behavior)
+		const steps = [
+			"Starting agent",
+			"Polling for execution status updates",
+			"Requirements Analyst is working...",
+			"Verifying if activity with same name already exists",
+			"Software Developer is working...",
+			"Using generate_python_code...",
+			"Using validate_python_code...",
+			"Using res_create_resolve_activity_basic...",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		// Final response with completion card metadata
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'CustomActivity' has been successfully created with ID ${activityId}. This activity handles your "${messagePayload.customer_message}" request.`,
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "success",
+					title: "Activity created successfully",
+					details: {
+						name: "CustomActivity",
+						id: String(activityId),
+						steps_completed: steps.length,
+					},
+				},
+			},
+		});
+		return responses;
+	} else if (content.startsWith("test1")) {
 		// test1: Normal text message only
 		parts.push({
 			type: "text",
@@ -2240,16 +2445,25 @@ app.post("/api/Webhooks/postEvent/:tenantId", async (req, res) => {
 			const responses = generateMockResponse(messagePayload, undefined);
 
 			if (responses && responses.length > 0) {
-				// Delay before sending response
-				setTimeout(async () => {
-					for (const response of responses) {
+				// Send reasoning steps one at a time with delays (simulates real Platform)
+				const sendResponsesSequentially = async () => {
+					for (let i = 0; i < responses.length; i++) {
+						const response = responses[i];
+						const isReasoning = response.metadata?.type === "reasoning" ||
+							(response.metadata?.reasoning && !response.response);
+						const delay = i === 0
+							? MOCK_CONFIG.responseDelay
+							: isReasoning ? 1500 : 800;
+
+						await new Promise((resolve) => setTimeout(resolve, delay));
 						await publishResponse(response);
 						contextLogger.info(
-							{ responseType: response.metadata?.type },
+							{ responseType: response.metadata?.type, step: i + 1, total: responses.length },
 							"Published mock response to queue",
 						);
 					}
-				}, MOCK_CONFIG.responseDelay);
+				};
+				sendResponsesSequentially();
 			}
 
 			timer.end({ success: true, tenantId });
