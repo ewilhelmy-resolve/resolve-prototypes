@@ -47,11 +47,6 @@
  */
 "use client";
 
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {  ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
@@ -158,14 +153,9 @@ export const Reasoning = memo(
       <ReasoningContext.Provider
         value={{ isStreaming, isOpen, setIsOpen, duration }}
       >
-        <Collapsible
-          className={cn("not-prose mb-4", className)}
-          onOpenChange={handleOpenChange}
-          open={isOpen}
-          {...props}
-        >
+        <div className={cn("not-prose mb-4", className)} {...props}>
           {children}
-        </Collapsible>
+        </div>
       </ReasoningContext.Provider>
     );
   }
@@ -198,14 +188,16 @@ const getThinkingMessage = (isStreaming: boolean, duration?: number, customTitle
  */
 export const ReasoningTrigger = memo(
   ({ className, title, children, ...props }: ReasoningTriggerProps) => {
-    const { isStreaming, isOpen, duration } = useReasoning();
+    const { isStreaming, isOpen, setIsOpen, duration } = useReasoning();
 
     return (
-      <CollapsibleTrigger
+      <button
+        type="button"
         className={cn(
-          "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
+          "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground cursor-pointer",
           className
         )}
+        onClick={() => setIsOpen(!isOpen)}
         {...props}
       >
         {children ?? (
@@ -214,21 +206,20 @@ export const ReasoningTrigger = memo(
             {getThinkingMessage(isStreaming, duration, title)}
             <ChevronDownIcon
               className={cn(
-                "size-4 transition-transform",
+                "size-4 transition-transform duration-200",
                 isOpen ? "rotate-180" : "rotate-0"
               )}
             />
           </>
         )}
-      </CollapsibleTrigger>
+      </button>
     );
   }
 );
 
-export type ReasoningContentProps = ComponentProps<
-  typeof CollapsibleContent
-> & {
+export type ReasoningContentProps = {
   children: string;
+  className?: string;
 };
 
 /**
@@ -237,27 +228,27 @@ export type ReasoningContentProps = ComponentProps<
  * Single-line content renders as markdown via Response.
  */
 export const ReasoningContent = memo(
-  ({ className, children, ...props }: ReasoningContentProps) => {
-    const { isStreaming } = useReasoning();
+  ({ className, children }: ReasoningContentProps) => {
+    const { isStreaming, isOpen } = useReasoning();
+
+    if (!isOpen) return null;
 
     // Use structured step renderer for multi-line reasoning (workflow status updates)
     const hasMultipleLines = children.includes("\n") && children.split("\n").filter(Boolean).length > 1;
 
     return (
-      <CollapsibleContent
+      <div
         className={cn(
-          "mt-4 text-sm",
-          "data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[ending-style]:duration-500 data-[open]:animate-in data-[open]:duration-300",
+          "mt-4 text-sm text-muted-foreground animate-in fade-in-0 slide-in-from-top-2 duration-300",
           className
         )}
-        {...props}
       >
         {hasMultipleLines ? (
           <ReasoningSteps content={children} isStreaming={isStreaming} />
         ) : (
           <Response className="grid gap-2">{children}</Response>
         )}
-      </CollapsibleContent>
+      </div>
     );
   }
 );
