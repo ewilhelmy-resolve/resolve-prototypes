@@ -63,6 +63,8 @@ Content-Type: application/json
   "prompt": "Create an AI agent with the following specification:\n\nName: IT Help Desk Agent\nRole: First-line support agent\n...",
   "icon_id": "headphones",
   "icon_color_id": "blue",
+  "conversation_starters": ["How can I help you today?", "Report an IT issue"],  // optional, array of starter prompts
+  "guardrails": ["Do not discuss HR policies", "Do not share internal salary data"],  // optional, array of restricted topics
   "timestamp": "2026-04-09T12:00:00.000Z"
 }
 ```
@@ -80,11 +82,13 @@ Content-Type: application/json
 | `prompt` | yes | Combined form data as natural language instruction (see section 1.1) |
 | `icon_id` | yes | Icon identifier (e.g., `"bot"`, `"headphones"`) |
 | `icon_color_id` | yes | Color identifier (e.g., `"slate"`, `"blue"`) |
+| `conversation_starters` | no | Array of starter prompts. Also included in `prompt` for the AI workflow. Will be stored separately by the platform API |
+| `guardrails` | no | Array of topics/requests the agent should refuse. Also included in `prompt`. Will be stored separately by the platform API |
 | `timestamp` | yes | ISO 8601 |
 
-> **All agent configuration fields** (name, description, instructions, role, agent type, knowledge sources, workflows, capabilities, conversation starters, guardrails) are included **only in the `prompt` field**. The agent-builder agent on the platform side parses the prompt to create the agent.
+> **All agent configuration fields** (name, description, instructions, role, agent type, knowledge sources, workflows, capabilities, conversation starters, guardrails) are included in the `prompt` field. The agent-builder agent on the platform side parses the prompt to create the agent. Additionally, `conversation_starters` and `guardrails` are sent as separate array fields so the platform can store them independently (API support pending).
 
-> **Note on `icon_id` and `icon_color_id`:** These are sent as individual fields because they are visual metadata not suitable for prompt context. They are currently stored inside `config` in the LLM API (which is incorrect) and will get proper top-level fields.
+> **Note on `icon_id`, `icon_color_id`, `conversation_starters`, `guardrails`:** These are sent as individual fields because they need to be stored as separate values in the platform API. `conversation_starters` and `guardrails` are also embedded in the `prompt` for the AI workflow to use during agent creation. Icon fields are currently stored inside `config` in the LLM API (which is incorrect) and will get proper top-level fields.
 
 ### 1.1 Prompt Field Format
 
@@ -574,11 +578,13 @@ Triggers agent creation workflow.
 {
   "prompt": "Create an AI agent with the following specification:\n\nName: IT Help Desk Agent\n...",  // required
   "iconId": "headphones",                 // optional, default: "bot"
-  "iconColorId": "blue"                   // optional, default: "slate"
+  "iconColorId": "blue",                  // optional, default: "slate"
+  "conversationStarters": ["How can I help you today?", "Report an IT issue"],  // optional
+  "guardrails": ["Do not discuss HR policies", "Do not share internal salary data"]  // optional
 }
 ```
 
-The client compiles all form fields (name, instructions, role, description, agent type, knowledge sources, workflows, capabilities, conversation starters, guardrails) into the `prompt` string before sending.
+The client compiles all form fields (name, instructions, role, description, agent type, knowledge sources, workflows, capabilities, conversation starters, guardrails) into the `prompt` string before sending. `conversationStarters` and `guardrails` are also sent as separate arrays so the backend can forward them to the platform for independent storage (API support pending).
 
 **Response:**
 
