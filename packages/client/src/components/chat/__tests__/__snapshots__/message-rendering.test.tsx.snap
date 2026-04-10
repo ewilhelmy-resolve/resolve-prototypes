@@ -33,17 +33,9 @@ exports[`ChatV1Content rendering > assistant message with reasoning + text + sou
                 >
                   <div
                     class="not-prose mb-4"
-                    data-open=""
-                    data-slot="collapsible"
                   >
                     <button
-                      aria-controls="base-ui-:r6:"
-                      aria-disabled="false"
-                      aria-expanded="true"
-                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                      data-panel-open=""
-                      data-slot="collapsible-trigger"
-                      tabindex="0"
+                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground cursor-pointer"
                       type="button"
                     >
                       <svg
@@ -83,7 +75,7 @@ exports[`ChatV1Content rendering > assistant message with reasoning + text + sou
                       </p>
                       <svg
                         aria-hidden="true"
-                        class="lucide lucide-chevron-down size-4 transition-transform rotate-180"
+                        class="lucide lucide-chevron-down size-4 transition-transform duration-200 rotate-180"
                         fill="none"
                         height="24"
                         stroke="currentColor"
@@ -100,11 +92,7 @@ exports[`ChatV1Content rendering > assistant message with reasoning + text + sou
                       </svg>
                     </button>
                     <div
-                      class="mt-4 text-sm data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
-                      data-open=""
-                      data-slot="collapsible-content"
-                      id="base-ui-:r6:"
-                      style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
+                      class="mt-4 text-sm text-muted-foreground"
                     >
                       <div
                         class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 grid gap-2"
@@ -135,7 +123,7 @@ exports[`ChatV1Content rendering > assistant message with reasoning + text + sou
                     <button
                       class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent rounded-md text-xs relative size-9 p-1.5 text-muted-foreground hover:text-foreground"
                       data-slot="tooltip-trigger"
-                      id="base-ui-:ra:"
+                      id="base-ui-:r8:"
                       type="button"
                     >
                       <svg
@@ -311,17 +299,9 @@ exports[`ChatV1Content rendering > assistant message with reasoning accordion > 
                 >
                   <div
                     class="not-prose mb-0"
-                    data-open=""
-                    data-slot="collapsible"
                   >
                     <button
-                      aria-controls="base-ui-:r4:"
-                      aria-disabled="false"
-                      aria-expanded="true"
-                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                      data-panel-open=""
-                      data-slot="collapsible-trigger"
-                      tabindex="0"
+                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground cursor-pointer"
                       type="button"
                     >
                       <svg
@@ -361,7 +341,7 @@ exports[`ChatV1Content rendering > assistant message with reasoning accordion > 
                       </p>
                       <svg
                         aria-hidden="true"
-                        class="lucide lucide-chevron-down size-4 transition-transform rotate-180"
+                        class="lucide lucide-chevron-down size-4 transition-transform duration-200 rotate-180"
                         fill="none"
                         height="24"
                         stroke="currentColor"
@@ -378,11 +358,7 @@ exports[`ChatV1Content rendering > assistant message with reasoning accordion > 
                       </svg>
                     </button>
                     <div
-                      class="mt-4 text-sm data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
-                      data-open=""
-                      data-slot="collapsible-content"
-                      id="base-ui-:r4:"
-                      style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
+                      class="mt-4 text-sm text-muted-foreground"
                     >
                       <div
                         class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 grid gap-2"
@@ -535,7 +511,7 @@ exports[`ChatV1Content rendering > assistant message with tasks > renders task a
                       data-slot="collapsible"
                     >
                       <div
-                        aria-controls="base-ui-:rb:"
+                        aria-controls="base-ui-:r9:"
                         aria-disabled="false"
                         aria-expanded="true"
                         class="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground group"
@@ -593,7 +569,7 @@ exports[`ChatV1Content rendering > assistant message with tasks > renders task a
                         class="data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-popover-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
                         data-open=""
                         data-slot="collapsible-content"
-                        id="base-ui-:rb:"
+                        id="base-ui-:r9:"
                         style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
                       >
                         <div
@@ -982,17 +958,9 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                 >
                   <div
                     class="not-prose mb-4"
-                    data-open=""
-                    data-slot="collapsible"
                   >
                     <button
-                      aria-controls="base-ui-:re:"
-                      aria-disabled="false"
-                      aria-expanded="true"
-                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                      data-panel-open=""
-                      data-slot="collapsible-trigger"
-                      tabindex="0"
+                      class="flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground cursor-pointer"
                       type="button"
                     >
                       <svg
@@ -1032,7 +1000,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                       </p>
                       <svg
                         aria-hidden="true"
-                        class="lucide lucide-chevron-down size-4 transition-transform rotate-180"
+                        class="lucide lucide-chevron-down size-4 transition-transform duration-200 rotate-180"
                         fill="none"
                         height="24"
                         stroke="currentColor"
@@ -1049,11 +1017,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                       </svg>
                     </button>
                     <div
-                      class="mt-4 text-sm data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-muted-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
-                      data-open=""
-                      data-slot="collapsible-content"
-                      id="base-ui-:re:"
-                      style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
+                      class="mt-4 text-sm text-muted-foreground"
                     >
                       <div
                         class="space-y-4 size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 grid gap-2"
@@ -1084,7 +1048,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                     <button
                       class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent rounded-md text-xs relative size-9 p-1.5 text-muted-foreground hover:text-foreground"
                       data-slot="tooltip-trigger"
-                      id="base-ui-:ri:"
+                      id="base-ui-:rf:"
                       type="button"
                     >
                       <svg
@@ -1170,7 +1134,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                       data-slot="collapsible"
                     >
                       <div
-                        aria-controls="base-ui-:rk:"
+                        aria-controls="base-ui-:rh:"
                         aria-disabled="false"
                         aria-expanded="true"
                         class="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground group"
@@ -1228,7 +1192,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                         class="data-[ending-style]:fade-out-0 data-[ending-style]:slide-out-to-top-2 data-[open]:slide-in-from-top-2 text-popover-foreground outline-none data-[ending-style]:animate-out data-[open]:animate-in"
                         data-open=""
                         data-slot="collapsible-content"
-                        id="base-ui-:rk:"
+                        id="base-ui-:rh:"
                         style="--collapsible-panel-height: auto; --collapsible-panel-width: auto;"
                       >
                         <div
