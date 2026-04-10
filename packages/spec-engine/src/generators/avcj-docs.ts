@@ -285,55 +285,6 @@ function renderUserActor(actor: UserActor): string {
 
 // --- Route parser ---
 
-interface RouteInfo {
-	paths: string[];
-	access: "public" | "authenticated" | "admin";
-}
-
-function parseRouterFile(routerPath: string): Map<string, RouteInfo> {
-	const map = new Map<string, RouteInfo>();
-	try {
-		const content = readFileSync(routerPath, "utf-8");
-
-		// Match each route block: path + the element/JSX section after it
-		const routeBlockRegex = /path:\s*["']([^"']+)["'][\s\S]*?element:\s*([\s\S]*?)(?=path:|$)/g;
-
-		for (const match of content.matchAll(routeBlockRegex)) {
-			const routePath = match[1];
-			const elementBlock = match[2];
-
-			// Find the actual page component: <FooPage /> (ends with Page)
-			const pageMatch = elementBlock.match(/<(\w+Page)\s*\/?\s*>/);
-			if (!pageMatch) continue;
-			const componentName = pageMatch[1];
-
-			// Skip redirects
-			if (componentName === "Navigate") continue;
-
-			// Detect access level from surrounding context
-			const contextStart = Math.max(0, match.index - 300);
-			const context = content.slice(contextStart, match.index + match[0].length);
-
-			let access: RouteInfo["access"] = "public";
-			if (/RoleProtectedRoute/.test(context)) {
-				access = "admin";
-			} else if (/ProtectedRoute/.test(context)) {
-				access = "authenticated";
-			}
-
-			const existing = map.get(componentName);
-			if (existing) {
-				existing.paths.push(routePath);
-			} else {
-				map.set(componentName, { paths: [routePath], access });
-			}
-		}
-	} catch {
-		// Router file not found
-	}
-	return map;
-}
-
 function renderPageView(view: View, routeEntries?: RouteEntry[]): string {
 	const routes = routeEntries?.map((r) => r.path) || (view.route ? [view.route] : []);
 	const access = routeEntries?.[0]?.access || "authenticated";
