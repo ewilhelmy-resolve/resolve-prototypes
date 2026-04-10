@@ -18,14 +18,40 @@ export interface Message {
 		| "sent";
 	error_message?: string;
 
-	// NEW: Hybrid approach - metadata for rich types, grouping for UI
+	/**
+	 * Message metadata — drives all rich UI rendering.
+	 *
+	 * Sent via SSE `new_message` events from the API/Actions Platform.
+	 * Each field maps to a specific UI component in the chat.
+	 *
+	 * @constraint All fields are optional for backward compatibility
+	 */
 	metadata?: {
-		// Each property is self-contained with its own content
+		/**
+		 * Reasoning/thinking step — renders in the "Thinking..." accordion.
+		 *
+		 * Each SSE message with `reasoning` becomes one step. Consecutive reasoning
+		 * messages are merged into a multi-step accordion with structured rendering.
+		 *
+		 * Step text is auto-classified by keywords for icon assignment:
+		 * - "is working" / "analyst" / "developer" → Bot icon
+		 * - "verifying" / "checking" → Search icon
+		 * - "generate" / "code" → Code icon
+		 * - "starting" / "running" → Zap icon
+		 * - "polling" / "execution status" → Workflow icon
+		 *
+		 * Duplicate consecutive steps are collapsed with ×N badge.
+		 * UUIDs in parentheses are auto-hidden (visible on hover).
+		 */
 		reasoning?: {
-			content: string; // Reasoning text content
-			title?: string; // Optional custom title (e.g., "Research & Analysis", "Planning")
-			duration?: number; // How long AI spent thinking
-			streaming?: boolean; // Real-time streaming state
+			/** The step text displayed in the accordion. Use action verbs and agent names for best icon matching. */
+			content: string;
+			/** Custom accordion header text. Default: "Thinking..." while streaming, "Thought for N seconds" after. */
+			title?: string;
+			/** Seconds spent thinking (auto-calculated from streaming duration if not provided). */
+			duration?: number;
+			/** Real-time streaming state — set by frontend, not typically sent from API. */
+			streaming?: boolean;
 		};
 		sources?: Array<{
 			url: string;
@@ -52,6 +78,23 @@ export interface Message {
 			size?: number;
 		}>;
 		turn_complete?: boolean; // UI hint: true = turn finished, false/undefined = more messages coming
+		/**
+		 * Rich completion card — renders a styled result card instead of plain text.
+		 * Sent by Actions Platform on the final message (with turn_complete: true).
+		 *
+		 * - status "success" → green card with confetti (first time only)
+		 * - status "error" → red card
+		 * - status "warning" → amber card
+		 * - details → key-value pairs shown below the title
+		 *
+		 * Without this field, the response renders as plain markdown (backward compatible).
+		 */
+		completion?: {
+			status: "success" | "error" | "warning";
+			title: string;
+			details?: Record<string, string | number>;
+			confetti?: boolean;
+		};
 		// Dynamic UI schema - when present, render UI components from JSON schema
 		ui_schema?: UISchema;
 		// UI form request fields (metadata.type === "ui_form_request")
@@ -75,6 +118,7 @@ export function getMessageType(message: Message): string {
 	if (!message.metadata) return "text";
 
 	if (message.metadata.reasoning) return "reasoning";
+	if (message.metadata.completion) return "completion";
 	if (message.metadata.sources) return "sources";
 	if (message.metadata.tasks) return "tasks";
 	if (message.metadata.files) return "files";
@@ -166,7 +210,8 @@ function mergeConsecutiveReasoning(
 			(lastPart.message && lastPart.message.trim().length > 0) ||
 			lastPart.metadata?.sources ||
 			lastPart.metadata?.tasks ||
-			lastPart.metadata?.files;
+			lastPart.metadata?.files ||
+			lastPart.metadata?.completion;
 
 		const basePart = hasTextOrMetadata ? lastPart : reasoningParts[0];
 
@@ -271,6 +316,7 @@ export function groupMessages(flatMessages: Message[]): ChatMessage[] {
 				const hasMetadata =
 					part.metadata &&
 					(part.metadata.reasoning ||
+						part.metadata.completion ||
 						part.metadata.sources ||
 						part.metadata.tasks ||
 						part.metadata.files);

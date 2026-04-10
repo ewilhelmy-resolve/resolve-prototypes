@@ -25,6 +25,7 @@ import {
 	ConversationContent,
 	ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
+import { CompletionCard } from "@/components/ai-elements/completion-card";
 import { Loader } from "@/components/ai-elements/loader";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
@@ -272,8 +273,20 @@ function GroupedMessage({
 								</Reasoning>
 							)}
 
+							{/* Render completion card if present */}
+							{part.metadata?.completion && (
+								<CompletionCard
+									status={part.metadata.completion.status}
+									title={part.metadata.completion.title}
+									details={part.metadata.completion.details}
+								/>
+							)}
+
 							{/* Render text content if present */}
 							{(() => {
+								// Skip plain text if completion card is shown (card replaces it)
+								if (part.metadata?.completion) return null;
+
 								// Check if the NEXT part is sources (for potential inline citations)
 								const nextPart = message.parts[index + 1];
 								const nextHasSources =
