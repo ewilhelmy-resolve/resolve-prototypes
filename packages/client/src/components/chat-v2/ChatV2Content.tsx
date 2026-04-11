@@ -1,5 +1,3 @@
-"use client";
-
 import { memo, useCallback } from "react";
 import {
 	Conversation,
@@ -10,19 +8,12 @@ import { ChatV2MessageRenderer } from "./ChatV2MessageRenderer";
 
 interface ChatV2ContentProps {
 	readOnly?: boolean;
-	conversationId?: string;
 }
 
 export const ChatV2Content = memo(
-	({ readOnly = false, conversationId }: ChatV2ContentProps) => {
+	({ readOnly = false }: ChatV2ContentProps) => {
 		const chatMessages = useConversationStore((s) => s.chatMessages);
 		const messages = useConversationStore((s) => s.messages);
-		const storeConversationId = useConversationStore(
-			(s) => s.currentConversationId,
-		);
-		const currentConversationId =
-			conversationId ?? storeConversationId ?? undefined;
-
 		const isStreaming = messages.some(
 			(msg) => msg.status === "processing" || msg.status === "pending",
 		);
@@ -38,7 +29,6 @@ export const ChatV2Content = memo(
 						chatMessages={chatMessages}
 						isStreaming={isStreaming}
 						readOnly={readOnly}
-						conversationId={currentConversationId}
 						onCopy={readOnly ? undefined : handleCopy}
 					/>
 				</ConversationContent>

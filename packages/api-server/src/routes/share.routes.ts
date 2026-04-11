@@ -11,6 +11,7 @@
 import crypto from "node:crypto";
 import express from "express";
 import { pool } from "../config/database.js";
+import { assertUuid } from "../config/validateUuid.js";
 
 const router = express.Router();
 
@@ -27,6 +28,12 @@ router.get("/:conversationId", async (req, res) => {
 
 		if (!conversationId) {
 			return res.status(400).json({ error: "conversationId is required" });
+		}
+
+		try {
+			assertUuid(conversationId, "conversationId");
+		} catch {
+			return res.status(400).json({ error: "Invalid conversationId format" });
 		}
 
 		// Fetch conversation with share metadata
@@ -54,7 +61,12 @@ router.get("/:conversationId", async (req, res) => {
 					.status(403)
 					.json({ error: "Token required for this shared conversation" });
 			}
-			if (token !== conversation.share_token) {
+			const tokenBuf = Buffer.from(token, "utf8");
+			const storedBuf = Buffer.from(conversation.share_token || "", "utf8");
+			if (
+				tokenBuf.length !== storedBuf.length ||
+				!crypto.timingSafeEqual(tokenBuf, storedBuf)
+			) {
 				return res.status(403).json({ error: "Invalid share token" });
 			}
 		}
@@ -96,6 +108,11 @@ router.get("/:conversationId", async (req, res) => {
 router.post("/:conversationId/enable", async (req, res) => {
 	try {
 		const { conversationId } = req.params;
+		try {
+			assertUuid(conversationId, "conversationId");
+		} catch {
+			return res.status(400).json({ error: "Invalid conversationId format" });
+		}
 		const { mode = "public" } = req.body || {};
 
 		if (!["public", "token"].includes(mode)) {
@@ -144,6 +161,11 @@ router.post("/:conversationId/enable", async (req, res) => {
 router.post("/:conversationId/disable", async (req, res) => {
 	try {
 		const { conversationId } = req.params;
+		try {
+			assertUuid(conversationId, "conversationId");
+		} catch {
+			return res.status(400).json({ error: "Invalid conversationId format" });
+		}
 
 		const result = await pool.query(
 			`UPDATE conversations

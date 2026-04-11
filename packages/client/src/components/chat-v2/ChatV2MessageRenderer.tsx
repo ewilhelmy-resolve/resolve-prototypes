@@ -1,5 +1,12 @@
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { Fragment, memo, useCallback, useRef, useState } from "react";
+import {
+	Fragment,
+	memo,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { Action, Actions } from "@/components/ai-elements/actions";
 import { CompletionCard } from "@/components/ai-elements/completion-card";
 import { Message, MessageContent } from "@/components/ai-elements/message";
@@ -27,7 +34,6 @@ export interface ChatV2MessageRendererProps {
 	chatMessages: ChatMessage[];
 	isStreaming?: boolean;
 	readOnly?: boolean;
-	conversationId?: string;
 	onCopy?: (text: string, messageId: string) => void;
 }
 
@@ -58,6 +64,10 @@ function hasSimpleCopyableContent(message: SimpleChatMessage): boolean {
 function CopyButton({ onClick }: { onClick: () => void }) {
 	const [isCopied, setIsCopied] = useState(false);
 	const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+	useEffect(() => {
+		return () => clearTimeout(timerRef.current);
+	}, []);
 
 	const handleClick = useCallback(() => {
 		onClick();

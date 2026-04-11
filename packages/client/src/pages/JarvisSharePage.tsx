@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { ChatV2MessageRenderer } from "@/components/chat-v2/ChatV2MessageRenderer";

@@ -128,7 +128,7 @@ describe("JarvisSharePage", () => {
 		render(<JarvisSharePage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Test Conversation")).toBeInTheDocument();
+			expect(screen.getByText("Jarvis")).toBeInTheDocument();
 		});
 
 		expect(screen.getByText("Shared conversation")).toBeInTheDocument();
@@ -281,7 +281,7 @@ describe("JarvisSharePage", () => {
 		});
 	});
 
-	it("renders fallback title when conversation title is empty", async () => {
+	it("always shows Jarvis as header title", async () => {
 		mockFetchSuccess(
 			makeShareResponse({
 				conversation: {
@@ -295,7 +295,7 @@ describe("JarvisSharePage", () => {
 		render(<JarvisSharePage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Shared Conversation")).toBeInTheDocument();
+			expect(screen.getByText("Jarvis")).toBeInTheDocument();
 		});
 	});
 });

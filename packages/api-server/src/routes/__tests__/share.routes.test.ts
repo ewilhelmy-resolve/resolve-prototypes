@@ -8,6 +8,11 @@ vi.mock("../../config/database.js", () => ({
 	withOrgContext: vi.fn(),
 }));
 
+// Mock UUID validation — test IDs are not real UUIDs
+vi.mock("../../config/validateUuid.js", () => ({
+	assertUuid: vi.fn(),
+}));
+
 import { pool } from "../../config/database.js";
 import shareRouter from "../share.routes.js";
 
