@@ -20,7 +20,6 @@ import {
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useIframeMessaging } from "../../hooks/useIframeMessaging";
 import { toast } from "../../lib/toast";
 import type {
 	ConditionalProps,
@@ -80,6 +79,11 @@ const NESTED_QUANTIFIER_RE = /([+*?]|\{\d+,?\d*\})\)?[+*?]|\(\?[^:)]/;
 function isSafePattern(pattern: string): boolean {
 	if (pattern.length > MAX_PATTERN_LENGTH) return false;
 	return !NESTED_QUANTIFIER_RE.test(pattern);
+}
+
+/** Only allow http/https URLs to prevent javascript: XSS vectors. */
+function isSafeUrl(url: string): boolean {
+	return /^https?:\/\//i.test(url);
 }
 
 // ============================================================================
@@ -181,6 +185,10 @@ interface SchemaRendererProps {
 	messageId: string;
 	conversationId: string;
 	onAction?: (payload: UIActionPayload) => void;
+	/** Post message to parent window (for iframe communication) */
+	postToParent?: (message: Record<string, unknown>) => void;
+	/** Whether running inside an iframe */
+	isInIframe?: boolean;
 	/** Force inline Dialog modals instead of host modal delegation (for embedded/Storybook contexts) */
 	forceInlineModals?: boolean;
 	disabled?: boolean;
@@ -191,11 +199,12 @@ export function SchemaRenderer({
 	messageId,
 	conversationId,
 	onAction,
+	postToParent,
+	isInIframe: iframeContext,
 	forceInlineModals,
 	disabled = false,
 }: SchemaRendererProps) {
 	const { t } = useTranslation("validation");
-	const { postToParent, isInIframe: iframeContext } = useIframeMessaging();
 	const [formData, setFormData] = useState<Record<string, string>>({});
 	const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 	const [modalFormData, setModalFormData] = useState<Record<string, string>>(
@@ -438,9 +447,9 @@ export function SchemaRenderer({
 				}
 
 				// Handle external link - ask host to open new tab when in iframe
-				if (result.externalUrl) {
+				if (result.externalUrl && isSafeUrl(result.externalUrl)) {
 					if (iframeContext) {
-						postToParent({
+						postToParent?.({
 							type: "OPEN_URL",
 							data: { url: result.externalUrl },
 						});
@@ -797,7 +806,14 @@ export function SchemaRenderer({
 			case "Alert":
 				return <AlertRenderer key={key} el={element} />;
 			case "Link":
-				return <LinkRenderer key={key} el={element} />;
+				return (
+					<LinkRenderer
+						key={key}
+						el={element}
+						postToParent={postToParent}
+						isInIframe={iframeContext}
+					/>
+				);
 			case "Progress":
 				return <ProgressRenderer key={key} el={element} />;
 			case "List":
@@ -1382,22 +1398,33 @@ function AlertRenderer({ el }: { el: UIElement }) {
 	);
 }
 
-function LinkRenderer({ el }: { el: UIElement }) {
+function LinkRenderer({
+	el,
+	postToParent,
+	isInIframe,
+}: {
+	el: UIElement;
+	postToParent?: (message: Record<string, unknown>) => void;
+	isInIframe?: boolean;
+}) {
 	const href = p<string>(el, "href", "#");
 	const text = p<string>(el, "text") || p<string>(el, "label", href);
 	const target = p<string>(el, "target");
 	const className = p<string>(el, "className", "");
 
 	const handleClick = (e: React.MouseEvent) => {
-		if (isInIframe()) {
+		if (isInIframe && isSafeUrl(href)) {
 			e.preventDefault();
-			window.parent.postMessage({ type: "OPEN_URL", data: { url: href } }, "*");
+			postToParent?.({
+				type: "OPEN_URL",
+				data: { url: href },
+			});
 		}
 	};
 
 	return (
 		<a
-			href={href}
+			href={isSafeUrl(href) ? href : "#"}
 			target={target}
 			rel={target === "_blank" ? "noopener noreferrer" : undefined}
 			onClick={handleClick}

@@ -26,7 +26,6 @@ interface InlineFormRequestProps {
 	status: "pending" | "completed";
 	formData?: Record<string, string>;
 	submittedAt?: string;
-	isCustomSchema?: boolean;
 	onSubmit: (
 		requestId: string,
 		action: string,
@@ -48,8 +47,14 @@ function extractFormProps(parsed: UISchema) {
 		submitLabel: (rootEl.props?.submitLabel as string) || "Submit",
 		cancelLabel: (rootEl.props?.cancelLabel as string) || "Cancel",
 		submitVariant: rootEl.props?.submitVariant as string | undefined,
-		isCustomSchema: rootEl.props?.isCustomSchema as boolean | undefined,
 	};
+}
+
+/** Schema owns its submit flow if any Button has an on.press.action */
+function schemaHasActionButtons(parsed: UISchema): boolean {
+	return Object.values(parsed.elements).some(
+		(el) => el.type === "Button" && el.on?.press?.action,
+	);
 }
 
 export function InlineFormRequest({
@@ -60,7 +65,6 @@ export function InlineFormRequest({
 	submittedAt,
 	onSubmit,
 	onCancel,
-	isCustomSchema,
 }: InlineFormRequestProps) {
 	const [formData, setFormData] = useState<Record<string, string>>(
 		existingFormData || {},
@@ -161,7 +165,7 @@ export function InlineFormRequest({
 				{error && <div className="text-sm text-destructive">{error}</div>}
 			</CardContent>
 
-			{!isCompleted && submitAction && !isCustomSchema && (
+			{!isCompleted && submitAction && !schemaHasActionButtons(parsed) && (
 				<CardFooter className="flex justify-end gap-2 pt-0">
 					{onCancel && (
 						<Button

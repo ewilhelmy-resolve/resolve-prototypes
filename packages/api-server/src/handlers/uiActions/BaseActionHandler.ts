@@ -32,12 +32,9 @@ export class BaseActionHandler implements UIActionHandler {
 	}
 
 	async handle(context: ActionHandlerContext): Promise<ActionHandlerResult> {
-		const { payload, webhookConfig } = context;
+		const { payload, message, webhookConfig } = context;
 
 		try {
-			// Step 1: Lookup message by messageId (context already has it, but verify)
-			const message = await this.lookupMessage(payload.messageId);
-
 			// Step 2: Update message metadata with action data
 			await this.updateMessageMetadata(message.id, payload);
 
@@ -81,35 +78,11 @@ export class BaseActionHandler implements UIActionHandler {
 	}
 
 	/**
-	 * Step 1: Lookup message by ID
-	 * Pattern from IframeService.sendUIFormResponse (lines 430-441)
-	 */
-	protected async lookupMessage(messageId: string) {
-		const client = await pool.connect();
-		try {
-			const result = await client.query(
-				`SELECT id, metadata, conversation_id, organization_id, user_id
-         FROM messages
-         WHERE id = $1
-         LIMIT 1`,
-				[messageId],
-			);
-
-			if (result.rows.length === 0) {
-				throw new Error(`Message ${messageId} not found`);
-			}
-
-			return result.rows[0];
-		} finally {
-			client.release();
-		}
-	}
-
-	/**
 	 * Step 2: Update message metadata with action data
 	 * Pattern from IframeService.sendUIFormResponse (lines 450-463)
 	 * Uses jsonb merge to preserve existing metadata
 	 */
+	// TODO: migrate to Kysely when messages queries are moved to the ORM
 	protected async updateMessageMetadata(
 		messageId: string,
 		payload: BaseUIActionPayload,

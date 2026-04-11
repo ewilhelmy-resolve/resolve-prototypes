@@ -958,8 +958,6 @@ function IframeChatContent({
 				apiMetadata.chatSessionId = metadata.chatSessionId;
 			if (metadata.tabInstanceId)
 				apiMetadata.tabInstanceId = metadata.tabInstanceId;
-			if (metadata.isCustomSchema)
-				apiMetadata.isCustomSchema = metadata.isCustomSchema;
 			await ritaChatState.sendMessageWithContent(content, apiMetadata);
 		},
 		[ritaChatState],

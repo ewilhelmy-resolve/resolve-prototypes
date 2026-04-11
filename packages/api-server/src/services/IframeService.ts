@@ -609,7 +609,7 @@ export class IframeService {
 							webhookUrl,
 							error: errMsg,
 						},
-						"UI form response webhook failed (non-fatal) utita",
+						"UI form response webhook failed (non-fatal)",
 					);
 				}
 			} else {
