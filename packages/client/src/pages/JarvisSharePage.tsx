@@ -27,7 +27,6 @@ export default function JarvisSharePage() {
 	const [searchParams] = useSearchParams();
 	const token = searchParams.get("token");
 	const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-	const [title, setTitle] = useState<string>("");
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 
@@ -47,8 +46,6 @@ export default function JarvisSharePage() {
 				return res.json() as Promise<ShareResponse>;
 			})
 			.then((data) => {
-				setTitle(data.conversation.title);
-
 				const messages: Message[] = data.messages.map((msg) => ({
 					id: msg.id,
 					role: msg.role,
@@ -88,9 +85,7 @@ export default function JarvisSharePage() {
 	return (
 		<div className="flex h-screen flex-col">
 			<header className="border-b px-6 py-4">
-				<h1 className="text-lg font-semibold">
-					{title || "Shared Conversation"}
-				</h1>
+				<h1 className="text-lg font-semibold">Jarvis</h1>
 				<p className="text-sm text-muted-foreground">Shared conversation</p>
 			</header>
 
