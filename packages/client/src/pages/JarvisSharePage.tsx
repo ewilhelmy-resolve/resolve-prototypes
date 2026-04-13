@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ChatV2MessageRenderer } from "@/components/chat-v2/ChatV2MessageRenderer";
 import { groupMessages } from "@/lib/messageGrouping";
 import type { ChatMessage, Message } from "@/stores/conversationStore";
@@ -21,29 +21,28 @@ interface ShareResponse {
 }
 
 export default function JarvisSharePage() {
-	const { conversationId } = useParams<{ conversationId: string }>();
-	const [searchParams] = useSearchParams();
-	const token = searchParams.get("token");
+	const { shareId } = useParams<{ shareId: string }>();
 	const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+	const [conversationIdState, setConversationIdState] = useState<string>("");
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		if (!conversationId) return;
+		if (!shareId) return;
 
 		const apiBase = import.meta.env.VITE_API_URL || "";
-		const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
 
-		fetch(`${apiBase}/api/share/${conversationId}${tokenParam}`)
+		fetch(`${apiBase}/api/share/${shareId}`)
 			.then((res) => {
 				if (!res.ok) {
-					if (res.status === 404) throw new Error("Conversation not found");
-					if (res.status === 403) throw new Error("Access denied");
+					if (res.status === 404)
+						throw new Error("Shared conversation not found");
 					throw new Error("Failed to load");
 				}
 				return res.json() as Promise<ShareResponse>;
 			})
 			.then((data) => {
+				setConversationIdState(data.conversation.id);
 				const messages: Message[] = data.messages.map((msg) => ({
 					id: msg.id,
 					role: msg.role,
@@ -54,7 +53,7 @@ export default function JarvisSharePage() {
 							: msg.metadata,
 					response_group_id: msg.response_group_id ?? undefined,
 					timestamp: new Date(msg.created_at),
-					conversation_id: conversationId,
+					conversation_id: data.conversation.id,
 					status: "completed" as const,
 				}));
 
@@ -62,7 +61,7 @@ export default function JarvisSharePage() {
 			})
 			.catch((err) => setError(err.message))
 			.finally(() => setLoading(false));
-	}, [conversationId, token]);
+	}, [shareId]);
 
 	if (loading) {
 		return (
@@ -81,7 +80,10 @@ export default function JarvisSharePage() {
 	}
 
 	return (
-		<div className="flex h-screen flex-col">
+		<div
+			className="flex h-screen flex-col"
+			data-conversation-id={conversationIdState}
+		>
 			<header className="border-b px-6 py-4">
 				<h1 className="text-lg font-semibold">Jarvis</h1>
 				<p className="text-sm text-muted-foreground">Shared conversation</p>

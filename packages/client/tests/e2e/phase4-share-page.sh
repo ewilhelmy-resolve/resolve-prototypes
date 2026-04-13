@@ -1,13 +1,18 @@
 #!/bin/bash
 # =============================================================================
-# Phase 4 E2E: Share Page Verification
+# E2E: Snapshot-based Share (/jarvis/:shareId)
 # =============================================================================
-# Tests the /jarvis/:conversationId share page end-to-end.
+# Tests the snapshot share flow end-to-end.
 #
 # Prerequisites:
 #   - Full stack running (pnpm dev)
-#   - Migration applied: share_status + share_token columns on conversations
+#   - Migration 175 applied (shared_conversations table)
 #   - At least one conversation with messages in the DB
+#
+# Notes:
+#   - POST /enable and /disable require Keycloak auth — this script only
+#     tests the public GET path. To test enable/disable, run
+#     `pnpm e2e:login` first and pass --cookie to curl.
 #
 # Usage:
 #   chmod +x packages/client/tests/e2e/phase4-share-page.sh
@@ -16,85 +21,54 @@
 
 set -euo pipefail
 
-PWCLI="${CODEX_HOME:-$HOME/.codex}/skills/playwright/scripts/playwright_cli.sh"
 API="http://localhost:3000"
 CLIENT="http://localhost:5173"
 
-# Test conversation IDs (update these with real IDs from your DB)
-CONV_ID="7c7e12fe-a192-44fe-8ae3-f10a2087c1c2"
+# Latest real conversation with messages (update if needed)
+CONV_ID=$(docker exec rita-postgres-1 psql -U rita -d rita -t -A -c \
+  "SELECT id FROM conversations ORDER BY created_at DESC LIMIT 1;")
+CONV_ID=$(echo "$CONV_ID" | tr -d '[:space:]')
+TEST_SHARE_ID="e2e-test-snapshot-$(date +%s)"
 
 echo "============================================"
-echo "Phase 4 E2E: Share Page Tests"
+echo "E2E: Snapshot Share Tests"
+echo "  conversation: $CONV_ID"
+echo "  shareId:      $TEST_SHARE_ID"
 echo "============================================"
 echo ""
 
-# ---- Test 1: API — Public share returns data ----
-echo "--- Test 1: API — Public share endpoint ---"
-echo "Setting conversation to public..."
-docker exec rita-postgres-1 psql -U rita -d rita -q -c \
-  "UPDATE conversations SET share_status = 'public', share_token = NULL WHERE id = '$CONV_ID';"
+# ---- Setup: seed a snapshot directly in the DB ----
+echo "--- Setup: seed snapshot ---"
+docker exec rita-postgres-1 psql -U rita -d rita -q -c "
+  INSERT INTO shared_conversations (share_id, conversation_id, title, messages)
+  SELECT '$TEST_SHARE_ID', c.id, c.title,
+         COALESCE(jsonb_agg(to_jsonb(m.*) ORDER BY m.created_at ASC), '[]'::jsonb)
+  FROM conversations c
+  LEFT JOIN messages m ON m.conversation_id = c.id
+  WHERE c.id = '$CONV_ID'
+  GROUP BY c.id, c.title
+  ON CONFLICT (conversation_id) DO UPDATE
+    SET share_id = EXCLUDED.share_id, messages = EXCLUDED.messages;
+"
+echo "  ✅ Snapshot seeded"
+echo ""
 
-echo "Fetching: GET $API/api/share/$CONV_ID"
-RESPONSE=$(curl -s -w "\n%{http_code}" "$API/api/share/$CONV_ID")
-HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-BODY=$(echo "$RESPONSE" | sed '$d')
-
+# ---- Test 1: Valid shareId returns 200 with messages ----
+echo "--- Test 1: GET /api/share/:shareId — valid snapshot ---"
+RESPONSE=$(curl -s "$API/api/share/$TEST_SHARE_ID")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/$TEST_SHARE_ID")
 if [ "$HTTP_CODE" = "200" ]; then
-  MSG_COUNT=$(echo "$BODY" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['messages']))")
-  TITLE=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['conversation']['title'])")
-  echo "  ✅ 200 OK — Title: '$TITLE', Messages: $MSG_COUNT"
+  MSG_COUNT=$(echo "$RESPONSE" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['messages']))")
+  TITLE=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['conversation']['title'])")
+  echo "  ✅ 200 OK — title='$TITLE', messages=$MSG_COUNT"
 else
   echo "  ❌ Expected 200, got $HTTP_CODE"
 fi
 echo ""
 
-# ---- Test 2: API — Private share returns 403 ----
-echo "--- Test 2: API — Private share returns 403 ---"
-docker exec rita-postgres-1 psql -U rita -d rita -q -c \
-  "UPDATE conversations SET share_status = 'private', share_token = NULL WHERE id = '$CONV_ID';"
-
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/$CONV_ID")
-if [ "$HTTP_CODE" = "403" ]; then
-  echo "  ✅ 403 Forbidden (private conversation blocked)"
-else
-  echo "  ❌ Expected 403, got $HTTP_CODE"
-fi
-echo ""
-
-# ---- Test 3: API — Token-protected share ----
-echo "--- Test 3: API — Token-protected share ---"
-TEST_TOKEN="abc123testtoken456"
-docker exec rita-postgres-1 psql -U rita -d rita -q -c \
-  "UPDATE conversations SET share_status = 'token', share_token = '$TEST_TOKEN' WHERE id = '$CONV_ID';"
-
-echo "  Without token..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/$CONV_ID")
-if [ "$HTTP_CODE" = "403" ]; then
-  echo "  ✅ 403 — Missing token rejected"
-else
-  echo "  ❌ Expected 403, got $HTTP_CODE"
-fi
-
-echo "  With wrong token..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/$CONV_ID?token=wrongtoken")
-if [ "$HTTP_CODE" = "403" ]; then
-  echo "  ✅ 403 — Wrong token rejected"
-else
-  echo "  ❌ Expected 403, got $HTTP_CODE"
-fi
-
-echo "  With correct token..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/$CONV_ID?token=$TEST_TOKEN")
-if [ "$HTTP_CODE" = "200" ]; then
-  echo "  ✅ 200 — Correct token accepted"
-else
-  echo "  ❌ Expected 200, got $HTTP_CODE"
-fi
-echo ""
-
-# ---- Test 4: API — Not found ----
-echo "--- Test 4: API — Nonexistent conversation returns 404 ---"
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/00000000-0000-0000-0000-000000000000")
+# ---- Test 2: Unknown shareId returns 404 ----
+echo "--- Test 2: Unknown shareId returns 404 ---"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/definitely-not-a-real-share-id")
 if [ "$HTTP_CODE" = "404" ]; then
   echo "  ✅ 404 Not Found"
 else
@@ -102,58 +76,40 @@ else
 fi
 echo ""
 
-# ---- Test 5: API — Enable sharing ----
-echo "--- Test 5: API — Enable/disable sharing endpoints ---"
-echo "  Enable public..."
-RESPONSE=$(curl -s -X POST "$API/api/share/$CONV_ID/enable" \
-  -H "Content-Type: application/json" \
-  -d '{"mode":"public"}')
-STATUS=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('shareStatus',''))")
-if [ "$STATUS" = "public" ]; then
-  echo "  ✅ Public sharing enabled"
+# ---- Test 3: Oversized shareId returns 400 ----
+echo "--- Test 3: Oversized shareId returns 400 ---"
+OVERSIZED=$(python3 -c 'print("x" * 200)')
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/$OVERSIZED")
+if [ "$HTTP_CODE" = "400" ]; then
+  echo "  ✅ 400 Bad Request"
 else
-  echo "  ❌ Expected shareStatus=public, got: $RESPONSE"
-fi
-
-echo "  Enable token..."
-RESPONSE=$(curl -s -X POST "$API/api/share/$CONV_ID/enable" \
-  -H "Content-Type: application/json" \
-  -d '{"mode":"token"}')
-TOKEN=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('shareToken',''))")
-if [ ${#TOKEN} -eq 64 ]; then
-  echo "  ✅ Token sharing enabled (token: ${TOKEN:0:8}...)"
-else
-  echo "  ❌ Expected 64-char token, got length ${#TOKEN}"
-fi
-
-echo "  Disable..."
-RESPONSE=$(curl -s -X POST "$API/api/share/$CONV_ID/disable")
-SUCCESS=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success',''))")
-if [ "$SUCCESS" = "True" ]; then
-  echo "  ✅ Sharing disabled"
-else
-  echo "  ❌ Expected success=true, got: $RESPONSE"
+  echo "  ❌ Expected 400, got $HTTP_CODE"
 fi
 echo ""
 
-# ---- Reset to public for browser tests ----
-echo "--- Resetting conversation to public for browser tests ---"
+# ---- Test 4: Deleted snapshot returns 404 ----
+echo "--- Test 4: After DELETE, shareId returns 404 ---"
 docker exec rita-postgres-1 psql -U rita -d rita -q -c \
-  "UPDATE conversations SET share_status = 'public', share_token = NULL WHERE id = '$CONV_ID';"
-echo "  Done. Conversation is public."
+  "DELETE FROM shared_conversations WHERE share_id = '$TEST_SHARE_ID';"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/share/$TEST_SHARE_ID")
+if [ "$HTTP_CODE" = "404" ]; then
+  echo "  ✅ 404 — snapshot deleted, URL no longer resolves"
+else
+  echo "  ❌ Expected 404 after delete, got $HTTP_CODE"
+fi
 echo ""
 
 echo "============================================"
-echo "API tests complete. Now run browser tests:"
+echo "API tests complete. Browser test:"
 echo ""
-echo "  # Public share page:"
-echo "  $CLIENT/jarvis/$CONV_ID"
+echo "  # Re-seed for manual browser verification:"
+echo "  (see 'Setup: seed snapshot' block above)"
 echo ""
-echo "  # Token-protected (after setting share_status='token'):"
-echo "  $CLIENT/jarvis/$CONV_ID?token=$TEST_TOKEN"
+echo "  # Open in browser:"
+echo "  $CLIENT/jarvis/<shareId>"
 echo ""
-echo "  # Playwright automation:"
-echo "  \"\$PWCLI\" open $CLIENT/jarvis/$CONV_ID --headed"
-echo "  \"\$PWCLI\" snapshot"
-echo "  \"\$PWCLI\" screenshot output/playwright/share-page.png"
+echo "  # Authenticated flow (requires session cookie):"
+echo "  pnpm e2e:login testuser test"
+echo "  curl -b cookies.txt -X POST $API/api/conversations/$CONV_ID/share/enable"
+echo "  # Response: { shareUrl, shareId } — open shareUrl in browser"
 echo "============================================"

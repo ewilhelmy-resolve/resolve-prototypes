@@ -20,7 +20,6 @@ ChatV2MessageRenderer  (pure — props only, no hooks/stores)
 | `chatMessages` | `ChatMessage[]` | Pre-grouped messages (from `groupMessages()`) |
 | `isStreaming` | `boolean` | Shows spinner on last assistant message |
 | `readOnly` | `boolean` | Hides copy buttons, actions, timestamps |
-| `conversationId` | `string` | For future schema renderer support |
 | `onCopy` | `(text, id) => void` | Copy handler (omit in readOnly mode) |
 
 Renders: `Message`, `Reasoning`, `Response`, `CompletionCard`, `Citations`, `Task`.
@@ -52,7 +51,7 @@ Rita has multiple ways to render chat, each with different auth and capabilities
 |-------------|-------|------|-----------|----------|
 | **Rita Go** | `/chat` | Keycloak | `ChatV1Content` | Full: SSE, sidebar, file upload, schema renderer, form requests |
 | **Iframe** | `/iframe/chat` | Valkey session | `ChatV1Content` | SSE, minimal UI, no sidebar, custom title/placeholder |
-| **Share** | `/jarvis/:conversationId` | None (public) | `JarvisSharePage` → `ChatV2MessageRenderer` | Read-only, static fetch, no SSE |
+| **Share** | `/jarvis/:shareId` | None (public) | `JarvisSharePage` → `ChatV2MessageRenderer` | Read-only, static fetch from snapshot, no SSE |
 
 ### Data Flow Per Entry Point
 
@@ -61,10 +60,29 @@ Rita has multiple ways to render chat, each with different auth and capabilities
 SSE new_message → conversationStore.addMessage() → groupMessages() → chatMessages → ChatV1Content
 ```
 
-**Share (static):**
+**Share (snapshot):**
 ```
-fetch /api/share/:id → groupMessages() locally → ChatV2MessageRenderer (readOnly)
+Enable:  POST /api/conversations/:id/share/enable (auth + ownership)
+         → snapshot messages into shared_conversations (JSONB)
+         → returns { shareUrl: "/jarvis/{shareId}", shareId }
+
+Read:    GET /api/share/:shareId (no auth)
+         → SELECT FROM shared_conversations WHERE share_id = $1
+         → 404 if not found, else { conversation, messages }
+         → groupMessages() locally → ChatV2MessageRenderer (readOnly)
+
+Disable: POST /api/conversations/:id/share/disable (auth + ownership)
+         → DELETE FROM shared_conversations WHERE conversation_id = $1
+         → URL immediately 404s
 ```
+
+Why snapshot (not live pointer):
+- Revoke = DELETE row → instant, no flag to forget to check
+- No access control on public read path (if row exists, it's public)
+- New messages after share don't leak automatically (frozen at share time)
+- Public reads never touch live `conversations` / `messages` tables
+- Can be edge-cached / CDN-cached (frozen data)
+- 404 for both "never shared" and "un-shared" — no existence leak
 
 ## Adding a New Entry Point
 

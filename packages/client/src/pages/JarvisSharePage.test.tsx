@@ -1,30 +1,28 @@
 /**
- * JarvisSharePage.test.tsx - Unit tests for the public share page
+ * JarvisSharePage.test.tsx - Unit tests for the public share page (snapshot model)
  *
  * Tests:
  * - Loading state
  * - Successful load with title, renderer, footer
- * - Error states (404, 403, network)
- * - Token query param forwarded to API
- * - Message metadata parsing and timestamp conversion
+ * - Error states (404, other errors)
+ * - Message metadata parsing (string → object, object passthrough)
  * - readOnly always true on renderer
+ * - No token query param (snapshot model)
  */
 
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock react-router-dom
-const mockUseParams = vi.fn(() => ({ conversationId: "test-conv-id" }));
-const mockUseSearchParams = vi.fn(
-	() => [new URLSearchParams(), vi.fn()] as const,
-);
+const mockUseParams = vi.fn(() => ({
+	shareId: "abc123def456abc123def456abc123de",
+}));
 
 vi.mock("react-router-dom", async () => {
 	const actual = await vi.importActual("react-router-dom");
 	return {
 		...actual,
 		useParams: () => mockUseParams(),
-		useSearchParams: () => mockUseSearchParams(),
 	};
 });
 
@@ -105,8 +103,9 @@ function mockFetchError(status: number) {
 describe("JarvisSharePage", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockUseParams.mockReturnValue({ conversationId: "test-conv-id" });
-		mockUseSearchParams.mockReturnValue([new URLSearchParams(), vi.fn()]);
+		mockUseParams.mockReturnValue({
+			shareId: "abc123def456abc123def456abc123de",
+		});
 	});
 
 	afterEach(() => {
@@ -136,23 +135,25 @@ describe("JarvisSharePage", () => {
 		expect(screen.getByText("Powered by Rita")).toBeInTheDocument();
 	});
 
-	it("shows 'Conversation not found' on 404", async () => {
+	it("shows 'Shared conversation not found' on 404", async () => {
 		mockFetchError(404);
 
 		render(<JarvisSharePage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Conversation not found")).toBeInTheDocument();
+			expect(
+				screen.getByText("Shared conversation not found"),
+			).toBeInTheDocument();
 		});
 	});
 
-	it("shows 'Access denied' on 403", async () => {
-		mockFetchError(403);
+	it("shows 'Failed to load' on other errors", async () => {
+		mockFetchError(500);
 
 		render(<JarvisSharePage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Access denied")).toBeInTheDocument();
+			expect(screen.getByText("Failed to load")).toBeInTheDocument();
 		});
 	});
 
@@ -166,25 +167,18 @@ describe("JarvisSharePage", () => {
 		});
 	});
 
-	it("passes token query param to fetch URL", async () => {
-		mockUseSearchParams.mockReturnValue([
-			new URLSearchParams("token=abc123"),
-			vi.fn(),
-		]);
+	it("fetches /api/share/{shareId} with no token param", async () => {
 		mockFetchSuccess(makeShareResponse());
 
 		render(<JarvisSharePage />);
 
 		await waitFor(() => {
-			expect(global.fetch).toHaveBeenCalledWith(
-				expect.stringContaining("?token=abc123"),
-			);
+			expect(global.fetch).toHaveBeenCalled();
 		});
 
-		// Verify the full URL shape
 		const fetchUrl = (global.fetch as any).mock.calls[0][0] as string;
-		expect(fetchUrl).toContain("/api/share/test-conv-id");
-		expect(fetchUrl).toContain("?token=abc123");
+		expect(fetchUrl).toContain("/api/share/abc123def456abc123def456abc123de");
+		expect(fetchUrl).not.toContain("token=");
 	});
 
 	it("maps messages correctly — parses JSON metadata and converts timestamps", async () => {

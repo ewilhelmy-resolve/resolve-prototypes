@@ -78,9 +78,10 @@ const router = createBrowserRouter([
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
 	},
-	// Shareable conversation page (public, read-only)
+	// Shareable conversation page — public, read-only, snapshot-based.
+	// The :shareId is an opaque 32-char hex random ID, not the conversation ID.
 	{
-		path: "/jarvis/:conversationId",
+		path: "/jarvis/:shareId",
 		element: <JarvisSharePage />,
 	},
 	// Redirect /agent to /agents
