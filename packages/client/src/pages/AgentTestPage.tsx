@@ -26,6 +26,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ type TestPhase =
 	| "awaiting-suggestion-response";
 
 export default function AgentTestPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
@@ -181,8 +183,10 @@ export default function AgentTestPage() {
 			<div className="h-screen flex items-center justify-center bg-background">
 				<div className="text-center space-y-4">
 					<Bot className="size-12 mx-auto text-muted-foreground" />
-					<p className="text-muted-foreground">No agent configuration found.</p>
-					<Button onClick={() => navigate("/agents")}>Back to Agents</Button>
+					<p className="text-muted-foreground">{t("test.notFound")}</p>
+					<Button onClick={() => navigate("/agents")}>
+						{t("test.backToAgents")}
+					</Button>
 				</div>
 			</div>
 		);
@@ -386,17 +390,17 @@ export default function AgentTestPage() {
 					<div className="flex items-center gap-2">
 						<span className="font-semibold">{config.name}</span>
 						<Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
-							Test mode
+							{t("test.testMode")}
 						</Badge>
 					</div>
 				</div>
 
 				<div className="flex items-center gap-2">
 					<Button variant="outline" size="sm" onClick={handleReset}>
-						Reset
+						{t("test.reset")}
 					</Button>
 					<Button size="sm" onClick={() => setShowPublishDialog(true)}>
-						Publish
+						{t("test.publish")}
 					</Button>
 				</div>
 			</header>
@@ -410,7 +414,7 @@ export default function AgentTestPage() {
 						</div>
 						<div className="flex-1 min-w-0">
 							<p className="text-xs font-medium text-foreground mb-0.5">
-								Instructions updated
+								{t("test.instructionsUpdated")}
 							</p>
 							<p className="text-[11px] text-muted-foreground line-clamp-2 font-mono leading-relaxed whitespace-pre-wrap">
 								{config.instructions.slice(-200)}
@@ -419,7 +423,7 @@ export default function AgentTestPage() {
 						<button
 							onClick={() => setShowInstructionsPreview(false)}
 							className="text-muted-foreground hover:text-foreground shrink-0"
-							aria-label="Dismiss"
+							aria-label={t("test.dismiss")}
 						>
 							<X className="size-3.5" />
 						</button>
@@ -448,7 +452,7 @@ export default function AgentTestPage() {
 										{starters.length > 0 && (
 											<div className="space-y-2 max-w-md mx-auto">
 												<p className="text-sm text-muted-foreground mb-3">
-													Try a prompt:
+													{t("test.tryPrompt")}
 												</p>
 												{starters.map((starter, i) => (
 													<button
@@ -484,7 +488,11 @@ export default function AgentTestPage() {
 														{msg.type === "agent-retry" && (
 															<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-[50px]">
 																<RefreshCw className="size-2.5" />
-																<span>Revision {msg.iterationNumber}</span>
+																<span>
+																	{t("test.revision", {
+																		number: msg.iterationNumber,
+																	})}
+																</span>
 															</div>
 														)}
 
@@ -522,7 +530,9 @@ export default function AgentTestPage() {
 																					)}
 																				/>
 																				<span className="text-xs text-foreground">
-																					Sources ({msg.sourcesUsed.length})
+																					{t("test.sources", {
+																						count: msg.sourcesUsed.length,
+																					})}
 																				</span>
 																			</button>
 																			{expandedSources === msg.id && (
@@ -553,7 +563,7 @@ export default function AgentTestPage() {
 																		<div className="space-y-3">
 																			<div className="bg-neutral-50 rounded-md p-2 flex items-center gap-3">
 																				<span className="text-xs text-foreground">
-																					Rate this response:
+																					{t("test.rateResponse")}
 																				</span>
 																				<div className="flex items-center gap-3">
 																					<button

@@ -4,6 +4,7 @@
 
 import { Calendar, ChevronDown, Key, Mail, Send, Users, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
@@ -63,6 +64,7 @@ export function CreateWorkflowModal({
 	open,
 	onOpenChange,
 }: CreateWorkflowModalProps) {
+	const { t } = useTranslation("agents");
 	const [description, setDescription] = useState("");
 
 	const handleClose = () => {
@@ -78,12 +80,14 @@ export function CreateWorkflowModal({
 			>
 				{/* Header */}
 				<div className="flex items-center justify-between px-6 py-4 border-b">
-					<h2 className="text-lg font-medium">New workflow</h2>
+					<h2 className="text-lg font-medium">
+						{t("createWorkflowModal.title")}
+					</h2>
 					<button
 						type="button"
 						onClick={handleClose}
 						className="text-muted-foreground hover:text-foreground"
-						aria-label="Close"
+						aria-label={t("createWorkflowModal.close")}
 					>
 						<X className="size-5" />
 					</button>
@@ -93,12 +97,14 @@ export function CreateWorkflowModal({
 				<div className="flex-1 overflow-y-auto p-6 space-y-6">
 					{/* Chat input area */}
 					<div className="bg-muted/30 rounded-xl p-8 min-h-[200px] flex flex-col items-center justify-center">
-						<h3 className="text-xl font-medium mb-4">Describe your workflow</h3>
+						<h3 className="text-xl font-medium mb-4">
+							{t("createWorkflowModal.describeWorkflow")}
+						</h3>
 						<div className="w-full max-w-lg relative">
 							<Textarea
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}
-								placeholder="Every time I receive an email, review the content and..."
+								placeholder={t("createWorkflowModal.placeholder")}
 								className="min-h-[80px] resize-none pr-12"
 							/>
 							<button
@@ -106,7 +112,7 @@ export function CreateWorkflowModal({
 								className="absolute right-3 bottom-3 size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-50"
 								disabled={!description.trim()}
 								onClick={() => {
-									toast.info("Workflow creation with AI coming in v3");
+									toast.info(t("createWorkflowModal.comingSoon"));
 								}}
 							>
 								<Send className="size-4" />
@@ -116,10 +122,10 @@ export function CreateWorkflowModal({
 							type="button"
 							className="mt-4 text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
 							onClick={() => {
-								toast.info("Start from scratch coming in v3");
+								toast.info(t("createWorkflowModal.startFromScratchComingSoon"));
 							}}
 						>
-							Start from scratch
+							{t("createWorkflowModal.startFromScratch")}
 							<ChevronDown className="size-4 -rotate-90" />
 						</button>
 					</div>
@@ -127,7 +133,7 @@ export function CreateWorkflowModal({
 					{/* Example templates */}
 					<div className="space-y-3">
 						<h4 className="text-sm font-medium text-muted-foreground">
-							Start from an example
+							{t("createWorkflowModal.startFromExample")}
 						</h4>
 						<div className="grid grid-cols-2 gap-3">
 							{WORKFLOW_TEMPLATES.map((template) => {

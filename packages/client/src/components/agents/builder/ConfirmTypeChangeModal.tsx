@@ -11,6 +11,7 @@ import {
 	MessageSquare,
 	Workflow,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
 	AlertDialog,
 	AlertDialogContent,
@@ -48,6 +49,8 @@ export function ConfirmTypeChangeModal({
 	onGoBack,
 	onConfirm,
 }: ConfirmTypeChangeModalProps) {
+	const { t } = useTranslation("agents");
+
 	if (!pendingType) return null;
 
 	const CurrentIcon = currentType ? TYPE_ICONS[currentType] : null;
@@ -62,9 +65,11 @@ export function ConfirmTypeChangeModal({
 							<AlertCircle className="size-5 text-amber-600" />
 						</div>
 						<div>
-							<AlertDialogTitle>Confirm Type Change</AlertDialogTitle>
+							<AlertDialogTitle>
+								{t("confirmTypeChangeModal.title")}
+							</AlertDialogTitle>
 							<p className="text-sm text-muted-foreground">
-								This action affects a saved agent
+								{t("confirmTypeChangeModal.subtitle")}
 							</p>
 						</div>
 					</div>
@@ -72,7 +77,9 @@ export function ConfirmTypeChangeModal({
 
 				<div className="bg-muted/50 rounded-lg p-4 space-y-3">
 					<div className="flex items-center justify-between">
-						<span className="text-sm text-muted-foreground">Current type:</span>
+						<span className="text-sm text-muted-foreground">
+							{t("confirmTypeChangeModal.currentType")}
+						</span>
 						<Badge variant="secondary" className="gap-1">
 							{CurrentIcon && <CurrentIcon className="size-3" />}
 							{currentType && AGENT_TYPE_INFO[currentType].shortLabel}
@@ -82,7 +89,9 @@ export function ConfirmTypeChangeModal({
 						<ArrowLeft className="size-4 text-muted-foreground rotate-180" />
 					</div>
 					<div className="flex items-center justify-between">
-						<span className="text-sm text-muted-foreground">New type:</span>
+						<span className="text-sm text-muted-foreground">
+							{t("confirmTypeChangeModal.newType")}
+						</span>
 						<Badge variant="default" className="gap-1">
 							<PendingIcon className="size-3" />
 							{AGENT_TYPE_INFO[pendingType].shortLabel}
@@ -91,20 +100,24 @@ export function ConfirmTypeChangeModal({
 				</div>
 
 				<div className="bg-red-50 border border-red-200 rounded-lg p-3">
-					<p className="text-sm font-medium text-red-800 mb-1">Warning</p>
+					<p className="text-sm font-medium text-red-800 mb-1">
+						{t("confirmTypeChangeModal.warning")}
+					</p>
 					<p className="text-sm text-red-700">
-						Changing the agent type for <strong>{agentName}</strong> will modify
-						how this agent works. Users who interact with this agent may
-						experience different behavior.
+						{t("confirmTypeChangeModal.warningMessage", { agentName })
+							.split(/<strong>|<\/strong>/)
+							.map((part, i) =>
+								i % 2 === 1 ? <strong key={i}>{part}</strong> : part,
+							)}
 					</p>
 				</div>
 
 				<AlertDialogFooter>
 					<Button variant="outline" onClick={onGoBack}>
-						Go Back
+						{t("confirmTypeChangeModal.goBack")}
 					</Button>
 					<Button variant="destructive" onClick={onConfirm}>
-						Confirm Change
+						{t("confirmTypeChangeModal.confirmChange")}
 					</Button>
 				</AlertDialogFooter>
 			</AlertDialogContent>

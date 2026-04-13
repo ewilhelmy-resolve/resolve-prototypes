@@ -24,6 +24,7 @@ import {
 	X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,7 @@ import { cn } from "@/lib/utils";
 import type { AgentChatConfig, ChatMessage } from "@/types/agent";
 
 export default function AgentChatPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const { id: agentId } = useParams<{ id: string }>();
 
@@ -76,8 +78,10 @@ export default function AgentChatPage() {
 			<div className="h-screen flex items-center justify-center bg-background">
 				<div className="text-center space-y-4">
 					<Bot className="size-12 mx-auto text-muted-foreground" />
-					<p className="text-muted-foreground">Agent not found.</p>
-					<Button onClick={() => navigate("/agents")}>Browse Agents</Button>
+					<p className="text-muted-foreground">{t("chat.notFound")}</p>
+					<Button onClick={() => navigate("/agents")}>
+						{t("chat.browseAgents")}
+					</Button>
 				</div>
 			</div>
 		);
@@ -186,7 +190,7 @@ export default function AgentChatPage() {
 														</span>
 														{agent.status === "published" && (
 															<span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">
-																Live
+																{t("chat.live")}
 															</span>
 														)}
 													</div>
@@ -203,14 +207,14 @@ export default function AgentChatPage() {
 									className="gap-2"
 								>
 									<Search className="size-4" />
-									Browse more
+									{t("chat.browseMore")}
 								</DropdownMenuItem>
 								<DropdownMenuItem
 									onClick={() => navigate("/agents/create")}
 									className="gap-2"
 								>
 									<Plus className="size-4" />
-									Create new
+									{t("chat.createNew")}
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
@@ -224,7 +228,7 @@ export default function AgentChatPage() {
 						className="gap-1.5 text-muted-foreground"
 					>
 						<FilePen className="size-4" />
-						Edit
+						{t("chat.edit")}
 					</Button>
 				</header>
 
@@ -334,7 +338,7 @@ export default function AgentChatPage() {
 													handleSend();
 												}
 											}}
-											placeholder="Ask anything"
+											placeholder={t("chat.askAnything")}
 											className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
 											disabled={isLoading}
 										/>
@@ -358,7 +362,7 @@ export default function AgentChatPage() {
 					<button
 						onClick={() => setShowOverview(true)}
 						className="absolute top-3 right-3 p-2 rounded-lg hover:bg-muted transition-colors"
-						aria-label="Show overview"
+						aria-label={t("chat.showOverview")}
 					>
 						<PanelRightOpen className="size-5 text-muted-foreground" />
 					</button>
@@ -375,12 +379,14 @@ export default function AgentChatPage() {
 				<div className="flex flex-col gap-8 p-5 min-w-[467px] h-full">
 					{/* Panel header */}
 					<div className="flex items-center justify-between">
-						<h2 className="text-lg font-medium leading-none">Overview</h2>
+						<h2 className="text-lg font-medium leading-none">
+							{t("chat.overview")}
+						</h2>
 						<Button
 							variant="ghost"
 							size="icon"
 							onClick={() => setShowOverview(false)}
-							aria-label="Close overview panel"
+							aria-label={t("chat.closeOverview")}
 						>
 							<X className="size-4" />
 						</Button>
@@ -390,7 +396,7 @@ export default function AgentChatPage() {
 					<div className="flex-1 overflow-y-auto flex flex-col gap-4">
 						{/* Knowledge section */}
 						<p className="text-sm text-muted-foreground">
-							{config.name} knowledge
+							{t("chat.knowledge", { name: config.name })}
 						</p>
 						<div className="rounded-md border">
 							{config.knowledgeSources.length > 0 ? (
@@ -409,7 +415,7 @@ export default function AgentChatPage() {
 								</ul>
 							) : (
 								<p className="px-[15px] py-[10px] text-sm text-muted-foreground">
-									No knowledge sources
+									{t("chat.noKnowledgeSources")}
 								</p>
 							)}
 							<div className="px-[15px] py-[10px]">
@@ -419,13 +425,15 @@ export default function AgentChatPage() {
 									className="h-auto p-0 text-sm"
 								>
 									<Plus className="mr-1 size-3.5" />
-									Add knowledge
+									{t("chat.addKnowledge")}
 								</Button>
 							</div>
 						</div>
 
 						{/* Skills section */}
-						<p className="text-sm text-muted-foreground">Skills applied</p>
+						<p className="text-sm text-muted-foreground">
+							{t("chat.skillsApplied")}
+						</p>
 						<div className="rounded-md border">
 							{config.skills.length > 0 ? (
 								<ul className="list-none">
@@ -448,7 +456,7 @@ export default function AgentChatPage() {
 								</ul>
 							) : (
 								<p className="px-[15px] py-[10px] text-sm text-muted-foreground">
-									No skills configured
+									{t("chat.noSkills")}
 								</p>
 							)}
 							<div className="px-[15px] py-[10px]">
@@ -459,7 +467,7 @@ export default function AgentChatPage() {
 									onClick={() => navigate(`/agents/${config.id}`)}
 								>
 									<Plus className="mr-1 size-3.5" />
-									Add skills
+									{t("chat.addSkills")}
 								</Button>
 							</div>
 						</div>
