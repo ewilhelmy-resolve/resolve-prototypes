@@ -81,6 +81,7 @@ export default function AgentTestPage() {
 	const [hasChanges, setHasChanges] = useState(false);
 	const [showPublishDialog, setShowPublishDialog] = useState(false);
 	const [expandedSources, setExpandedSources] = useState<string | null>(null);
+	const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -261,9 +262,6 @@ export default function AgentTestPage() {
 			inputRef.current?.focus();
 		}
 	};
-
-	// biome-ignore lint/correctness/useHookAtTopLevel: prototype code, state used in conditional render
-	const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
 
 	const handleSuggestionResponse = (accepted: boolean) => {
 		if (accepted) {
