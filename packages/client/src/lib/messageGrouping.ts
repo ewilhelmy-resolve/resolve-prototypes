@@ -6,6 +6,46 @@ import type {
 } from "@/stores/conversationStore";
 
 /**
+ * True when every part of a grouped message has only reasoning metadata —
+ * no text, no sources, no tasks. Used to render compact styling for
+ * thinking-only messages.
+ */
+export function isReasoningOnlyMessage(message: GroupedChatMessage): boolean {
+	return message.parts.every(
+		(part) =>
+			part.metadata?.reasoning &&
+			!part.message?.trim() &&
+			!part.metadata?.sources?.length &&
+			!part.metadata?.tasks?.length,
+	);
+}
+
+/**
+ * Concatenate all part messages in a grouped message for copying.
+ */
+export function getGroupedContent(message: GroupedChatMessage): string {
+	return message.parts.map((part) => part.message).join("\n\n");
+}
+
+/**
+ * True when any part of a grouped message has non-empty text content.
+ */
+export function hasGroupedCopyableContent(
+	message: GroupedChatMessage,
+): boolean {
+	return message.parts.some(
+		(part) => part.message && part.message.trim().length > 0,
+	);
+}
+
+/**
+ * True when a simple message has non-empty text content.
+ */
+export function hasSimpleCopyableContent(message: SimpleChatMessage): boolean {
+	return Boolean(message.message && message.message.trim().length > 0);
+}
+
+/**
  * Check if a message part has any reasoning metadata
  */
 function hasReasoning(part: { message: string; metadata?: any }): boolean {

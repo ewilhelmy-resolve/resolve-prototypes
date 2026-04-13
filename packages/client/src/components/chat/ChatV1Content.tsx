@@ -20,12 +20,12 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Action, Actions } from "@/components/ai-elements/actions";
+import { CompletionCard } from "@/components/ai-elements/completion-card";
 import {
 	Conversation,
 	ConversationContent,
 	ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
-import { CompletionCard } from "@/components/ai-elements/completion-card";
 import { Loader } from "@/components/ai-elements/loader";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
@@ -76,6 +76,12 @@ import {
 	validateFileForUpload,
 } from "@/lib/constants";
 import { formatAbsoluteTime } from "@/lib/date-utils";
+import {
+	getGroupedContent,
+	hasGroupedCopyableContent,
+	hasSimpleCopyableContent,
+	isReasoningOnlyMessage,
+} from "@/lib/messageGrouping";
 import { iframeApi } from "@/services/iframeApi";
 import type {
 	GroupedChatMessage,
@@ -190,34 +196,6 @@ const mapRitaStatusToChatStatus = (
 	}
 
 	return "ready";
-};
-
-// Helper function to get grouped content for copying
-const getGroupedContent = (message: GroupedChatMessage): string => {
-	return message.parts.map((part) => part.message).join("\n\n");
-};
-
-// Helper function to check if a grouped message has copyable content
-const hasGroupedCopyableContent = (message: GroupedChatMessage): boolean => {
-	return message.parts.some(
-		(part) => part.message && part.message.trim().length > 0,
-	);
-};
-
-// Helper function to check if message only contains reasoning (no text/sources/tasks)
-const isReasoningOnlyMessage = (message: GroupedChatMessage): boolean => {
-	return message.parts.every(
-		(part) =>
-			part.metadata?.reasoning &&
-			!part.message?.trim() &&
-			!part.metadata?.sources?.length &&
-			!part.metadata?.tasks?.length,
-	);
-};
-
-// Helper function to check if a simple message has copyable content
-const hasSimpleCopyableContent = (message: SimpleChatMessage): boolean => {
-	return Boolean(message.message && message.message.trim().length > 0);
 };
 
 // Component for rendering grouped messages

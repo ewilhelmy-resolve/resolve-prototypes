@@ -24,6 +24,12 @@ import {
 } from "@/components/ai-elements/task";
 import { Citations } from "@/components/citations";
 import { formatAbsoluteTime } from "@/lib/date-utils";
+import {
+	getGroupedContent,
+	hasGroupedCopyableContent,
+	hasSimpleCopyableContent,
+	isReasoningOnlyMessage,
+} from "@/lib/messageGrouping";
 import type {
 	ChatMessage,
 	GroupedChatMessage,
@@ -35,30 +41,6 @@ export interface ChatV2MessageRendererProps {
 	isStreaming?: boolean;
 	readOnly?: boolean;
 	onCopy?: (text: string, messageId: string) => void;
-}
-
-function isReasoningOnlyMessage(message: GroupedChatMessage): boolean {
-	return message.parts.every(
-		(part) =>
-			part.metadata?.reasoning &&
-			!part.message?.trim() &&
-			!part.metadata?.sources?.length &&
-			!part.metadata?.tasks?.length,
-	);
-}
-
-function getGroupedContent(message: GroupedChatMessage): string {
-	return message.parts.map((part) => part.message).join("\n\n");
-}
-
-function hasGroupedCopyableContent(message: GroupedChatMessage): boolean {
-	return message.parts.some(
-		(part) => part.message && part.message.trim().length > 0,
-	);
-}
-
-function hasSimpleCopyableContent(message: SimpleChatMessage): boolean {
-	return Boolean(message.message && message.message.trim().length > 0);
 }
 
 function CopyButton({ onClick }: { onClick: () => void }) {
