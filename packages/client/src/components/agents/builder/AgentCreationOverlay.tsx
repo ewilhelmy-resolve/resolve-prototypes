@@ -8,7 +8,6 @@
 
 import {
 	CheckCircle2,
-	CircleDot,
 	Loader2,
 	Pencil,
 	Play,
@@ -17,9 +16,31 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ReasoningSteps } from "@/components/ai-elements/reasoning-steps";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { ExecutionStep } from "@/stores/agentCreationStore";
+
+// Map backend step labels to ReasoningSteps icon/color directives.
+// Labels are produced by DirectApiStrategy.getProgressLabel on the server.
+const STEP_DIRECTIVE: Record<string, string> = {
+	Starting: "[icon:zap,color:primary]",
+	Analyzing: "[icon:search,color:primary]",
+	Building: "[icon:code,color:primary]",
+	Requirements: "[icon:shield,color:green]",
+	Created: "[icon:bot,color:green]",
+	Processing: "[icon:workflow,color:primary]",
+};
+
+function buildReasoningContent(steps: ExecutionStep[]): string {
+	return steps
+		.map((s) => {
+			const prefix =
+				STEP_DIRECTIVE[s.stepLabel] ?? "[icon:workflow,color:primary]";
+			return `${prefix} ${s.stepLabel} — ${s.stepDetail}`;
+		})
+		.join("\n");
+}
 
 interface AgentCreationOverlayProps {
 	status: "idle" | "creating" | "awaiting_input" | "success" | "error";
@@ -76,30 +97,11 @@ export function AgentCreationOverlay({
 						)}
 
 						{executionSteps.length > 0 && (
-							<div className="w-full space-y-3 bg-muted/30 rounded-lg p-4">
-								{executionSteps.map((step, i) => {
-									const isLast = i === executionSteps.length - 1;
-									return (
-										<div
-											key={`${step.stepType}-${i}`}
-											className="flex items-start gap-3"
-										>
-											{isLast ? (
-												<CircleDot className="size-4 mt-0.5 text-primary animate-pulse shrink-0" />
-											) : (
-												<CheckCircle2 className="size-4 mt-0.5 text-emerald-500 shrink-0" />
-											)}
-											<div className="min-w-0 flex-1">
-												<p className="text-sm font-medium leading-tight">
-													{step.stepLabel}
-												</p>
-												<p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-													{step.stepDetail}
-												</p>
-											</div>
-										</div>
-									);
-								})}
+							<div className="w-full bg-muted/30 rounded-lg p-4">
+								<ReasoningSteps
+									content={buildReasoningContent(executionSteps)}
+									isStreaming={true}
+								/>
 							</div>
 						)}
 
