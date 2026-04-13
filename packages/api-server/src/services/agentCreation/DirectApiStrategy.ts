@@ -16,7 +16,7 @@ import type {
 
 const AGENT_BUILDER_NAME = "AgentToCreateAgentRita";
 const POLL_INTERVAL_MS = 3000;
-const MAX_POLL_ATTEMPTS = 30; // ~90 seconds
+const MAX_POLL_ATTEMPTS = 100; // ~5 minutes
 
 interface ActiveCreation {
 	executionId: string;
@@ -155,6 +155,8 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 		if (!creation) return;
 
 		let lastSeenId = 0;
+		let lastPollError: unknown = null;
+		let pollFailureCount = 0;
 
 		for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
 			if (creation.cancelled) {
@@ -180,6 +182,19 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 					lastSeenId = newMessages[newMessages.length - 1].id;
 				}
 
+				logger.debug(
+					{
+						creationId,
+						executionId: creation.executionId,
+						attempt: attempt + 1,
+						totalMessages: messages.length,
+						newMessages: newMessages.length,
+						newEventTypes: newMessages.map((m) => m.event_type),
+						lastSeenId,
+					},
+					"Agent creation poll",
+				);
+
 				for (const msg of newMessages) {
 					// Only forward user-facing progress events
 					const progressLabel = this.getProgressLabel(msg);
@@ -201,8 +216,17 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 						await this.handleExecutionComplete(creationId, creation, msg);
 						return;
 					}
+					if (
+						msg.event_type === "execution_error" ||
+						msg.event_type === "execution_failed"
+					) {
+						this.handleExecutionError(creationId, creation, msg);
+						return;
+					}
 				}
 			} catch (err) {
+				lastPollError = err;
+				pollFailureCount++;
 				logger.warn(
 					{ creationId, attempt, error: err },
 					"Poll attempt failed, retrying",
@@ -210,14 +234,26 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 			}
 		}
 
-		// Timeout
-		logger.warn({ creationId }, "Agent creation polling timed out");
+		// Timeout — surface diagnostic info so we can tell slow-LLM from broken-polling next time
+		logger.warn(
+			{
+				creationId,
+				executionId: creation.executionId,
+				pollFailureCount,
+				lastPollError,
+				maxAttempts: MAX_POLL_ATTEMPTS,
+				intervalMs: POLL_INTERVAL_MS,
+			},
+			"Agent creation polling timed out",
+		);
 		this.sseService.sendToUser(creation.userId, creation.tenantId, {
 			type: "agent_creation_failed",
 			data: {
 				creation_id: creationId,
 				error:
-					"Agent creation timed out. The agent may still be created in the background.",
+					pollFailureCount > 0
+						? `Agent creation timed out after ${pollFailureCount} failed polls (last error: ${lastPollError instanceof Error ? lastPollError.message : String(lastPollError)}). The agent may still be created in the background.`
+						: "Agent creation timed out. The agent may still be created in the background.",
 				timestamp: new Date().toISOString(),
 			},
 		});
@@ -345,6 +381,47 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 				},
 			});
 		}
+
+		this.activeCreations.delete(creationId);
+	}
+
+	/**
+	 * Handle LLM-side execution failure events (execution_error / execution_failed).
+	 * Surfaces the LLM's own error message to the user instead of letting the
+	 * poll loop silently run out its 5-minute budget.
+	 */
+	private handleExecutionError(
+		creationId: string,
+		creation: ActiveCreation,
+		msg: AgentExecutionMessage,
+	): void {
+		const errorType = (msg.content?.error_type as string) || "ExecutionError";
+		const fullMessage = (msg.content?.error_message as string) || "";
+		// LLM often sends a Python traceback — keep only the first line for the UI.
+		const firstLine = fullMessage.split("\n")[0]?.trim() || "";
+		const userFacing = firstLine
+			? `${errorType}: ${firstLine}`
+			: `Agent builder reported ${errorType}`;
+
+		logger.error(
+			{
+				creationId,
+				executionId: creation.executionId,
+				eventType: msg.event_type,
+				errorType,
+				errorMessage: fullMessage,
+			},
+			"Agent creation failed — LLM reported execution error",
+		);
+
+		this.sseService.sendToUser(creation.userId, creation.tenantId, {
+			type: "agent_creation_failed",
+			data: {
+				creation_id: creationId,
+				error: userFacing,
+				timestamp: new Date().toISOString(),
+			},
+		});
 
 		this.activeCreations.delete(creationId);
 	}

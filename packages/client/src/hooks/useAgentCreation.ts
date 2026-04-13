@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef } from "react";
 import { useGenerateAgent } from "@/hooks/api/useAgents";
 import { useAgentCreationStore } from "@/stores/agentCreationStore";
 
-const CREATION_TIMEOUT_MS = 90_000;
+// Safety-net only. The server is the source of truth: it always emits a
+// terminal SSE event (completed / failed / its own timeout) within ~5 min.
+// This local timeout only fires if the server's SSE never arrives at all —
+// e.g. API crash, dropped EventSource, browser sleep. Keep it well above the
+// server's budget so normal late completions are never misreported as timeouts.
+const CREATION_TIMEOUT_MS = 600_000; // 10 minutes
 
 /**
  * Orchestration hook for agent creation.

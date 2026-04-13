@@ -145,7 +145,7 @@ sequenceDiagram
     API->>API: generate creation_id (UUIDv4)
     API->>Platform: webhook: create_agent
     API-->>Client: { creation_id }
-    Client->>Client: startCreation(id), start 90s timeout
+    Client->>Client: startCreation(id), start 10min safety-net timeout
 
     Platform->>LLM: POST /services/agentic (agent-builder)
     loop Poll for execution steps
@@ -235,6 +235,8 @@ sequenceDiagram
 
 ### 2.7 Failure Scenario
 
+Three distinct failure modes — all converge on a single `agent_creation_failed` SSE event so the client only needs one handler.
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -248,23 +250,34 @@ sequenceDiagram
     API->>Platform: webhook: create_agent
     Platform->>LLM: POST /services/agentic
 
-    alt LLM execution fails
+    alt LLM emits execution_error / execution_failed
+        Note over LLM: e.g. ValueError: Missing llm_parameters<br/>(agent-builder agent misconfigured)
+        LLM-->>Platform: poll msg event_type=execution_error<br/>{error_type, error_message}
+        Platform->>MQ: publish agent_creation_failed<br/>{error: "ErrorType: first line of error_message"}
+    else LLM completes with success: false
         LLM-->>Platform: execution_complete (success: false)
-        Platform->>MQ: publish agent_creation_failed
-    else Platform error
+        Platform->>MQ: publish agent_creation_failed<br/>{error: failures[] joined or error_message}
+    else Platform internal error
         Platform->>Platform: workflow fails internally
-        Platform->>MQ: publish agent_creation_failed
+        Platform->>MQ: publish agent_creation_failed<br/>{error: platform-supplied message}
     end
 
     API->>MQ: consume
-    API-->>Client: SSE agent_creation_failed<br/>{error_message}
+    API-->>Client: SSE agent_creation_failed<br/>{error}
     Client->>Client: store.receiveError(error)
     Client-->>Client: Show error + [Try Again]
 ```
 
+> **Important:** the first branch (`execution_error` / `execution_failed`) is a runtime error inside the LLM service's agent execution — distinct from `execution_complete` with `success: false` (which means the agent ran cleanly but decided it couldn't fulfill the request). RITA's [DirectApiStrategy.ts](../../../packages/api-server/src/services/agentCreation/DirectApiStrategy.ts) handles both as terminal events; the Platform team's workflow must do the same. If you ignore `execution_error` and only watch for `execution_complete`, the user will see a 5-minute silent timeout instead of a clear error.
+
 ### 2.8 Timeout Scenario
 
-Client times out after 90s but the platform workflow continues.
+Two independent deadlines, intentionally decoupled. The **server is authoritative**: it gives up after its own poll budget and emits `agent_creation_failed`. The **client timeout is a pure safety net** for crash / SSE-disconnect scenarios where no terminal event ever arrives.
+
+| Deadline | Where | Value | When it fires |
+|---|---|---|---|
+| Server poll budget (direct mode) | `MAX_POLL_ATTEMPTS × POLL_INTERVAL_MS` in [DirectApiStrategy.ts](../../../packages/api-server/src/services/agentCreation/DirectApiStrategy.ts) | 100 × 3s = **300s (5 min)** | Loop exhausted → emits `agent_creation_failed` SSE with diagnostic message |
+| Client safety net | `CREATION_TIMEOUT_MS` in [useAgentCreation.ts](../../../packages/client/src/hooks/useAgentCreation.ts) | **600s (10 min)** | Only if no SSE terminal event arrived (server crash / dropped connection) |
 
 ```mermaid
 sequenceDiagram
@@ -276,25 +289,26 @@ sequenceDiagram
 
     Client->>API: POST /api/agents/generate
     API-->>Client: { creation_id }
-    Client->>Client: setTimeout(90s)
+    Client->>Client: setTimeout(10min) [safety net only]
 
-    Note over Platform: Workflow takes longer than 90s...
+    Note over Platform: Workflow takes longer than 5min...
 
-    Client->>Client: timeout fires → store.timeout()
-    Client-->>Client: Show "Creation timed out" error
-
-    Note over Platform: Workflow CONTINUES on platform side
-    Platform->>MQ: publish agent_creation_completed
+    Platform->>Platform: server poll budget exhausted (300s)
+    Platform->>MQ: publish agent_creation_failed<br/>{error: "Agent creation timed out..."}
     API->>MQ: consume
-    API-->>Client: SSE agent_creation_completed (late)
+    API-->>Client: SSE agent_creation_failed
+    Client->>Client: store.receiveError(...) — clears safety-net timer
+    Client-->>Client: Show error + [Try Again]
 
-    alt creation_id still matches store
-        Client->>Client: Accept late success<br/>error → success
-        Client-->>Client: Show success
-    else user navigated away
-        Client->>Client: Ignore (store is idle)
+    Note over Client: Client safety-net timer only fires if no SSE arrived at all<br/>(API crash, EventSource drop, browser sleep)
+
+    alt Late completion arrives after client timer fired
+        API-->>Client: SSE agent_creation_completed (late)
+        Client->>Client: error → success [if creation_id matches]
     end
 ```
+
+> **Why decoupled?** Earlier the client and server were both 90s and synchronized to the same instant — a late SSE could lose the race against the local timer. Now the server always wins; the client only acts when something has gone genuinely wrong outside the normal flow.
 
 ### 2.9 Webhook Retry Logic
 
@@ -318,23 +332,33 @@ flowchart TD
 
 ### 2.10 RabbitMQ Message Routing
 
-Platform's decision tree for publishing messages based on what the LLM returns.
+Platform's decision tree for publishing messages based on what the LLM returns. The Platform must watch for **both** `execution_complete` (normal terminal) **and** `execution_error` / `execution_failed` (runtime error terminal) — see Section 2.7.
 
 ```mermaid
 flowchart TD
-    Start[LLM execution_complete] --> Parse[Platform parses content.raw]
+    Step[LLM poll message] --> Type{event_type?}
+
+    Type -->|execution_complete| Parse[Parse content.raw]
+    Type -->|execution_error<br/>execution_failed| Err[Extract content.error_type<br/>+ content.error_message]
+    Type -->|execution_start<br/>agent_start<br/>crew_step<br/>task_end<br/>agent_end| Prog[Forward as progress]
+
     Parse --> Check{Evaluate result}
-    Check -->|success: true<br/>need_inputs: []| Pub1[Publish:<br/>agent_creation_completed<br/>+ agent_id, agent_name]
+    Check -->|success: true<br/>need_inputs: empty| Pub1[Publish:<br/>agent_creation_completed<br/>+ agent_id, agent_name]
     Check -->|need_inputs:<br/>non-empty| Pub2[Publish:<br/>agent_creation_input_required<br/>+ execution_id, message]
     Check -->|success: false| Pub3[Publish:<br/>agent_creation_failed<br/>+ error_message]
 
-    Prog[LLM step event] --> Pub4[Publish:<br/>agent_creation_progress<br/>+ step_type, step_label]
+    Err --> Pub5[Publish:<br/>agent_creation_failed<br/>+ ErrorType: first line]
+
+    Prog --> Pub4[Publish:<br/>agent_creation_progress<br/>+ step_type, step_label]
 
     Pub1 --> Q[(agent.events queue)]
     Pub2 --> Q
     Pub3 --> Q
     Pub4 --> Q
+    Pub5 --> Q
 ```
+
+> **Truncate Python tracebacks before publishing.** LLM `error_message` often contains a multi-line traceback. Take the first line for the user-facing payload and keep the full trace in your platform logs (`error_type` + first line is what RITA's UI surfaces).
 
 ---
 
@@ -461,9 +485,10 @@ Use a RabbitMQ client (e.g. `amqplib` CLI, Management UI) to publish test messag
 | Constraint | Value | Reason |
 |------------|-------|--------|
 | Max message size | 1 MB | RabbitMQ default |
-| Expected completion time | < 90 seconds | Client times out after 90s (workflow may continue but user sees error) |
+| Expected completion time | < 5 minutes | Server poll budget is 300s; the user sees a timeout error if no terminal event arrives in that window. Client safety net is 600s. |
 | Message ordering | Not required | RITA tolerates out-of-order progress messages |
 | Retry on publish failure | Your responsibility | RITA has no retry — if a message is dropped, the creation appears stuck |
+| Terminal event coverage | Both `execution_complete` AND `execution_error`/`execution_failed` | If you only handle `execution_complete`, runtime errors silently exhaust the poll budget instead of surfacing the cause |
 
 ---
 
@@ -751,16 +776,21 @@ Published for each execution step during the AI workflow. Maps to the step types
 
 These map to the `event_type` values from the LLM Service execution messages (polled via `GET /agents/messages/execution/poll/{execution_id}`).
 
-| `step_type` | Description | Example `step_label` | Example `step_detail` |
-|-------------|-------------|----------------------|-----------------------|
-| `execution_start` | Workflow execution begins | `"system"` | `"execution_start"` |
-| `agent_start` | An agent begins processing | `"Agent Builder"` | `"agent_start"` |
-| `crew_step` | Intermediate thought/action step | `"Agent Builder"` | `"Step Thought: Analyzing instructions..."` |
-| `task_end` | A task completes | `"task"` | `"task_end"` |
-| `agent_end` | An agent finishes processing | `"Agent Builder"` | `"agent_end"` |
-| `execution_complete` | Workflow execution finishes | `"system"` | `"execution_complete"` |
+| `step_type` | Description | Terminal? | Example `step_label` | Example `step_detail` |
+|-------------|-------------|-----------|----------------------|-----------------------|
+| `execution_start` | Workflow execution begins | no | `"system"` | `"execution_start"` |
+| `agent_start` | An agent begins processing | no | `"Agent Builder"` | `"agent_start"` |
+| `crew_step` | Intermediate thought/action step | no | `"Agent Builder"` | `"Step Thought: Analyzing instructions..."` |
+| `task_end` | A task completes | no | `"task"` | `"task_end"` |
+| `agent_end` | An agent finishes processing | no | `"Agent Builder"` | `"agent_end"` |
+| `execution_complete` | Workflow execution finishes cleanly | **yes** | `"system"` | `"execution_complete"` |
+| `execution_error` | Runtime error inside agent execution | **yes** | `"system"` | `"execution_error"` |
+| `execution_failed` | Alternate runtime-failure terminal | **yes** | `"system"` | `"execution_failed"` |
 
-> **`execution_complete` is the last step in the list** and is rendered in the UI alongside the other steps. Its `content.raw` contains the final response JSON (`{ success, need_inputs, terminate, error_message }`). The platform uses this to determine whether to also publish an `agent_creation_completed`, `agent_creation_input_required`, or `agent_creation_failed` message.
+> **Three terminal event types — handle all three.** Stop polling and emit the appropriate `agent.events` message as soon as ANY terminal arrives:
+>
+> - `execution_complete` → parse `content.raw` and route per Section 2.10 (success / input_required / failed).
+> - `execution_error` / `execution_failed` → publish `agent_creation_failed` with `${content.error_type}: ${first line of content.error_message}`. Keep the full traceback in your server logs only.
 
 ### 9.2 Input Required Message
 
@@ -798,7 +828,7 @@ Published once when the agent-builder agent has **created the agent** in the LLM
 
 ### 9.4 Failure Message
 
-Published once if the AI workflow fails.
+Published once when the AI workflow fails. Covers all three failure modes from Section 2.7 (LLM `execution_error`/`execution_failed`, `execution_complete` with `success: false`, and Platform internal error).
 
 ```jsonc
 {
@@ -807,7 +837,8 @@ Published once if the AI workflow fails.
   "user_id": "uuid",
   "creation_id": "uuid",            // MUST match webhook creation_id
   "status": "failed",
-  "error_message": "Unable to generate agent configuration: insufficient context provided"
+  "error_message": "ValueError: [bd57…] Missing llm_parameters",  // ErrorType + first line; full traceback stays in platform logs
+  "error_source": "execution_error" // optional: "execution_error" | "execution_complete_failed" | "platform" — for diagnostics
 }
 ```
 
@@ -819,7 +850,7 @@ Published once if the AI workflow fails.
 | `tenant_id` | yes | Echo from webhook |
 | `user_id` | yes | Echo from webhook — used to route SSE to correct user |
 | `creation_id` | yes | **Echo from webhook** — critical for correlating request ↔ response |
-| `step_type` | on progress | `execution_start`, `agent_start`, `crew_step`, `task_end`, `agent_end`, `execution_complete` |
+| `step_type` | on progress | `execution_start`, `agent_start`, `crew_step`, `task_end`, `agent_end`, `execution_complete`, `execution_error`, `execution_failed` |
 | `step_label` | on progress | Agent or system name for this step |
 | `step_detail` | on progress | Human-readable step detail/thought |
 | `step_index` | optional | Current step number (1-based) |
@@ -950,7 +981,7 @@ Actions:
   resumeCreation()                    // awaiting_input -> creating (after user sends input)
   receiveResult(agentId, agentName)   // creating -> success
   receiveError(error)                 // creating -> error
-  timeout()                           // creating -> error (after 90s)
+  timeout()                           // creating -> error (safety net, 600s — server SSE normally lands first)
   reset()                             // any -> idle
 ```
 
@@ -965,7 +996,7 @@ stateDiagram-v2
     awaiting_input --> creating : resumeCreation()
     creating --> success : receiveResult(agentId)
     creating --> error : receiveError(msg)
-    creating --> error : timeout() [90s]
+    creating --> error : timeout() [600s safety net]
     awaiting_input --> error : receiveError(msg)
     success --> idle : reset()
     error --> idle : reset()
@@ -1008,9 +1039,11 @@ On `success`, the agent has already been **created in the LLM Service** by the a
 
 ### 11.6 Timeout
 
-- **90 seconds** from when `startCreation()` is called
-- If `status` is still `"creating"` after 90s, call `store.timeout()`
-- The agent creation continues on the platform side regardless — timeout only affects the client UI
+Two independent deadlines (see Section 2.8 for the full picture):
+
+- **Server poll budget (authoritative): 300s.** When the server's poll loop in [DirectApiStrategy.ts](../../../packages/api-server/src/services/agentCreation/DirectApiStrategy.ts) (direct mode) or the Platform's workflow (workflow mode) runs out, it emits an `agent_creation_failed` SSE with a diagnostic message. This is the timeout users normally see.
+- **Client safety net: 600s.** A local `setTimeout` in [useAgentCreation.ts](../../../packages/client/src/hooks/useAgentCreation.ts) calls `store.timeout()` only if no terminal SSE event arrived (server crash, EventSource drop, browser sleep). It's deliberately well above the server budget so the server's own SSE always wins in normal flows.
+- The agent creation continues on the server/platform side regardless of the client safety net firing — late-arriving success events are accepted (`error → success` if `creation_id` matches).
 
 ---
 

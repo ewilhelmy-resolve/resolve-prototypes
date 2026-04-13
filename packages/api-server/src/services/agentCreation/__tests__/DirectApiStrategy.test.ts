@@ -55,6 +55,29 @@ function buildExecCompleteMessage(rawJson: Record<string, unknown>, id = 100) {
 	};
 }
 
+function buildExecErrorMessage(
+	errorType: string,
+	errorMessage: string,
+	id = 200,
+	eventType: "execution_error" | "execution_failed" = "execution_error",
+) {
+	return {
+		id,
+		eid: "err-eid",
+		execution_id: "exec-123",
+		role: "system",
+		event_type: eventType,
+		content: {
+			conversation_id: "conv-123",
+			status: "error",
+			error_type: errorType,
+			error_message: errorMessage,
+		},
+		tenant: null,
+		sys_date_created: "2026-04-10T12:00:00.000Z",
+	};
+}
+
 const baseParams = {
 	name: "Test Agent",
 	description: "A test agent",
@@ -173,6 +196,83 @@ describe("DirectApiStrategy", () => {
 				"org-1",
 				expect.objectContaining({
 					type: "agent_creation_completed",
+				}),
+			);
+		});
+
+		it("should surface LLM execution_error as agent_creation_failed SSE", async () => {
+			mockExecuteAgent.mockResolvedValue({
+				executionId: "exec-123",
+				conversationId: "conv-123",
+				agentMetadataId: "meta-123",
+			});
+
+			// First poll empty; second poll returns execution_error (real traceback shape from LLM service)
+			mockPollExecution
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([
+					buildExecErrorMessage(
+						"ValueError",
+						"[bd573538-1179-439c-b685-66abcfae4014] Missing llm_parameters\nTraceback (most recent call last):\n  File .../agents.py, line 1001, in _run_agent_background\n    raise e",
+					),
+				]);
+
+			await strategy.createAgent(baseParams);
+			await vi.advanceTimersByTimeAsync(7000);
+
+			// Must NOT wait for poll timeout — terminal event handled immediately
+			expect(mockSendToUser).toHaveBeenCalledWith(
+				"user-1",
+				"org-1",
+				expect.objectContaining({
+					type: "agent_creation_failed",
+					data: expect.objectContaining({
+						error: expect.stringContaining("ValueError"),
+					}),
+				}),
+			);
+
+			// Error message should be first line only (no traceback in UI payload)
+			const failedCall = mockSendToUser.mock.calls.find(
+				(c) => c[2]?.type === "agent_creation_failed",
+			);
+			expect(failedCall?.[2].data.error).not.toContain("Traceback");
+
+			// No follow-up polling after terminal
+			const pollCallsAfter = mockPollExecution.mock.calls.length;
+			await vi.advanceTimersByTimeAsync(10000);
+			expect(mockPollExecution.mock.calls.length).toBe(pollCallsAfter);
+		});
+
+		it("should also treat execution_failed as terminal failure", async () => {
+			mockExecuteAgent.mockResolvedValue({
+				executionId: "exec-123",
+				conversationId: "conv-123",
+				agentMetadataId: "meta-123",
+			});
+
+			mockPollExecution
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([
+					buildExecErrorMessage(
+						"RuntimeError",
+						"Agent flow aborted",
+						300,
+						"execution_failed",
+					),
+				]);
+
+			await strategy.createAgent(baseParams);
+			await vi.advanceTimersByTimeAsync(7000);
+
+			expect(mockSendToUser).toHaveBeenCalledWith(
+				"user-1",
+				"org-1",
+				expect.objectContaining({
+					type: "agent_creation_failed",
+					data: expect.objectContaining({
+						error: expect.stringContaining("RuntimeError"),
+					}),
 				}),
 			);
 		});
