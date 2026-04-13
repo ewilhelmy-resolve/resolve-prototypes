@@ -8,7 +8,7 @@
  * - Action menu
  */
 
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, Loader2, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,33 @@ const avatarColors: Record<string, string> = {
 	emerald: "bg-emerald-100",
 };
 
+function SortableHeader({
+	field,
+	children,
+	align = "left",
+	onSort,
+}: {
+	field: SortField;
+	children: React.ReactNode;
+	align?: "left" | "center" | "right";
+	onSort: (field: SortField) => void;
+}) {
+	return (
+		<Button
+			variant="ghost"
+			className={cn(
+				"h-9 px-4 gap-2 font-normal text-muted-foreground hover:text-foreground",
+				align === "right" && "ml-auto",
+				align === "center" && "mx-auto",
+			)}
+			onClick={() => onSort(field)}
+		>
+			{children}
+			<ArrowUpDown className="size-4" />
+		</Button>
+	);
+}
+
 export function AgentsTable({
 	agents,
 	onAgentClick,
@@ -105,29 +132,6 @@ export function AgentsTable({
 		return sortDirection === "asc" ? comparison : -comparison;
 	});
 
-	const SortableHeader = ({
-		field,
-		children,
-		align = "left",
-	}: {
-		field: SortField;
-		children: React.ReactNode;
-		align?: "left" | "center" | "right";
-	}) => (
-		<Button
-			variant="ghost"
-			className={cn(
-				"h-9 px-4 gap-2 font-normal text-muted-foreground hover:text-foreground",
-				align === "right" && "ml-auto",
-				align === "center" && "mx-auto",
-			)}
-			onClick={() => handleSort(field)}
-		>
-			{children}
-			<ArrowUpDown className="size-4" />
-		</Button>
-	);
-
 	return (
 		<div className="rounded-md border overflow-hidden">
 			<Table>
@@ -136,15 +140,25 @@ export function AgentsTable({
 						<TableHead className="min-w-[250px] pl-4">Name</TableHead>
 						<TableHead className="w-[200px]">Skills</TableHead>
 						<TableHead className="w-[127px]">
-							<SortableHeader field="status">Status</SortableHeader>
+							<SortableHeader field="status" onSort={handleSort}>
+								Status
+							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-[136px]">
-							<SortableHeader field="updatedBy" align="center">
+							<SortableHeader
+								field="updatedBy"
+								align="center"
+								onSort={handleSort}
+							>
 								Updated by
 							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-[162px]">
-							<SortableHeader field="lastUpdated" align="right">
+							<SortableHeader
+								field="lastUpdated"
+								align="right"
+								onSort={handleSort}
+							>
 								Last updated
 							</SortableHeader>
 						</TableHead>
@@ -155,8 +169,13 @@ export function AgentsTable({
 					{sortedAgents.map((agent) => (
 						<TableRow
 							key={agent.id}
-							className="h-[84px] cursor-pointer"
-							onClick={() => onAgentClick?.(agent)}
+							className={cn(
+								"h-[84px]",
+								agent.status !== "building" && "cursor-pointer",
+							)}
+							onClick={() =>
+								agent.status !== "building" && onAgentClick?.(agent)
+							}
 						>
 							<TableCell className="pl-4">
 								<div className="flex flex-col">
@@ -187,8 +206,16 @@ export function AgentsTable({
 							<TableCell>
 								<Badge
 									variant={agent.status === "published" ? "default" : "outline"}
+									className={cn(agent.status === "building" && "gap-1.5")}
 								>
-									{agent.status === "published" ? "Published" : "Draft"}
+									{agent.status === "building" && (
+										<Loader2 className="size-3 animate-spin" />
+									)}
+									{agent.status === "published"
+										? "Published"
+										: agent.status === "building"
+											? "Building..."
+											: "Draft"}
 								</Badge>
 							</TableCell>
 							<TableCell>
@@ -212,29 +239,31 @@ export function AgentsTable({
 								{agent.lastUpdated}
 							</TableCell>
 							<TableCell onClick={(e) => e.stopPropagation()}>
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="size-8"
-											aria-label="Agent actions"
-										>
-											<MoreHorizontal className="size-4" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
-										<DropdownMenuItem onClick={() => onEdit?.(agent)}>
-											Edit
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => onDelete?.(agent)}
-											className="text-destructive focus:text-destructive"
-										>
-											Delete
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
+								{agent.status !== "building" && (
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="size-8"
+												aria-label="Agent actions"
+											>
+												<MoreHorizontal className="size-4" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end">
+											<DropdownMenuItem onClick={() => onEdit?.(agent)}>
+												Edit
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={() => onDelete?.(agent)}
+												className="text-destructive focus:text-destructive"
+											>
+												Delete
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								)}
 							</TableCell>
 						</TableRow>
 					))}

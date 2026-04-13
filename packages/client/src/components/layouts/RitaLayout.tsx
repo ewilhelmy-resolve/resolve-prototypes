@@ -70,12 +70,13 @@ import WelcomeDialog from "@/components/WelcomeDialog";
 import { SOURCE_METADATA } from "@/constants/connectionSources";
 import { useConversations } from "@/hooks/api/useConversations";
 import { useProfile, useProfilePermissions } from "@/hooks/api/useProfile";
+import { useAgentBuildNotifier } from "@/hooks/useAgentBuildNotifier";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatNavigation } from "@/hooks/useChatNavigation";
 import { useDataSources } from "@/hooks/useDataSources";
 import { useFeatureFlag } from "@/hooks/useFeatureFlags";
-import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { useKnowledgeBase } from "@/hooks/useKnowledgeBase";
+import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { SUPPORTED_DOCUMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/stores/conversationStore";
@@ -113,6 +114,9 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { t } = useTranslation();
+
+	// Global agent build notifications
+	useAgentBuildNotifier();
 
 	// Feature flags
 	const showWelcomeModal = useFeatureFlag("SHOW_WELCOME_MODAL");

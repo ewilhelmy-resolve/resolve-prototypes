@@ -9,7 +9,7 @@ import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type AgentStatus = "draft" | "published";
+export type AgentStatus = "draft" | "published" | "building";
 
 export interface AgentCardProps {
 	/** Agent name */
@@ -36,6 +36,7 @@ const statusConfig: Record<
 > = {
 	draft: { label: "Draft", variant: "secondary" },
 	published: { label: "Published", variant: "default" },
+	building: { label: "Building...", variant: "outline" },
 };
 
 export function AgentCard({

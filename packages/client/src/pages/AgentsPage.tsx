@@ -17,7 +17,6 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "@/lib/toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { type Agent, AgentsTable } from "@/components/agents/AgentsTable";
 import {
@@ -45,6 +44,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { usePhaseGate } from "@/hooks/usePhaseGate";
+import { toast } from "@/lib/toast";
+import { useAgentBuildStore } from "@/stores/agentBuildStore";
 import { type Phase, usePhaseStore } from "@/stores/phaseStore";
 
 // Mock data for agents table
@@ -121,6 +122,7 @@ export default function AgentsPage() {
 	const setPhase = usePhaseStore((state) => state.setPhase);
 	const phaseV2 = usePhaseGate("agents", "v2");
 	const phaseV3 = usePhaseGate("agents", "v3");
+	const builds = useAgentBuildStore((state) => state.builds);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
 	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
@@ -133,11 +135,17 @@ export default function AgentsPage() {
 	// Dynamic agents list (includes newly published agents)
 	const [agents, setAgents] = useState<Agent[]>(mockAgents);
 
-	// Handle newly published or unpublished agent from navigation state
+	// Handle newly published, unpublished, or building agent from navigation state
 	useEffect(() => {
 		const state = location.state as {
 			publishedAgent?: PublishedAgentState;
 			unpublishedAgent?: { id: string; name: string };
+			buildingAgent?: {
+				id: string;
+				name: string;
+				description: string;
+				skills?: string[];
+			};
 		} | null;
 		if (state?.publishedAgent) {
 			const published = state.publishedAgent;
@@ -189,18 +197,54 @@ export default function AgentsPage() {
 		if (state?.unpublishedAgent) {
 			const { id, name } = state.unpublishedAgent;
 			setAgents((prev) =>
-				prev.map((a) =>
-					a.id === id
-						? { ...a, status: "draft" as const }
-						: a,
-				),
+				prev.map((a) => (a.id === id ? { ...a, status: "draft" as const } : a)),
 			);
 			toast(`${name} moved to draft`, {
 				description: "Agent is no longer available to users.",
 			});
 			window.history.replaceState({}, document.title);
 		}
+
+		if (state?.buildingAgent) {
+			const building = state.buildingAgent;
+			setAgents((prev) => {
+				if (prev.find((a) => a.id === building.id)) return prev;
+				const newAgent: Agent = {
+					id: building.id,
+					name: building.name,
+					description: building.description,
+					status: "building",
+					skills: building.skills || [],
+					updatedBy: { initials: "You", color: "blue" },
+					owner: { initials: "You", color: "blue" },
+					lastUpdated: new Date().toLocaleDateString("en-GB", {
+						day: "2-digit",
+						month: "short",
+						year: "numeric",
+						hour: "2-digit",
+						minute: "2-digit",
+					}),
+				};
+				return [newAgent, ...prev];
+			});
+			window.history.replaceState({}, document.title);
+		}
 	}, [location.state]);
+
+	// Sync build completions → flip "building" agents to "draft"
+	useEffect(() => {
+		for (const [id, build] of Object.entries(builds)) {
+			if (build.status === "complete") {
+				setAgents((prev) =>
+					prev.map((a) =>
+						a.id === id && a.status === "building"
+							? { ...a, status: "draft" as const }
+							: a,
+					),
+				);
+			}
+		}
+	}, [builds]);
 
 	// Filter agents based on search and filters
 	const filteredAgents = agents.filter((agent) => {
@@ -277,7 +321,10 @@ export default function AgentsPage() {
 							value={agentsPhase}
 							onValueChange={(v) => setPhase("agents", v as Phase)}
 						>
-							<SelectTrigger className="w-16 h-8 text-xs" aria-label="Agents phase">
+							<SelectTrigger
+								className="w-16 h-8 text-xs"
+								aria-label="Agents phase"
+							>
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
@@ -287,42 +334,53 @@ export default function AgentsPage() {
 							</SelectContent>
 						</Select>
 					</div>
-					{phaseV2 && <DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button className="gap-2">
-								<Plus className="size-4" />
-								Create agent
-								<ChevronDown className="size-4" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-56">
-							<DropdownMenuItem
-								onClick={() => setCreateDialogOpen(true)}
-								className="gap-2"
-							>
-								<FileText className="size-4" />
-								<div>
-									<div className="font-medium">From scratch</div>
-									<div className="text-xs text-muted-foreground">
-										Start with a blank agent
+					{!phaseV2 && (
+						<Button
+							className="gap-2"
+							onClick={() => navigate("/agents/create")}
+						>
+							<Plus className="size-4" />
+							Create agent
+						</Button>
+					)}
+					{phaseV2 && (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button className="gap-2">
+									<Plus className="size-4" />
+									Create agent
+									<ChevronDown className="size-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
+								<DropdownMenuItem
+									onClick={() => setCreateDialogOpen(true)}
+									className="gap-2"
+								>
+									<FileText className="size-4" />
+									<div>
+										<div className="font-medium">From scratch</div>
+										<div className="text-xs text-muted-foreground">
+											Start with a blank agent
+										</div>
 									</div>
-								</div>
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onClick={() => setTemplateModalOpen(true)}
-								className="gap-2"
-							>
-								<Sparkles className="size-4" />
-								<div>
-									<div className="font-medium">From template</div>
-									<div className="text-xs text-muted-foreground">
-										Use a pre-built template
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									onClick={() => setTemplateModalOpen(true)}
+									className="gap-2"
+								>
+									<Sparkles className="size-4" />
+									<div>
+										<div className="font-medium">From template</div>
+										<div className="text-xs text-muted-foreground">
+											Use a pre-built template
+										</div>
 									</div>
-								</div>
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
 				</div>
 
 				{/* Education banner */}
@@ -464,7 +522,9 @@ export default function AgentsPage() {
 						<AgentsTable
 							agents={filteredAgents}
 							onAgentClick={phaseV2 ? handleAgentClick : undefined}
-							onEdit={phaseV2 ? (agent) => navigate(`/agents/${agent.id}`) : undefined}
+							onEdit={
+								phaseV2 ? (agent) => navigate(`/agents/${agent.id}`) : undefined
+							}
 							onDelete={phaseV2 ? handleDeleteClick : undefined}
 						/>
 					</div>
@@ -488,7 +548,9 @@ export default function AgentsPage() {
 					open={deleteModalOpen}
 					onOpenChange={setDeleteModalOpen}
 					agentName={agentToDelete.name}
-					agentStatus={agentToDelete.status}
+					agentStatus={
+						agentToDelete.status === "published" ? "published" : "draft"
+					}
 					impact={{
 						skills: agentToDelete.skills?.length || 0,
 						conversationStarters: 3, // Mock data
