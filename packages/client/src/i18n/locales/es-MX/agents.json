@@ -100,6 +100,7 @@
 		"publish": "Publicar",
 		"failedToCreate": "No se pudo crear el agente",
 		"failedToPublish": "No se pudo publicar el agente",
+		"untitledAgent": "Agente sin título",
 		"failedToUnpublish": "No se pudo despublicar el agente",
 		"form": {
 			"nameLabel": "Nombre del agente",
@@ -127,7 +128,31 @@
 			"guardrailsLabel": "Restricciones",
 			"guardrailsDescription": "Temas o solicitudes que el agente NO debe manejar",
 			"addGuardrail": "Agregar una restricción",
-			"guardrailPlaceholder": "ej., Preguntas sobre políticas de RR.HH."
+			"guardrailPlaceholder": "ej., Preguntas sobre políticas de RR.HH.",
+			"addGuardrailButton": "Agregar restricción",
+			"removeStarter": "Eliminar {{starter}}"
+		},
+		"configChanges": {
+			"name": "Nombre",
+			"icon": "Icono"
+		},
+		"demo": {
+			"trigger": "Demo",
+			"title": "Modo demostración",
+			"next": "Siguiente",
+			"exit": "Salir de demo",
+			"steps": {
+				"createAgent": "Crear agente",
+				"createAgentDesc": "Completar datos del agente",
+				"addSkills": "Agregar habilidades",
+				"addSkillsDesc": "Configurar flujos de trabajo",
+				"addStarters": "Agregar inicios",
+				"addStartersDesc": "Configurar inicios de conversación",
+				"testAgent": "Probar agente",
+				"testAgentDesc": "Navegar a la página de prueba",
+				"publish": "Publicar",
+				"publishDesc": "Poner agente en producción"
+			}
 		},
 		"iconPicker": {
 			"changeIcon": "Cambiar icono del agente",

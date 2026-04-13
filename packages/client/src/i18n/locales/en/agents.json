@@ -100,6 +100,7 @@
 		"publish": "Publish",
 		"failedToCreate": "Failed to create agent",
 		"failedToPublish": "Failed to publish agent",
+		"untitledAgent": "Untitled Agent",
 		"failedToUnpublish": "Failed to unpublish agent",
 		"form": {
 			"nameLabel": "Name of agent",
@@ -127,7 +128,31 @@
 			"guardrailsLabel": "Guardrails",
 			"guardrailsDescription": "Topics or requests the agent should NOT handle",
 			"addGuardrail": "Add a guardrail",
-			"guardrailPlaceholder": "e.g., HR policy questions"
+			"guardrailPlaceholder": "e.g., HR policy questions",
+			"addGuardrailButton": "Add guardrail",
+			"removeStarter": "Remove {{starter}}"
+		},
+		"configChanges": {
+			"name": "Name",
+			"icon": "Icon"
+		},
+		"demo": {
+			"trigger": "Demo",
+			"title": "Demo Mode",
+			"next": "Next",
+			"exit": "Exit Demo",
+			"steps": {
+				"createAgent": "Create Agent",
+				"createAgentDesc": "Fill in agent details",
+				"addSkills": "Add Skills",
+				"addSkillsDesc": "Configure workflows",
+				"addStarters": "Add Starters",
+				"addStartersDesc": "Set conversation starters",
+				"testAgent": "Test Agent",
+				"testAgentDesc": "Navigate to test page",
+				"publish": "Publish",
+				"publishDesc": "Make agent live"
+			}
 		},
 		"iconPicker": {
 			"changeIcon": "Change agent icon",
