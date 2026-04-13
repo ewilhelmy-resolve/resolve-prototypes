@@ -28,6 +28,19 @@ vi.mock("react-router-dom", async () => {
 	return { ...actual, useNavigate: () => mockNavigate };
 });
 
+// Mock date formatting so snapshots are deterministic across timezones
+// (local dev may be PST, CI runs in UTC — without this, snapshot outputs diverge)
+vi.mock("@/lib/date-utils", () => ({
+	formatAbsoluteTime: (date: Date) =>
+		`${date.toISOString().slice(0, 10)} ${date
+			.toISOString()
+			.slice(11, 16)} UTC`,
+	formatTime: () => "just now",
+	formatDate: (s: string) => s,
+	formatDateSafe: (d: Date | null | undefined) => (d ? d.toISOString() : "N/A"),
+	formatRelativeTime: () => "just now",
+}));
+
 vi.mock("@/hooks/api/useProfile", () => ({
 	useProfilePermissions: vi.fn(() => ({
 		isOwnerOrAdmin: () => false,

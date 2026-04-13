@@ -161,7 +161,7 @@ exports[`ChatV1Content rendering > assistant message with reasoning + text + sou
                   <div
                     class="text-xs text-gray-500 transition-opacity opacity-0"
                   >
-                    Dec 31, 2024, 04:00 PM
+                    2025-01-01 00:00 UTC
                   </div>
                 </div>
               </div>
@@ -655,7 +655,7 @@ exports[`ChatV1Content rendering > assistant message with tasks > renders task a
                   <div
                     class="text-xs text-gray-500 transition-opacity opacity-0"
                   >
-                    Dec 31, 2024, 04:00 PM
+                    2025-01-01 00:00 UTC
                   </div>
                 </div>
               </div>
@@ -942,7 +942,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                 <div
                   class="text-xs text-gray-500 mt-1 transition-opacity opacity-0"
                 >
-                  Dec 31, 2024, 04:00 PM
+                  2025-01-01 00:00 UTC
                 </div>
               </div>
             </div>
@@ -1086,7 +1086,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                   <div
                     class="text-xs text-gray-500 transition-opacity opacity-0"
                   >
-                    Dec 31, 2024, 04:00 PM
+                    2025-01-01 00:00 UTC
                   </div>
                 </div>
               </div>
@@ -1112,7 +1112,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                 <div
                   class="text-xs text-gray-500 mt-1 transition-opacity opacity-0"
                 >
-                  Dec 31, 2024, 04:00 PM
+                  2025-01-01 00:00 UTC
                 </div>
               </div>
             </div>
@@ -1278,7 +1278,7 @@ exports[`ChatV1Content rendering > full mixed conversation > renders user text, 
                   <div
                     class="text-xs text-gray-500 transition-opacity opacity-0"
                   >
-                    Dec 31, 2024, 04:00 PM
+                    2025-01-01 00:00 UTC
                   </div>
                 </div>
               </div>
@@ -1425,7 +1425,7 @@ exports[`ChatV1Content rendering > simple text exchange > renders user + assista
                 <div
                   class="text-xs text-gray-500 mt-1 transition-opacity opacity-0"
                 >
-                  Dec 31, 2024, 04:00 PM
+                  2025-01-01 00:00 UTC
                 </div>
               </div>
             </div>
@@ -1494,7 +1494,7 @@ exports[`ChatV1Content rendering > simple text exchange > renders user + assista
                   <div
                     class="text-xs text-gray-500 transition-opacity opacity-0"
                   >
-                    Dec 31, 2024, 04:00 PM
+                    2025-01-01 00:00 UTC
                   </div>
                 </div>
               </div>
