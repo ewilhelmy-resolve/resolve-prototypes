@@ -24,7 +24,7 @@ rm -rf "$CONTENT_DIR"
 mkdir -p "$CONTENT_DIR"
 
 # Copy discover docs (auto-generated)
-DIRS=(actors views journeys constraints generated)
+DIRS=(actors views journeys constraints engineering generated)
 for dir in "${DIRS[@]}"; do
   if [ -d "$DISCOVER_DIR/$dir" ]; then
     cp -r "$DISCOVER_DIR/$dir" "$CONTENT_DIR/$dir"
