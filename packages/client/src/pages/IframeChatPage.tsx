@@ -953,12 +953,11 @@ function IframeChatContent({
 	const handleHostSendMessage = useCallback(
 		async (content: string, metadata: HostMessageMetadata) => {
 			// Convert metadata to Record<string, string> for API
-			const apiMetadata: Record<string, string> = {};
+			const apiMetadata: Record<string, string | boolean> = {};
 			if (metadata.chatSessionId)
 				apiMetadata.chatSessionId = metadata.chatSessionId;
 			if (metadata.tabInstanceId)
 				apiMetadata.tabInstanceId = metadata.tabInstanceId;
-
 			await ritaChatState.sendMessageWithContent(content, apiMetadata);
 		},
 		[ritaChatState],

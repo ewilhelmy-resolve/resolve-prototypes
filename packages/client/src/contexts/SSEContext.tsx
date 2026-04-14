@@ -3,7 +3,7 @@ import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import i18n from "@/i18n";
-import { credentialErrorI18nKey } from "../components/connection-sources/utils";
+import { errorI18nKey } from "../components/connection-sources/utils";
 import { ritaToast } from "../components/custom/rita-toast";
 import { agentKeys } from "../hooks/api/useAgents";
 import { type FileDocument, fileKeys } from "../hooks/api/useFiles";
@@ -159,14 +159,16 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					event.data.last_verification_error
 				) {
 					const connectionType = event.data.connection_type || "Data source";
+					const verifyError = event.data.last_verification_error;
+					const verifyI18nKey = verifyError ? errorI18nKey(verifyError) : null;
 					ritaToast.error({
 						title: i18n.t("error.verificationFailed", {
 							type: connectionType,
 							ns: "toast",
 						}),
-						description:
-							event.data.last_verification_error ||
-							"Failed to verify connection",
+						description: verifyI18nKey
+							? i18n.t(verifyI18nKey, { ns: "connections" })
+							: verifyError || "Failed to verify connection",
 						action: {
 							label: "View",
 							onClick: () => navigate("/settings/connections"),
@@ -192,9 +194,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						});
 					} else if (syncStatus === "failed") {
 						const syncError = event.data.last_sync_error;
-						const credI18nKey = syncError
-							? credentialErrorI18nKey(syncError)
-							: null;
+						const credI18nKey = syncError ? errorI18nKey(syncError) : null;
 						const description = credI18nKey
 							? i18n.t(credI18nKey, { ns: "connections" })
 							: syncError || "An error occurred";
@@ -498,7 +498,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 								}),
 							});
 						} else if (event.data.error_message) {
-							const credKey = credentialErrorI18nKey(event.data.error_message);
+							const credKey = errorI18nKey(event.data.error_message);
 							if (credKey) {
 								ritaToast.error({
 									title: i18n.t("syncError.credentialFailedTitle", {

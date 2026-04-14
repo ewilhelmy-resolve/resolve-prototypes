@@ -23,6 +23,7 @@ import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
 import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
+import JarvisSharePage from "./pages/JarvisSharePage";
 import LinkExpiredPage from "./pages/LinkExpiredPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import SchemaRendererDemo from "./pages/SchemaRendererDemo";
@@ -32,7 +33,6 @@ import KnowledgeSources from "./pages/settings/KnowledgeSources";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TermsOfService from "./pages/TermsOfService";
 import TicketDetailPage from "./pages/TicketDetailPage";
-
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
@@ -77,6 +77,12 @@ const router = createBrowserRouter([
 	{
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
+	},
+	// Shareable conversation page — public, read-only, snapshot-based.
+	// The :shareId is an opaque 32-char hex random ID, not the conversation ID.
+	{
+		path: "/jarvis/:shareId",
+		element: <JarvisSharePage />,
 	},
 	// Redirect /agent to /agents
 	{

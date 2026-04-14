@@ -7,12 +7,14 @@
 		"organization": "Organization is required",
 		"url": "URL is required",
 		"token": "API token is required",
-		"field": "This field is required"
+		"field": "This field is required",
+		"generic": "{{field}} is required"
 	},
 	"format": {
 		"email": "Please enter a valid email address",
 		"url": "Please enter a valid URL",
-		"password": "Password must contain uppercase, lowercase, number, and special character"
+		"password": "Password must contain uppercase, lowercase, number, and special character",
+		"invalid": "{{field}} is invalid"
 	},
 	"password": {
 		"minLength": "Password must be at least {{min}} characters",

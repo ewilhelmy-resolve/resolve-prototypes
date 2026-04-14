@@ -238,6 +238,7 @@
 		"ingestionFailedTitle": "Ticket import failed",
 		"authentication_failed": "Invalid or expired credentials. Please re-verify your connection credentials.",
 		"permission_denied": "The service account does not have sufficient permissions to read the requested resources.",
+		"instance_unavailable": "Your instance appears to be hibernated or unreachable. Please wake the instance and try again.",
 		"noDocumentsTitle": "No documents found",
 		"noDocumentsDescription": "Sync completed successfully, but no documents were found. Check your source configuration and ensure there is content available to sync."
 	},
