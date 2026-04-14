@@ -16,6 +16,7 @@
  * Debug mode: Add ?debug=true to URL to see debug panel
  */
 
+import type { ChatStatus } from "ai";
 import {
 	Bug,
 	ChevronDown,
@@ -31,8 +32,16 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+	Conversation,
+	ConversationContent,
+	ConversationScrollButton,
+} from "../components/ai-elements/conversation";
 import { Loader } from "../components/ai-elements/loader";
-import ChatV1Content from "../components/chat/ChatV1Content";
+import type { PromptInputMessage } from "../components/ai-elements/prompt-input";
+import { ChatInput } from "../components/chat/ChatInput";
+import { ChatV2Content } from "../components/chat/ChatV2Content";
+import { ritaToast } from "../components/custom/rita-toast";
 import { ValkeySessionPanel } from "../components/devtools/ValkeySessionPanel";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
 import { Button } from "../components/ui/button";
@@ -45,13 +54,16 @@ import {
 	DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { SSEProvider, useSSEContext } from "../contexts/SSEContext";
+import { useChatPagination } from "../hooks/useChatPagination";
 import { useFeatureFlag } from "../hooks/useFeatureFlags";
 import {
 	type HostMessageMetadata,
 	useIframeMessaging,
 } from "../hooks/useIframeMessaging";
 import { useRitaChat } from "../hooks/useRitaChat";
+import { SUPPORTED_DOCUMENT_TYPES } from "../lib/constants";
 import { iframeApi } from "../services/iframeApi";
+import type { Message as RitaMessage } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
 import { resetHostOrigin, setHostOrigin } from "../utils/hostOriginStore";
@@ -907,6 +919,49 @@ function DebugPanel({
 	);
 }
 
+/**
+ * Map RITA's message status to ai-elements ChatStatus (iframe variant)
+ */
+const mapRitaStatusToChatStatus = (
+	isSending: boolean,
+	isUploading: boolean,
+	messages: RitaMessage[],
+): ChatStatus => {
+	if (isUploading || isSending) {
+		return "submitted";
+	}
+
+	const hasProcessingMessage = messages.some(
+		(msg) => msg.status === "processing" || msg.status === "pending",
+	);
+	if (hasProcessingMessage) {
+		return "streaming";
+	}
+
+	const lastMessage = messages[messages.length - 1];
+	if (lastMessage && lastMessage.role === "user") {
+		const hasAssistantResponseAfter = messages.some(
+			(msg) =>
+				msg.role === "assistant" && msg.timestamp > lastMessage.timestamp,
+		);
+		if (!hasAssistantResponseAfter && lastMessage.status === "sent") {
+			return "streaming";
+		}
+	}
+
+	if (lastMessage && lastMessage.role === "assistant") {
+		if (lastMessage.metadata?.turn_complete === false) {
+			return "streaming";
+		}
+	}
+
+	if (lastMessage && lastMessage.status === "failed") {
+		return "error";
+	}
+
+	return "ready";
+};
+
 // Inner component that uses SSE (must be inside SSEProvider)
 function IframeChatContent({
 	conversationId,
@@ -935,9 +990,17 @@ function IframeChatContent({
 	/** Handler for inline form cancellation */
 	onFormCancel?: (requestId: string) => Promise<void>;
 }) {
+	const { t } = useTranslation(["chat", "toast"]);
 	const { latestUpdate } = useSSEContext();
-	const { updateMessage } = useConversationStore();
+	const { updateMessage, chatMessages } = useConversationStore();
 	const ritaChatState = useRitaChat();
+
+	// Timeout override state for incomplete turns
+	const [timeoutOverride, setTimeoutOverride] = useState(false);
+	const lastCheckedConvRef = useRef<string | null>(null);
+
+	// Feature flags
+	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
 
 	// Handle SSE message updates
 	useEffect(() => {
@@ -952,7 +1015,6 @@ function IframeChatContent({
 	// Handle postMessage commands from host page (Jarvis)
 	const handleHostSendMessage = useCallback(
 		async (content: string, metadata: HostMessageMetadata) => {
-			// Convert metadata to Record<string, string> for API
 			const apiMetadata: Record<string, string | boolean> = {};
 			if (metadata.chatSessionId)
 				apiMetadata.chatSessionId = metadata.chatSessionId;
@@ -975,19 +1037,182 @@ function IframeChatContent({
 		}),
 	});
 
-	// Override currentConversationId from props (ensures it's set before first message)
+	// Scroll container ref for pagination
+	const scrollContainerRef = useRef<HTMLElement | null>(null);
+
+	const handleStickToBottomContext = useCallback((context: any) => {
+		if (context?.scrollRef?.current) {
+			scrollContainerRef.current = context.scrollRef.current;
+		}
+	}, []);
+
+	// Pagination hook for infinite scroll
+	const { sentinelRef, isLoadingMore, hasMore, hasPaginationAttempted } =
+		useChatPagination({
+			conversationId,
+			scrollContainerRef,
+			enabled: !!conversationId && chatMessages.length > 0,
+		});
+
+	// Determine chat status
+	const chatStatus = mapRitaStatusToChatStatus(
+		ritaChatState.isSending,
+		ritaChatState.uploadStatus.isUploading,
+		ritaChatState.messages,
+	);
+
+	// 30-second timeout for incomplete turns
+	useEffect(() => {
+		setTimeoutOverride(false);
+
+		if (chatStatus === "streaming") {
+			const timeoutId = setTimeout(() => {
+				ritaToast.warning({ title: t("toast:warning.responseTimeout") });
+				setTimeoutOverride(true);
+			}, 30000);
+
+			return () => clearTimeout(timeoutId);
+		}
+	}, [chatStatus, t]);
+
+	// Check for incomplete conversation on navigation
+	useEffect(() => {
+		if (!conversationId || !ritaChatState.messages.length) return;
+		if (lastCheckedConvRef.current === conversationId) return;
+		lastCheckedConvRef.current = conversationId;
+
+		const lastMsg = ritaChatState.messages[ritaChatState.messages.length - 1];
+		const isIncomplete =
+			lastMsg.role === "user" ||
+			(lastMsg.role === "assistant" &&
+				lastMsg.metadata?.turn_complete === false);
+
+		if (isIncomplete) {
+			setTimeoutOverride(true);
+		}
+	}, [conversationId, ritaChatState.messages]);
+
+	// Determine if input should be disabled
+	const isInputDisabled =
+		!timeoutOverride &&
+		(chatStatus === "streaming" || chatStatus === "submitted");
+
+	// Handle form submission from PromptInput
+	const handlePromptSubmit = useCallback(
+		async (message: PromptInputMessage) => {
+			const hasText = Boolean(message.text);
+			const hasAttachments = Boolean(message.files?.length);
+
+			if (!(hasText || hasAttachments)) return;
+
+			if (message.text) {
+				ritaChatState.handleMessageChange(message.text);
+			}
+
+			if (message.files && message.files.length > 0) {
+				const fileEvent = {
+					target: { files: message.files as any },
+				} as React.ChangeEvent<HTMLInputElement>;
+				ritaChatState.handleFileUpload(fileEvent);
+			}
+
+			setTimeout(async () => {
+				await ritaChatState.handleSendMessage();
+			}, 0);
+		},
+		[ritaChatState],
+	);
+
 	return (
-		<ChatV1Content
-			{...ritaChatState}
-			currentConversationId={conversationId}
-			requireKnowledgeBase={false}
-			titleText={titleText}
-			placeholderText={placeholderText}
-			welcomeText={welcomeText}
-			leftToolbarContent={leftToolbarContent}
-			onFormSubmit={onFormSubmit}
-			onFormCancel={onFormCancel}
-		/>
+		<div className="h-full flex flex-col relative">
+			<Conversation className="flex-1" contextRef={handleStickToBottomContext}>
+				<ConversationContent className="px-6 py-6">
+					<div className="max-w-4xl mx-auto">
+						{ritaChatState.messagesLoading ? (
+							<div className="flex items-center justify-center h-full">
+								<Loader size={24} />
+							</div>
+						) : chatMessages.length === 0 ? (
+							<div className="min-h-[60vh] flex items-center justify-center">
+								<div className="text-center max-w-md px-4">
+									<h2 className="text-2xl font-semibold text-gray-900 mb-2">
+										{titleText ?? t("chat:emptyState.title")}
+									</h2>
+									<p className="text-sm text-gray-600">
+										{welcomeText ?? t("chat:emptyState.guestDescription")}
+									</p>
+								</div>
+							</div>
+						) : (
+							<>
+								{/* Intersection Observer sentinel for infinite scroll */}
+								<div ref={sentinelRef} className="h-1" />
+
+								{/* Loading indicator for pagination */}
+								{isLoadingMore && (
+									<div className="flex justify-center py-4">
+										<Loader size={16} />
+										<span className="ml-2 text-sm text-gray-500">
+											{t("chat:messages.loadingOlder")}
+										</span>
+									</div>
+								)}
+
+								{/* "Beginning of conversation" indicator */}
+								{!hasMore &&
+									!isLoadingMore &&
+									chatMessages.length > 0 &&
+									hasPaginationAttempted && (
+										<div className="flex justify-center py-4">
+											<span className="text-sm text-gray-400">
+												{t("chat:messages.beginningOfConversation")}
+											</span>
+										</div>
+									)}
+
+								{/* Render messages via ChatV2Content */}
+								<ChatV2Content
+									conversationId={conversationId}
+									onFormSubmit={onFormSubmit}
+									onFormCancel={onFormCancel}
+								/>
+							</>
+						)}
+					</div>
+				</ConversationContent>
+				<ConversationScrollButton />
+			</Conversation>
+
+			{/* Chat input */}
+			<ChatInput
+				value={ritaChatState.messageValue}
+				placeholder={placeholderText ?? t("chat:input.placeholder")}
+				chatStatus={chatStatus}
+				disabled={isInputDisabled}
+				showNoKnowledgeWarning={false}
+				isAdmin={false}
+				onChange={ritaChatState.handleMessageChange}
+				onSubmit={handlePromptSubmit}
+				fileUpload={{
+					accept: undefined,
+					multiple: false,
+					maxFiles: undefined,
+					maxFileSize: undefined,
+				}}
+				leftToolbarContent={leftToolbarContent}
+			/>
+
+			{/* Hidden file input for chat message attachments */}
+			<input
+				ref={ritaChatState.fileInputRef}
+				type="file"
+				className="hidden"
+				onChange={ritaChatState.handleFileUpload}
+				accept={SUPPORTED_DOCUMENT_TYPES}
+				disabled={ritaChatState.uploadStatus.isUploading}
+				multiple={enableMultiFileUpload}
+			/>
+		</div>
 	);
 }
 

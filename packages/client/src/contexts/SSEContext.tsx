@@ -136,7 +136,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				addMessage(newMessage);
 
 				// Interrupt form modals (interrupt=true) are triggered by
-				// ChatV1Content's SimpleMessage component on render via triggerHostModal().
+				// InterruptFormDialog on render via triggerHostModal().
 				// That handles all tiers: same-origin injection, cross-origin ACK, and
 				// in-iframe Dialog fallback.
 			} else if (event.type === "data_source_update") {
