@@ -15,6 +15,7 @@
 import crypto from "node:crypto";
 import express from "express";
 import { pool } from "../config/database.js";
+import { logger } from "../config/logger.js";
 import { assertUuid } from "../config/validateUuid.js";
 import { getValkeyClient } from "../config/valkey.js";
 import { authenticateUser } from "../middleware/auth.js";
@@ -60,6 +61,17 @@ publicShareRouter.get("/:shareId", authenticateUser, async (req, res) => {
 		}
 
 		const row = result.rows[0];
+		const authReq = req as AuthenticatedRequest;
+		logger.info(
+			{
+				action: "share_read",
+				userId: authReq.user?.id,
+				shareId,
+				conversationId: row.conversation_id,
+			},
+			"Shared conversation accessed",
+		);
+
 		return res.json({
 			conversation: {
 				id: row.conversation_id,
@@ -69,7 +81,10 @@ publicShareRouter.get("/:shareId", authenticateUser, async (req, res) => {
 			messages: row.messages,
 		});
 	} catch (error) {
-		console.error("[share] Error fetching shared conversation:", error);
+		logger.error(
+			{ error: (error as Error).message },
+			"Error fetching shared conversation",
+		);
 		return res.status(500).json({ error: "Internal server error" });
 	}
 });
@@ -116,6 +131,10 @@ authenticatedShareRouter.post(
 	authenticateUser,
 	async (req, res) => {
 		try {
+			const clientIp = req.ip || "unknown";
+			if (!checkRateLimit(`share-enable:${clientIp}`, 10, 60_000)) {
+				return res.status(429).json({ error: "Too many requests" });
+			}
 			const auth = validateAuthRequest(req, res);
 			if (!auth) return;
 
@@ -132,12 +151,22 @@ authenticatedShareRouter.post(
 
 			const shareId = await writeSnapshot(auth.conversationId, title);
 
+			logger.info(
+				{
+					action: "share_enable",
+					userId: auth.userId,
+					conversationId: auth.conversationId,
+					shareId,
+				},
+				"Conversation sharing enabled",
+			);
+
 			return res.json({
 				shareUrl: `${CLIENT_URL}/jarvis/${shareId}`,
 				shareId,
 			});
 		} catch (error) {
-			console.error("[share] Error enabling share:", error);
+			logger.error({ error: (error as Error).message }, "Error enabling share");
 			return res.status(500).json({ error: "Internal server error" });
 		}
 	},
@@ -153,6 +182,10 @@ authenticatedShareRouter.post(
 	authenticateUser,
 	async (req, res) => {
 		try {
+			const clientIp = req.ip || "unknown";
+			if (!checkRateLimit(`share-disable:${clientIp}`, 10, 60_000)) {
+				return res.status(429).json({ error: "Too many requests" });
+			}
 			const auth = validateAuthRequest(req, res);
 			if (!auth) return;
 
@@ -171,9 +204,21 @@ authenticatedShareRouter.post(
 				[auth.conversationId],
 			);
 
+			logger.info(
+				{
+					action: "share_disable",
+					userId: auth.userId,
+					conversationId: auth.conversationId,
+				},
+				"Conversation sharing disabled",
+			);
+
 			return res.json({ success: true });
 		} catch (error) {
-			console.error("[share] Error disabling share:", error);
+			logger.error(
+				{ error: (error as Error).message },
+				"Error disabling share",
+			);
 			return res.status(500).json({ error: "Internal server error" });
 		}
 	},
@@ -301,12 +346,25 @@ iframeShareRouter.post("/share", async (req, res) => {
 
 		const shareId = await writeSnapshot(resolved.conversationId, title);
 
+		logger.info(
+			{
+				action: "share_enable",
+				source: "iframe",
+				conversationId: resolved.conversationId,
+				shareId,
+			},
+			"Conversation sharing enabled via iframe",
+		);
+
 		return res.json({
 			shareUrl: `${CLIENT_URL}/jarvis/${shareId}`,
 			shareId,
 		});
 	} catch (error) {
-		console.error("[share] Error generating iframe share link:", error);
+		logger.error(
+			{ error: (error as Error).message },
+			"Error generating iframe share link",
+		);
 		return res.status(500).json({ error: "Internal server error" });
 	}
 });
@@ -332,9 +390,22 @@ iframeShareRouter.post("/share/disable", async (req, res) => {
 			`DELETE FROM shared_conversations WHERE conversation_id = $1`,
 			[resolved.conversationId],
 		);
+
+		logger.info(
+			{
+				action: "share_disable",
+				source: "iframe",
+				conversationId: resolved.conversationId,
+			},
+			"Conversation sharing disabled via iframe",
+		);
+
 		return res.json({ success: true });
 	} catch (error) {
-		console.error("[share] Error disabling iframe share:", error);
+		logger.error(
+			{ error: (error as Error).message },
+			"Error disabling iframe share",
+		);
 		return res.status(500).json({ error: "Internal server error" });
 	}
 });

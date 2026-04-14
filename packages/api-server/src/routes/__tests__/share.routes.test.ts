@@ -18,6 +18,11 @@ vi.mock("../../utils/rateLimit.js", () => ({
 	checkRateLimit: vi.fn(() => true),
 }));
 
+// Mock logger — suppress output in tests
+vi.mock("../../config/logger.js", () => ({
+	logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
+}));
+
 // Mock Valkey client — used by resolveSessionConversation fallback
 vi.mock("../../config/valkey.js", () => ({
 	getValkeyClient: vi.fn(() => ({
