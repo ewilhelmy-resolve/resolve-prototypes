@@ -193,6 +193,52 @@ export interface DynamicWorkflowEvent {
 
 // UIFormRequestEvent removed - form requests now come through NewMessageEvent with metadata.type = 'ui_form_request'
 
+// --- Agent Creation Events (placeholder for workflow mode) ---
+
+export interface AgentCreationProgressEvent {
+	type: "agent_creation_progress";
+	data: {
+		creation_id: string;
+		step_type: string;
+		step_label: string;
+		step_detail: string;
+		step_index?: number;
+		total_steps?: number;
+		final_response?: Record<string, unknown>;
+		timestamp: string;
+	};
+}
+
+export interface AgentCreationInputRequiredEvent {
+	type: "agent_creation_input_required";
+	data: {
+		creation_id: string;
+		execution_id: string;
+		message: string;
+		need_inputs: string[];
+		timestamp: string;
+	};
+}
+
+export interface AgentCreationCompletedEvent {
+	type: "agent_creation_completed";
+	data: {
+		creation_id: string;
+		agent_id: string;
+		agent_name: string;
+		timestamp: string;
+	};
+}
+
+export interface AgentCreationFailedEvent {
+	type: "agent_creation_failed";
+	data: {
+		creation_id: string;
+		error: string;
+		timestamp: string;
+	};
+}
+
 export type SSEEvent =
 	| MessageUpdateEvent
 	| NewMessageEvent
@@ -206,7 +252,11 @@ export type SSEEvent =
 	| IngestionRunUpdateEvent
 	| FeatureFlagUpdateEvent
 	| ClusterKnowledgeGeneratedEvent
-	| DynamicWorkflowEvent;
+	| DynamicWorkflowEvent
+	| AgentCreationProgressEvent
+	| AgentCreationInputRequiredEvent
+	| AgentCreationCompletedEvent
+	| AgentCreationFailedEvent;
 
 export class SSEService {
 	private connections: Map<string, SSEConnection> = new Map();

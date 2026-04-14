@@ -213,4 +213,112 @@ export class AgenticService {
 			throw error;
 		}
 	}
+
+	// ============================================================================
+	// Agent Execution (invoke, poll, stop)
+	// ============================================================================
+
+	async executeAgent(
+		agentName: string,
+		params: {
+			utterance: string;
+			transcript?: string;
+			prevExecutionId?: string;
+		},
+	): Promise<{
+		conversationId: string;
+		executionId: string;
+		agentMetadataId: string;
+	}> {
+		try {
+			const body: Record<string, unknown> = {
+				query: {
+					agent_metadata_parameters: {
+						agent_name: agentName,
+						...(params.prevExecutionId && {
+							prev_execution_id: params.prevExecutionId,
+						}),
+						parameters: {
+							utterance: params.utterance,
+							...(params.transcript && { transcript: params.transcript }),
+						},
+					},
+				},
+			};
+
+			const response = await this.client.post("/services/agentic", body, {
+				timeout: 30000,
+			});
+
+			const result = response.data?.result;
+			if (!result?.execution_id) {
+				throw new Error("Missing execution_id in agentic response");
+			}
+
+			return {
+				conversationId: result.conversation_id,
+				executionId: result.execution_id,
+				agentMetadataId: result.agent_metadata_id,
+			};
+		} catch (error) {
+			logger.error(
+				{ agentName, error },
+				"Failed to execute agent via LLM Service",
+			);
+			throw error;
+		}
+	}
+
+	async pollExecution(
+		executionId: string,
+		limit = 100,
+	): Promise<AgentExecutionMessage[]> {
+		try {
+			const response = await this.client.get<AgentExecutionMessage[]>(
+				`/agents/messages/execution/poll/${executionId}`,
+				{ params: { limit }, timeout: 10000 },
+			);
+			return response.data;
+		} catch (error) {
+			logger.error(
+				{ executionId, error },
+				"Failed to poll execution from LLM Service",
+			);
+			throw error;
+		}
+	}
+
+	async stopExecution(
+		executionId: string,
+	): Promise<{ success: boolean; message: string }> {
+		try {
+			const response = await this.client.post<{
+				success: boolean;
+				message: string;
+			}>("/agents/request_stop_agent", { execution_id: executionId });
+			return response.data;
+		} catch (error) {
+			logger.error(
+				{ executionId, error },
+				"Failed to stop agent execution in LLM Service",
+			);
+			throw error;
+		}
+	}
+}
+
+// ============================================================================
+// Execution Message Types (from poll endpoint)
+// ============================================================================
+
+export interface AgentExecutionMessage {
+	id: number;
+	eid: string;
+	execution_id: string;
+	role: string;
+	event_type: string;
+	content: Record<string, unknown>;
+	tenant: string | null;
+	sys_date_created: string;
+	display_value?: string;
 }

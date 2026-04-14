@@ -110,3 +110,33 @@ export function useDeleteAgent() {
 		},
 	});
 }
+
+export function useGenerateAgent() {
+	return useMutation({
+		mutationFn: (data: {
+			name: string;
+			description?: string;
+			instructions?: string;
+			iconId?: string;
+			iconColorId?: string;
+			conversationStarters?: string[];
+			guardrails?: string[];
+		}) => agentApi.generate(data),
+	});
+}
+
+export function useAgentCreationInput() {
+	return useMutation({
+		mutationFn: (data: {
+			creationId: string;
+			prevExecutionId: string;
+			prompt: string;
+		}) => agentApi.sendCreationInput(data),
+	});
+}
+
+export function useCancelAgentCreation() {
+	return useMutation({
+		mutationFn: (data: { creationId: string }) => agentApi.cancelCreation(data),
+	});
+}

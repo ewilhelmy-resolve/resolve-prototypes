@@ -1,4 +1,20 @@
 {
+	"createWithAI": {
+		"button": "Crear con IA",
+		"creating": "Creando tu agente...",
+		"creatingDescription": "La IA está construyendo la configuración de tu agente",
+		"success": "Agente creado exitosamente!",
+		"successDescription": "Tu agente \"{{agentName}}\" está listo",
+		"editAgent": "Editar agente",
+		"testAgent": "Probar agente",
+		"error": "Error al crear el agente",
+		"errorDefault": "Ocurrió un error inesperado. Por favor intenta de nuevo.",
+		"tryAgain": "Intentar de nuevo",
+		"cancel": "Cancelar",
+		"awaitingInput": "Se necesita informacion adicional",
+		"inputPlaceholder": "Escribe tu respuesta...",
+		"send": "Enviar"
+	},
 	"deleteModal": {
 		"title": "Eliminar \"{{agentName}}\"?",
 		"descriptionPublished": "Esta acción no se puede deshacer.",

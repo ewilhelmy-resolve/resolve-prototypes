@@ -31,6 +31,26 @@ vi.mock("@/hooks/api/useAgents", () => ({
 	useCreateAgent: () => mockCreateAgent,
 	useUpdateAgent: () => mockUpdateAgent,
 	useCheckAgentName: () => ({ data: { available: true } }),
+	useGenerateAgent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+const mockAgentCreationCreate = vi.fn();
+const mockAgentCreationReset = vi.fn();
+
+vi.mock("@/hooks/useAgentCreation", () => ({
+	useAgentCreation: () => ({
+		create: mockAgentCreationCreate,
+		status: "idle",
+		creationId: null,
+		executionId: null,
+		executionSteps: [],
+		inputMessage: null,
+		agentId: null,
+		agentName: null,
+		error: null,
+		isCreating: false,
+		reset: mockAgentCreationReset,
+	}),
 }));
 
 vi.mock("@/hooks/useAutoSave", () => ({
@@ -60,6 +80,7 @@ vi.mock("@/lib/toast", () => ({
 
 vi.mock("@/components/agents/builder", () => ({
 	AddSkillModal: () => null,
+	AgentCreationOverlay: () => null,
 	ChangeAgentTypeModal: () => null,
 	ConfirmTypeChangeModal: () => null,
 	CreateWorkflowModal: () => null,
@@ -272,7 +293,7 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("calls createAgent and navigates on click", async () => {
+	it("calls agentCreation.create (AI flow) on click, NOT the old createAgent", async () => {
 		const user = userEvent.setup();
 
 		mockedUseAgent.mockReturnValue({
@@ -283,24 +304,29 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 
 		renderPage("/agents/create");
 
-		const createBtn = await screen.findByRole("button", {
-			name: /Create agent/i,
-		});
+		// Fill required fields: name + instructions
+		const nameInput = await screen.findByPlaceholderText(/enter agent name/i);
+		await user.clear(nameInput);
+		await user.type(nameInput, "Test Agent");
+
+		const instructionsArea = document.getElementById(
+			"instructions",
+		) as HTMLTextAreaElement;
+		await user.type(instructionsArea, "Be helpful");
+
+		const createBtn = screen.getByRole("button", { name: /Create agent/i });
 		await user.click(createBtn);
 
 		await waitFor(() => {
-			expect(mockCreateAgent.mutateAsync).toHaveBeenCalledWith(
+			expect(mockAgentCreationCreate).toHaveBeenCalledWith(
 				expect.objectContaining({
-					name: "Untitled Agent",
-					status: "draft",
+					name: expect.any(String),
 				}),
 			);
 		});
 
-		expect(mockNavigate).toHaveBeenCalledWith("/agents/new-draft-1", {
-			replace: true,
-			state: expect.objectContaining({ initialConfig: expect.any(Object) }),
-		});
+		// Must NOT call the old direct LLM Service metadata endpoint
+		expect(mockCreateAgent.mutateAsync).not.toHaveBeenCalled();
 	});
 
 	it("does NOT show 'Create agent' button when editing existing agent", async () => {
@@ -320,5 +346,41 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 			screen.queryByRole("button", { name: /Create agent/i }),
 		).not.toBeInTheDocument();
 		expect(mockCreateAgent.mutateAsync).not.toHaveBeenCalled();
+	});
+
+	it("disables 'Create agent' when name is empty (default state)", async () => {
+		mockedUseAgent.mockReturnValue({
+			data: undefined,
+			isLoading: false,
+			error: null,
+		} as ReturnType<typeof useAgent>);
+
+		renderPage("/agents/create");
+
+		const createBtn = await screen.findByRole("button", {
+			name: /Create agent/i,
+		});
+		expect(createBtn).toBeDisabled();
+	});
+
+	it("disables 'Create agent' when name is filled but instructions are empty", async () => {
+		const user = userEvent.setup();
+
+		mockedUseAgent.mockReturnValue({
+			data: undefined,
+			isLoading: false,
+			error: null,
+		} as ReturnType<typeof useAgent>);
+
+		renderPage("/agents/create");
+
+		// Fill in the name
+		const nameInput = await screen.findByPlaceholderText(/enter agent name/i);
+		await user.clear(nameInput);
+		await user.type(nameInput, "My Test Agent");
+
+		const createBtn = screen.getByRole("button", { name: /Create agent/i });
+		// Should still be disabled because instructions are empty
+		expect(createBtn).toBeDisabled();
 	});
 });
