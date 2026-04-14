@@ -103,8 +103,8 @@ export function ImproveInstructionsDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-4xl max-h-[80vh] flex flex-col p-0 gap-0">
-				<DialogHeader className="px-6 pt-6 pb-4">
+			<DialogContent className="sm:max-w-4xl h-[70vh] flex flex-col p-0 gap-0">
+				<DialogHeader className="px-6 pt-6 pb-4 shrink-0">
 					<DialogTitle>Improve instructions</DialogTitle>
 					<DialogDescription>
 						Review the suggested changes before accepting.
@@ -113,7 +113,7 @@ export function ImproveInstructionsDialog({
 
 				{/* Loading state */}
 				{status === "improving" && (
-					<div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 py-12">
+					<div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-6 px-6">
 						<div className="flex flex-col items-center gap-2 text-center">
 							<h2 className="text-lg font-semibold">
 								Improving your instructions...
@@ -137,7 +137,7 @@ export function ImproveInstructionsDialog({
 
 				{/* Error state */}
 				{status === "error" && (
-					<div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 py-12">
+					<div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-6 px-6">
 						<XCircle className="size-14 text-destructive" />
 						<div className="flex flex-col items-center gap-2 text-center">
 							<h2 className="text-lg font-semibold">
@@ -161,7 +161,7 @@ export function ImproveInstructionsDialog({
 									Current
 								</p>
 								<div className="flex-1 bg-white border rounded-lg overflow-hidden min-h-0 dark:bg-gray-950">
-									<ScrollArea className="h-full max-h-[calc(80vh-200px)]">
+									<ScrollArea className="h-full max-h-[calc(70vh-200px)]">
 										<div className="px-4 py-3">
 											{(originalInstructions || "")
 												.split("\n")
@@ -188,7 +188,7 @@ export function ImproveInstructionsDialog({
 									Improved
 								</p>
 								<div className="flex-1 bg-white border rounded-lg overflow-hidden min-h-0 dark:bg-gray-950">
-									<ScrollArea className="h-full max-h-[calc(80vh-200px)]">
+									<ScrollArea className="h-full max-h-[calc(70vh-200px)]">
 										<div className="px-4 py-3">
 											{(improvedInstructions || "")
 												.split("\n")
