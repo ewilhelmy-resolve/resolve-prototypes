@@ -1217,7 +1217,6 @@
                 log('Error: Invalid JSON - ' + e.message, 'error');
                 return;
             }
-
             const interrupt = document.getElementById('customSchemaInterrupt').value;
             const encoded = btoa(unescape(encodeURIComponent(schemaText)));
             const content = `testcustom:${interrupt}:${encoded}`;
@@ -1229,7 +1228,7 @@
             const requestId = `req_${++requestCounter}`;
             document.getElementById('ritaIframe').contentWindow.postMessage({
                 type: 'SEND_MESSAGE',
-                payload: { content },
+                payload: { content, isCustomSchema: true },
                 requestId
             }, '*');
             log(`CUSTOM SCHEMA [${requestId}]: interrupt=${interrupt === '1' ? 'true' : 'false'}`, 'workflow');
@@ -1282,6 +1281,12 @@
                 case 'CLOSE_HOST_MODAL':
                     log('Received CLOSE_HOST_MODAL from iframe', 'incoming');
                     closeHostModal();
+                    break;
+                case 'OPEN_URL':
+                    if (data?.url) {
+                        log(`Opening URL in new tab: ${data.url}`, 'incoming');
+                        window.open(data.url, '_blank', 'noopener,noreferrer');
+                    }
                     break;
                 case 'RITA_SELF_INJECT_MODAL':
                     // In production (same-origin), iframe would inject directly

@@ -123,7 +123,9 @@ export class IframeService {
 					},
 					"Invalid Valkey payload - missing required fields",
 				);
-				debug.error = `Missing required fields: ${debug.missingFields.join(", ")}`;
+				debug.error = `Missing required fields: ${debug.missingFields.join(
+					", ",
+				)}`;
 				return { config: null, debug };
 			}
 
@@ -400,7 +402,7 @@ export class IframeService {
 	/**
 	 * Send UI action back to platform
 	 * Used by SchemaRenderer when user interacts with dynamic UI components
-	 * TODO: Integrate with WorkflowExecutionService to call Actions API
+	 * Implements typed action handler system with webhook integration
 	 */
 	async sendUIAction(payload: {
 		action: string;
@@ -409,25 +411,64 @@ export class IframeService {
 		conversationId: string;
 		timestamp: string;
 	}): Promise<void> {
-		// For now, log the action. In production, this would:
-		// 1. Look up the webhook config for this conversation
-		// 2. Call the Actions API with the action payload
-		// 3. Handle the response/error
+		// Dynamic import to avoid circular dependency
+		const { getActionHandlerRegistry } = await import(
+			"../handlers/uiActions/ActionHandlerRegistry.js"
+		);
+
+		// Step 1: Lookup message to get organization/user context
+		const client = await pool.connect();
+		let message: any;
+		try {
+			const msgResult = await client.query(
+				`SELECT id, metadata, conversation_id, organization_id, user_id
+				 FROM messages
+				 WHERE id = $1
+				 LIMIT 1`,
+				[payload.messageId],
+			);
+
+			if (msgResult.rows.length === 0) {
+				throw new Error(`Message ${payload.messageId} not found`);
+			}
+
+			message = msgResult.rows[0];
+		} finally {
+			client.release();
+		}
+
+		// Step 2: Get webhook config from session
+		let webhookConfig = null;
+		if (message.conversation_id) {
+			const session = await this.sessionStore.getSessionByConversationId(
+				message.conversation_id,
+			);
+			webhookConfig = session?.iframeWebhookConfig || null;
+		}
+
+		// Step 3: Build handler context
+		const context = {
+			payload,
+			message,
+			webhookConfig,
+		};
+
+		// Step 4: Route to appropriate handler
+		const registry = getActionHandlerRegistry();
+		const result = await registry.handleAction(context);
+
 		logger.info(
 			{
 				action: payload.action,
-				messageId: payload.messageId,
-				conversationId: payload.conversationId,
-				hasData: !!payload.data,
-				dataKeys: payload.data ? Object.keys(payload.data) : [],
+				success: result.success,
+				webhookSent: result.webhookSent,
 			},
-			"UI action received - forwarding to platform",
+			"UI action processed",
 		);
 
-		// TODO: Implement webhook call to Actions API
-		// const session = await this.sessionStore.getSessionByConversationId(payload.conversationId);
-		// const workflowService = getWorkflowExecutionService();
-		// await workflowService.sendUIAction(session.iframeWebhookConfig, payload);
+		if (!result.success) {
+			throw new Error(result.error || "Action handler failed");
+		}
 	}
 
 	/**
@@ -519,11 +560,13 @@ export class IframeService {
 			) {
 				const baseUrl = webhookConfig.actionsApiBaseUrl.replace(/\/$/, "");
 				const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${webhookConfig.tenantId}`;
-				const authHeader = `Basic ${Buffer.from(`${webhookConfig.clientId}:${webhookConfig.clientKey}`).toString("base64")}`;
+				const authHeader = `Basic ${Buffer.from(
+					`${webhookConfig.clientId}:${webhookConfig.clientKey}`,
+				).toString("base64")}`;
 
 				const webhookPayload = {
 					source: "rita-chat-iframe" as const,
-					action: "ui_form_response",
+					action: action || "ui_form_response",
 					tenant_id: webhookConfig.tenantId,
 					user_id: webhookConfig.userGuid,
 					workflow_id: existingMetadata.workflow_id,
@@ -536,24 +579,39 @@ export class IframeService {
 				};
 
 				// Use axios directly for custom URL
-				const axios = (await import("axios")).default;
-				await axios.post(webhookUrl, webhookPayload, {
-					headers: {
-						Authorization: authHeader,
-						"Content-Type": "application/json",
-					},
-					timeout: 10000,
-				});
+				try {
+					const axios = (await import("axios")).default;
+					await axios.post(webhookUrl, webhookPayload, {
+						headers: {
+							Authorization: authHeader,
+							"Content-Type": "application/json",
+						},
+						timeout: 10000,
+					});
 
-				logger.info(
-					{
-						requestId,
-						workflowId: existingMetadata.workflow_id,
-						activityId: existingMetadata.activity_id,
-						webhookUrl,
-					},
-					"UI form response webhook sent to platform",
-				);
+					logger.info(
+						{
+							requestId,
+							workflowId: existingMetadata.workflow_id,
+							activityId: existingMetadata.activity_id,
+							webhookUrl,
+						},
+						"UI form response webhook sent to platform",
+					);
+				} catch (webhookError) {
+					const errMsg =
+						webhookError instanceof Error
+							? webhookError.message
+							: String(webhookError);
+					logger.warn(
+						{
+							requestId,
+							webhookUrl,
+							error: errMsg,
+						},
+						"UI form response webhook failed (non-fatal)",
+					);
+				}
 			} else {
 				logger.warn(
 					{

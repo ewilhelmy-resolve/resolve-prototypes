@@ -17,6 +17,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "../../lib/toast";
@@ -27,6 +28,10 @@ import type {
 	UISchema,
 } from "../../types/uiSchema";
 import { evaluateCondition, parseSchema } from "../../types/uiSchema";
+import {
+	handleClientAction,
+	isClientSideAction,
+} from "../../utils/clientActionHandler";
 import {
 	type FormModalField,
 	isInIframe,
@@ -62,6 +67,24 @@ import {
 } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { MermaidRenderer } from "./MermaidRenderer";
+
+// ============================================================================
+// Regex Safety
+// ============================================================================
+
+const MAX_PATTERN_LENGTH = 200;
+const NESTED_QUANTIFIER_RE = /([+*?]|\{\d+,?\d*\})\)?[+*?]|\(\?[^:)]/;
+
+/** Reject patterns that could cause catastrophic backtracking (ReDoS). */
+function isSafePattern(pattern: string): boolean {
+	if (pattern.length > MAX_PATTERN_LENGTH) return false;
+	return !NESTED_QUANTIFIER_RE.test(pattern);
+}
+
+/** Only allow http/https URLs to prevent javascript: XSS vectors. */
+function isSafeUrl(url: string): boolean {
+	return /^https?:\/\//i.test(url);
+}
 
 // ============================================================================
 // Error Boundary
@@ -162,6 +185,10 @@ interface SchemaRendererProps {
 	messageId: string;
 	conversationId: string;
 	onAction?: (payload: UIActionPayload) => void;
+	/** Post message to parent window (for iframe communication) */
+	postToParent?: (message: Record<string, unknown>) => void;
+	/** Whether running inside an iframe */
+	isInIframe?: boolean;
 	/** Force inline Dialog modals instead of host modal delegation (for embedded/Storybook contexts) */
 	forceInlineModals?: boolean;
 	disabled?: boolean;
@@ -172,10 +199,14 @@ export function SchemaRenderer({
 	messageId,
 	conversationId,
 	onAction,
+	postToParent,
+	isInIframe: iframeContext,
 	forceInlineModals,
 	disabled = false,
 }: SchemaRendererProps) {
+	const { t } = useTranslation("validation");
 	const [formData, setFormData] = useState<Record<string, string>>({});
+	const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 	const [modalFormData, setModalFormData] = useState<Record<string, string>>(
 		{},
 	);
@@ -288,18 +319,177 @@ export function SchemaRenderer({
 		);
 	}
 
+	const validateForm = (
+		rootId: string,
+		data: Record<string, string>,
+	): Record<string, string> => {
+		const errors: Record<string, string> = {};
+
+		const walkElements = (elementId: string) => {
+			const el = elements[elementId];
+			if (!el) return;
+
+			const condIf = el.props?.if as ConditionalProps | undefined;
+			if (condIf && !evaluateCondition(condIf, data)) return;
+
+			const type = el.type;
+			if (
+				type === "Input" ||
+				type === "TextInput" ||
+				type === "TextField" ||
+				type === "Select" ||
+				type === "Dropdown"
+			) {
+				const name = p<string>(el, "name", "");
+				const label = p<string>(el, "label", name);
+				const minLength = p<number>(el, "minLength");
+				const maxLength = p<number>(el, "maxLength");
+				const pattern = p<string>(el, "pattern");
+				const value = data[name] || "";
+				let required = p<boolean>(el, "required");
+
+				const isElementRequired = (
+					el?.props?.checks as Array<{ type: string }> | undefined
+				)?.find((check) => check.type === "required")?.type;
+
+				required = required || !!isElementRequired;
+
+				const checksMinLength = (
+					el?.props?.checks as
+						| Array<{ [x: string]: any; type: string }>
+						| undefined
+				)?.find((check) => check.type === "minLength")?.args as
+					| { min: number }
+					| undefined;
+
+				const effectiveMinLength = minLength || checksMinLength?.min;
+				const checksMaxLength = (
+					el?.props?.checks as
+						| Array<{ [x: string]: any; type: string }>
+						| undefined
+				)?.find((check) => check.type === "maxLength")?.args as
+					| { max: number }
+					| undefined;
+				const effectiveMaxLength = maxLength || checksMaxLength?.max;
+
+				const checksPattern = (
+					el?.props?.checks as
+						| Array<{ [x: string]: any; type: string; message?: string }>
+						| undefined
+				)?.find((check) => check.type === "pattern");
+				const effectivePattern =
+					pattern ||
+					(checksPattern?.args as { regex: string } | undefined)?.regex;
+				const patternMessage = checksPattern?.message;
+
+				if (required && !value.trim()) {
+					errors[name] = t("required.generic", { field: label });
+				} else if (value) {
+					if (effectiveMinLength && value.length < effectiveMinLength) {
+						errors[name] = t("length.minLength", {
+							field: label,
+							min: effectiveMinLength,
+						});
+					} else if (effectiveMaxLength && value.length > effectiveMaxLength) {
+						errors[name] = t("length.maxLength", {
+							field: label,
+							max: effectiveMaxLength,
+						});
+					} else if (effectivePattern && isSafePattern(effectivePattern)) {
+						try {
+							if (!new RegExp(effectivePattern).test(value)) {
+								errors[name] =
+									patternMessage || t("format.invalid", { field: label });
+							}
+						} catch {
+							// Invalid regex from schema — skip client validation
+						}
+					}
+				}
+			}
+
+			for (const childId of el.children || []) {
+				walkElements(childId);
+			}
+		};
+
+		walkElements(rootId);
+		return errors;
+	};
+
 	const handleAction = (action: string, data?: Record<string, unknown>) => {
+		const timestamp = new Date().toISOString();
+		const result = handleClientAction({ action, data, timestamp });
+
+		// Handle form clear
+		if (result.shouldClearForm) {
+			setFormData({});
+			setFormErrors({});
+			if (openDialogId) {
+				setModalFormData({});
+			}
+		}
+
+		// Check if this is a client-side only action
+		if (isClientSideAction(action)) {
+			// Handle locally without sending to backend
+			if (result.success) {
+				// Handle navigation state updates if needed
+				if (result.navigationState) {
+					console.log("Navigation state updated:", result.navigationState);
+					// TODO: Update component state for multi-step forms if needed
+				}
+
+				// Handle form closure if needed
+				if (result.shouldCloseForm) {
+					console.log("Client action triggered form close:", action);
+					// TODO: Close dialog/modal if this is in a dialog context
+				}
+
+				// Handle external link - ask host to open new tab when in iframe
+				if (result.externalUrl && isSafeUrl(result.externalUrl)) {
+					if (iframeContext) {
+						postToParent?.({
+							type: "OPEN_URL",
+							data: { url: result.externalUrl },
+						});
+					} else {
+						window.open(result.externalUrl, "_blank", "noopener,noreferrer");
+					}
+				}
+			}
+
+			return;
+		}
+		// Server-side action - validate form before sending
+		const actionData = data && Object.keys(data).length > 0 ? data : formData;
+		const errors = validateForm(
+			parsed.root,
+			actionData as Record<string, string>,
+		);
+		if (Object.keys(errors).length !== 0) {
+			setFormErrors(errors);
+			return;
+		}
+
 		onAction?.({
 			action,
-			data,
+			data: actionData,
 			messageId,
 			conversationId,
-			timestamp: new Date().toISOString(),
+			timestamp,
 		});
 	};
 
 	const handleInputChange = (name: string, value: string) => {
 		setFormData((prev) => ({ ...prev, [name]: value }));
+		if (formErrors[name]) {
+			setFormErrors((prev) => {
+				const next = { ...prev };
+				delete next[name];
+				return next;
+			});
+		}
 	};
 
 	const handleModalInputChange = (name: string, value: string) => {
@@ -528,6 +718,7 @@ export function SchemaRenderer({
 							onInputChange(p<string>(element, "name", ""), value)
 						}
 						disabled={disabled}
+						error={formErrors[p<string>(element, "name", "")]}
 					/>
 				);
 			case "Select":
@@ -543,6 +734,7 @@ export function SchemaRenderer({
 							onInputChange(p<string>(element, "name", ""), value)
 						}
 						disabled={disabled}
+						error={formErrors[p<string>(element, "name", "")]}
 					/>
 				);
 			case "Button":
@@ -589,7 +781,13 @@ export function SchemaRenderer({
 					<FormRenderer
 						key={key}
 						el={element}
-						onSubmit={() => handleAction(submitAction, formData)}
+						onSubmit={() => {
+							const errors = validateForm(elementId, formData);
+							setFormErrors(errors);
+							if (Object.keys(errors).length === 0) {
+								handleAction(submitAction, formData);
+							}
+						}}
 					>
 						{renderChildren()}
 					</FormRenderer>
@@ -608,7 +806,14 @@ export function SchemaRenderer({
 			case "Alert":
 				return <AlertRenderer key={key} el={element} />;
 			case "Link":
-				return <LinkRenderer key={key} el={element} />;
+				return (
+					<LinkRenderer
+						key={key}
+						el={element}
+						postToParent={postToParent}
+						isInIframe={iframeContext}
+					/>
+				);
 			case "Progress":
 				return <ProgressRenderer key={key} el={element} />;
 			case "List":
@@ -817,24 +1022,35 @@ function InputRenderer({
 	value,
 	onChange,
 	disabled,
+	error,
 }: {
 	el: UIElement;
 	value: string;
 	onChange: (value: string) => void;
 	disabled?: boolean;
+	error?: string;
 }) {
 	const name = p<string>(el, "name", "");
 	const label = p<string>(el, "label");
 	const placeholder = p<string>(el, "placeholder");
 	const inputType = p<string>(el, "inputType") || p<string>(el, "type", "text");
-	const required = p<boolean>(el, "required");
 	const className = p<string>(el, "className", "");
+	let required = p<boolean>(el, "required");
+	const isElementRequired = (
+		el?.props?.checks as Array<{ type: string }> | undefined
+	)?.find((check) => check.type === "required")?.type;
+	required = required || !!isElementRequired;
 
 	const InputEl = inputType === "textarea" ? Textarea : Input;
 
 	return (
 		<div className={`space-y-1.5 ${className}`}>
-			{label && <Label htmlFor={name}>{label}</Label>}
+			{label && (
+				<Label htmlFor={name}>
+					{label}
+					{required && <span className="text-destructive ml-0.5">*</span>}
+				</Label>
+			)}
 			<InputEl
 				id={name}
 				name={name}
@@ -844,7 +1060,18 @@ function InputRenderer({
 				onChange={(e) => onChange(e.target.value)}
 				required={required}
 				disabled={disabled}
+				aria-invalid={!!error}
+				aria-describedby={error ? `${name}-error` : undefined}
 			/>
+			{error && (
+				<p
+					id={`${name}-error`}
+					className="text-sm text-destructive"
+					role="alert"
+				>
+					{error}
+				</p>
+			)}
 		</div>
 	);
 }
@@ -854,22 +1081,34 @@ function SelectRenderer({
 	value,
 	onChange,
 	disabled,
+	error,
 }: {
 	el: UIElement;
 	value: string;
 	onChange: (value: string) => void;
 	disabled?: boolean;
+	error?: string;
 }) {
+	const name = p<string>(el, "name", "");
 	const label = p<string>(el, "label");
+	const required = p<boolean>(el, "required");
 	const placeholder = p<string>(el, "placeholder", "Select...");
 	const options = p<Array<{ label: string; value: string }>>(el, "options", []);
 	const className = p<string>(el, "className", "");
 
 	return (
 		<div className={`space-y-1.5 ${className}`}>
-			{label && <Label>{label}</Label>}
+			{label && (
+				<Label>
+					{label}
+					{required && <span className="text-destructive ml-0.5">*</span>}
+				</Label>
+			)}
 			<Select value={value} onValueChange={onChange} disabled={disabled}>
-				<SelectTrigger>
+				<SelectTrigger
+					aria-invalid={!!error}
+					aria-describedby={error ? `${name}-error` : undefined}
+				>
 					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
 				<SelectContent>
@@ -880,6 +1119,15 @@ function SelectRenderer({
 					))}
 				</SelectContent>
 			</Select>
+			{error && (
+				<p
+					id={`${name}-error`}
+					className="text-sm text-destructive"
+					role="alert"
+				>
+					{error}
+				</p>
+			)}
 		</div>
 	);
 }
@@ -910,6 +1158,7 @@ function ButtonRenderer({
 
 	return (
 		<Button
+			type="button"
 			variant={variant}
 			disabled={disabled || elDisabled}
 			onClick={onClick}
@@ -1149,17 +1398,36 @@ function AlertRenderer({ el }: { el: UIElement }) {
 	);
 }
 
-function LinkRenderer({ el }: { el: UIElement }) {
+function LinkRenderer({
+	el,
+	postToParent,
+	isInIframe,
+}: {
+	el: UIElement;
+	postToParent?: (message: Record<string, unknown>) => void;
+	isInIframe?: boolean;
+}) {
 	const href = p<string>(el, "href", "#");
 	const text = p<string>(el, "text") || p<string>(el, "label", href);
 	const target = p<string>(el, "target");
 	const className = p<string>(el, "className", "");
 
+	const handleClick = (e: React.MouseEvent) => {
+		if (isInIframe && isSafeUrl(href)) {
+			e.preventDefault();
+			postToParent?.({
+				type: "OPEN_URL",
+				data: { url: href },
+			});
+		}
+	};
+
 	return (
 		<a
-			href={href}
+			href={isSafeUrl(href) ? href : "#"}
 			target={target}
 			rel={target === "_blank" ? "noopener noreferrer" : undefined}
+			onClick={handleClick}
 			className={`text-primary underline underline-offset-4 hover:text-primary/80 inline-flex items-center gap-1 ${className}`}
 		>
 			{text}

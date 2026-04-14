@@ -207,6 +207,8 @@ function GroupedMessage({
 	isLastMessage,
 	conversationId,
 	onSchemaAction,
+	postToParent,
+	isInIframe,
 }: {
 	message: GroupedChatMessage;
 	onCopy: (text: string, messageId: string) => void;
@@ -215,6 +217,8 @@ function GroupedMessage({
 	isLastMessage: boolean;
 	conversationId: string | null;
 	onSchemaAction?: (payload: any) => void;
+	postToParent?: (message: Record<string, unknown>) => void;
+	isInIframe?: boolean;
 }) {
 	// Only the last message can be actively streaming
 	const isThisMessageStreaming =
@@ -335,6 +339,8 @@ function GroupedMessage({
 										messageId={part.id}
 										conversationId={conversationId}
 										onAction={onSchemaAction}
+										postToParent={postToParent}
+										isInIframe={isInIframe}
 									/>
 								</div>
 							)}
@@ -400,6 +406,8 @@ function SimpleMessage({
 	isCopied,
 	conversationId,
 	onSchemaAction,
+	postToParent,
+	isInIframe: isInIframeProp,
 	onFormSubmit,
 	onFormCancel,
 }: {
@@ -408,6 +416,8 @@ function SimpleMessage({
 	isCopied: boolean;
 	conversationId: string | null;
 	onSchemaAction?: (payload: any) => void;
+	postToParent?: (message: Record<string, unknown>) => void;
+	isInIframe?: boolean;
 	onFormSubmit?: (
 		requestId: string,
 		action: string,
@@ -681,6 +691,8 @@ function SimpleMessage({
 								messageId={message.id}
 								conversationId={conversationId}
 								onAction={onSchemaAction}
+								postToParent={postToParent}
+								isInIframe={isInIframeProp}
 							/>
 						</div>
 					)}
@@ -1321,6 +1333,8 @@ export default function ChatV1Content({
 													isLastMessage={isLastMessage}
 													conversationId={currentConversationId}
 													onSchemaAction={handleSchemaAction}
+													postToParent={safePostToParent}
+													isInIframe={isInIframe()}
 												/>
 											) : (
 												<SimpleMessage
@@ -1329,6 +1343,8 @@ export default function ChatV1Content({
 													isCopied={copiedMessageId === chatMessage.id}
 													conversationId={currentConversationId}
 													onSchemaAction={handleSchemaAction}
+													postToParent={safePostToParent}
+													isInIframe={isInIframe()}
 													onFormSubmit={handleFormSubmit}
 													onFormCancel={handleFormCancel}
 												/>

@@ -131,7 +131,7 @@ export const conversationApi = {
 
 	sendMessage: (
 		conversationId: string,
-		data: { content: string; metadata?: Record<string, string> },
+		data: { content: string; metadata?: Record<string, string | boolean> },
 	) =>
 		apiRequest<{ message: any }>(
 			`/api/conversations/${conversationId}/messages`,
