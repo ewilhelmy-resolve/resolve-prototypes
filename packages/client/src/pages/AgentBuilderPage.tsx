@@ -26,6 +26,7 @@ import {
 	Search,
 	// Icon picker icons
 	ShieldCheck,
+	Sparkles,
 	Trash2,
 	Users,
 	Workflow,
@@ -40,6 +41,7 @@ import {
 	ChangeAgentTypeModal,
 	ConfirmTypeChangeModal,
 	CreateWorkflowModal,
+	ImproveInstructionsDialog,
 	InstructionsExpandedModal,
 	PublishModal,
 	UnlinkWorkflowModal,
@@ -62,6 +64,7 @@ import { useAgentCreation } from "@/hooks/useAgentCreation";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useImproveInstructions } from "@/hooks/useImproveInstructions";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { agentApi } from "@/services/api";
@@ -386,6 +389,10 @@ export default function AgentBuilderPage() {
 	// Create with AI
 	const agentCreation = useAgentCreation();
 	const isCreationActive = agentCreation.status !== "idle";
+
+	// Improve instructions with AI
+	const improveInstructions = useImproveInstructions();
+	const [showImproveDialog, setShowImproveDialog] = useState(false);
 
 	// Track the original published config for diff comparison (only for editing)
 	const publishedConfigRef = useRef<AgentConfig | null>(null);
@@ -1216,16 +1223,50 @@ export default function AgentBuilderPage() {
 
 								{/* Instructions Section */}
 								<div className="space-y-2">
-									<div>
-										<Label
-											htmlFor="instructions"
-											className="text-sm font-medium"
+									<div className="flex items-center justify-between">
+										<div>
+											<Label
+												htmlFor="instructions"
+												className="text-sm font-medium"
+											>
+												Instructions
+											</Label>
+											<p className="text-sm text-muted-foreground mt-1">
+												Control your agents behavior by adding instructions.
+											</p>
+										</div>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="gap-1.5 h-8"
+											disabled={
+												improveInstructions.status === "improving" ||
+												isCreationActive ||
+												(!config.instructions.trim() &&
+													!config.description.trim())
+											}
+											onClick={() => {
+												improveInstructions.improve({
+													name: config.name,
+													description: config.description,
+													instructions: config.instructions,
+													agentType: config.agentType,
+													workflows: config.workflows,
+													conversationStarters: config.conversationStarters,
+													guardrails: config.guardrails,
+													knowledgeSources: config.knowledgeSources,
+													capabilities: config.capabilities,
+												});
+												setShowImproveDialog(true);
+											}}
 										>
-											Instructions
-										</Label>
-										<p className="text-sm text-muted-foreground mt-1">
-											Control your agents behavior by adding instructions.
-										</p>
+											{improveInstructions.status === "improving" ? (
+												<Loader2 className="size-3.5 animate-spin" />
+											) : (
+												<Sparkles className="size-3.5" />
+											)}
+											Improve
+										</Button>
 									</div>
 
 									{/* Instructions textarea with footer */}
@@ -1535,6 +1576,47 @@ export default function AgentBuilderPage() {
 				onChange={(value) =>
 					setConfig((prev) => ({ ...prev, instructions: value }))
 				}
+				onImproveClick={() => {
+					improveInstructions.improve({
+						name: config.name,
+						description: config.description,
+						instructions: config.instructions,
+						agentType: config.agentType,
+						workflows: config.workflows,
+						conversationStarters: config.conversationStarters,
+						guardrails: config.guardrails,
+						knowledgeSources: config.knowledgeSources,
+						capabilities: config.capabilities,
+					});
+					setShowImproveDialog(true);
+				}}
+				isImproving={improveInstructions.status === "improving"}
+			/>
+
+			{/* Improve Instructions Sheet */}
+			<ImproveInstructionsDialog
+				open={showImproveDialog}
+				onOpenChange={(open) => {
+					setShowImproveDialog(open);
+					if (!open) improveInstructions.reset();
+				}}
+				onAcceptInstructions={(improved) => {
+					setConfig((prev) => ({ ...prev, instructions: improved }));
+					if (!instructionsTouched) setInstructionsTouched(true);
+				}}
+				onRetry={() => {
+					improveInstructions.improve({
+						name: config.name,
+						description: config.description,
+						instructions: config.instructions,
+						agentType: config.agentType,
+						workflows: config.workflows,
+						conversationStarters: config.conversationStarters,
+						guardrails: config.guardrails,
+						knowledgeSources: config.knowledgeSources,
+						capabilities: config.capabilities,
+					});
+				}}
 			/>
 
 			{/* Create New Workflow Modal */}

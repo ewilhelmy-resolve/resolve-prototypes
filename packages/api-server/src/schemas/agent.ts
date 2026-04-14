@@ -181,3 +181,50 @@ export const AgentCancelCreationBodySchema = z
 			.openapi({ description: "Correlation ID of creation to cancel" }),
 	})
 	.openapi("AgentCancelCreationBody");
+
+// --- Meta-Agent: Improve Instructions Schemas ---
+
+const AgentConfigForImprovementSchema = z
+	.object({
+		name: z.string().optional().default(""),
+		role: z.string().optional().default(""),
+		description: z.string().optional().default(""),
+		agentType: z
+			.enum(["answer", "knowledge", "workflow"])
+			.nullable()
+			.optional()
+			.default(null),
+		guardrails: z.array(z.string()).optional().default([]),
+		conversationStarters: z.array(z.string()).optional().default([]),
+		workflows: z.array(z.string()).optional().default([]),
+		knowledgeSources: z.array(z.string()).optional().default([]),
+		capabilities: z
+			.object({
+				webSearch: z.boolean().optional().default(true),
+				imageGeneration: z.boolean().optional().default(false),
+			})
+			.optional(),
+		responsibilities: z.string().optional().default(""),
+		completionCriteria: z.string().optional().default(""),
+	})
+	.openapi("AgentConfigForImprovement");
+
+export const ImproveInstructionsBodySchema = z
+	.object({
+		instructions: z.string().min(1).openapi({
+			description: "Current agent instructions to improve (maps to utterance)",
+		}),
+		agentConfig: AgentConfigForImprovementSchema.openapi({
+			description:
+				"Agent configuration context (maps to additional_information)",
+		}),
+	})
+	.openapi("ImproveInstructionsBody");
+
+export const CancelMetaAgentBodySchema = z
+	.object({
+		executionRequestId: z.string().uuid().openapi({
+			description: "Execution request ID to cancel",
+		}),
+	})
+	.openapi("CancelMetaAgentBody");

@@ -18,6 +18,7 @@ import { useAgentCreationStore } from "../stores/agentCreationStore";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
+import { useInstructionsImprovementStore } from "../stores/instructionsImprovementStore";
 import { useKnowledgeGenerationStore } from "../stores/knowledgeGenerationStore";
 import {
 	DEFAULT_MINIMUM_TICKETS,
@@ -593,6 +594,41 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				const store = useAgentCreationStore.getState();
 				if (event.data.creation_id === store.creationId) {
 					store.receiveError(event.data.error || "Agent creation failed");
+				}
+			} else if (event.type === "meta_agent_progress") {
+				const store = useInstructionsImprovementStore.getState();
+				if (event.data.execution_request_id === store.improvementId) {
+					store.receiveProgress({
+						stepType: "meta_agent_progress",
+						stepLabel: event.data.step_label,
+						stepDetail: event.data.step_detail,
+						timestamp: event.data.timestamp,
+					});
+				}
+			} else if (event.type === "meta_agent_completed") {
+				const store = useInstructionsImprovementStore.getState();
+				if (event.data.execution_request_id === store.improvementId) {
+					// Parse the delimited content on client side
+					const content = event.data.content || "";
+					const instructionsMatch = content.match(
+						/---INSTRUCTIONS---\s*([\s\S]*?)\s*---END_INSTRUCTIONS---/,
+					);
+					if (instructionsMatch) {
+						store.receiveResult({
+							instructions: instructionsMatch[1].trim(),
+						});
+					} else {
+						store.receiveError(
+							"Failed to parse improved instructions from response",
+						);
+					}
+				}
+			} else if (event.type === "meta_agent_failed") {
+				const store = useInstructionsImprovementStore.getState();
+				if (event.data.execution_request_id === store.improvementId) {
+					store.receiveError(
+						event.data.error || "Failed to improve instructions",
+					);
 				}
 			}
 			// Note: ui_form_request events are now handled via new_message with metadata.type = 'ui_form_request'
