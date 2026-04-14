@@ -27,12 +27,10 @@ import invitationRoutes from "./routes/invitations.js";
 import memberRoutes from "./routes/members.js";
 import mlModelRoutes from "./routes/mlModels.js";
 import organizationRoutes from "./routes/organizations.js";
-// Hibernated: public share endpoints (snapshot-based).
-// Code lives in share.routes.ts — re-enable by uncommenting mounts below.
-// import shareRoutes, {
-// 	authenticatedShareRouter,
-// 	iframeShareRouter,
-// } from "./routes/share.routes.js";
+import shareRoutes, {
+	authenticatedShareRouter,
+	iframeShareRouter,
+} from "./routes/share.routes.js";
 import sseRoutes from "./routes/sse.js";
 import ticketRoutes from "./routes/tickets.js";
 import workflowRoutes from "./routes/workflows.js";
@@ -112,11 +110,9 @@ if (process.env.NODE_ENV !== "production") {
 
 // Iframe routes (no auth required - public access)
 app.use("/api/iframe", iframeRoutes);
-// Hibernated: public conversation sharing (snapshot-based).
-// Code in share.routes.ts — re-enable by uncommenting these mounts.
-// app.use("/api/iframe", iframeShareRouter);
-// app.use("/api/share", shareRoutes);
-// app.use("/api/conversations", addUserContextToLogs, authenticatedShareRouter);
+app.use("/api/iframe", iframeShareRouter);
+app.use("/api/share", shareRoutes);
+app.use("/api/conversations", addUserContextToLogs, authenticatedShareRouter);
 
 // Invitation routes (mixed auth - some public, some protected)
 app.use("/api/invitations", invitationRoutes);

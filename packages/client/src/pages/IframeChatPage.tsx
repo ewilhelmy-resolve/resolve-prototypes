@@ -50,6 +50,7 @@ import { Button } from "../components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -789,64 +790,70 @@ function IframeDevTools({
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" side="top" className="w-56">
 				{/* Demo Tools - available in mock mode OR dev tools */}
-				<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-					Demo Tools
-				</DropdownMenuLabel>
-				<DropdownMenuItem
-					onClick={onShowPlatformSimulator}
-					className="cursor-pointer"
-				>
-					<Code className="mr-2 h-4 w-4" />
-					Platform Simulator
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={onShowActivityLog}
-					className="cursor-pointer"
-				>
-					<ScrollText className="mr-2 h-4 w-4" />
-					Activity Log
-				</DropdownMenuItem>
-				{onShowShareDialog && (
+				<DropdownMenuGroup>
+					<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+						Demo Tools
+					</DropdownMenuLabel>
 					<DropdownMenuItem
-						onClick={onShowShareDialog}
+						onClick={onShowPlatformSimulator}
 						className="cursor-pointer"
 					>
-						<Share2 className="mr-2 h-4 w-4" />
-						Share link (dev)
+						<Code className="mr-2 h-4 w-4" />
+						Platform Simulator
 					</DropdownMenuItem>
-				)}
+					<DropdownMenuItem
+						onClick={onShowActivityLog}
+						className="cursor-pointer"
+					>
+						<ScrollText className="mr-2 h-4 w-4" />
+						Activity Log
+					</DropdownMenuItem>
+					{onShowShareDialog && (
+						<DropdownMenuItem
+							onClick={onShowShareDialog}
+							className="cursor-pointer"
+						>
+							<Share2 className="mr-2 h-4 w-4" />
+							Share link (dev)
+						</DropdownMenuItem>
+					)}
+				</DropdownMenuGroup>
 				{/* Download tools - only when dev tools feature flag enabled */}
 				{devToolsEnabled && (
 					<>
 						<DropdownMenuSeparator />
-						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-							Inspect
-						</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={onShowValkeySession}
-							className="cursor-pointer"
-						>
-							<Database className="mr-2 h-4 w-4" />
-							Valkey Session
-						</DropdownMenuItem>
+						<DropdownMenuGroup>
+							<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+								Inspect
+							</DropdownMenuLabel>
+							<DropdownMenuItem
+								onClick={onShowValkeySession}
+								className="cursor-pointer"
+							>
+								<Database className="mr-2 h-4 w-4" />
+								Valkey Session
+							</DropdownMenuItem>
+						</DropdownMenuGroup>
 						<DropdownMenuSeparator />
-						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-							Downloads
-						</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={onDownloadConversation}
-							className="cursor-pointer"
-						>
-							<Download className="mr-2 h-4 w-4" />
-							Conversation
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={onDownloadMetadata}
-							className="cursor-pointer"
-						>
-							<Download className="mr-2 h-4 w-4" />
-							Full Metadata
-						</DropdownMenuItem>
+						<DropdownMenuGroup>
+							<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+								Downloads
+							</DropdownMenuLabel>
+							<DropdownMenuItem
+								onClick={onDownloadConversation}
+								className="cursor-pointer"
+							>
+								<Download className="mr-2 h-4 w-4" />
+								Conversation
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={onDownloadMetadata}
+								className="cursor-pointer"
+							>
+								<Download className="mr-2 h-4 w-4" />
+								Full Metadata
+							</DropdownMenuItem>
+						</DropdownMenuGroup>
 					</>
 				)}
 			</DropdownMenuContent>

@@ -33,7 +33,7 @@ interface ShareConversationDialogProps {
 }
 
 /**
- * Dialog to share/unshare a conversation as a read-only snapshot.
+ * Dialog to share/unshare a conversation via shareable link.
  * Single flow: Generate link → copy → (optional) disable.
  * The share link is an opaque 32-char hex shareId — that IS the secret.
  *

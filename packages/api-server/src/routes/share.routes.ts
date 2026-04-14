@@ -19,6 +19,7 @@ import crypto from "node:crypto";
 import express from "express";
 import { pool } from "../config/database.js";
 import { assertUuid } from "../config/validateUuid.js";
+import { getValkeyClient } from "../config/valkey.js";
 import { authenticateUser } from "../middleware/auth.js";
 import { getIframeService } from "../services/IframeService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
@@ -205,7 +206,21 @@ async function resolveSessionConversation(
 	if (!config) {
 		return { ok: false, status: 404, error: "Session not found" };
 	}
-	const conversationId = config.conversationId;
+	let conversationId = config.conversationId;
+	// Dev mock payloads don't include conversationId — read from actual Valkey
+	// where storeConversationIdInValkey wrote it after session init
+	if (!conversationId) {
+		try {
+			const client = getValkeyClient();
+			const rawData = await client.hget(`rita:session:${sessionKey}`, "data");
+			if (rawData) {
+				const data = JSON.parse(rawData);
+				conversationId = data.conversationId;
+			}
+		} catch {
+			// Fall through to error below
+		}
+	}
 	if (!conversationId) {
 		return { ok: false, status: 400, error: "Session has no conversation yet" };
 	}
