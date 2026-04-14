@@ -171,6 +171,7 @@ function GroupedMessageView({
 							{(() => {
 								const prevPart = message.parts[index - 1];
 								const prevHasMarkers =
+									!readOnly &&
 									prevPart &&
 									!prevPart.metadata?.sources &&
 									prevPart.message &&
@@ -273,7 +274,7 @@ function SimpleMessageView({
 	// Hide dev/mock test commands
 	const isDevTestCommand =
 		message.role === "user" && message.message.startsWith("testcustom:");
-	if (isDevTestCommand && !readOnly) return null;
+	if (isDevTestCommand) return null;
 
 	// Form request state
 	const isFormRequest = message.metadata?.type === "ui_form_request";

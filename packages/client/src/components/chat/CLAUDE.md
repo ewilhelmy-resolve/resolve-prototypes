@@ -64,40 +64,31 @@ Rita has multiple ways to render chat, each with different auth and capabilities
 
 | Entry Point | Route | Auth | Component | Features |
 |-------------|-------|------|-----------|----------|
-| **Rita Go** | `/chat` | Keycloak | `ChatV1Content` | Full: SSE, sidebar, file upload, schema renderer, form requests |
-| **Iframe** | `/iframe/chat` | Valkey session | `ChatV1Content` | SSE, minimal UI, no sidebar, custom title/placeholder |
-| **Share** | `/jarvis/:shareId` | None (public) | `JarvisSharePage` → `ChatV2MessageRenderer` | Read-only, static fetch from snapshot, no SSE |
+| **Rita Go** | `/chat` | Keycloak | `ChatV1Page` → `ChatV2Content` | Full: SSE, sidebar, file upload, schema renderer, form requests |
+| **Jarvis (iframe)** | `/iframe/chat` | Valkey session | `IframeChatPage` → `ChatV2Content` | SSE, minimal UI, no sidebar, custom title/placeholder |
+| **Jarvis (share)** | `/jarvis/:shareId` | Participant or public | `JarvisSharePage` → `ChatV2MessageRenderer` | Shared conversation with participant support, SSE for live follow-ups |
 
 ### Data Flow Per Entry Point
 
-**Rita Go / Iframe (live):**
+**Rita Go / Jarvis iframe (live):**
 ```
-SSE new_message → conversationStore.addMessage() → groupMessages() → chatMessages → ChatV1Content
+SSE new_message → conversationStore.addMessage() → groupMessages() → chatMessages → ChatV2Content → ChatV2MessageRenderer
 ```
 
-**Share (snapshot):**
+**Jarvis share (live with participants):**
 ```
 Enable:  POST /api/conversations/:id/share/enable (auth + ownership)
-         → snapshot messages into shared_conversations (JSONB)
+         → creates shared_conversations entry + participant table
          → returns { shareUrl: "/jarvis/{shareId}", shareId }
 
-Read:    GET /api/share/:shareId (no auth)
-         → SELECT FROM shared_conversations WHERE share_id = $1
-         → 404 if not found, else { conversation, messages }
-         → groupMessages() locally → ChatV2MessageRenderer (readOnly)
+Join:    GET /jarvis/:shareId (participant or public)
+         → loads conversation + messages via participant API
+         → SSE for real-time follow-up messages
+         → ChatV2MessageRenderer with interactive callbacks
 
 Disable: POST /api/conversations/:id/share/disable (auth + ownership)
-         → DELETE FROM shared_conversations WHERE conversation_id = $1
-         → URL immediately 404s
+         → hibernates share, URL returns 404
 ```
-
-Why snapshot (not live pointer):
-- Revoke = DELETE row → instant, no flag to forget to check
-- No access control on public read path (if row exists, it's public)
-- New messages after share don't leak automatically (frozen at share time)
-- Public reads never touch live `conversations` / `messages` tables
-- Can be edge-cached / CDN-cached (frozen data)
-- 404 for both "never shared" and "un-shared" — no existence leak
 
 ## Adding a New Entry Point
 
@@ -106,13 +97,11 @@ Why snapshot (not live pointer):
 3. Static → fetch messages, call `groupMessages()`, pass to `ChatV2MessageRenderer` with `readOnly`
 4. Add route in `router.tsx` — use `ProtectedRoute` only if auth required
 
-## Migration Plan (ChatV1 → ChatV2)
+## Migration Status (ChatV1 → ChatV2) — COMPLETE
 
-ChatV1Content still handles all interactive features (schema renderer, form requests, inline citations, file upload). After those are ported:
-
-1. Switch `/chat` and `/iframe/chat` to `ChatV2Content`
-2. Run baseline tests from `tests/e2e/baseline/`
-3. Delete `ChatV1Content.tsx`, rename `chat/` to `chat/`
+Migration completed. ChatV1Content deleted, `chat-v2/` renamed to `chat/`.
+All routes now use ChatV2Content with ChatV2MessageRenderer. Page-level
+concerns (ChatInput, pagination, empty state) live in the page components.
 
 ## Anti-patterns (from accordion bug)
 
