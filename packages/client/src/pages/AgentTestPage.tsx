@@ -53,7 +53,7 @@
  *
  * When ready to support reasoning steps, completion cards, and rich metadata
  * in agent test responses, replace the manual message rendering (lines ~468-650)
- * with `ChatV2MessageRenderer` from `@/components/chat-v2/`. It renders all
+ * with `ChatV2MessageRenderer` from `@/components/chat/`. It renders all
  * message types (reasoning, sources, tasks, completion) from `ChatMessage[]`
  * and works without SSE/stores when passed data as props.
  */
@@ -93,7 +93,7 @@ import { useAgent } from "@/hooks/api/useAgents";
 // import { useCreateConversation, useSendMessage } from "@/hooks/api/useConversations";
 // import { useSSEContext } from "@/contexts/SSEContext";
 // import { useConversationStore } from "@/stores/conversationStore";
-// import { ChatV2MessageRenderer } from "@/components/chat-v2/ChatV2MessageRenderer";
+// import { ChatV2MessageRenderer } from "@/components/chat/ChatV2MessageRenderer";
 // import { groupMessages } from "@/lib/messageGrouping";
 import { cn } from "@/lib/utils";
 import type { AgentConfig, ConfigSuggestion, TestMessage } from "@/types/agent";

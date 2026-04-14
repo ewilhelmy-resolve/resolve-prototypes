@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ChatV2MessageRenderer } from "@/components/chat-v2/ChatV2MessageRenderer";
+import { ChatV2MessageRenderer } from "@/components/chat/ChatV2MessageRenderer";
 import { groupMessages } from "@/lib/messageGrouping";
 import type { ChatMessage, Message } from "@/stores/conversationStore";
 

@@ -19,12 +19,27 @@ ChatV2MessageRenderer  (pure — props only, no hooks/stores)
 |------|------|---------|
 | `chatMessages` | `ChatMessage[]` | Pre-grouped messages (from `groupMessages()`) |
 | `isStreaming` | `boolean` | Shows spinner on last assistant message |
-| `readOnly` | `boolean` | Hides copy buttons, actions, timestamps |
+| `readOnly` | `boolean` | Hides copy buttons, actions, timestamps, interactive features |
 | `onCopy` | `(text, id) => void` | Copy handler (omit in readOnly mode) |
+| `conversationId` | `string \| null` | Required for SchemaRenderer / form actions |
+| `interactive` | `ChatV2InteractiveCallbacks` | Callbacks for schema actions, form submit/cancel, postMessage |
 
 Renders: `Message`, `Reasoning`, `Response`, `CompletionCard`, `Citations`, `Task`.
 
-Does NOT render: `SchemaRenderer`, `ResponseWithInlineCitations`, `InlineFormRequest` — those are interactive-only features that stay in ChatV1Content.
+When `interactive` is provided (non-readOnly mode), also renders:
+- `SchemaRenderer` — dynamic UI from platform JSON schema
+- `ResponseWithInlineCitations` — markdown with inline citation markers
+- `InlineFormRequest` — non-interrupt form requests inline in chat
+- `InterruptFormDialog` — interrupt form requests with 3-tier modal fallback
+
+When `interactive` is undefined (readOnly / share page), all interactive elements are suppressed.
+
+### InterruptFormDialog
+
+Extracted component for interrupt-mode form requests. Implements 3-tier fallback:
+- **Tier 0**: Same-origin iframe — inject modal into host DOM
+- **Tier 1**: Cross-origin iframe + embed script — postMessage with ACK
+- **Tier 2**: Fallback — in-iframe Dialog with InlineFormRequest
 
 ### ChatV2Content
 
@@ -97,7 +112,7 @@ ChatV1Content still handles all interactive features (schema renderer, form requ
 
 1. Switch `/chat` and `/iframe/chat` to `ChatV2Content`
 2. Run baseline tests from `tests/e2e/baseline/`
-3. Delete `ChatV1Content.tsx`, rename `chat-v2/` to `chat/`
+3. Delete `ChatV1Content.tsx`, rename `chat/` to `chat/`
 
 ## Anti-patterns (from accordion bug)
 

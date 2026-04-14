@@ -27,7 +27,7 @@ vi.mock("react-router-dom", async () => {
 });
 
 // Mock ChatV2MessageRenderer
-vi.mock("@/components/chat-v2/ChatV2MessageRenderer", () => ({
+vi.mock("@/components/chat/ChatV2MessageRenderer", () => ({
 	ChatV2MessageRenderer: ({ chatMessages, readOnly }: any) => (
 		<div
 			data-testid="chat-renderer"
