@@ -282,6 +282,10 @@ async function writeSnapshot(
  */
 iframeShareRouter.post("/share", async (req, res) => {
 	try {
+		const clientIp = req.ip || "unknown";
+		if (!checkRateLimit(`iframe-share:${clientIp}`, 10, 60_000)) {
+			return res.status(429).json({ error: "Too many requests" });
+		}
 		const resolved = await resolveSessionConversation(req.body?.sessionKey);
 		if (!resolved.ok) {
 			return res.status(resolved.status).json({ error: resolved.error });
@@ -317,6 +321,10 @@ iframeShareRouter.post("/share", async (req, res) => {
  */
 iframeShareRouter.post("/share/disable", async (req, res) => {
 	try {
+		const clientIp = req.ip || "unknown";
+		if (!checkRateLimit(`iframe-share:${clientIp}`, 10, 60_000)) {
+			return res.status(429).json({ error: "Too many requests" });
+		}
 		const resolved = await resolveSessionConversation(req.body?.sessionKey);
 		if (!resolved.ok) {
 			return res.status(resolved.status).json({ error: resolved.error });
