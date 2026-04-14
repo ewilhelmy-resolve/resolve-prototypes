@@ -25,9 +25,18 @@ vi.mock("../../middleware/auth.js", () => ({
 	}),
 }));
 
+// Mock IframeService — Platform endpoints read conversationId from Valkey
+const mockFetchValkeyPayload = vi.fn();
+vi.mock("../../services/IframeService.js", () => ({
+	getIframeService: () => ({ fetchValkeyPayload: mockFetchValkeyPayload }),
+}));
+
 import { pool } from "../../config/database.js";
 import { assertUuid } from "../../config/validateUuid.js";
-import shareRouter, { authenticatedShareRouter } from "../share.routes.js";
+import shareRouter, {
+	authenticatedShareRouter,
+	iframeShareRouter,
+} from "../share.routes.js";
 
 // Fixtures
 const mockSharedRow = {
@@ -84,6 +93,7 @@ describe("Share Routes — Snapshot Model", () => {
 		app.use(express.json());
 		app.use("/api/share", shareRouter);
 		app.use("/api/conversations", authenticatedShareRouter);
+		app.use("/api/iframe", iframeShareRouter);
 
 		vi.clearAllMocks();
 	});
@@ -396,6 +406,210 @@ describe("Share Routes — Snapshot Model", () => {
 
 			const response = await request(app)
 				.post("/api/conversations/conv-123/share/disable")
+				.expect(500);
+
+			expect(response.body.error).toBe("Internal server error");
+		});
+	});
+
+	// =========================================================================
+	// Platform (Valkey session) endpoints
+	// =========================================================================
+
+	describe("POST /api/iframe/share — Platform trigger", () => {
+		const validValkeyConfig = {
+			tenantId: "tenant-123",
+			userGuid: "user-guid-456",
+			conversationId: "conv-123",
+		};
+
+		it("returns 400 when sessionKey is missing", async () => {
+			const response = await request(app)
+				.post("/api/iframe/share")
+				.send({})
+				.expect(400);
+
+			expect(response.body.error).toBe("sessionKey is required");
+		});
+
+		it("returns 400 when sessionKey is not a string", async () => {
+			const response = await request(app)
+				.post("/api/iframe/share")
+				.send({ sessionKey: 12345 })
+				.expect(400);
+
+			expect(response.body.error).toBe("sessionKey is required");
+		});
+
+		it("returns 404 when Valkey session is not found", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(null);
+
+			const response = await request(app)
+				.post("/api/iframe/share")
+				.send({ sessionKey: "missing-key" })
+				.expect(404);
+
+			expect(response.body.error).toBe("Session not found");
+		});
+
+		it("returns 400 when Valkey session has no conversationId", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce({
+				...validValkeyConfig,
+				conversationId: undefined,
+			});
+
+			const response = await request(app)
+				.post("/api/iframe/share")
+				.send({ sessionKey: "valid-key" })
+				.expect(400);
+
+			expect(response.body.error).toBe("Session has no conversation yet");
+		});
+
+		it("returns 500 when Valkey session has invalid conversationId", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(validValkeyConfig);
+			(assertUuid as any).mockImplementationOnce(() => {
+				throw new Error("Invalid");
+			});
+
+			const response = await request(app)
+				.post("/api/iframe/share")
+				.send({ sessionKey: "valid-key" })
+				.expect(500);
+
+			expect(response.body.error).toBe("Session has invalid conversationId");
+		});
+
+		it("returns 404 when conversation row is missing", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(validValkeyConfig);
+			mockPool.query.mockResolvedValueOnce({ rows: [] }); // title SELECT
+
+			const response = await request(app)
+				.post("/api/iframe/share")
+				.send({ sessionKey: "valid-key" })
+				.expect(404);
+
+			expect(response.body.error).toBe("Conversation not found");
+		});
+
+		it("creates snapshot and returns shareUrl + shareId", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(validValkeyConfig);
+			mockPool.query
+				.mockResolvedValueOnce({ rows: [{ title: "Iframe Chat" }] }) // title
+				.mockResolvedValueOnce({ rows: mockMessages }) // messages
+				.mockResolvedValueOnce({ rows: [] }); // upsert
+
+			const response = await request(app)
+				.post("/api/iframe/share")
+				.send({ sessionKey: "valid-key" })
+				.expect(200);
+
+			expect(response.body.shareId).toMatch(/^[a-f0-9]{32}$/);
+			expect(response.body.shareUrl).toContain(
+				`/jarvis/${response.body.shareId}`,
+			);
+		});
+
+		it("snapshots messages via writeSnapshot (3 pool calls: title, messages, upsert)", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(validValkeyConfig);
+			mockPool.query
+				.mockResolvedValueOnce({ rows: [{ title: "T" }] })
+				.mockResolvedValueOnce({ rows: mockMessages })
+				.mockResolvedValueOnce({ rows: [] });
+
+			await request(app)
+				.post("/api/iframe/share")
+				.send({ sessionKey: "valid-key" })
+				.expect(200);
+
+			expect(mockPool.query).toHaveBeenCalledTimes(3);
+			expect(mockPool.query.mock.calls[0][0]).toContain(
+				"SELECT title FROM conversations",
+			);
+			expect(mockPool.query.mock.calls[1][0]).toContain("FROM messages");
+			expect(mockPool.query.mock.calls[2][0]).toContain(
+				"INSERT INTO shared_conversations",
+			);
+		});
+
+		it("returns 500 on database error", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(validValkeyConfig);
+			mockPool.query.mockRejectedValueOnce(new Error("DB down"));
+
+			const response = await request(app)
+				.post("/api/iframe/share")
+				.send({ sessionKey: "valid-key" })
+				.expect(500);
+
+			expect(response.body.error).toBe("Internal server error");
+		});
+	});
+
+	describe("POST /api/iframe/share/disable — Platform disable", () => {
+		const validValkeyConfig = {
+			tenantId: "tenant-123",
+			userGuid: "user-guid-456",
+			conversationId: "conv-123",
+		};
+
+		it("returns 400 when sessionKey is missing", async () => {
+			const response = await request(app)
+				.post("/api/iframe/share/disable")
+				.send({})
+				.expect(400);
+
+			expect(response.body.error).toBe("sessionKey is required");
+		});
+
+		it("returns 404 when Valkey session is not found", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(null);
+
+			const response = await request(app)
+				.post("/api/iframe/share/disable")
+				.send({ sessionKey: "missing-key" })
+				.expect(404);
+
+			expect(response.body.error).toBe("Session not found");
+		});
+
+		it("returns 400 when session has no conversationId", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce({
+				...validValkeyConfig,
+				conversationId: undefined,
+			});
+
+			const response = await request(app)
+				.post("/api/iframe/share/disable")
+				.send({ sessionKey: "valid-key" })
+				.expect(400);
+
+			expect(response.body.error).toBe("Session has no conversation yet");
+		});
+
+		it("deletes snapshot and returns { success: true }", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(validValkeyConfig);
+			mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+			const response = await request(app)
+				.post("/api/iframe/share/disable")
+				.send({ sessionKey: "valid-key" })
+				.expect(200);
+
+			expect(response.body).toEqual({ success: true });
+
+			const deleteCall = mockPool.query.mock.calls[0];
+			expect(deleteCall[0]).toContain("DELETE FROM shared_conversations");
+			expect(deleteCall[0]).toContain("conversation_id = $1");
+			expect(deleteCall[1]).toEqual(["conv-123"]);
+		});
+
+		it("returns 500 on database error", async () => {
+			mockFetchValkeyPayload.mockResolvedValueOnce(validValkeyConfig);
+			mockPool.query.mockRejectedValueOnce(new Error("DB down"));
+
+			const response = await request(app)
+				.post("/api/iframe/share/disable")
+				.send({ sessionKey: "valid-key" })
 				.expect(500);
 
 			expect(response.body.error).toBe("Internal server error");
