@@ -3,6 +3,7 @@ export { AgentCreationOverlay } from "./AgentCreationOverlay";
 export { ChangeAgentTypeModal } from "./ChangeAgentTypeModal";
 export { ConfirmTypeChangeModal } from "./ConfirmTypeChangeModal";
 export { CreateWorkflowModal } from "./CreateWorkflowModal";
+export { ImproveInstructionsDialog } from "./ImproveInstructionsDialog";
 export { InstructionsExpandedModal } from "./InstructionsExpandedModal";
 export { PublishModal } from "./PublishModal";
 export { UnlinkWorkflowModal } from "./UnlinkWorkflowModal";

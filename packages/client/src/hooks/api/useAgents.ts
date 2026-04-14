@@ -140,3 +140,24 @@ export function useCancelAgentCreation() {
 		mutationFn: (data: { creationId: string }) => agentApi.cancelCreation(data),
 	});
 }
+
+export function useImproveInstructionsMutation() {
+	return useMutation({
+		mutationFn: (data: {
+			instructions: string;
+			agentConfig: {
+				name?: string;
+				role?: string;
+				description?: string;
+				agentType?: string | null;
+				guardrails?: string[];
+				conversationStarters?: string[];
+				workflows?: string[];
+				knowledgeSources?: string[];
+				capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+				responsibilities?: string;
+				completionCriteria?: string;
+			};
+		}) => agentApi.improveInstructions(data),
+	});
+}

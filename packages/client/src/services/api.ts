@@ -235,6 +235,36 @@ export const agentApi = {
 			method: "POST",
 			body: data,
 		}),
+
+	improveInstructions: (data: {
+		instructions: string;
+		agentConfig: {
+			name?: string;
+			role?: string;
+			description?: string;
+			agentType?: string | null;
+			guardrails?: string[];
+			conversationStarters?: string[];
+			workflows?: string[];
+			knowledgeSources?: string[];
+			capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+			responsibilities?: string;
+			completionCriteria?: string;
+		};
+	}) =>
+		apiRequest<{ executionRequestId: string }>(
+			"/api/agents/improve-instructions",
+			{
+				method: "POST",
+				body: data,
+			},
+		),
+
+	cancelMetaAgent: (data: { executionRequestId: string }) =>
+		apiRequest<{ success: boolean }>("/api/agents/cancel-meta-agent", {
+			method: "POST",
+			body: data,
+		}),
 };
 
 // Organization API

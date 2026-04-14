@@ -311,3 +311,119 @@ interface ToolInvokeResponse {
   tenant?: string;
 }
 ```
+
+### SelectAgentRequest
+```typescript
+interface SelectAgentRequest {
+  parameters?: Record<string, any>;
+  tool_name?: string;
+  prompt_name?: string;
+  verbose?: boolean;
+  reference_id?: string;
+  tenant?: string;
+}
+```
+
+### SelectAgentResponse
+```typescript
+interface SelectAgentResponse {
+  success: boolean;
+  selected_agent?: Record<string, any>;
+}
+```
+
+---
+
+## Meta-Agent Types
+
+Types used by the meta-agent execution system. See `references/meta-agent-patterns.md` for full patterns.
+
+### MetaAgentExecuteParams (Rita server)
+```typescript
+interface MetaAgentExecuteParams {
+  agentName: string;              // e.g. "AgentInstructionsImprover"
+  utterance: string;              // maps to {%utterance}
+  additionalInformation?: string; // JSON string → {%additional_information}
+  transcript?: string;            // JSON string → {%transcript}
+  userId: string;
+  userEmail: string;
+  organizationId: string;
+}
+```
+
+### MetaAgentExecuteResult (Rita server)
+```typescript
+interface MetaAgentExecuteResult {
+  executionRequestId: string;     // correlation ID for SSE events
+}
+```
+
+### ImprovedInstructions (parser output)
+```typescript
+interface ImprovedInstructions {
+  instructions: string;
+  description: string;
+}
+```
+
+### ImproveInstructionsBody (Rita Zod schema)
+```typescript
+interface ImproveInstructionsBody {
+  instructions: string;           // min 1 char, maps to utterance
+  agentConfig: {
+    name?: string;
+    role?: string;
+    description?: string;
+    agentType?: "answer" | "knowledge" | "workflow" | null;
+    guardrails?: string[];
+    conversationStarters?: string[];
+    workflows?: string[];
+    knowledgeSources?: string[];
+    capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+    responsibilities?: string;
+    completionCriteria?: string;
+  };
+}
+```
+
+### CancelMetaAgentBody (Rita Zod schema)
+```typescript
+interface CancelMetaAgentBody {
+  executionRequestId: string;     // UUID
+}
+```
+
+### SSE Event Payloads (meta-agent)
+```typescript
+interface MetaAgentProgressEvent {
+  type: "meta_agent_progress";
+  data: {
+    execution_request_id: string;
+    agent_name: string;
+    step_label: string;
+    step_detail: string;
+    timestamp: string;
+  };
+}
+
+interface MetaAgentCompletedEvent {
+  type: "meta_agent_completed";
+  data: {
+    execution_request_id: string;
+    agent_name: string;
+    content: string;              // raw output, format depends on agent
+    success: boolean;
+    timestamp: string;
+  };
+}
+
+interface MetaAgentFailedEvent {
+  type: "meta_agent_failed";
+  data: {
+    execution_request_id: string;
+    agent_name: string;
+    error: string;
+    timestamp: string;
+  };
+}
+```

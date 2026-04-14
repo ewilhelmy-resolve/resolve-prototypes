@@ -49,11 +49,11 @@ export function apiDataToAgentConfig(
 		agentType: null,
 		iconId: ui.icon ?? configs.iconId ?? "bot",
 		iconColorId: ui.icon_color ?? configs.iconColorId ?? "slate",
-		conversationStarters: [],
+		conversationStarters: (agent.conversation_starters as string[]) || [],
 		knowledgeSources: [],
 		workflows: [],
 		skills,
-		guardrails: [],
+		guardrails: (agent.guardrails as string[]) || [],
 		capabilities: {
 			webSearch: true,
 			imageGeneration: false,

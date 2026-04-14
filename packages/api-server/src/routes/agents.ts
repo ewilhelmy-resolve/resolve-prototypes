@@ -13,6 +13,8 @@ import {
 	AgentListQuerySchema,
 	AgentListResponseSchema,
 	AgentUpdateBodySchema,
+	CancelMetaAgentBodySchema,
+	ImproveInstructionsBodySchema,
 } from "../schemas/agent.js";
 import { ErrorResponseSchema } from "../schemas/common.js";
 import { AgenticService } from "../services/AgenticService.js";
@@ -21,6 +23,7 @@ import {
 	agentConfigToApiData,
 	apiDataToAgentConfig,
 } from "../services/agentCreation/mappers.js";
+import { getMetaAgentStrategy } from "../services/metaAgentExecution/index.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 
 // ============================================================================
@@ -498,6 +501,76 @@ router.post("/cancel-creation", async (req, res) => {
 		logger.error({ error }, "Error cancelling agent creation");
 		res.status(500).json({
 			error: "Failed to cancel agent creation",
+			code: "INTERNAL_ERROR",
+		});
+	}
+});
+
+/**
+ * POST /api/agents/improve-instructions
+ * Invoke AgentInstructionsImprover meta-agent to improve instructions.
+ * Returns 202 with executionRequestId; results arrive via SSE.
+ */
+router.post("/improve-instructions", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	try {
+		const body = ImproveInstructionsBodySchema.parse(req.body);
+		const strategy = getMetaAgentStrategy();
+
+		const result = await strategy.execute({
+			agentName: "AgentInstructionsImprover",
+			utterance: body.instructions,
+			additionalInformation: JSON.stringify(body.agentConfig),
+			transcript: "[]",
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			organizationId: authReq.user.activeOrganizationId,
+		});
+
+		res.status(202).json({
+			executionRequestId: result.executionRequestId,
+		});
+	} catch (error: any) {
+		if (error?.response) {
+			logger.error(
+				{ status: error.response.status, data: error.response.data },
+				"LLM Service error improving instructions",
+			);
+			return res.status(502).json({
+				error: "LLM Service unavailable",
+				code: "LLM_SERVICE_ERROR",
+			});
+		}
+		logger.error({ error }, "Error improving instructions");
+		res.status(500).json({
+			error: "Failed to improve instructions",
+			code: "INTERNAL_ERROR",
+		});
+	}
+});
+
+/**
+ * POST /api/agents/cancel-meta-agent
+ * Cancel an in-progress meta-agent execution
+ */
+router.post("/cancel-meta-agent", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	try {
+		const body = CancelMetaAgentBodySchema.parse(req.body);
+		const strategy = getMetaAgentStrategy();
+
+		const result = await strategy.cancel({
+			executionRequestId: body.executionRequestId,
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			organizationId: authReq.user.activeOrganizationId,
+		});
+
+		res.json(result);
+	} catch (error: any) {
+		logger.error({ error }, "Error cancelling meta-agent execution");
+		res.status(500).json({
+			error: "Failed to cancel meta-agent execution",
 			code: "INTERNAL_ERROR",
 		});
 	}

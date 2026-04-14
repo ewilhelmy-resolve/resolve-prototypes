@@ -26,6 +26,8 @@ interface ActiveCreation {
 	userEmail: string;
 	tenantId: string;
 	transcript: string[];
+	conversationStarters?: string[];
+	guardrails?: string[];
 }
 
 /**
@@ -66,6 +68,8 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 			userEmail: params.userEmail,
 			tenantId: params.organizationId,
 			transcript: [prompt],
+			conversationStarters: params.conversationStarters,
+			guardrails: params.guardrails,
 		});
 
 		// Fire-and-forget background polling
@@ -307,15 +311,17 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 				//   });
 				// }
 
-				// TODO: Uncomment when LLM API supports conversation_starters
-				// await this.agenticService.updateAgent(agentEid, {
-				//   conversation_starters: params.conversationStarters,
-				// });
+				if (agentEid && creation.conversationStarters?.length) {
+					await this.agenticService.updateAgent(agentEid, {
+						conversation_starters: creation.conversationStarters,
+					});
+				}
 
-				// TODO: Uncomment when LLM API supports guardrails
-				// await this.agenticService.updateAgent(agentEid, {
-				//   guardrails: params.guardrails,
-				// });
+				if (agentEid && creation.guardrails?.length) {
+					await this.agenticService.updateAgent(agentEid, {
+						guardrails: creation.guardrails,
+					});
+				}
 
 				this.sseService.sendToUser(creation.userId, creation.tenantId, {
 					type: "agent_creation_completed",
