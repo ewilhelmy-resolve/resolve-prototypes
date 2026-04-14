@@ -142,3 +142,42 @@ export const AgentDeleteResponseSchema = z
 		message: z.string(),
 	})
 	.openapi("AgentDeleteResponse");
+
+// --- Agent Generation (Create with AI) Schemas ---
+
+export const AgentGenerateBodySchema = z
+	.object({
+		name: z.string().min(1).openapi({ description: "Agent name (required)" }),
+		description: z.string().optional().default(""),
+		instructions: z.string().optional().default(""),
+		iconId: z.string().optional().default("bot"),
+		iconColorId: z.string().optional().default("slate"),
+		conversationStarters: z.array(z.string()).optional().default([]),
+		guardrails: z.array(z.string()).optional().default([]),
+	})
+	.openapi("AgentGenerateBody");
+
+export const AgentCreationInputBodySchema = z
+	.object({
+		creationId: z
+			.string()
+			.uuid()
+			.openapi({ description: "Correlation ID from generate response" }),
+		prevExecutionId: z
+			.string()
+			.openapi({ description: "Execution ID from input_required event" }),
+		prompt: z
+			.string()
+			.min(1)
+			.openapi({ description: "User's response to agent's question" }),
+	})
+	.openapi("AgentCreationInputBody");
+
+export const AgentCancelCreationBodySchema = z
+	.object({
+		creationId: z
+			.string()
+			.uuid()
+			.openapi({ description: "Correlation ID of creation to cancel" }),
+	})
+	.openapi("AgentCancelCreationBody");

@@ -1,4 +1,5 @@
 export { AddSkillModal } from "./AddSkillModal";
+export { AgentCreationOverlay } from "./AgentCreationOverlay";
 export { ChangeAgentTypeModal } from "./ChangeAgentTypeModal";
 export { ConfirmTypeChangeModal } from "./ConfirmTypeChangeModal";
 export { CreateWorkflowModal } from "./CreateWorkflowModal";

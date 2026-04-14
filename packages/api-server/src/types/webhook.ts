@@ -145,6 +145,45 @@ export interface CreateKnowledgeWebhookPayload extends BaseWebhookPayload {
 	sources: string[]; // Knowledge sources selected by user (e.g. "historical-tickets", "web-search")
 }
 
+/**
+ * Create Agent Webhook Payload
+ * Triggered when user clicks "Create with AI" in the agent builder (workflow mode)
+ *
+ * @see docs/features/agents/agent-creation-workflow-integration.md section 1
+ */
+export interface CreateAgentWebhookPayload extends BaseWebhookPayload {
+	source: "rita-chat";
+	action: "create_agent";
+	creation_id: string;
+	prompt: string;
+	icon_id: string;
+	icon_color_id: string;
+	conversation_starters?: string[];
+	guardrails?: string[];
+}
+
+/**
+ * Agent Creation Input Webhook Payload
+ * Triggered when user responds to an input request from the agent-builder agent
+ */
+export interface AgentCreationInputWebhookPayload extends BaseWebhookPayload {
+	source: "rita-chat";
+	action: "agent_creation_input";
+	creation_id: string;
+	prev_execution_id: string;
+	prompt: string;
+}
+
+/**
+ * Cancel Agent Creation Webhook Payload
+ * Triggered when user explicitly cancels agent creation
+ */
+export interface CancelAgentCreationWebhookPayload extends BaseWebhookPayload {
+	source: "rita-chat";
+	action: "cancel_agent_creation";
+	creation_id: string;
+}
+
 // Union type for all webhook payloads
 export type WebhookPayload =
 	| MessageWebhookPayload
@@ -153,4 +192,7 @@ export type WebhookPayload =
 	| PasswordResetRequestPayload
 	| PasswordResetCompletePayload
 	| CreateKnowledgeWebhookPayload
+	| CreateAgentWebhookPayload
+	| AgentCreationInputWebhookPayload
+	| CancelAgentCreationWebhookPayload
 	| (BaseWebhookPayload & Record<string, any>);

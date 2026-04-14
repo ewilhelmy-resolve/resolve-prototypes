@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import i18n from "@/i18n";
 import { credentialErrorI18nKey } from "../components/connection-sources/utils";
 import { ritaToast } from "../components/custom/rita-toast";
+import { agentKeys } from "../hooks/api/useAgents";
 import { type FileDocument, fileKeys } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
@@ -13,6 +14,7 @@ import { clusterKeys } from "../hooks/useClusters";
 import { dataSourceKeys, ingestionRunKeys } from "../hooks/useDataSources";
 import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
+import { useAgentCreationStore } from "../stores/agentCreationStore";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
@@ -558,6 +560,40 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					detail: event.data,
 				});
 				window.dispatchEvent(workflowEvent);
+			} else if (event.type === "agent_creation_progress") {
+				const store = useAgentCreationStore.getState();
+				if (event.data.creation_id === store.creationId) {
+					store.receiveProgress({
+						stepType: event.data.step_type,
+						stepLabel: event.data.step_label,
+						stepDetail: event.data.step_detail,
+						stepIndex: event.data.step_index,
+						totalSteps: event.data.total_steps,
+						timestamp: event.data.timestamp,
+					});
+				}
+			} else if (event.type === "agent_creation_input_required") {
+				const store = useAgentCreationStore.getState();
+				if (event.data.creation_id === store.creationId) {
+					store.receiveInputRequired(
+						event.data.message,
+						event.data.execution_id,
+					);
+				}
+			} else if (event.type === "agent_creation_completed") {
+				const store = useAgentCreationStore.getState();
+				if (event.data.creation_id === store.creationId) {
+					store.receiveResult({
+						agentId: event.data.agent_id,
+						agentName: event.data.agent_name,
+					});
+					queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
+				}
+			} else if (event.type === "agent_creation_failed") {
+				const store = useAgentCreationStore.getState();
+				if (event.data.creation_id === store.creationId) {
+					store.receiveError(event.data.error || "Agent creation failed");
+				}
 			}
 			// Note: ui_form_request events are now handled via new_message with metadata.type = 'ui_form_request'
 			// The form request detection happens in the new_message handler above

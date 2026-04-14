@@ -1,4 +1,20 @@
 {
+	"createWithAI": {
+		"button": "Create with AI",
+		"creating": "Creating your agent...",
+		"creatingDescription": "AI is building your agent configuration",
+		"success": "Agent created successfully!",
+		"successDescription": "Your agent \"{{agentName}}\" is ready",
+		"editAgent": "Edit agent",
+		"testAgent": "Test agent",
+		"error": "Failed to create agent",
+		"errorDefault": "An unexpected error occurred. Please try again.",
+		"tryAgain": "Try again",
+		"cancel": "Cancel",
+		"awaitingInput": "Additional information needed",
+		"inputPlaceholder": "Type your response...",
+		"send": "Send"
+	},
 	"deleteModal": {
 		"title": "Delete \"{{agentName}}\"?",
 		"descriptionPublished": "This action cannot be undone.",
