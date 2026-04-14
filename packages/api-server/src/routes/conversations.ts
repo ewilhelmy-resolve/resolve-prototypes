@@ -840,153 +840,173 @@ router.delete("/:conversationId", authenticateUser, async (req, res) => {
  * GET /api/conversations/:conversationId/participants
  * List participants of a conversation. Available to owner and participants.
  */
-router.get("/:conversationId/participants", async (req, res) => {
-	try {
-		const authReq = req as AuthenticatedRequest;
-		const { conversationId } = req.params;
+router.get(
+	"/:conversationId/participants",
+	authenticateUser,
+	async (req, res) => {
+		try {
+			const authReq = req as AuthenticatedRequest;
+			const { conversationId } = req.params;
 
-		const result = await withOrgContext(
-			authReq.user.id,
-			authReq.user.activeOrganizationId,
-			async (client) => {
-				// RLS ensures only owner/participant can see the conversation
-				const convCheck = await client.query(
-					"SELECT id, user_id FROM conversations WHERE id = $1 AND organization_id = $2",
-					[conversationId, authReq.user.activeOrganizationId],
-				);
-				if (convCheck.rows.length === 0) return null;
+			const result = await withOrgContext(
+				authReq.user.id,
+				authReq.user.activeOrganizationId,
+				async (client) => {
+					// RLS ensures only owner/participant can see the conversation
+					const convCheck = await client.query(
+						"SELECT id, user_id FROM conversations WHERE id = $1 AND organization_id = $2",
+						[conversationId, authReq.user.activeOrganizationId],
+					);
+					if (convCheck.rows.length === 0) return null;
 
-				const participants = await client.query(
-					`SELECT cp.user_id, cp.role, cp.added_at, up.email, up.first_name, up.last_name
+					const participants = await client.query(
+						`SELECT cp.user_id, cp.role, cp.added_at, up.email, up.first_name, up.last_name
 					 FROM conversation_participants cp
 					 LEFT JOIN user_profiles up ON cp.user_id = up.user_id
 					 WHERE cp.conversation_id = $1 AND cp.organization_id = $2
 					 ORDER BY cp.added_at ASC`,
-					[conversationId, authReq.user.activeOrganizationId],
-				);
+						[conversationId, authReq.user.activeOrganizationId],
+					);
 
-				return {
-					owner: convCheck.rows[0].user_id,
-					participants: participants.rows,
-				};
-			},
-		);
+					return {
+						owner: convCheck.rows[0].user_id,
+						participants: participants.rows,
+					};
+				},
+			);
 
-		if (!result) {
-			return res.status(404).json({ error: "Conversation not found" });
+			if (!result) {
+				return res.status(404).json({ error: "Conversation not found" });
+			}
+			return res.json(result);
+		} catch (error) {
+			console.error("Error listing participants:", error);
+			return res.status(500).json({ error: "Failed to list participants" });
 		}
-		return res.json(result);
-	} catch (error) {
-		console.error("Error listing participants:", error);
-		return res.status(500).json({ error: "Failed to list participants" });
-	}
-});
+	},
+);
 
 /**
  * POST /api/conversations/:conversationId/participants
  * Add a participant to a conversation. Owner only.
  * Body: { userId: string }
  */
-router.post("/:conversationId/participants", async (req, res) => {
-	try {
-		const authReq = req as AuthenticatedRequest;
-		const { conversationId } = req.params;
-		const { userId } = req.body || {};
+router.post(
+	"/:conversationId/participants",
+	authenticateUser,
+	async (req, res) => {
+		try {
+			const authReq = req as AuthenticatedRequest;
+			const { conversationId } = req.params;
+			const { userId } = req.body || {};
 
-		if (!userId || typeof userId !== "string") {
-			return res.status(400).json({ error: "userId is required" });
-		}
+			if (!userId || typeof userId !== "string") {
+				return res.status(400).json({ error: "userId is required" });
+			}
 
-		const result = await withOrgContext(
-			authReq.user.id,
-			authReq.user.activeOrganizationId,
-			async (client) => {
-				// Only the owner can add participants
-				const convCheck = await client.query(
-					"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
-					[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
-				);
-				if (convCheck.rows.length === 0) return { error: "not_owner" };
+			const result = await withOrgContext(
+				authReq.user.id,
+				authReq.user.activeOrganizationId,
+				async (client) => {
+					// Only the owner can add participants
+					const convCheck = await client.query(
+						"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+						[
+							conversationId,
+							authReq.user.activeOrganizationId,
+							authReq.user.id,
+						],
+					);
+					if (convCheck.rows.length === 0) return { error: "not_owner" };
 
-				// Verify target user exists in the same org
-				const userCheck = await client.query(
-					"SELECT user_id FROM organization_members WHERE user_id = $1 AND organization_id = $2",
-					[userId, authReq.user.activeOrganizationId],
-				);
-				if (userCheck.rows.length === 0) return { error: "user_not_found" };
+					// Verify target user exists in the same org
+					const userCheck = await client.query(
+						"SELECT user_id FROM organization_members WHERE user_id = $1 AND organization_id = $2",
+						[userId, authReq.user.activeOrganizationId],
+					);
+					if (userCheck.rows.length === 0) return { error: "user_not_found" };
 
-				// Insert participant (ON CONFLICT = already a participant, no-op)
-				await client.query(
-					`INSERT INTO conversation_participants (conversation_id, user_id, organization_id, role)
+					// Insert participant (ON CONFLICT = already a participant, no-op)
+					await client.query(
+						`INSERT INTO conversation_participants (conversation_id, user_id, organization_id, role)
 					 VALUES ($1, $2, $3, 'participant')
 					 ON CONFLICT (conversation_id, user_id) DO NOTHING`,
-					[conversationId, userId, authReq.user.activeOrganizationId],
-				);
+						[conversationId, userId, authReq.user.activeOrganizationId],
+					);
 
-				return { success: true };
-			},
-		);
+					return { success: true };
+				},
+			);
 
-		if (!result || result.error === "not_owner") {
-			return res.status(404).json({ error: "Conversation not found" });
+			if (!result || result.error === "not_owner") {
+				return res.status(404).json({ error: "Conversation not found" });
+			}
+			if (result.error === "user_not_found") {
+				return res
+					.status(400)
+					.json({ error: "User not found in this organization" });
+			}
+
+			// TODO: Send event to Platform via sendEvent API
+			// webhookService.sendEvent({ type: "participant_added", conversationId, userId })
+
+			return res.status(201).json({ success: true });
+		} catch (error) {
+			console.error("Error adding participant:", error);
+			return res.status(500).json({ error: "Failed to add participant" });
 		}
-		if (result.error === "user_not_found") {
-			return res
-				.status(400)
-				.json({ error: "User not found in this organization" });
-		}
-
-		// TODO: Send event to Platform via sendEvent API
-		// webhookService.sendEvent({ type: "participant_added", conversationId, userId })
-
-		return res.status(201).json({ success: true });
-	} catch (error) {
-		console.error("Error adding participant:", error);
-		return res.status(500).json({ error: "Failed to add participant" });
-	}
-});
+	},
+);
 
 /**
  * DELETE /api/conversations/:conversationId/participants/:userId
  * Remove a participant from a conversation. Owner only.
  */
-router.delete("/:conversationId/participants/:userId", async (req, res) => {
-	try {
-		const authReq = req as AuthenticatedRequest;
-		const { conversationId, userId } = req.params;
+router.delete(
+	"/:conversationId/participants/:userId",
+	authenticateUser,
+	async (req, res) => {
+		try {
+			const authReq = req as AuthenticatedRequest;
+			const { conversationId, userId } = req.params;
 
-		const result = await withOrgContext(
-			authReq.user.id,
-			authReq.user.activeOrganizationId,
-			async (client) => {
-				// Only the owner can remove participants
-				const convCheck = await client.query(
-					"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
-					[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
-				);
-				if (convCheck.rows.length === 0) return { error: "not_owner" };
+			const result = await withOrgContext(
+				authReq.user.id,
+				authReq.user.activeOrganizationId,
+				async (client) => {
+					// Only the owner can remove participants
+					const convCheck = await client.query(
+						"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+						[
+							conversationId,
+							authReq.user.activeOrganizationId,
+							authReq.user.id,
+						],
+					);
+					if (convCheck.rows.length === 0) return { error: "not_owner" };
 
-				const deleteResult = await client.query(
-					"DELETE FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2 AND organization_id = $3",
-					[conversationId, userId, authReq.user.activeOrganizationId],
-				);
+					const deleteResult = await client.query(
+						"DELETE FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2 AND organization_id = $3",
+						[conversationId, userId, authReq.user.activeOrganizationId],
+					);
 
-				return { deleted: deleteResult.rowCount > 0 };
-			},
-		);
+					return { deleted: deleteResult.rowCount > 0 };
+				},
+			);
 
-		if (!result || result.error === "not_owner") {
-			return res.status(404).json({ error: "Conversation not found" });
+			if (!result || result.error === "not_owner") {
+				return res.status(404).json({ error: "Conversation not found" });
+			}
+
+			// TODO: Send event to Platform via sendEvent API
+			// webhookService.sendEvent({ type: "participant_removed", conversationId, userId })
+
+			return res.json({ success: true });
+		} catch (error) {
+			console.error("Error removing participant:", error);
+			return res.status(500).json({ error: "Failed to remove participant" });
 		}
-
-		// TODO: Send event to Platform via sendEvent API
-		// webhookService.sendEvent({ type: "participant_removed", conversationId, userId })
-
-		return res.json({ success: true });
-	} catch (error) {
-		console.error("Error removing participant:", error);
-		return res.status(500).json({ error: "Failed to remove participant" });
-	}
-});
+	},
+);
 
 export default router;

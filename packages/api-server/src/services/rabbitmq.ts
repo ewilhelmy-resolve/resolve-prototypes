@@ -28,8 +28,8 @@ async function sendToConversationParticipants(
 	// Also send to participants (deduplicate with owner)
 	try {
 		const participants = await pool.query(
-			"SELECT user_id FROM conversation_participants WHERE conversation_id = $1 AND user_id != $2",
-			[conversationId, ownerId],
+			"SELECT user_id FROM conversation_participants WHERE conversation_id = $1 AND user_id != $2 AND organization_id = $3",
+			[conversationId, ownerId, organizationId],
 		);
 		for (const p of participants.rows) {
 			sseService.sendToUser(p.user_id, organizationId, event);
