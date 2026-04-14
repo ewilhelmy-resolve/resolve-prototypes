@@ -25,6 +25,7 @@ import {
 	Download,
 	ScrollText,
 	Send,
+	Share2,
 	Trash2,
 	Wrench,
 } from "lucide-react";
@@ -33,6 +34,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader } from "../components/ai-elements/loader";
 import ChatV1Content from "../components/chat/ChatV1Content";
+import { ShareConversationDialog } from "../components/chat/ShareConversationDialog";
 import { ValkeySessionPanel } from "../components/devtools/ValkeySessionPanel";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
 import { Button } from "../components/ui/button";
@@ -745,6 +747,7 @@ function IframeDevTools({
 	onDownloadMetadata,
 	onShowActivityLog,
 	onShowPlatformSimulator,
+	onShowShareDialog,
 	onShowValkeySession,
 	isMockMode,
 }: {
@@ -752,6 +755,7 @@ function IframeDevTools({
 	onDownloadMetadata: () => void;
 	onShowActivityLog: () => void;
 	onShowPlatformSimulator?: () => void;
+	onShowShareDialog?: () => void;
 	onShowValkeySession?: () => void;
 	isMockMode?: boolean;
 }) {
@@ -790,6 +794,15 @@ function IframeDevTools({
 					<ScrollText className="mr-2 h-4 w-4" />
 					Activity Log
 				</DropdownMenuItem>
+				{onShowShareDialog && (
+					<DropdownMenuItem
+						onClick={onShowShareDialog}
+						className="cursor-pointer"
+					>
+						<Share2 className="mr-2 h-4 w-4" />
+						Share link (dev)
+					</DropdownMenuItem>
+				)}
 				{/* Download tools - only when dev tools feature flag enabled */}
 				{devToolsEnabled && (
 					<>
@@ -1044,6 +1057,7 @@ export default function IframeChatPage() {
 	// Mock platform panel state (only in mock mode - backend is skipped)
 	const [showPlatformPanel, setShowPlatformPanel] = useState(mockMode);
 	const [showValkeyPanel, setShowValkeyPanel] = useState(false);
+	const [showShareDialog, setShowShareDialog] = useState(false);
 
 	const navigate = useNavigate();
 	const apiUrl = import.meta.env.VITE_API_URL || "";
@@ -1544,6 +1558,9 @@ export default function IframeChatPage() {
 				onDownloadMetadata={downloadMetadata}
 				onShowActivityLog={() => setShowDebug(true)}
 				onShowPlatformSimulator={() => setShowPlatformPanel(true)}
+				onShowShareDialog={
+					sessionKey ? () => setShowShareDialog(true) : undefined
+				}
 				onShowValkeySession={() => setShowValkeyPanel(true)}
 				isMockMode={isDevMode}
 			/>
@@ -1581,6 +1598,13 @@ export default function IframeChatPage() {
 					apiUrl={apiUrl}
 					initialPayload={valkeyPayload}
 					onClose={() => setShowValkeyPanel(false)}
+				/>
+			)}
+			{sessionKey && (
+				<ShareConversationDialog
+					sessionKey={sessionKey}
+					open={showShareDialog}
+					onOpenChange={setShowShareDialog}
 				/>
 			)}
 		</IframeChatLayout>

@@ -20,6 +20,7 @@ import express from "express";
 import { pool } from "../config/database.js";
 import { assertUuid } from "../config/validateUuid.js";
 import { authenticateUser } from "../middleware/auth.js";
+import { getIframeService } from "../services/IframeService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 import { checkRateLimit } from "../utils/rateLimit.js";
 
@@ -130,34 +131,7 @@ authenticatedShareRouter.post(
 			}
 			const { title } = conversationResult.rows[0];
 
-			// Fetch messages (frozen at share time)
-			const messagesResult = await pool.query(
-				`SELECT id, role, message, metadata, response_group_id, created_at
-				 FROM messages
-				 WHERE conversation_id = $1
-				 ORDER BY created_at ASC, id ASC`,
-				[auth.conversationId],
-			);
-
-			const shareId = crypto.randomBytes(16).toString("hex");
-
-			// Upsert: one snapshot per conversation. Re-sharing overwrites.
-			await pool.query(
-				`INSERT INTO shared_conversations
-					(share_id, conversation_id, title, messages)
-				 VALUES ($1, $2, $3, $4::jsonb)
-				 ON CONFLICT (conversation_id) DO UPDATE
-					SET share_id = EXCLUDED.share_id,
-						title = EXCLUDED.title,
-						messages = EXCLUDED.messages,
-						created_at = NOW()`,
-				[
-					shareId,
-					auth.conversationId,
-					title,
-					JSON.stringify(messagesResult.rows),
-				],
-			);
+			const shareId = await writeSnapshot(auth.conversationId, title);
 
 			return res.json({
 				shareUrl: `${CLIENT_URL}/jarvis/${shareId}`,
@@ -206,8 +180,147 @@ authenticatedShareRouter.post(
 	},
 );
 
+// =============================================================================
+// Platform router — mounted at /api/iframe (auth via Valkey sessionKey)
+//
+// Actions Platform owns the Share UI for iframe-embedded conversations.
+// Platform can't use Keycloak auth (iframe users may not exist as Keycloak
+// users), so it authenticates with the same sessionKey already used by
+// /api/iframe/validate-instantiation and /api/iframe/execute. The sessionKey
+// identifies the Valkey session, which stores the conversationId — so Platform
+// can only share the conversation currently embedded in that session.
+// =============================================================================
+export const iframeShareRouter = express.Router();
+
+async function resolveSessionConversation(
+	sessionKey: unknown,
+): Promise<
+	| { ok: true; conversationId: string }
+	| { ok: false; status: number; error: string }
+> {
+	if (!sessionKey || typeof sessionKey !== "string") {
+		return { ok: false, status: 400, error: "sessionKey is required" };
+	}
+	const config = await getIframeService().fetchValkeyPayload(sessionKey);
+	if (!config) {
+		return { ok: false, status: 404, error: "Session not found" };
+	}
+	const conversationId = config.conversationId;
+	if (!conversationId) {
+		return { ok: false, status: 400, error: "Session has no conversation yet" };
+	}
+	try {
+		assertUuid(conversationId, "conversationId");
+	} catch {
+		return {
+			ok: false,
+			status: 500,
+			error: "Session has invalid conversationId",
+		};
+	}
+	return { ok: true, conversationId };
+}
+
+/**
+ * Snapshot messages for a conversation and upsert into shared_conversations.
+ * Caller is responsible for verifying access control.
+ *
+ * Two queries: SELECT messages + UPSERT. Title is passed in to avoid a
+ * duplicate SELECT on conversations (authenticated caller already fetched
+ * it for the ownership check).
+ *
+ * Returns the generated share_id (random 32-char hex).
+ */
+async function writeSnapshot(
+	conversationId: string,
+	title: string | null,
+): Promise<string> {
+	const messagesResult = await pool.query(
+		`SELECT id, role, message, metadata, response_group_id, created_at
+		 FROM messages
+		 WHERE conversation_id = $1
+		 ORDER BY created_at ASC, id ASC`,
+		[conversationId],
+	);
+
+	const shareId = crypto.randomBytes(16).toString("hex");
+	await pool.query(
+		`INSERT INTO shared_conversations
+			(share_id, conversation_id, title, messages)
+		 VALUES ($1, $2, $3, $4::jsonb)
+		 ON CONFLICT (conversation_id) DO UPDATE
+			SET share_id = EXCLUDED.share_id,
+				title = EXCLUDED.title,
+				messages = EXCLUDED.messages,
+				created_at = NOW()`,
+		[shareId, conversationId, title, JSON.stringify(messagesResult.rows)],
+	);
+	return shareId;
+}
+
+/**
+ * POST /api/iframe/share
+ *
+ * Create a snapshot for the conversation tied to a Valkey session.
+ * Body: { sessionKey }
+ * Returns: { shareUrl, shareId }
+ */
+iframeShareRouter.post("/share", async (req, res) => {
+	try {
+		const resolved = await resolveSessionConversation(req.body?.sessionKey);
+		if (!resolved.ok) {
+			return res.status(resolved.status).json({ error: resolved.error });
+		}
+
+		// Fetch title (no ownership check — Valkey session is the auth)
+		const conversationResult = await pool.query(
+			`SELECT title FROM conversations WHERE id = $1`,
+			[resolved.conversationId],
+		);
+		if (conversationResult.rows.length === 0) {
+			return res.status(404).json({ error: "Conversation not found" });
+		}
+		const { title } = conversationResult.rows[0];
+
+		const shareId = await writeSnapshot(resolved.conversationId, title);
+
+		return res.json({
+			shareUrl: `${CLIENT_URL}/jarvis/${shareId}`,
+			shareId,
+		});
+	} catch (error) {
+		console.error("[share] Error generating iframe share link:", error);
+		return res.status(500).json({ error: "Internal server error" });
+	}
+});
+
+/**
+ * POST /api/iframe/share/disable
+ *
+ * Delete the snapshot for the conversation tied to a Valkey session.
+ * Body: { sessionKey }
+ */
+iframeShareRouter.post("/share/disable", async (req, res) => {
+	try {
+		const resolved = await resolveSessionConversation(req.body?.sessionKey);
+		if (!resolved.ok) {
+			return res.status(resolved.status).json({ error: resolved.error });
+		}
+
+		await pool.query(
+			`DELETE FROM shared_conversations WHERE conversation_id = $1`,
+			[resolved.conversationId],
+		);
+		return res.json({ success: true });
+	} catch (error) {
+		console.error("[share] Error disabling iframe share:", error);
+		return res.status(500).json({ error: "Internal server error" });
+	}
+});
+
 // Backward-compat default export — public router only.
 // Mount in index.ts:
 //   app.use("/api/share", shareRoutes)
 //   app.use("/api/conversations", authenticatedShareRouter)
+//   app.use("/api/iframe", iframeShareRouter)
 export default publicShareRouter;

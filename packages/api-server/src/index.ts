@@ -29,6 +29,7 @@ import mlModelRoutes from "./routes/mlModels.js";
 import organizationRoutes from "./routes/organizations.js";
 import shareRoutes, {
 	authenticatedShareRouter,
+	iframeShareRouter,
 } from "./routes/share.routes.js";
 import sseRoutes from "./routes/sse.js";
 import ticketRoutes from "./routes/tickets.js";
@@ -109,6 +110,8 @@ if (process.env.NODE_ENV !== "production") {
 
 // Iframe routes (no auth required - public access)
 app.use("/api/iframe", iframeRoutes);
+// Platform share trigger — auth via Valkey sessionKey
+app.use("/api/iframe", iframeShareRouter);
 
 // Share routes — public read at /api/share/:shareId (no auth required)
 app.use("/api/share", shareRoutes);
