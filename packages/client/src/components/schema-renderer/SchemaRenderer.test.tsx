@@ -754,8 +754,7 @@ describe("SchemaRenderer", () => {
 						type: "Card",
 						props: {
 							title: "API Configuration",
-							description:
-								"Enter your credentials to connect to the server",
+							description: "Enter your credentials to connect to the server",
 						},
 						children: ["form-stack"],
 					},
@@ -806,19 +805,13 @@ describe("SchemaRenderer", () => {
 			};
 
 			render(
-				<SchemaRenderer
-					schema={s}
-					{...defaultProps}
-					onAction={onAction}
-				/>,
+				<SchemaRenderer schema={s} {...defaultProps} onAction={onAction} />,
 			);
 
 			// Card renders title and description
 			expect(screen.getByText("API Configuration")).toBeInTheDocument();
 			expect(
-				screen.getByText(
-					"Enter your credentials to connect to the server",
-				),
+				screen.getByText("Enter your credentials to connect to the server"),
 			).toBeInTheDocument();
 
 			// All inputs render with labels

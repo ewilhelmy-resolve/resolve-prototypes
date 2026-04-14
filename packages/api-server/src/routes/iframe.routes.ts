@@ -399,7 +399,6 @@ router.get("/session-context", async (req, res) => {
  */
 router.post("/execute", async (req, res) => {
 	const startTime = Date.now();
-
 	try {
 		const { hashkey, sessionKey } = req.body;
 		// Support both hashkey and sessionKey (portal uses sessionKey)

@@ -18,6 +18,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useClusterTickets } from "@/hooks/useClusters";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/lib/date-utils";
@@ -373,13 +378,20 @@ export function ClusterDetailTable({
 						) : (
 							tickets.map((row, rowIndex) => (
 								<TableRow key={row.id}>
-									<TableCell className="font-medium">
-										<Link
-											to={buildTicketUrl(row.id, rowIndex)}
-											className="text-primary hover:underline"
-										>
-											{row.subject}
-										</Link>
+									<TableCell className="font-medium max-w-[300px]">
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<span className="block truncate">
+													<Link
+														to={buildTicketUrl(row.id, rowIndex)}
+														className="text-primary hover:underline"
+													>
+														{row.subject}
+													</Link>
+												</span>
+											</TooltipTrigger>
+											<TooltipContent>{row.subject}</TooltipContent>
+										</Tooltip>
 									</TableCell>
 									<TableCell>{row.external_id}</TableCell>
 									<TableCell>

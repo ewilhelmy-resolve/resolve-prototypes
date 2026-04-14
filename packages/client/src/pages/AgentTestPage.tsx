@@ -7,6 +7,55 @@
  * 3. If not Good, give feedback → agent retries
  * 4. When Good after iterations, suggest config improvements
  * 5. Apply or skip, then test another or publish
+ *
+ * ## Wiring to real backend (TODO)
+ *
+ * Currently uses mock `generateResponse()` and `generateConfigSuggestion()`.
+ * To connect to the real agent execution backend:
+ *
+ * ### 1. Message send/receive — same SSE flow as chat
+ *
+ * The agent test page should use the same communication pattern as
+ * `/chat` and `/iframe/chat`: send a message via POST, receive responses
+ * via SSE (new_message events from RabbitMQ → SSE service).
+ *
+ * Replace `handleStartTest` and `handleFeedbackSubmit` internals:
+ * - POST to agent execution endpoint (e.g. `POST /api/agents/:id/execute`)
+ *   with `{ prompt, conversationId, feedbackHistory? }`
+ * - Response arrives via SSE `new_message` events (same as regular chat)
+ * - Use `useConversationStore` + `SSEProvider` to receive messages
+ * - OR use `ChatV2Content` component which handles store→render automatically
+ *
+ * ### 2. Conversation lifecycle — endpoint TBD
+ *
+ * Agent test conversations may load from a different endpoint than regular
+ * conversations (e.g. `GET /api/agents/:id/conversations` or similar).
+ * The conversation creation may also differ — currently the page doesn't
+ * persist conversations, but when wired it should:
+ * - Create conversation on first message (`POST /api/agents/:id/conversations`)
+ * - Load existing test conversations for the agent
+ * - Use `source: 'agent-test'` to distinguish from regular chat
+ *
+ * ### 3. Config suggestions — LLM-powered
+ *
+ * Replace `generateConfigSuggestion()` with a real API call:
+ * - `POST /api/agents/:id/suggest` with `{ feedbackHistory, currentConfig }`
+ * - Backend sends feedbackHistory to LLM, gets instruction improvements
+ * - Returns `{ message, updateType, updateValue }` same shape as current mock
+ *
+ * ### 4. Publish — already has the pattern
+ *
+ * `handlePublish` should call `PATCH /api/agents/:id` with the updated config.
+ * The `useAgent` hook from `@/hooks/api/useAgents` already provides the query;
+ * add a mutation hook for updates.
+ *
+ * ### 5. Rendering upgrade path
+ *
+ * When ready to support reasoning steps, completion cards, and rich metadata
+ * in agent test responses, replace the manual message rendering (lines ~468-650)
+ * with `ChatV2MessageRenderer` from `@/components/chat-v2/`. It renders all
+ * message types (reasoning, sources, tasks, completion) from `ChatMessage[]`
+ * and works without SSE/stores when passed data as props.
  */
 
 import confetti from "canvas-confetti";
@@ -40,8 +89,106 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { AGENT_COLOR_MAP, AGENT_ICON_MAP } from "@/constants/agents";
 import { useAgent } from "@/hooks/api/useAgents";
+// TODO: Uncomment these when wiring to real backend
+// import { useCreateConversation, useSendMessage } from "@/hooks/api/useConversations";
+// import { useSSEContext } from "@/contexts/SSEContext";
+// import { useConversationStore } from "@/stores/conversationStore";
+// import { ChatV2MessageRenderer } from "@/components/chat-v2/ChatV2MessageRenderer";
+// import { groupMessages } from "@/lib/messageGrouping";
 import { cn } from "@/lib/utils";
 import type { AgentConfig, ConfigSuggestion, TestMessage } from "@/types/agent";
+
+// =============================================================================
+// TODO: useAgentChat — replace mock functions with this hook
+//
+// This hook mirrors the /chat flow (useMessageHandler + useConversationManager)
+// but scoped to agent test conversations. SSE is already available since
+// AgentTestPage is inside RoleProtectedRoute which wraps SSEProvider.
+//
+// Usage: replace `handleStartTest` internals with `sendMessage()` below.
+// Response arrives via SSE → conversationStore.addMessage() → chatMessages.
+// =============================================================================
+//
+// function useAgentChat(agentId: string | undefined) {
+//   const { latestUpdate } = useSSEContext();
+//   const {
+//     messages,
+//     chatMessages,
+//     currentConversationId,
+//     addMessage,
+//     updateMessage,
+//     setCurrentConversation,
+//     setSending,
+//     isSending,
+//   } = useConversationStore();
+//
+//   const createConversation = useCreateConversation();
+//   const sendMessageMutation = useSendMessage();
+//
+//   // Handle SSE message_update events (status changes: processing → completed)
+//   useEffect(() => {
+//     if (latestUpdate) {
+//       updateMessage(latestUpdate.messageId, {
+//         status: latestUpdate.status,
+//         error_message: latestUpdate.errorMessage,
+//       });
+//     }
+//   }, [latestUpdate, updateMessage]);
+//
+//   // SSE new_message events are handled automatically by SSEContext →
+//   // conversationStore.addMessage() → groupMessages() → chatMessages updates.
+//   // No additional wiring needed for receiving messages.
+//
+//   const sendMessage = async (content: string) => {
+//     if (!content.trim() || isSending) return;
+//
+//     let conversationId = currentConversationId;
+//
+//     // TODO: Agent test conversations may use a different create endpoint
+//     // e.g. POST /api/agents/:id/conversations instead of POST /api/conversations
+//     // For now, using the same endpoint with a distinguishing title.
+//     if (!conversationId) {
+//       const conversation = await createConversation.mutateAsync({
+//         title: `Agent Test: ${content.substring(0, 30)}`,
+//       });
+//       conversationId = conversation.id;
+//       setCurrentConversation(conversationId);
+//     }
+//
+//     // TODO: Agent test messages may POST to a different endpoint
+//     // e.g. POST /api/agents/:id/execute { prompt, conversationId }
+//     // For now, using the same send endpoint — the webhook will route
+//     // to Actions Platform which triggers the agent workflow.
+//     await sendMessageMutation.mutateAsync({
+//       conversationId,
+//       content,
+//       tempId: `msg_${Date.now()}`,
+//     });
+//   };
+//
+//   // Derived state — is the agent currently responding?
+//   const isStreaming = messages.some(
+//     (msg) => msg.status === "processing" || msg.status === "pending",
+//   );
+//
+//   return {
+//     // Store-managed messages (grouped, with reasoning/completion rendering)
+//     chatMessages,       // Pass to ChatV2MessageRenderer
+//     messages,           // Raw messages for status checks
+//     isStreaming,
+//     isSending,
+//     currentConversationId,
+//
+//     // Actions
+//     sendMessage,        // Replaces handleStartTest internals
+//
+//     // TODO: Add these when agent-specific endpoints exist:
+//     // loadAgentConversations — GET /api/agents/:id/conversations
+//     // suggestConfigImprovement — POST /api/agents/:id/suggest
+//     // publishConfig — PATCH /api/agents/:id
+//   };
+// }
+// =============================================================================
 
 type TestPhase =
 	| "idle"
@@ -210,6 +357,13 @@ export default function AgentTestPage() {
 
 		setIsLoading(true);
 		setPhase("processing");
+
+		// TODO: Replace mock with real backend call:
+		// await agentChat.sendMessage(prompt);
+		// Then SSE delivers the response → conversationStore → chatMessages.
+		// Remove the setTimeout + generateResponse below.
+		// The phase transition to "awaiting-rating" should happen when
+		// the last SSE message has turn_complete: true (watch chatMessages).
 		await new Promise((r) => setTimeout(r, 600 + Math.random() * 600));
 
 		const { response, sources } = generateResponse(prompt, config, []);
@@ -317,6 +471,13 @@ export default function AgentTestPage() {
 
 		setIsLoading(true);
 		setPhase("processing");
+
+		// TODO: Replace mock with real backend call:
+		// await agentChat.sendMessage(feedback);
+		// The backend should receive feedbackHistory context so the agent
+		// can adjust its response. This could be sent as message metadata:
+		// await agentChat.sendMessage(feedback, { feedbackIteration: newFeedbackHistory.length });
+		// Remove the setTimeout + generateResponse below.
 		await new Promise((r) => setTimeout(r, 600 + Math.random() * 600));
 
 		const { response, sources } = generateResponse(
@@ -462,7 +623,20 @@ export default function AgentTestPage() {
 										)}
 									</div>
 								) : (
-									/* Messages */
+									/* Messages
+									 * TODO: Replace this manual message rendering with ChatV2MessageRenderer:
+									 *
+									 * <ChatV2MessageRenderer
+									 *   chatMessages={agentChat.chatMessages}
+									 *   isStreaming={agentChat.isStreaming}
+									 *   readOnly={false}
+									 *   onCopy={(text) => navigator.clipboard.writeText(text)}
+									 * />
+									 *
+									 * This gives you reasoning accordions, completion cards, sources,
+									 * tasks, and all rich metadata rendering for free.
+									 * Keep the rating bar + feedback textarea as an overlay below.
+									 */
 									<div className="flex flex-col gap-2">
 										{messages.map((msg) => (
 											<div key={msg.id}>
@@ -932,7 +1106,10 @@ export default function AgentTestPage() {
 	);
 }
 
-// Generate response based on skills
+// TODO: Replace with real agent execution API call.
+// Wire: POST /api/agents/:id/execute { prompt, conversationId, feedbackHistory }
+// Response arrives via SSE new_message events (same flow as /chat and /iframe/chat).
+// The SSE → conversationStore → groupMessages → ChatMessage[] pipeline is reusable.
 function generateResponse(
 	input: string,
 	config: AgentConfig,
@@ -1090,7 +1267,9 @@ function generateResponse(
 	};
 }
 
-// Generate config suggestion
+// TODO: Replace with LLM-powered suggestion API.
+// Wire: POST /api/agents/:id/suggest { feedbackHistory, currentConfig }
+// Return shape stays the same: { message, updateType, updateValue }
 function generateConfigSuggestion(feedbackHistory: string[]): ConfigSuggestion {
 	const allFeedback = feedbackHistory.join(" ").toLowerCase();
 
