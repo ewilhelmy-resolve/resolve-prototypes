@@ -12,7 +12,7 @@
 
 CREATE TABLE IF NOT EXISTS shared_conversations (
 	share_id TEXT PRIMARY KEY,
-	conversation_id UUID NOT NULL,
+	conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
 	title TEXT,
 	messages JSONB NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT NOW(),

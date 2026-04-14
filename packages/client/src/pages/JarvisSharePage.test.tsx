@@ -181,16 +181,16 @@ describe("JarvisSharePage", () => {
 		expect(fetchUrl).not.toContain("token=");
 	});
 
-	it("maps messages correctly — parses JSON metadata and converts timestamps", async () => {
+	it("maps messages correctly — passes metadata through and converts timestamps", async () => {
 		const data = makeShareResponse({
 			messages: [
 				{
 					id: "msg-1",
 					role: "assistant",
 					message: "Response text",
-					metadata: JSON.stringify({
+					metadata: {
 						reasoning: { content: "step", title: "Thinking" },
-					}),
+					},
 					response_group_id: "grp-1",
 					created_at: "2025-06-15T10:30:00Z",
 				},

@@ -21,6 +21,9 @@ import { pool } from "../config/database.js";
 import { assertUuid } from "../config/validateUuid.js";
 import { authenticateUser } from "../middleware/auth.js";
 import type { AuthenticatedRequest } from "../types/express.js";
+import { checkRateLimit } from "../utils/rateLimit.js";
+
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
 // =============================================================================
 // Public router — mounted at /api/share (no auth middleware)
@@ -35,6 +38,11 @@ export const publicShareRouter = express.Router();
  */
 publicShareRouter.get("/:shareId", async (req, res) => {
 	try {
+		const clientIp = req.ip || "unknown";
+		if (!checkRateLimit(`share-get:${clientIp}`, 60, 60_000)) {
+			return res.status(429).json({ error: "Too many requests" });
+		}
+
 		const { shareId } = req.params;
 		if (!shareId || typeof shareId !== "string" || shareId.length > 128) {
 			return res.status(400).json({ error: "Invalid shareId" });
@@ -151,9 +159,8 @@ authenticatedShareRouter.post(
 				],
 			);
 
-			const baseUrl = `${req.protocol}://${req.get("host")}`;
 			return res.json({
-				shareUrl: `${baseUrl}/jarvis/${shareId}`,
+				shareUrl: `${CLIENT_URL}/jarvis/${shareId}`,
 				shareId,
 			});
 		} catch (error) {

@@ -30,6 +30,10 @@ export default function JarvisSharePage() {
 	useEffect(() => {
 		if (!shareId) return;
 
+		setLoading(true);
+		setError(null);
+		setChatMessages([]);
+
 		const apiBase = import.meta.env.VITE_API_URL || "";
 
 		fetch(`${apiBase}/api/share/${shareId}`)
@@ -43,14 +47,12 @@ export default function JarvisSharePage() {
 			})
 			.then((data) => {
 				setConversationIdState(data.conversation.id);
+				// Metadata is already parsed (comes from JSONB column via Postgres)
 				const messages: Message[] = data.messages.map((msg) => ({
 					id: msg.id,
 					role: msg.role,
 					message: msg.message || "",
-					metadata:
-						typeof msg.metadata === "string"
-							? JSON.parse(msg.metadata)
-							: msg.metadata,
+					metadata: msg.metadata,
 					response_group_id: msg.response_group_id ?? undefined,
 					timestamp: new Date(msg.created_at),
 					conversation_id: data.conversation.id,

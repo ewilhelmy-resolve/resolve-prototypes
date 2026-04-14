@@ -113,7 +113,7 @@ app.use("/api/iframe", iframeRoutes);
 // Share routes — public read at /api/share/:shareId (no auth required)
 app.use("/api/share", shareRoutes);
 // Authenticated share management at /api/conversations/:id/share/{enable,disable}
-app.use("/api/conversations", authenticatedShareRouter);
+app.use("/api/conversations", addUserContextToLogs, authenticatedShareRouter);
 
 // Invitation routes (mixed auth - some public, some protected)
 app.use("/api/invitations", invitationRoutes);
