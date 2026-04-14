@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { toast } from "@/lib/toast";
+import { useAgentBuildStore } from "@/stores/agentBuildStore";
 import { type Phase, usePhaseStore } from "@/stores/phaseStore";
 
 // Mock data for agents table
@@ -121,6 +122,7 @@ export default function AgentsPage() {
 	const setPhase = usePhaseStore((state) => state.setPhase);
 	const phaseV2 = usePhaseGate("agents", "v2");
 	const phaseV3 = usePhaseGate("agents", "v3");
+	const builds = useAgentBuildStore((state) => state.builds);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
 	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
@@ -133,11 +135,17 @@ export default function AgentsPage() {
 	// Dynamic agents list (includes newly published agents)
 	const [agents, setAgents] = useState<Agent[]>(mockAgents);
 
-	// Handle newly published or unpublished agent from navigation state
+	// Handle newly published, unpublished, or building agent from navigation state
 	useEffect(() => {
 		const state = location.state as {
 			publishedAgent?: PublishedAgentState;
 			unpublishedAgent?: { id: string; name: string };
+			buildingAgent?: {
+				id: string;
+				name: string;
+				description: string;
+				skills?: string[];
+			};
 		} | null;
 		if (state?.publishedAgent) {
 			const published = state.publishedAgent;
@@ -196,7 +204,47 @@ export default function AgentsPage() {
 			});
 			window.history.replaceState({}, document.title);
 		}
+
+		if (state?.buildingAgent) {
+			const building = state.buildingAgent;
+			setAgents((prev) => {
+				if (prev.find((a) => a.id === building.id)) return prev;
+				const newAgent: Agent = {
+					id: building.id,
+					name: building.name,
+					description: building.description,
+					status: "building",
+					skills: building.skills || [],
+					updatedBy: { initials: "You", color: "blue" },
+					owner: { initials: "You", color: "blue" },
+					lastUpdated: new Date().toLocaleDateString("en-GB", {
+						day: "2-digit",
+						month: "short",
+						year: "numeric",
+						hour: "2-digit",
+						minute: "2-digit",
+					}),
+				};
+				return [newAgent, ...prev];
+			});
+			window.history.replaceState({}, document.title);
+		}
 	}, [location.state]);
+
+	// Sync build completions → flip "building" agents to "draft"
+	useEffect(() => {
+		for (const [id, build] of Object.entries(builds)) {
+			if (build.status === "complete") {
+				setAgents((prev) =>
+					prev.map((a) =>
+						a.id === id && a.status === "building"
+							? { ...a, status: "draft" as const }
+							: a,
+					),
+				);
+			}
+		}
+	}, [builds]);
 
 	// Filter agents based on search and filters
 	const filteredAgents = agents.filter((agent) => {
@@ -236,8 +284,8 @@ export default function AgentsPage() {
 	};
 
 	const handleAgentClick = (agent: Agent) => {
-		// v1: no navigation (view-only list)
-		if (!phaseV2) return;
+		// Building agents are not interactive
+		if (agent.status === "building") return;
 		// v3: published agents → chat, draft → configure
 		if (phaseV3 && agent.status === "published") {
 			navigate(`/agents/${agent.id}/chat`);
@@ -286,6 +334,15 @@ export default function AgentsPage() {
 							</SelectContent>
 						</Select>
 					</div>
+					{!phaseV2 && (
+						<Button
+							className="gap-2"
+							onClick={() => navigate("/agents/create")}
+						>
+							<Plus className="size-4" />
+							Create agent
+						</Button>
+					)}
 					{phaseV2 && (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
@@ -464,11 +521,9 @@ export default function AgentsPage() {
 						{/* Agents table */}
 						<AgentsTable
 							agents={filteredAgents}
-							onAgentClick={phaseV2 ? handleAgentClick : undefined}
-							onEdit={
-								phaseV2 ? (agent) => navigate(`/agents/${agent.id}`) : undefined
-							}
-							onDelete={phaseV2 ? handleDeleteClick : undefined}
+							onAgentClick={handleAgentClick}
+							onEdit={(agent) => navigate(`/agents/${agent.id}`)}
+							onDelete={handleDeleteClick}
 						/>
 					</div>
 				</div>
@@ -491,7 +546,9 @@ export default function AgentsPage() {
 					open={deleteModalOpen}
 					onOpenChange={setDeleteModalOpen}
 					agentName={agentToDelete.name}
-					agentStatus={agentToDelete.status}
+					agentStatus={
+						agentToDelete.status === "published" ? "published" : "draft"
+					}
 					impact={{
 						skills: agentToDelete.skills?.length || 0,
 						conversationStarters: 3, // Mock data

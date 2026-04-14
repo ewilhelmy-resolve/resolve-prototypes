@@ -37,6 +37,7 @@ import {
 	Layers,
 	LineChart,
 	Link2,
+	Loader2,
 	Lock,
 	Mail,
 	Map,
@@ -74,18 +75,32 @@ import {
 	useSearchParams,
 } from "react-router-dom";
 import { CanvasBuilder } from "@/components/agents/CanvasBuilder";
+import { FieldHelpPopover } from "@/components/agents/FieldHelpPopover";
 import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
 import { WizardAgentBuilder } from "@/components/agents/WizardAgentBuilder";
 import { WizardFloatBuilder } from "@/components/agents/WizardFloatBuilder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAutoSave } from "@/hooks/useAutoSave";
+import { mockImproveInstructions } from "@/lib/mockAgentLlm";
+import {
+	addSkillToInstructions,
+	removeSkillFromInstructions,
+} from "@/lib/skillInstructionSync";
+import { computeSideBySideRows } from "@/lib/textDiff";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -369,6 +384,15 @@ const AVAILABLE_WORKFLOWS = [
 	},
 ];
 
+const SUGGESTED_GUARDRAILS = [
+	"Personal financial advice",
+	"Legal advice",
+	"Medical diagnoses",
+	"Salary information",
+	"Confidential employee data",
+	"Off-topic conversation",
+];
+
 // Available skills for the Add Skill modal
 // linkedAgent: null = available, string = name of agent using this skill
 const AVAILABLE_SKILLS = [
@@ -646,7 +670,7 @@ const AVAILABLE_ICONS = [
 ];
 
 // Mock saved agents data (for loading existing agents)
-const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
+export const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
 	"1": {
 		name: "HelpDesk Advisor",
 		description:
@@ -890,6 +914,14 @@ export default function AgentBuilderPage() {
 	// Instructions expanded modal state
 	const [showInstructionsModal, setShowInstructionsModal] = useState(false);
 
+	// AI feature loading states
+	const [isImprovingInstructions, setIsImprovingInstructions] = useState(false);
+	const [improvePreview, setImprovePreview] = useState<{
+		original: string;
+		improved: string;
+	} | null>(null);
+	const [isGeneratingStarters, setIsGeneratingStarters] = useState(false);
+
 	// Conversation starters customization toggle
 	const [showCustomStarters, setShowCustomStarters] = useState(true);
 
@@ -927,6 +959,10 @@ export default function AgentBuilderPage() {
 				setConfig((prev) => ({
 					...prev,
 					workflows: ["Update Store Hours"],
+					instructions: addSkillToInstructions(
+						prev.instructions,
+						"Update Store Hours",
+					),
 				}));
 				setDemoStep(2);
 				break;
@@ -1715,7 +1751,7 @@ export default function AgentBuilderPage() {
 		if (starterMatch) {
 			const newStarter = starterMatch[1].trim();
 			if (
-				config.conversationStarters.length < 6 &&
+				config.conversationStarters.length < 4 &&
 				!config.conversationStarters.includes(newStarter)
 			) {
 				setConfig((prev) => ({
@@ -1992,6 +2028,10 @@ export default function AgentBuilderPage() {
 		setConfig((prev) => ({
 			...prev,
 			workflows: ["Password Reset", "Access Request"],
+			instructions: ["Password Reset", "Access Request"].reduce(
+				(inst, skill) => addSkillToInstructions(inst, skill),
+				prev.instructions,
+			),
 			hasRequiredConnections: true,
 		}));
 
@@ -2289,6 +2329,10 @@ export default function AgentBuilderPage() {
 			setConfig((prev) => ({
 				...prev,
 				workflows: selectedNames as string[],
+				instructions: (selectedNames as string[]).reduce(
+					(inst, skill) => addSkillToInstructions(inst, skill),
+					prev.instructions,
+				),
 				hasRequiredConnections: true,
 			}));
 		} else {
@@ -2888,9 +2932,16 @@ export default function AgentBuilderPage() {
 						<div className="max-w-2xl mx-auto space-y-8">
 							{/* Name of agent with icon picker */}
 							<div>
-								<Label htmlFor="agent-name" className="text-sm font-medium">
-									Name of agent
-								</Label>
+								<div className="flex items-center gap-1.5">
+									<Label htmlFor="agent-name" className="text-sm font-medium">
+										Name of agent
+									</Label>
+									<FieldHelpPopover
+										description="Pick a clear, action-oriented name your users will recognize."
+										examples={["HR Onboarding Buddy", "IT HelpDesk Agent"]}
+										ariaLabel="Name field help"
+									/>
+								</div>
 								<div className="flex items-center gap-4 mt-2">
 									<Input
 										id="agent-name"
@@ -3037,12 +3088,22 @@ export default function AgentBuilderPage() {
 								</button>
 							) : (
 								<div>
-									<Label
-										htmlFor="agent-description"
-										className="text-sm font-medium"
-									>
-										Description
-									</Label>
+									<div className="flex items-center gap-1.5">
+										<Label
+											htmlFor="agent-description"
+											className="text-sm font-medium"
+										>
+											Description
+										</Label>
+										<FieldHelpPopover
+											description="A short summary of the agent's purpose. Shown in the agent list."
+											examples={[
+												"Helps new hires complete onboarding paperwork.",
+												"Resets passwords and unlocks accounts for IT requests.",
+											]}
+											ariaLabel="Description field help"
+										/>
+									</div>
 									<Textarea
 										id="agent-description"
 										value={config.description}
@@ -3063,7 +3124,14 @@ export default function AgentBuilderPage() {
 							<div id="skills-section" className="space-y-2">
 								<div className="flex items-start justify-between">
 									<div>
-										<Label className="text-sm font-medium">Skills</Label>
+										<div className="flex items-center gap-1.5">
+											<Label className="text-sm font-medium">Skills</Label>
+											<FieldHelpPopover
+												description="Capabilities the agent can perform. Add skills from your library or create new ones."
+												examples={["Reset password", "Lookup PTO balance"]}
+												ariaLabel="Skills field help"
+											/>
+										</div>
 										<p className="text-sm text-muted-foreground mt-1">
 											Help users understand what this agent can help them with
 											by adding skills
@@ -3111,12 +3179,17 @@ export default function AgentBuilderPage() {
 														<span className="text-xs flex-1">{workflow}</span>
 														<button
 															onClick={() => {
+																const removed = workflow;
 																const updated = config.workflows.filter(
 																	(_, i) => i !== index,
 																);
 																setConfig((prev) => ({
 																	...prev,
 																	workflows: updated,
+																	instructions: removeSkillFromInstructions(
+																		prev.instructions,
+																		removed,
+																	),
 																}));
 															}}
 															className="p-2 text-muted-foreground hover:text-foreground"
@@ -3134,9 +3207,56 @@ export default function AgentBuilderPage() {
 							{/* Instructions Section */}
 							<div className="space-y-2">
 								<div>
-									<Label htmlFor="instructions" className="text-sm font-medium">
-										Instructions
-									</Label>
+									<div className="flex items-center justify-between">
+										<div className="flex items-center gap-1.5">
+											<Label
+												htmlFor="instructions"
+												className="text-sm font-medium"
+											>
+												Instructions
+											</Label>
+											<FieldHelpPopover
+												description="Tell the agent who it is, how it should behave, and when its job is done. Use ## headings to structure (Role, Backstory, Goal)."
+												examples={[
+													"## Role\nYou are an HR onboarding assistant\u2026",
+													"## Goal\nThe user has submitted their I-9 and reviewed the handbook.",
+												]}
+												ariaLabel="Instructions field help"
+											/>
+										</div>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="gap-1 h-7 text-xs"
+											disabled={
+												isImprovingInstructions ||
+												!!improvePreview ||
+												!config.instructions.trim()
+											}
+											onClick={async () => {
+												setIsImprovingInstructions(true);
+												try {
+													const result = await mockImproveInstructions(
+														config.instructions,
+														config.name,
+													);
+													setImprovePreview({
+														original: config.instructions,
+														improved: result,
+													});
+												} finally {
+													setIsImprovingInstructions(false);
+												}
+											}}
+										>
+											{isImprovingInstructions ? (
+												<Loader2 className="size-3.5 animate-spin" />
+											) : (
+												<Sparkles className="size-3.5" />
+											)}
+											Improve
+										</Button>
+									</div>
 									<p className="text-sm text-muted-foreground mt-1">
 										Control your agents behavior by adding instructions.
 									</p>
@@ -3196,14 +3316,26 @@ export default function AgentBuilderPage() {
 
 							{/* Conversation Starters Section */}
 							<div className="space-y-2">
-								<div>
-									<label className="text-sm font-medium text-foreground">
-										Conversation starters
-									</label>
-									<p className="text-sm text-muted-foreground mt-0.5">
-										Suggested prompts shown to users when starting a
-										conversation
-									</p>
+								<div className="flex items-start justify-between">
+									<div>
+										<div className="flex items-center gap-1.5">
+											<label className="text-sm font-medium text-foreground">
+												Conversation starters
+											</label>
+											<FieldHelpPopover
+												description="Suggested prompts shown to users when they open this agent."
+												examples={[
+													"How do I request PTO?",
+													"Reset my password",
+												]}
+												ariaLabel="Conversation starters field help"
+											/>
+										</div>
+										<p className="text-sm text-muted-foreground mt-0.5">
+											Suggested prompts shown to users when starting a
+											conversation
+										</p>
+									</div>
 								</div>
 								{/* Input with inline tags */}
 								<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
@@ -3232,7 +3364,7 @@ export default function AgentBuilderPage() {
 										</div>
 									))}
 									{/* Input for typing new starters */}
-									{config.conversationStarters.length < 6 && (
+									{config.conversationStarters.length < 4 && (
 										<input
 											type="text"
 											placeholder="Type and press Enter to add..."
@@ -3260,9 +3392,19 @@ export default function AgentBuilderPage() {
 							{/* Guardrails Section */}
 							<div className="space-y-2">
 								<div>
-									<label className="text-sm font-medium text-foreground">
-										Guardrails
-									</label>
+									<div className="flex items-center gap-1.5">
+										<label className="text-sm font-medium text-foreground">
+											Guardrails
+										</label>
+										<FieldHelpPopover
+											description="Topics or actions the agent must NOT handle. Be specific."
+											examples={[
+												"Do not give legal advice",
+												"Never share salary information",
+											]}
+											ariaLabel="Guardrails field help"
+										/>
+									</div>
 									<p className="text-xs text-muted-foreground mt-0.5">
 										Topics or requests the agent should NOT handle
 									</p>
@@ -3338,7 +3480,17 @@ export default function AgentBuilderPage() {
 							{/* Knowledge Section */}
 							<div className="space-y-2">
 								<div>
-									<Label className="text-sm font-medium">Knowledge</Label>
+									<div className="flex items-center gap-1.5">
+										<Label className="text-sm font-medium">Knowledge</Label>
+										<FieldHelpPopover
+											description="Sources the agent draws from when answering. Toggle web search and workspace knowledge as needed."
+											examples={[
+												"Enable web search for general/public info",
+												"Enable workspace knowledge for internal docs",
+											]}
+											ariaLabel="Knowledge field help"
+										/>
+									</div>
 									<p className="text-sm text-muted-foreground mt-1">
 										Give your agent general knowledge to answer best
 									</p>
@@ -4508,7 +4660,7 @@ export default function AgentBuilderPage() {
 												const startersToAdd = newStarters.filter(
 													(s) => !existingStarters.includes(s),
 												);
-												const availableSlots = 6 - existingStarters.length;
+												const availableSlots = 4 - existingStarters.length;
 												const finalNewStarters = startersToAdd.slice(
 													0,
 													availableSlots,
@@ -4517,6 +4669,11 @@ export default function AgentBuilderPage() {
 												return {
 													...prev,
 													workflows: [...prev.workflows, ...selectedSkills],
+													instructions: selectedSkills.reduce(
+														(inst, skill) =>
+															addSkillToInstructions(inst, skill),
+														prev.instructions,
+													),
 													conversationStarters: [
 														...existingStarters,
 														...finalNewStarters,
@@ -4592,6 +4749,10 @@ export default function AgentBuilderPage() {
 									setConfig((prev) => ({
 										...prev,
 										workflows: [...prev.workflows, workflowToUnlink.name],
+										instructions: addSkillToInstructions(
+											prev.instructions,
+											workflowToUnlink.name,
+										),
 									}));
 									setShowUnlinkConfirm(false);
 									setWorkflowToUnlink(null);
@@ -4680,6 +4841,102 @@ export default function AgentBuilderPage() {
 					</div>
 				</div>
 			)}
+
+			{/* Improve Instructions Preview Modal */}
+			{(() => {
+				const rows = improvePreview
+					? computeSideBySideRows(
+							improvePreview.original,
+							improvePreview.improved,
+						)
+					: [];
+				return (
+					<Dialog
+						open={!!improvePreview}
+						onOpenChange={(open) => {
+							if (!open) setImprovePreview(null);
+						}}
+					>
+						<DialogContent className="!max-w-6xl max-h-[85vh] overflow-hidden flex flex-col">
+							<DialogHeader>
+								<DialogTitle>Improve instructions</DialogTitle>
+								<p className="text-sm text-muted-foreground">
+									Review the suggested changes before accepting.
+								</p>
+							</DialogHeader>
+							<div className="overflow-y-auto rounded-lg max-h-[60vh]">
+								{/* Column headers */}
+								<div className="grid grid-cols-2 gap-4 sticky top-0 z-10 bg-background pb-2">
+									<p className="text-sm font-medium text-muted-foreground">
+										Current
+									</p>
+									<p className="text-sm font-medium text-muted-foreground">
+										Improved
+									</p>
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<div className="rounded-lg overflow-hidden border">
+										{rows.map((row, i) => (
+											<div
+												key={i}
+												className={cn(
+													"px-4 py-0.5 text-sm min-h-[26px]",
+													row.left.type === "removed" &&
+														"bg-red-50 text-red-900",
+													row.left.type === "unchanged" && "text-foreground",
+													row.left.type === "empty" && "bg-muted/10",
+												)}
+											>
+												{row.left.type !== "empty"
+													? row.left.text || "\u00A0"
+													: "\u00A0"}
+											</div>
+										))}
+									</div>
+									<div className="rounded-lg overflow-hidden border">
+										{rows.map((row, i) => (
+											<div
+												key={i}
+												className={cn(
+													"px-4 py-0.5 text-sm min-h-[26px]",
+													row.right.type === "added" &&
+														"bg-green-50 text-green-900",
+													row.right.type === "unchanged" && "text-foreground",
+													row.right.type === "empty" && "bg-muted/10",
+												)}
+											>
+												{row.right.type !== "empty"
+													? row.right.text || "\u00A0"
+													: "\u00A0"}
+											</div>
+										))}
+									</div>
+								</div>
+							</div>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setImprovePreview(null)}
+								>
+									Discard
+								</Button>
+								<Button
+									onClick={() => {
+										setConfig((prev) => ({
+											...prev,
+											instructions: improvePreview!.improved,
+										}));
+										setImprovePreview(null);
+										toast.success("Instructions improved");
+									}}
+								>
+									Accept
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				);
+			})()}
 		</div>
 	);
 }
