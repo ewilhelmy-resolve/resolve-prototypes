@@ -2,17 +2,25 @@ import express from "express";
 import { logger } from "../config/logger.js";
 import { registry, z } from "../docs/openapi.js";
 import {
+	AgentCancelCreationBodySchema,
 	AgentCheckNameQuerySchema,
 	AgentCheckNameResponseSchema,
 	AgentCreateBodySchema,
+	AgentCreationInputBodySchema,
 	AgentDeleteResponseSchema,
 	AgentDetailResponseSchema,
+	AgentGenerateBodySchema,
 	AgentListQuerySchema,
 	AgentListResponseSchema,
 	AgentUpdateBodySchema,
 } from "../schemas/agent.js";
 import { ErrorResponseSchema } from "../schemas/common.js";
 import { AgenticService } from "../services/AgenticService.js";
+import { getAgentCreationStrategy } from "../services/agentCreation/index.js";
+import {
+	agentConfigToApiData,
+	apiDataToAgentConfig,
+} from "../services/agentCreation/mappers.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 
 // ============================================================================
@@ -265,69 +273,7 @@ function formatDate(isoDate: string | null): string {
 	});
 }
 
-// ============================================================================
-// AgentConfig ↔ AgentMetadataApiData mapping
-// ============================================================================
-
-/**
- * Map frontend AgentConfig body to LLM Service AgentMetadataApiData.
- * Only persisted fields (name, status, icon) are sent. Icon fields are
- * stored under `configs.ui` with keys `icon` and `icon_color`.
- */
-function agentConfigToApiData(
-	body: Record<string, unknown>,
-): Record<string, unknown> {
-	const { name, status, iconId, iconColorId, ...rest } = body;
-
-	const apiData: Record<string, unknown> = { ...rest };
-	if (name !== undefined) apiData.name = name;
-	if (status !== undefined) apiData.active = status === "published";
-
-	// Pack icon fields into configs.ui
-	const ui: Record<string, unknown> = {};
-	if (iconId !== undefined) ui.icon = iconId;
-	if (iconColorId !== undefined) ui.icon_color = iconColorId;
-	if (Object.keys(ui).length > 0) apiData.configs = { ui };
-
-	return apiData;
-}
-
-/**
- * Map LLM Service AgentMetadataApiData to frontend AgentConfig shape.
- * Reads icon from `configs.ui`, falls back to legacy `configs.iconId` / `configs.iconColorId`.
- * Local-only fields return empty defaults.
- */
-function apiDataToAgentConfig(
-	agent: Record<string, unknown>,
-	skills: string[] = [],
-): Record<string, unknown> {
-	const configs = (agent.configs as Record<string, unknown>) || {};
-	const ui = (configs.ui as Record<string, unknown>) || {};
-
-	return {
-		id: agent.eid || String(agent.id || ""),
-		name: agent.name || "",
-		description: agent.description || "",
-		instructions: agent.markdown_text || "",
-		status: agent.active ? "published" : "draft",
-		role: "",
-		agentType: null,
-		iconId: ui.icon ?? configs.iconId ?? "bot",
-		iconColorId: ui.icon_color ?? configs.iconColorId ?? "slate",
-		conversationStarters: [],
-		knowledgeSources: [],
-		workflows: [],
-		skills,
-		guardrails: [],
-		capabilities: {
-			webSearch: true,
-			imageGeneration: false,
-			useAllWorkspaceContent: false,
-		},
-		createdAt: agent.sys_date_created || undefined,
-		updatedAt: agent.sys_date_updated || undefined,
-	};
-}
+// AgentConfig ↔ AgentMetadataApiData mapping — see services/agentCreation/mappers.ts
 
 /**
  * GET /api/agents
@@ -441,6 +387,117 @@ router.get("/check-name", async (req, res) => {
 		logger.error({ error }, "Error checking agent name");
 		res.status(500).json({
 			error: "Failed to check agent name",
+			code: "INTERNAL_ERROR",
+		});
+	}
+});
+
+/**
+ * POST /api/agents/generate
+ * Create agent via AI — strategy pattern (direct API or workflow)
+ */
+router.post("/generate", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	try {
+		const body = AgentGenerateBodySchema.parse(req.body);
+		const strategy = getAgentCreationStrategy();
+
+		const result = await strategy.createAgent({
+			name: body.name,
+			description: body.description,
+			instructions: body.instructions,
+			iconId: body.iconId,
+			iconColorId: body.iconColorId,
+			conversationStarters: body.conversationStarters,
+			guardrails: body.guardrails,
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			organizationId: authReq.user.activeOrganizationId,
+		});
+
+		res.status(202).json({ mode: "async", creationId: result.creationId });
+	} catch (error: any) {
+		if (error?.response) {
+			logger.error(
+				{ status: error.response.status, data: error.response.data },
+				"LLM Service error generating agent",
+			);
+			return res.status(502).json({
+				error: "LLM Service unavailable",
+				code: "LLM_SERVICE_ERROR",
+			});
+		}
+		logger.error({ error }, "Error generating agent");
+		res.status(500).json({
+			error: "Failed to generate agent",
+			code: "INTERNAL_ERROR",
+		});
+	}
+});
+
+/**
+ * POST /api/agents/creation-input
+ * Send user input during async agent creation workflow
+ */
+router.post("/creation-input", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	try {
+		const body = AgentCreationInputBodySchema.parse(req.body);
+		const strategy = getAgentCreationStrategy();
+
+		const result = await strategy.sendInput({
+			creationId: body.creationId,
+			prevExecutionId: body.prevExecutionId,
+			prompt: body.prompt,
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			organizationId: authReq.user.activeOrganizationId,
+		});
+
+		res.json(result);
+	} catch (error: any) {
+		if (error?.message?.includes("not supported")) {
+			return res.status(400).json({
+				error: error.message,
+				code: "NOT_SUPPORTED",
+			});
+		}
+		logger.error({ error }, "Error sending agent creation input");
+		res.status(500).json({
+			error: "Failed to send creation input",
+			code: "INTERNAL_ERROR",
+		});
+	}
+});
+
+/**
+ * POST /api/agents/cancel-creation
+ * Cancel an in-progress agent creation
+ */
+router.post("/cancel-creation", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	try {
+		const body = AgentCancelCreationBodySchema.parse(req.body);
+		const strategy = getAgentCreationStrategy();
+
+		const result = await strategy.cancel({
+			creationId: body.creationId,
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			organizationId: authReq.user.activeOrganizationId,
+		});
+
+		res.json(result);
+	} catch (error: any) {
+		if (error?.message?.includes("not supported")) {
+			return res.status(400).json({
+				error: error.message,
+				code: "NOT_SUPPORTED",
+			});
+		}
+		logger.error({ error }, "Error cancelling agent creation");
+		res.status(500).json({
+			error: "Failed to cancel agent creation",
 			code: "INTERNAL_ERROR",
 		});
 	}

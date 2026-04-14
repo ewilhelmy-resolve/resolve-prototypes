@@ -6,6 +6,9 @@ function escapeLike(value: string): string {
 	return value.replace(/[\\%_]/g, "\\$&");
 }
 
+/** Statuses considered "closed" across ITSM sources (ServiceNow, Jira, Freshservice, etc.) */
+const CLOSED_STATUSES = ["Closed", "Resolved", "Canceled", "Cancelled"];
+
 import type {
 	ClusterDetails,
 	ClusterListItem,
@@ -51,7 +54,7 @@ export class ClusterService {
 				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id)`.as(
 					"ticket_count",
 				),
-				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND external_status = 'Open')`.as(
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND external_status NOT IN (${sql.join(CLOSED_STATUSES.map((s) => sql.lit(s)))}))`.as(
 					"open_count",
 				),
 				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND resolution IS NOT NULL)`.as(
@@ -350,8 +353,10 @@ export class ClusterService {
 			query = query.where("priority", "=", options.priority);
 		}
 
-		// External status filter
-		if (options.external_status) {
+		// External status filter — "Open" means "not closed", otherwise exact match
+		if (options.external_status === "Open") {
+			query = query.where("external_status", "not in", CLOSED_STATUSES);
+		} else if (options.external_status) {
 			query = query.where("external_status", "=", options.external_status);
 		}
 
@@ -395,8 +400,13 @@ export class ClusterService {
 				.$if(!!options.priority, (qb) =>
 					qb.where("priority", "=", options.priority as string),
 				)
-				.$if(!!options.external_status, (qb) =>
-					qb.where("external_status", "=", options.external_status as string),
+				.$if(options.external_status === "Open", (qb) =>
+					qb.where("external_status", "not in", CLOSED_STATUSES),
+				)
+				.$if(
+					!!options.external_status && options.external_status !== "Open",
+					(qb) =>
+						qb.where("external_status", "=", options.external_status as string),
 				)
 				.executeTakeFirstOrThrow(),
 		]);

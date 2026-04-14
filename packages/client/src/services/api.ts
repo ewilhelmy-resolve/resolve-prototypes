@@ -241,6 +241,36 @@ export const agentApi = {
 		apiRequest<{ success: boolean; message: string }>(`/api/agents/${eid}`, {
 			method: "DELETE",
 		}),
+
+	generate: (data: {
+		name: string;
+		description?: string;
+		instructions?: string;
+		iconId?: string;
+		iconColorId?: string;
+		conversationStarters?: string[];
+		guardrails?: string[];
+	}) =>
+		apiRequest<{ mode: "async"; creationId: string }>("/api/agents/generate", {
+			method: "POST",
+			body: data,
+		}),
+
+	sendCreationInput: (data: {
+		creationId: string;
+		prevExecutionId: string;
+		prompt: string;
+	}) =>
+		apiRequest<{ success: boolean }>("/api/agents/creation-input", {
+			method: "POST",
+			body: data,
+		}),
+
+	cancelCreation: (data: { creationId: string }) =>
+		apiRequest<{ success: boolean }>("/api/agents/cancel-creation", {
+			method: "POST",
+			body: data,
+		}),
 };
 
 // Organization API
