@@ -9,6 +9,7 @@
  * build and navigates to /agents.
  */
 
+import confetti from "canvas-confetti";
 import {
 	ArrowLeft,
 	Award,
@@ -16,6 +17,7 @@ import {
 	Bot,
 	Briefcase,
 	Calendar,
+	CheckCircle2,
 	ChevronDown,
 	ClipboardList,
 	Clock,
@@ -60,7 +62,7 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { MOCK_SAVED_AGENTS } from "./AgentBuilderPage";
 import { Badge } from "@/components/ui/badge";
@@ -362,8 +364,8 @@ export default function AgentBuilderV1Page() {
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
 	const startBuild = useAgentBuildStore((state) => state.startBuild);
-	const initialName =
-		(location.state as { agentName?: string })?.agentName || "Untitled Agent";
+	const locationState = location.state as { agentName?: string; agentConfig?: AgentConfig } | null;
+	const initialName = locationState?.agentName || "Untitled Agent";
 
 	// Edit mode: prefill from saved agent if id present
 	const isEditing = !!agentId;
@@ -371,12 +373,15 @@ export default function AgentBuilderV1Page() {
 
 	const [isCreating, setIsCreating] = useState(false);
 	const [config, setConfig] = useState<AgentConfig>(() => {
+		if (locationState?.agentConfig) {
+			return locationState.agentConfig;
+		}
 		if (savedAgent) {
 			return {
 				name: savedAgent.name,
 				description: savedAgent.description,
 				instructions:
-					savedAgent.instructions || "## Role\n\n## Backstory\n\n## Goal",
+					savedAgent.instructions || "## Role\n\n## Backstory\n\n## Goal\n\n## Task",
 				iconId: savedAgent.iconId,
 				iconColorId: savedAgent.iconColorId,
 				workflows: savedAgent.workflows || [],
@@ -395,7 +400,7 @@ export default function AgentBuilderV1Page() {
 		return {
 			name: initialName,
 			description: "",
-			instructions: "## Role\n\n## Backstory\n\n## Goal",
+			instructions: "## Role\n\n## Backstory\n\n## Goal\n\n## Task",
 			iconId: "squirrel",
 			iconColorId: "slate",
 			workflows: [],
@@ -424,6 +429,31 @@ export default function AgentBuilderV1Page() {
 	const [skillSearchQuery, setSkillSearchQuery] = useState("");
 	const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 	const [skillsTab, setSkillsTab] = useState<"available" | "all">("available");
+	const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+	const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
+
+	const [viewState, setViewState] = useState<"form" | "building" | "success">("form");
+	const [buildSteps, setBuildSteps] = useState<Array<{ label: string; description: string; status: "pending" | "active" | "complete" }>>([]);
+	const buildTimersRef = useRef<NodeJS.Timeout[]>([]);
+
+	const BUILD_STEP_SEQUENCE = [
+		{ label: "Analyzing", description: "Analyzing your requirements..." },
+		{ label: "Starting", description: "Initializing agent builder..." },
+		{ label: "Analyzing", description: "Analyzing your requirements..." },
+		{ label: "Building", description: "Creating agent and tasks..." },
+		{ label: "Requirements", description: "Requirements analysis complete" },
+		{ label: "Building", description: "Creating agent and tasks..." },
+		{ label: "Requirements", description: "Requirements analysis complete" },
+	];
+
+	const clearBuildTimers = () => {
+		for (const t of buildTimersRef.current) clearTimeout(t);
+		buildTimersRef.current = [];
+	};
+
+	useEffect(() => {
+		return () => clearBuildTimers();
+	}, []);
 
 	// -----------------------------------------------------------------------
 	// Publish handler (preserved from original V1)
@@ -436,25 +466,117 @@ export default function AgentBuilderV1Page() {
 			return;
 		}
 		const id = `v1-${Date.now()}`;
-		startBuild({ id, name: config.name });
-		navigate("/agents", {
-			state: {
-				buildingAgent: {
-					id,
-					name: config.name,
-					description: config.description,
-					skills: config.workflows,
-				},
-			},
+		setCreatedAgentId(id);
+		setViewState("building");
+		setBuildSteps([]);
+		clearBuildTimers();
+
+		const stepDelay = 1000;
+		BUILD_STEP_SEQUENCE.forEach((step, index) => {
+			const t = setTimeout(() => {
+				setBuildSteps((prev) => {
+					const updated = prev.map((s) => ({ ...s, status: "complete" as const }));
+					return [...updated, { ...step, status: "active" as const }];
+				});
+			}, (index + 1) * stepDelay);
+			buildTimersRef.current.push(t);
 		});
-		toast.info("Building your agent", {
-			description: "We'll notify you when it's ready.",
-		});
+
+		const finishT = setTimeout(() => {
+			setBuildSteps((prev) => prev.map((s) => ({ ...s, status: "complete" as const })));
+			const successT = setTimeout(() => {
+				setViewState("success");
+				confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+			}, 500);
+			buildTimersRef.current.push(successT);
+		}, (BUILD_STEP_SEQUENCE.length + 1) * stepDelay);
+		buildTimersRef.current.push(finishT);
 	};
 
 	// -----------------------------------------------------------------------
 	// Render
 	// -----------------------------------------------------------------------
+
+	if (viewState === "building") {
+		return (
+			<div className="h-full min-h-screen flex flex-col bg-muted/40">
+				<div className="flex-1 flex items-center justify-center">
+					<div className="max-w-md w-full px-6">
+						<div className="text-center mb-10">
+							<h1 className="text-2xl font-semibold text-foreground">Creating your agent...</h1>
+							<p className="text-muted-foreground mt-2">AI is building your agent configuration</p>
+						</div>
+
+						<div className="space-y-1">
+							{buildSteps.map((step, index) => (
+								<div key={index} className="flex items-start gap-3 py-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+									{step.status === "complete" ? (
+										<CheckCircle2 className="size-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+									) : (
+										<div className="size-5 mt-0.5 flex-shrink-0 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+									)}
+									<div>
+										<p className="text-sm font-semibold text-foreground">{step.label}</p>
+										<p className="text-sm text-muted-foreground">{step.description}</p>
+									</div>
+								</div>
+							))}
+						</div>
+
+						<div className="text-center mt-10">
+							<Button
+								variant="outline"
+								onClick={() => {
+									clearBuildTimers();
+									setViewState("form");
+									setIsCreating(false);
+									setBuildSteps([]);
+								}}
+							>
+								Cancel
+							</Button>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (viewState === "success") {
+		return (
+			<div className="h-full min-h-screen flex flex-col bg-muted/40">
+				<div className="flex-1 flex items-center justify-center">
+					<div className="text-center">
+						<div className="mx-auto mb-6 size-16 rounded-full border-4 border-emerald-500 flex items-center justify-center">
+							<CheckCircle2 className="size-10 text-emerald-500" />
+						</div>
+						<h1 className="text-2xl font-semibold text-foreground">Agent created successfully!</h1>
+						<p className="text-muted-foreground mt-2">
+							Your agent "{config.name}" is ready
+						</p>
+						<div className="flex items-center justify-center gap-3 mt-8">
+							<Button
+								variant="outline"
+								className="gap-2"
+								onClick={() => navigate(`/agents/${createdAgentId}`, { state: { agentConfig: config } })}
+							>
+								<Wrench className="size-4" />
+								Edit agent
+							</Button>
+							<Button
+								className="gap-2 bg-blue-600 hover:bg-blue-700"
+								onClick={() => navigate(`/agents/${createdAgentId}/test`, { state: { agentConfig: config } })}
+							>
+								<Play className="size-4" />
+								Test agent
+							</Button>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="h-full flex flex-col bg-muted/40">
 			{/* Header */}
@@ -478,25 +600,24 @@ export default function AgentBuilderV1Page() {
 						<HelpCircle className="size-4" />
 						How agent builder works
 					</Button>
-					<Button
-						variant="outline"
-						className="gap-2"
-						onClick={() =>
-							navigate(
-								isEditing ? `/agents/${agentId}/test` : "/agents/test",
-								{ state: { agentConfig: config } },
-							)
-						}
-						disabled={
-							!config.name ||
-							(!config.description &&
-								!config.instructions &&
-								!config.conversationStarters.some((s) => s.trim()))
-						}
-					>
-						<Play className="size-4" />
-						Test
-					</Button>
+					{isEditing && (
+						<Button
+							variant="outline"
+							className="gap-2"
+							onClick={() =>
+								navigate(`/agents/${agentId}/test`, { state: { agentConfig: config } })
+							}
+							disabled={
+								!config.name ||
+								(!config.description &&
+									!config.instructions &&
+									!config.conversationStarters.some((s) => s.trim()))
+							}
+						>
+							<Play className="size-4" />
+							Test
+						</Button>
+					)}
 					{isEditing ? (
 						<Button
 							onClick={handleCreateAgent}
@@ -509,11 +630,11 @@ export default function AgentBuilderV1Page() {
 					) : (
 						<Button
 							onClick={handleCreateAgent}
-							disabled={!config.name || isCreating}
+							disabled={!config.name.trim() || !config.instructions.trim() || config.workflows.length === 0 || isCreating}
 							className="gap-2"
 						>
 							{isCreating && <Loader2 className="size-4 animate-spin" />}
-							Publish
+							Create
 						</Button>
 					)}
 				</div>
@@ -818,7 +939,7 @@ export default function AgentBuilderV1Page() {
 												Instructions
 											</Label>
 											<FieldHelpPopover
-												description="Tell the agent who it is, how it should behave, and when its job is done. Use ## headings to structure (Role, Backstory, Goal)."
+												description="Tell the agent who it is, how it should behave, and when its job is done. Use ## headings to structure (Role, Backstory, Goal, Task)."
 												examples={[
 													"## Role\nYou are an HR onboarding assistant\u2026",
 													"## Goal\nThe user has submitted their I-9 and reviewed the handbook.",
@@ -859,7 +980,7 @@ export default function AgentBuilderV1Page() {
 										Control your agent's behavior by adding instructions.
 									</p>
 								</div>
-								<div className="border rounded-lg overflow-hidden">
+								<div className="border rounded-lg overflow-hidden relative">
 									<Textarea
 										id="instructions"
 										value={config.instructions}
@@ -869,9 +990,30 @@ export default function AgentBuilderV1Page() {
 												instructions: e.target.value,
 											}))
 										}
-										placeholder={"## Role\n\n## Backstory\n\n## Goal"}
+										placeholder={"## Role\n\n## Backstory\n\n## Goal\n\n## Task"}
 										className="min-h-[80px] max-h-[120px] resize-none text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
 									/>
+									<button
+										className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
+										aria-label="Expand instructions"
+										onClick={() => setShowInstructionsModal(true)}
+									>
+										<svg
+											width="16"
+											height="16"
+											viewBox="0 0 16 16"
+											fill="none"
+											xmlns="http://www.w3.org/2000/svg"
+										>
+											<path
+												d="M10 2H14V6M6 14H2V10M14 2L9 7M2 14L7 9"
+												stroke="currentColor"
+												strokeWidth="1.5"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											/>
+										</svg>
+									</button>
 								</div>
 								<p className="text-xs text-muted-foreground">
 									Update instructions as needed
@@ -1423,6 +1565,42 @@ export default function AgentBuilderV1Page() {
 					</Dialog>
 				);
 			})()}
+
+			{/* Instructions Expanded Modal */}
+			{showInstructionsModal && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="absolute inset-0 bg-black/50"
+						onClick={() => setShowInstructionsModal(false)}
+					/>
+					<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden">
+						<button
+							onClick={() => setShowInstructionsModal(false)}
+							className="absolute top-4 right-4 text-muted-foreground hover:text-foreground z-10"
+						>
+							<X className="size-5" />
+						</button>
+						<div className="flex-1 overflow-y-auto p-6">
+							<Textarea
+								value={config.instructions}
+								onChange={(e) =>
+									setConfig((prev) => ({
+										...prev,
+										instructions: e.target.value,
+									}))
+								}
+								placeholder={"## Role\n\n## Backstory\n\n## Goal\n\n## Task"}
+								className="min-h-[400px] resize-none text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
+							/>
+						</div>
+						<div className="px-6 py-4 border-t">
+							<p className="text-xs text-muted-foreground">
+								Update instructions as needed
+							</p>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
