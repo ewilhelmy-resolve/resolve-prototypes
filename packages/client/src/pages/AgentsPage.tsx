@@ -284,8 +284,8 @@ export default function AgentsPage() {
 	};
 
 	const handleAgentClick = (agent: Agent) => {
-		// v1: no navigation (view-only list)
-		if (!phaseV2) return;
+		// Building agents are not interactive
+		if (agent.status === "building") return;
 		// v3: published agents → chat, draft → configure
 		if (phaseV3 && agent.status === "published") {
 			navigate(`/agents/${agent.id}/chat`);
@@ -521,11 +521,9 @@ export default function AgentsPage() {
 						{/* Agents table */}
 						<AgentsTable
 							agents={filteredAgents}
-							onAgentClick={phaseV2 ? handleAgentClick : undefined}
-							onEdit={
-								phaseV2 ? (agent) => navigate(`/agents/${agent.id}`) : undefined
-							}
-							onDelete={phaseV2 ? handleDeleteClick : undefined}
+							onAgentClick={handleAgentClick}
+							onEdit={(agent) => navigate(`/agents/${agent.id}`)}
+							onDelete={handleDeleteClick}
 						/>
 					</div>
 				</div>
