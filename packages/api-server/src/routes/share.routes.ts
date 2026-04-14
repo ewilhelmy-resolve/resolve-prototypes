@@ -1,19 +1,16 @@
 /**
- * Share Routes — Snapshot-based conversation sharing
+ * Share Routes — Conversation sharing for authenticated users
  *
- * When a user clicks Share, Rita creates an immutable snapshot of the
- * conversation's messages at that moment. The snapshot lives in
- * shared_conversations with an opaque share_id. Public readers fetch by
- * share_id; the live conversations/messages tables are never touched by
- * the public read path.
+ * When a user clicks Share, Rita creates a snapshot of the conversation's
+ * messages. The snapshot lives in shared_conversations with an opaque
+ * share_id. All access requires authentication — no public access.
  *
  * Endpoints:
- * - GET  /api/share/:shareId                                 (public, no auth)
- * - POST /api/conversations/:conversationId/share/enable     (authenticated)
- * - POST /api/conversations/:conversationId/share/disable    (authenticated)
- *
- * The public GET has no access-control flag to check — if the snapshot row
- * exists, it's shared; otherwise 404. Revoking = DELETE row.
+ * - GET  /api/share/:shareId                                 (authenticated)
+ * - POST /api/conversations/:conversationId/share/enable     (authenticated, owner)
+ * - POST /api/conversations/:conversationId/share/disable    (authenticated, owner)
+ * - POST /api/iframe/share                                   (Valkey sessionKey)
+ * - POST /api/iframe/share/disable                           (Valkey sessionKey)
  */
 import crypto from "node:crypto";
 import express from "express";
@@ -28,17 +25,18 @@ import { checkRateLimit } from "../utils/rateLimit.js";
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
 // =============================================================================
-// Public router — mounted at /api/share (no auth middleware)
+// Share read router — mounted at /api/share (requires auth)
 // =============================================================================
 export const publicShareRouter = express.Router();
 
 /**
  * GET /api/share/:shareId
  *
- * Fetch the shared conversation snapshot. Returns 404 for both
- * "never shared" and "un-shared" cases — no existence leak.
+ * Fetch the shared conversation snapshot. Requires Keycloak auth —
+ * share links are for authenticated users only (no public access).
+ * Returns 404 for both "never shared" and "un-shared" cases — no existence leak.
  */
-publicShareRouter.get("/:shareId", async (req, res) => {
+publicShareRouter.get("/:shareId", authenticateUser, async (req, res) => {
 	try {
 		const clientIp = req.ip || "unknown";
 		if (!checkRateLimit(`share-get:${clientIp}`, 60, 60_000)) {

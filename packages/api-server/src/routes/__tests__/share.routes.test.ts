@@ -13,6 +13,18 @@ vi.mock("../../config/validateUuid.js", () => ({
 	assertUuid: vi.fn(),
 }));
 
+// Mock rate limiter — always allow in tests
+vi.mock("../../utils/rateLimit.js", () => ({
+	checkRateLimit: vi.fn(() => true),
+}));
+
+// Mock Valkey client — used by resolveSessionConversation fallback
+vi.mock("../../config/valkey.js", () => ({
+	getValkeyClient: vi.fn(() => ({
+		hget: vi.fn().mockResolvedValue(null),
+	})),
+}));
+
 // Mock authenticateUser — inject test user into req
 vi.mock("../../middleware/auth.js", () => ({
 	authenticateUser: vi.fn((req, _res, next) => {
@@ -33,6 +45,7 @@ vi.mock("../../services/IframeService.js", () => ({
 
 import { pool } from "../../config/database.js";
 import { assertUuid } from "../../config/validateUuid.js";
+import { authenticateUser } from "../../middleware/auth.js";
 import shareRouter, {
 	authenticatedShareRouter,
 	iframeShareRouter,
@@ -103,9 +116,24 @@ describe("Share Routes — Snapshot Model", () => {
 	});
 
 	// ========================================================================
-	// GET /api/share/:shareId (public, no auth)
+	// GET /api/share/:shareId (authenticated)
 	// ========================================================================
 	describe("GET /api/share/:shareId", () => {
+		it("rejects unauthenticated requests with 401", async () => {
+			const mockAuth = vi.mocked(authenticateUser);
+			mockAuth.mockImplementationOnce(async (_req, res, _next) => {
+				(res as any).status(401).json({ error: "Unauthorized" });
+			});
+
+			const response = await request(app)
+				.get("/api/share/abc123def456abc123def456abc123de")
+				.expect(401);
+
+			expect(response.body.error).toBe("Unauthorized");
+			// Verify DB was never queried
+			expect(mockPool.query).not.toHaveBeenCalled();
+		});
+
 		it("returns 200 with snapshot when shareId exists", async () => {
 			mockPool.query.mockResolvedValueOnce({ rows: [mockSharedRow] });
 

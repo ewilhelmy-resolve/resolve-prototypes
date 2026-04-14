@@ -131,8 +131,8 @@ export function ShareConversationDialog({
 				<DialogHeader>
 					<DialogTitle>Share conversation</DialogTitle>
 					<DialogDescription>
-						Creates a shareable link to this conversation. Anyone with the link
-						can view it until you disable sharing.
+						Creates a shareable link to this conversation. Authenticated users
+						with the link can view it until you disable sharing.
 					</DialogDescription>
 				</DialogHeader>
 
