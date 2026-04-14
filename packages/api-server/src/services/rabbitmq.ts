@@ -6,7 +6,42 @@ import { ClusterEventsConsumer } from "../consumers/ClusterEventsConsumer.js";
 import { DataSourceStatusConsumer } from "../consumers/DataSourceStatusConsumer.js";
 import { DocumentProcessingConsumer } from "../consumers/DocumentProcessingConsumer.js";
 import { WorkflowConsumer } from "../consumers/WorkflowConsumer.js";
+import type { SSEEvent } from "./sse.js";
 import { getSSEService } from "./sse.js";
+
+/**
+ * Send an SSE event to the conversation owner + all participants.
+ * Looks up participants from the conversation_participants table.
+ * No-op extra query for conversations without participants (returns 0 rows, PK-indexed).
+ */
+async function sendToConversationParticipants(
+	conversationId: string,
+	ownerId: string,
+	organizationId: string,
+	event: SSEEvent,
+): Promise<void> {
+	const sseService = getSSEService();
+
+	// Always send to owner
+	sseService.sendToUser(ownerId, organizationId, event);
+
+	// Also send to participants (deduplicate with owner)
+	try {
+		const participants = await pool.query(
+			"SELECT user_id FROM conversation_participants WHERE conversation_id = $1 AND user_id != $2",
+			[conversationId, ownerId],
+		);
+		for (const p of participants.rows) {
+			sseService.sendToUser(p.user_id, organizationId, event);
+		}
+	} catch (err) {
+		// Don't break message processing if participant lookup fails
+		queueLogger.warn(
+			{ error: err instanceof Error ? err.message : String(err) },
+			"Failed to send SSE to participants",
+		);
+	}
+}
 
 /**
  * Parsed UI form request from message response field
@@ -512,7 +547,6 @@ export class RabbitMQService {
 		});
 
 		messageLogger.info({ userIdSource: "conversation" }, "Processing message");
-		const sseService = getSSEService();
 
 		// Process message with organization context
 		await withOrgContext(user_id, organization_id, async (client) => {
@@ -581,38 +615,46 @@ export class RabbitMQService {
 				"Database update completed",
 			);
 
-			// Send SSE events to user about both message updates
+			// Send SSE events to owner + all participants
 			try {
-				// Event for user message completion
-				sseService.sendToUser(user_id, organization_id, {
-					type: "message_update",
-					data: {
-						messageId: message_id,
-						status: "completed" as any,
-						responseContent: undefined,
-						errorMessage: undefined,
-						processedAt: new Date().toISOString(),
+				await sendToConversationParticipants(
+					conversation_id,
+					user_id,
+					organization_id,
+					{
+						type: "message_update",
+						data: {
+							messageId: message_id,
+							status: "completed" as any,
+							responseContent: undefined,
+							errorMessage: undefined,
+							processedAt: new Date().toISOString(),
+						},
 					},
-				});
+				);
 
-				// Event for new assistant message with hybrid data
-				sseService.sendToUser(user_id, organization_id, {
-					type: "new_message",
-					data: {
-						messageId: assistantMessageId,
-						conversationId: conversation_id,
-						role: "assistant",
-						message: response,
-						metadata: metadata,
-						response_group_id: response_group_id,
-						userId: user_id,
-						createdAt: messageTimestamp,
+				await sendToConversationParticipants(
+					conversation_id,
+					user_id,
+					organization_id,
+					{
+						type: "new_message",
+						data: {
+							messageId: assistantMessageId,
+							conversationId: conversation_id,
+							role: "assistant",
+							message: response,
+							metadata: metadata,
+							response_group_id: response_group_id,
+							userId: user_id,
+							createdAt: messageTimestamp,
+						},
 					},
-				});
+				);
 
 				messageLogger.info(
 					{ eventType: "message_update_and_new_message" },
-					"SSE events sent to user",
+					"SSE events sent to owner + participants",
 				);
 			} catch (sseError) {
 				messageLogger.warn(
@@ -716,8 +758,6 @@ export class RabbitMQService {
 			client.release();
 		}
 
-		const sseService = getSSEService();
-
 		// Process message with organization context
 		await withOrgContext(user_id, organization_id, async (client) => {
 			// If there's an original user message, mark it completed
@@ -793,40 +833,47 @@ export class RabbitMQService {
 				"UI form request message created",
 			);
 
-			// Send SSE events
+			// Send SSE events to owner + participants
 			try {
-				// Mark original user message completed (if exists)
 				if (message_id) {
-					sseService.sendToUser(user_id, organization_id, {
-						type: "message_update",
-						data: {
-							messageId: message_id,
-							status: "completed" as any,
-							responseContent: undefined,
-							errorMessage: undefined,
-							processedAt: new Date().toISOString(),
+					await sendToConversationParticipants(
+						conversation_id,
+						user_id,
+						organization_id,
+						{
+							type: "message_update",
+							data: {
+								messageId: message_id,
+								status: "completed" as any,
+								responseContent: undefined,
+								errorMessage: undefined,
+								processedAt: new Date().toISOString(),
+							},
 						},
-					});
+					);
 				}
 
-				// Send new_message event with form metadata
-				// Client will detect metadata.type === 'ui_form_request' and handle appropriately
-				sseService.sendToUser(user_id, organization_id, {
-					type: "new_message",
-					data: {
-						messageId: assistantMessageId,
-						conversationId: conversation_id,
-						role: "assistant",
-						message: "", // Empty - UI is in metadata
-						metadata: formMetadata,
-						userId: user_id,
-						createdAt: new Date().toISOString(),
+				await sendToConversationParticipants(
+					conversation_id,
+					user_id,
+					organization_id,
+					{
+						type: "new_message",
+						data: {
+							messageId: assistantMessageId,
+							conversationId: conversation_id,
+							role: "assistant",
+							message: "",
+							metadata: formMetadata,
+							userId: user_id,
+							createdAt: new Date().toISOString(),
+						},
 					},
-				});
+				);
 
 				messageLogger.info(
 					{ eventType: "new_message", interrupt },
-					"SSE event sent for UI form request",
+					"SSE event sent for UI form request to owner + participants",
 				);
 			} catch (sseError) {
 				messageLogger.warn(
