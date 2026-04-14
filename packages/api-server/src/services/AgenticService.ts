@@ -13,6 +13,8 @@ interface AgentMetadataApiData {
 	tags: Record<string, unknown> | null;
 	parameters: Record<string, unknown> | null;
 	tenant: string | null;
+	conversation_starters: string[] | null;
+	guardrails: string[] | null;
 	prompt_name: string | null;
 	llm_parameters: Record<string, unknown> | null;
 	sys_date_created: string | null;
@@ -223,6 +225,7 @@ export class AgenticService {
 		params: {
 			utterance: string;
 			transcript?: string;
+			additionalInformation?: string;
 			prevExecutionId?: string;
 		},
 	): Promise<{
@@ -241,6 +244,9 @@ export class AgenticService {
 						parameters: {
 							utterance: params.utterance,
 							...(params.transcript && { transcript: params.transcript }),
+							...(params.additionalInformation && {
+								additional_information: params.additionalInformation,
+							}),
 						},
 					},
 				},

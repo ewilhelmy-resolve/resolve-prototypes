@@ -2,6 +2,7 @@
  * InstructionsExpandedModal - Full-screen instructions editor
  */
 
+import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +12,8 @@ interface InstructionsExpandedModalProps {
 	onOpenChange: (open: boolean) => void;
 	value: string;
 	onChange: (value: string) => void;
+	onImproveClick?: () => void;
+	isImproving?: boolean;
 }
 
 export function InstructionsExpandedModal({
@@ -18,6 +21,8 @@ export function InstructionsExpandedModal({
 	onOpenChange,
 	value,
 	onChange,
+	onImproveClick,
+	isImproving,
 }: InstructionsExpandedModalProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,9 +42,27 @@ export function InstructionsExpandedModal({
 					<p className="text-xs text-muted-foreground">
 						Update instructions as needed
 					</p>
-					<Button size="sm" onClick={() => onOpenChange(false)}>
-						Done
-					</Button>
+					<div className="flex gap-2">
+						{onImproveClick && (
+							<Button
+								variant="ghost"
+								size="sm"
+								className="gap-1.5"
+								onClick={onImproveClick}
+								disabled={isImproving || !value.trim()}
+							>
+								{isImproving ? (
+									<Loader2 className="size-3.5 animate-spin" />
+								) : (
+									<Sparkles className="size-3.5" />
+								)}
+								Improve
+							</Button>
+						)}
+						<Button size="sm" onClick={() => onOpenChange(false)}>
+							Done
+						</Button>
+					</div>
 				</div>
 			</DialogContent>
 		</Dialog>

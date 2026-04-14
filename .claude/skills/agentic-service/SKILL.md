@@ -14,6 +14,8 @@ Knowledge base for integrating Rita with the external LLM Service API (Agentic S
 - Building backend routes that proxy to the LLM Service
 - Implementing agent execution (invoke, poll, continue) flows
 - Working with agent markdown definitions
+- Implementing meta-agent flows (improve instructions, generate conversation starters)
+- Working with meta-agent SSE events (progress, completed, failed)
 
 ## Base URLs
 
@@ -26,6 +28,7 @@ Knowledge base for integrating Rita with the external LLM Service API (Agentic S
 Env vars (in `.env`):
 - `LLM_SERVICE_URL` — base URL (default: `https://llm-service-staging.resolve.io`)
 - `LLM_SERVICE_API_KEY` — value for `X-API-Key` header
+- `META_AGENT_MODE` — meta-agent execution strategy: `"direct"` (default) or `"workflow"`
 
 ## Architecture
 
@@ -48,6 +51,11 @@ Route pattern from `packages/api-server/src/routes/members.ts`:
 - `authenticateUser` + `addUserContextToLogs` middleware
 - Express router with try/catch handlers
 
+Meta-agent pattern from `packages/api-server/src/services/metaAgentExecution/`:
+- Strategy interface (`MetaAgentStrategy`) with Direct and Workflow implementations
+- Background polling with SSE event relay
+- See `references/meta-agent-patterns.md`
+
 ## Frontend Pattern
 
 Follow `packages/client/src/hooks/api/useConversations.ts`:
@@ -69,6 +77,9 @@ Follow `packages/client/src/hooks/api/useConversations.ts`:
 | `/tools/` | Tool CRUD, filter, invoke, duplicate | `references/api-endpoints.md` |
 | `/agents/cleanup_*` | Maintenance (cleanup old messages) | `references/api-endpoints.md` |
 | `/agents/retrieve_data_*` | Datasource data retrieval | `references/api-endpoints.md` |
+| `/agents/select-agent` | Agent selection by criteria | `references/api-endpoints.md` |
+| `/api/agents/improve-instructions` | Meta-agent: improve instructions | `references/meta-agent-patterns.md` |
+| `/api/agents/cancel-meta-agent` | Cancel meta-agent execution | `references/meta-agent-patterns.md` |
 
 ## Type Mapping (LLM Service → Rita Client)
 
@@ -98,3 +109,4 @@ null → owner      (same)
 - `references/data-models.md` — Exact schemas from OpenAPI spec
 - `references/markdown-agent-format.md` — Agent definition markdown template
 - `references/async-execution-patterns.md` — Invoke, poll, continue protocol
+- `references/meta-agent-patterns.md` — Meta-agent execution strategy, SSE events, client hooks
