@@ -53,6 +53,15 @@ vi.mock("@/hooks/useAgentCreation", () => ({
 	}),
 }));
 
+vi.mock("@/hooks/useImproveInstructions", () => ({
+	useImproveInstructions: () => ({
+		improve: vi.fn(),
+		status: "idle",
+		isImproving: false,
+		reset: vi.fn(),
+	}),
+}));
+
 vi.mock("@/hooks/useAutoSave", () => ({
 	useAutoSave: () => ({
 		status: "idle" as const,
@@ -84,6 +93,7 @@ vi.mock("@/components/agents/builder", () => ({
 	ChangeAgentTypeModal: () => null,
 	ConfirmTypeChangeModal: () => null,
 	CreateWorkflowModal: () => null,
+	ImproveInstructionsDialog: () => null,
 	InstructionsExpandedModal: () => null,
 	PublishModal: () => null,
 	UnlinkWorkflowModal: () => null,

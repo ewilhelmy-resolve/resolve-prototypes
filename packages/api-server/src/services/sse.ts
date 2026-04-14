@@ -239,6 +239,40 @@ export interface AgentCreationFailedEvent {
 	};
 }
 
+// --- Meta-Agent Execution Events (generic for any meta-agent) ---
+
+export interface MetaAgentProgressEvent {
+	type: "meta_agent_progress";
+	data: {
+		execution_request_id: string;
+		agent_name: string;
+		step_label: string;
+		step_detail: string;
+		timestamp: string;
+	};
+}
+
+export interface MetaAgentCompletedEvent {
+	type: "meta_agent_completed";
+	data: {
+		execution_request_id: string;
+		agent_name: string;
+		content: string;
+		success: boolean;
+		timestamp: string;
+	};
+}
+
+export interface MetaAgentFailedEvent {
+	type: "meta_agent_failed";
+	data: {
+		execution_request_id: string;
+		agent_name: string;
+		error: string;
+		timestamp: string;
+	};
+}
+
 export type SSEEvent =
 	| MessageUpdateEvent
 	| NewMessageEvent
@@ -256,7 +290,10 @@ export type SSEEvent =
 	| AgentCreationProgressEvent
 	| AgentCreationInputRequiredEvent
 	| AgentCreationCompletedEvent
-	| AgentCreationFailedEvent;
+	| AgentCreationFailedEvent
+	| MetaAgentProgressEvent
+	| MetaAgentCompletedEvent
+	| MetaAgentFailedEvent;
 
 export class SSEService {
 	private connections: Map<string, SSEConnection> = new Map();

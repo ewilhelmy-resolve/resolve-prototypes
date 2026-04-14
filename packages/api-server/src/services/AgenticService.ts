@@ -223,6 +223,7 @@ export class AgenticService {
 		params: {
 			utterance: string;
 			transcript?: string;
+			additionalInformation?: string;
 			prevExecutionId?: string;
 		},
 	): Promise<{
@@ -241,6 +242,9 @@ export class AgenticService {
 						parameters: {
 							utterance: params.utterance,
 							...(params.transcript && { transcript: params.transcript }),
+							...(params.additionalInformation && {
+								additional_information: params.additionalInformation,
+							}),
 						},
 					},
 				},
