@@ -92,6 +92,8 @@ flowchart LR
 
 Both modes are async from the client's perspective: the API returns an `executionRequestId` immediately and results arrive via SSE.
 
+> **Data source for `additional_information`:** When a meta-agent operates on an existing (saved) agent, the `additional_information` parameter is populated from persisted agent metadata via `GET /agents/metadata/eid/{eid}`, which now includes `guardrails` and `conversation_starters`. For unsaved agents during creation, the data comes from the client form state. See [Agent Creation Workflow Integration — Section 15](agent-creation-workflow-integration.md) for the full metadata API schema.
+
 ### Generic Happy-Path Sequence (Direct Mode)
 
 ```mermaid
@@ -500,6 +502,8 @@ The generic webhook contract (`action: "run_meta_agent"`) passes `agent_name` as
 5. **On completion**, `meta_agent_completed` SSE event contains comma-separated string
 6. **Client** calls `parseConversationStarterContent(content)` to get `string[]`
 7. **UI** populates the conversation starters field with the generated list
+
+> **Persistence:** Generated conversation starters are now persisted in the LLM Service agent metadata. When the agent is saved, starters are sent as part of the update payload and stored in the `conversation_starters` field. On subsequent fetches via `GET /agents/metadata/eid/{eid}`, the persisted starters are returned and mapped to the frontend's `conversationStarters` array. This means the `additional_information` parameter sent to meta-agents for saved agents includes real persisted starters (and `guardrails`), not just unsaved form state.
 
 **Key files:**
 - Parser: `packages/api-server/src/services/metaAgentExecution/parsers.ts` (`parseConversationStarterContent`)

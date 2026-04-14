@@ -43,7 +43,7 @@ All meta-agents receive three execution-time parameters (substituted via `{%para
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `{%utterance}` | `string` | The user's task description or raw input for the agent to process. |
-| `{%additional_information}` | `string` (JSON) | Agent configuration and context — typically a serialized `AgentConfig` object. |
+| `{%additional_information}` | `string` (JSON) | Agent configuration and context — typically a serialized `AgentConfig` object. For saved agents, populated from the LLM Service metadata response (`GET /agents/metadata/eid/{eid}`), which includes persisted `guardrails` and `conversation_starters`. For unsaved agents during creation, populated from client form state. |
 | `{%transcript}` | `string` (JSON) | Conversation history as a JSON list of `{ role, content }` objects. Empty `[]` when not applicable. |
 
 ---

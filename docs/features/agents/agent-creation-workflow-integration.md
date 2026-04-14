@@ -414,8 +414,8 @@ POST /services/agentic
 | `user_email` | `parameters.user_email` | |
 | `icon_id` | `parameters.icon_id` | |
 | `icon_color_id` | `parameters.icon_color_id` | |
-| `conversation_starters` | `parameters.conversation_starters` | Array, pass as-is |
-| `guardrails` | `parameters.guardrails` | Array, pass as-is |
+| `conversation_starters` | `parameters.conversation_starters` | Array, pass as-is. Now persisted in agent metadata (see Section 15) |
+| `guardrails` | `parameters.guardrails` | Array, pass as-is. Now persisted in agent metadata (see Section 15) |
 | _(hardcoded)_ | `parameters.agent_type` | Always `"user"`. **Pending LLM API support.** |
 | `creation_id` | _(not sent to LLM)_ | Platform stores + echoes on RabbitMQ |
 
@@ -629,8 +629,8 @@ Content-Type: application/json
 | `prompt` | yes | Combined form data as natural language instruction (see Section 6.1) |
 | `icon_id` | yes | Icon identifier (e.g., `"bot"`, `"headphones"`) |
 | `icon_color_id` | yes | Color identifier (e.g., `"slate"`, `"blue"`) |
-| `conversation_starters` | no | Array of starter prompts. Also included in `prompt`. Platform stores separately |
-| `guardrails` | no | Array of topics/requests the agent should refuse. Also included in `prompt` |
+| `conversation_starters` | no | Array of starter prompts. Also included in `prompt`. Persisted in LLM Service agent metadata and returned by `GET /agents/metadata/eid/{eid}` (see Section 15) |
+| `guardrails` | no | Array of topics/requests the agent should refuse. Also included in `prompt`. Persisted in LLM Service agent metadata and returned by `GET /agents/metadata/eid/{eid}` (see Section 15) |
 | `agent_type` | yes | Always `"user"` for builder-created agents. Platform forwards as `parameters.agent_type`. **Pending LLM API support.** |
 | `timestamp` | yes | ISO 8601 |
 
@@ -1217,3 +1217,110 @@ Cancels an in-progress agent creation. Only called on explicit cancel button cli
 2. Set `AGENT_CREATION_MODE=workflow` in RITA's `.env`.
 3. Set `AUTOMATION_WEBHOOK_URL` to the platform's endpoint.
 4. Restart RITA API server. No code changes required.
+
+---
+
+## 15. LLM Service Agent Metadata API
+
+After an agent is created (via the agent-builder workflow or direct LLM Service call), its metadata — including `guardrails`, `conversation_starters`, and `tenant` — is persisted in the LLM Service. RITA fetches this metadata when loading an agent for editing or display.
+
+### 15.1 Response Schema
+
+```
+GET /agents/metadata/eid/{eid}
+```
+
+Returns an array with one agent metadata object:
+
+```jsonc
+[
+  {
+    "reference_id": "string",
+    "tenant": "org-uuid",
+    "id": 1,
+    "eid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "name": "IT Help Desk Agent",
+    "description": "Handles IT support tickets",
+    "default_parameters": {},
+    "configs": {
+      "ui": { "icon": "headphones", "icon_color": "blue" }
+    },
+    "active": true,
+    "markdown_text": "Be helpful and friendly. Only handle IT issues.",
+    "tags": {},
+    "parameters": {},
+    "state": "string",               // maps to active (draft/published)
+    "conversation_starters": [        // persisted starter prompts
+      "How can I help you today?",
+      "Report an IT issue"
+    ],
+    "guardrails": [                   // persisted restricted topics
+      "Do not discuss HR policies",
+      "Do not share internal salary data"
+    ],
+    "sys_date_created": "2026-04-14T18:10:57.516Z",
+    "sys_date_updated": "2026-04-14T18:10:57.516Z",
+    "sys_created_by": "user-uuid",
+    "sys_updated_by": "user-uuid",
+    "prompt_name": "string",
+    "llm_parameters": {}
+  }
+]
+```
+
+### 15.2 Field Mapping: API → Frontend
+
+RITA maps the LLM Service response to the frontend `AgentConfig` shape via `apiDataToAgentConfig()` in `packages/api-server/src/services/agentCreation/mappers.ts`.
+
+| LLM Service API (snake_case) | Frontend (camelCase) | Default | Notes |
+|------------------------------|----------------------|---------|-------|
+| `eid` | `id` | `""` | Falls back to `id` if `eid` is null |
+| `name` | `name` | `""` | |
+| `description` | `description` | `""` | |
+| `markdown_text` | `instructions` | `""` | Agent system prompt |
+| `active` | `status` | `"draft"` | `true` → `"published"`, `false` → `"draft"` |
+| `configs.ui.icon` | `iconId` | `"bot"` | Falls back to legacy `configs.iconId` |
+| `configs.ui.icon_color` | `iconColorId` | `"slate"` | Falls back to legacy `configs.iconColorId` |
+| `conversation_starters` | `conversationStarters` | `[]` | Array of starter prompts |
+| `guardrails` | `guardrails` | `[]` | Array of restricted topics |
+| `sys_date_created` | `createdAt` | `undefined` | ISO 8601 |
+| `sys_date_updated` | `updatedAt` | `undefined` | ISO 8601 |
+| `tenant` | _(not exposed to frontend)_ | — | Organization identifier, used for API context |
+
+Fields not currently mapped to frontend: `reference_id`, `state`, `default_parameters`, `tags`, `parameters`, `prompt_name`, `llm_parameters`.
+
+### 15.3 Round-Trip Data Flow
+
+```mermaid
+flowchart TB
+    subgraph Creation ["Agent Creation (Write Path)"]
+        Form["Agent Builder Form"] -->|"POST /api/agents/generate"| API["RITA API"]
+        API -->|"webhook: create_agent<br/>(guardrails, conversation_starters, tenant)"| Platform["External Platform /<br/>Direct LLM Call"]
+        Platform -->|"POST /services/agentic"| LLM["LLM Service"]
+        LLM -->|"Creates agent metadata<br/>(persists all fields)"| DB[("LLM Service DB")]
+    end
+
+    subgraph PostCreate ["Post-Creation Update"]
+        API2["RITA API<br/>(DirectApiStrategy)"] -->|"PUT /agents/metadata/{eid}<br/>(conversation_starters, guardrails)"| LLM2["LLM Service"]
+        LLM2 -->|"Updates metadata"| DB
+    end
+
+    subgraph Fetch ["Agent Fetch (Read Path)"]
+        Client["RITA Client"] -->|"GET /api/agents/:id"| API3["RITA API"]
+        API3 -->|"GET /agents/metadata/eid/{eid}"| LLM3["LLM Service"]
+        LLM3 -->|"AgentMetadataApiData<br/>(guardrails, conversation_starters, tenant)"| API3
+        API3 -->|"apiDataToAgentConfig()"| Client
+    end
+
+    DB -.->|"Persisted data"| LLM3
+```
+
+> **Key insight:** `conversation_starters` and `guardrails` are sent during creation (in the webhook/direct call) AND explicitly persisted via a post-creation `PUT` call in `DirectApiStrategy`. On subsequent fetches, they are returned by the metadata API and mapped to the frontend shape.
+
+### 15.4 Key Files
+
+| File | Role |
+|------|------|
+| `packages/api-server/src/services/AgenticService.ts` | `AgentMetadataApiData` interface, `getAgent()` / `updateAgent()` methods |
+| `packages/api-server/src/services/agentCreation/mappers.ts` | `apiDataToAgentConfig()` — maps API response to frontend shape |
+| `packages/api-server/src/routes/agents.ts` | Agent detail endpoint — calls `getAgent()` + mapper |
