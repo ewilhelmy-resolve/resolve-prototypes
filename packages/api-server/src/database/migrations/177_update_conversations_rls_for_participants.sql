@@ -2,8 +2,11 @@
 -- Before: only conversation owner (user_id) could access.
 -- After: owner OR anyone in conversation_participants can access.
 --
--- Messages RLS references conversations via subquery, so it automatically
--- inherits this wider access — no separate messages policy change needed.
+-- Messages RLS is updated separately in migration 178 with operation-specific
+-- policies (SELECT/INSERT/UPDATE) that delegate to this conversations policy
+-- via subquery composition. The INSERT policy on conversations from migration
+-- 108 ("Users can create conversations for themselves") is intentionally NOT
+-- dropped — participants should not create conversations as other users.
 
 DROP POLICY IF EXISTS "Users can access their own conversations" ON conversations;
 

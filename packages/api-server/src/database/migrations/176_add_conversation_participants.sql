@@ -20,11 +20,14 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
 CREATE INDEX IF NOT EXISTS idx_conversation_participants_user_org
     ON conversation_participants (user_id, organization_id);
 
--- RLS: participants can see the participant list of conversations they belong to
+-- RLS: operation-specific policies to enforce principle of least privilege.
 ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can see participants of their conversations"
-    ON conversation_participants FOR ALL USING (
+-- SELECT: participants can see the participant list of conversations they belong to.
+-- Self-referential subquery note: user_id = current_user branch provides the base case —
+-- the user can always see their own row, which seeds the IN subquery for other rows.
+CREATE POLICY "Participants can read participant list"
+    ON conversation_participants FOR SELECT USING (
         organization_id = current_setting('app.current_organization_id', true)::uuid
         AND (
             user_id = current_setting('app.current_user_id', true)::uuid
@@ -35,10 +38,31 @@ CREATE POLICY "Users can see participants of their conversations"
         )
     );
 
--- Also allow conversation owners to see participants
--- (owner may not have a row in conversation_participants)
-CREATE POLICY "Owners can see participants of their conversations"
-    ON conversation_participants FOR ALL USING (
+-- SELECT: conversation owners can also see participants (owner may not have a row here)
+CREATE POLICY "Owners can read participant list"
+    ON conversation_participants FOR SELECT USING (
+        organization_id = current_setting('app.current_organization_id', true)::uuid
+        AND conversation_id IN (
+            SELECT id FROM conversations
+            WHERE user_id = current_setting('app.current_user_id', true)::uuid
+            AND organization_id = current_setting('app.current_organization_id', true)::uuid
+        )
+    );
+
+-- INSERT: only conversation owners can add participants
+CREATE POLICY "Owners can add participants"
+    ON conversation_participants FOR INSERT WITH CHECK (
+        organization_id = current_setting('app.current_organization_id', true)::uuid
+        AND conversation_id IN (
+            SELECT id FROM conversations
+            WHERE user_id = current_setting('app.current_user_id', true)::uuid
+            AND organization_id = current_setting('app.current_organization_id', true)::uuid
+        )
+    );
+
+-- DELETE: only conversation owners can remove participants
+CREATE POLICY "Owners can remove participants"
+    ON conversation_participants FOR DELETE USING (
         organization_id = current_setting('app.current_organization_id', true)::uuid
         AND conversation_id IN (
             SELECT id FROM conversations
