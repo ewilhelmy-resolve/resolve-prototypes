@@ -11,6 +11,7 @@
 
 import confetti from "canvas-confetti";
 import {
+	AlertCircle,
 	ArrowLeft,
 	Award,
 	BookOpen,
@@ -67,7 +68,6 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FieldHelpPopover } from "@/components/agents/FieldHelpPopover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -80,7 +80,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { mockImproveInstructions } from "@/lib/mockAgentLlm";
+import {
+	mockGenerateStarters,
+	mockImproveInstructions,
+} from "@/lib/mockAgentLlm";
 import {
 	addSkillToInstructions,
 	removeSkillFromInstructions,
@@ -409,6 +412,7 @@ export default function AgentBuilderV1Page() {
 		original: string;
 		improved: string;
 	} | null>(null);
+	const [isGeneratingStarters, setIsGeneratingStarters] = useState(false);
 
 	// UI toggles
 	const [showIconPicker, setShowIconPicker] = useState(false);
@@ -421,17 +425,21 @@ export default function AgentBuilderV1Page() {
 	const [showInstructionsModal, setShowInstructionsModal] = useState(false);
 	const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
 
-	const [viewState, setViewState] = useState<"form" | "building" | "success">(
-		"form",
-	);
+	const [viewState, setViewState] = useState<
+		"form" | "building" | "success" | "error"
+	>("form");
 	const [buildSteps, setBuildSteps] = useState<
 		Array<{
 			label: string;
 			description: string;
-			status: "pending" | "active" | "complete";
+			status: "pending" | "active" | "complete" | "error";
 		}>
 	>([]);
+	const [buildError, setBuildError] = useState<string | null>(null);
 	const buildTimersRef = useRef<NodeJS.Timeout[]>([]);
+
+	const simulateFailure =
+		new URLSearchParams(location.search).get("fail") === "true";
 
 	const BUILD_STEP_SEQUENCE = [
 		{ label: "Analyzing", description: "Analyzing your requirements..." },
@@ -466,10 +474,17 @@ export default function AgentBuilderV1Page() {
 		setCreatedAgentId(id);
 		setViewState("building");
 		setBuildSteps([]);
+		setBuildError(null);
 		clearBuildTimers();
 
 		const stepDelay = 1000;
-		BUILD_STEP_SEQUENCE.forEach((step, index) => {
+		const failAtStep = simulateFailure ? 4 : -1;
+		const stepsToRun =
+			failAtStep >= 0
+				? BUILD_STEP_SEQUENCE.slice(0, failAtStep + 1)
+				: BUILD_STEP_SEQUENCE;
+
+		stepsToRun.forEach((step, index) => {
 			const t = setTimeout(
 				() => {
 					setBuildSteps((prev) => {
@@ -477,7 +492,16 @@ export default function AgentBuilderV1Page() {
 							...s,
 							status: "complete" as const,
 						}));
-						return [...updated, { ...step, status: "active" as const }];
+						return [
+							...updated,
+							{
+								...step,
+								status:
+									index === failAtStep
+										? ("error" as const)
+										: ("active" as const),
+							},
+						];
 					});
 				},
 				(index + 1) * stepDelay,
@@ -485,20 +509,33 @@ export default function AgentBuilderV1Page() {
 			buildTimersRef.current.push(t);
 		});
 
-		const finishT = setTimeout(
-			() => {
-				setBuildSteps((prev) =>
-					prev.map((s) => ({ ...s, status: "complete" as const })),
-				);
-				const successT = setTimeout(() => {
-					setViewState("success");
-					confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-				}, 500);
-				buildTimersRef.current.push(successT);
-			},
-			(BUILD_STEP_SEQUENCE.length + 1) * stepDelay,
-		);
-		buildTimersRef.current.push(finishT);
+		if (failAtStep >= 0) {
+			const errorT = setTimeout(
+				() => {
+					setBuildError(
+						"Failed to create agent tasks. The knowledge source connection timed out. Please check your configuration and try again.",
+					);
+					setViewState("error");
+				},
+				(failAtStep + 2) * stepDelay,
+			);
+			buildTimersRef.current.push(errorT);
+		} else {
+			const finishT = setTimeout(
+				() => {
+					setBuildSteps((prev) =>
+						prev.map((s) => ({ ...s, status: "complete" as const })),
+					);
+					const successT = setTimeout(() => {
+						setViewState("success");
+						confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+					}, 500);
+					buildTimersRef.current.push(successT);
+				},
+				(BUILD_STEP_SEQUENCE.length + 1) * stepDelay,
+			);
+			buildTimersRef.current.push(finishT);
+		}
 	};
 
 	// -----------------------------------------------------------------------
@@ -527,6 +564,8 @@ export default function AgentBuilderV1Page() {
 								>
 									{step.status === "complete" ? (
 										<CheckCircle2 className="size-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+									) : step.status === "error" ? (
+										<AlertCircle className="size-5 text-red-500 mt-0.5 flex-shrink-0" />
 									) : (
 										<div className="size-5 mt-0.5 flex-shrink-0 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
 									)}
@@ -598,6 +637,94 @@ export default function AgentBuilderV1Page() {
 							>
 								<Play className="size-4" />
 								Test agent
+							</Button>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (viewState === "error") {
+		return (
+			<div className="h-full min-h-screen flex flex-col bg-muted/40">
+				<div className="flex-1 flex items-center justify-center">
+					<div className="max-w-md w-full px-6">
+						<div className="text-center mb-8">
+							<div className="mx-auto mb-6 size-16 rounded-full border-4 border-red-500 flex items-center justify-center">
+								<AlertCircle className="size-10 text-red-500" />
+							</div>
+							<h1 className="text-2xl font-semibold text-foreground">
+								Agent creation failed
+							</h1>
+							<p className="text-muted-foreground mt-2">
+								Something went wrong while building your agent
+							</p>
+						</div>
+
+						{buildError && (
+							<div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+								<p className="text-sm text-red-800">{buildError}</p>
+							</div>
+						)}
+
+						<div className="space-y-1 mb-8">
+							{buildSteps.map((step, index) => (
+								<div key={index} className="flex items-start gap-3 py-2">
+									{step.status === "complete" ? (
+										<CheckCircle2 className="size-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+									) : step.status === "error" ? (
+										<AlertCircle className="size-5 text-red-500 mt-0.5 flex-shrink-0" />
+									) : (
+										<div className="size-5 mt-0.5 flex-shrink-0 rounded-full border-2 border-muted-foreground/30" />
+									)}
+									<div>
+										<p
+											className={cn(
+												"text-sm font-semibold",
+												step.status === "error"
+													? "text-red-600"
+													: "text-foreground",
+											)}
+										>
+											{step.label}
+										</p>
+										<p
+											className={cn(
+												"text-sm",
+												step.status === "error"
+													? "text-red-500"
+													: "text-muted-foreground",
+											)}
+										>
+											{step.status === "error" ? "Failed" : step.description}
+										</p>
+									</div>
+								</div>
+							))}
+						</div>
+
+						<div className="flex items-center justify-center gap-3">
+							<Button
+								variant="outline"
+								onClick={() => {
+									clearBuildTimers();
+									setViewState("form");
+									setIsCreating(false);
+									setBuildSteps([]);
+									setBuildError(null);
+								}}
+							>
+								Back to form
+							</Button>
+							<Button
+								onClick={() => {
+									setIsCreating(false);
+									handleCreateAgent();
+								}}
+								className="gap-2"
+							>
+								Try again
 							</Button>
 						</div>
 					</div>
@@ -1087,55 +1214,98 @@ export default function AgentBuilderV1Page() {
 											conversation
 										</p>
 									</div>
-								</div>
-								<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-									{config.conversationStarters.map((starter, index) => (
-										<div
-											key={`starter-${starter}-${index}`}
-											className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
-										>
-											<span>{starter}</span>
-											<button
-												type="button"
-												onClick={() => {
-													const updated = config.conversationStarters.filter(
-														(_, i) => i !== index,
-													);
+									{config.conversationStarters.length > 0 && (
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-8 gap-1.5"
+											disabled={isGeneratingStarters}
+											onClick={async () => {
+												setIsGeneratingStarters(true);
+												try {
+													const generated = await mockGenerateStarters({
+														name: config.name,
+														description: config.description,
+														instructions: config.instructions,
+														existingStarters: [],
+													});
 													setConfig((prev) => ({
 														...prev,
-														conversationStarters: updated,
+														conversationStarters: generated.slice(0, 4),
 													}));
-												}}
-												className="text-muted-foreground hover:text-destructive"
-												aria-label={`Remove ${starter}`}
-											>
-												<X className="size-3" />
-											</button>
-										</div>
-									))}
-									{config.conversationStarters.length < 4 && (
-										<input
-											type="text"
-											placeholder="Type and press Enter to add..."
-											className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-											onKeyDown={(e) => {
-												const input = e.currentTarget;
-												if (e.key === "Enter" && input.value.trim()) {
-													e.preventDefault();
-													const newStarter = input.value.trim();
-													setConfig((prev) => ({
-														...prev,
-														conversationStarters: [
-															...prev.conversationStarters,
-															newStarter,
-														],
-													}));
-													input.value = "";
+												} finally {
+													setIsGeneratingStarters(false);
 												}
 											}}
-										/>
+										>
+											{isGeneratingStarters ? (
+												<Loader2 className="size-3.5 animate-spin" />
+											) : (
+												<Sparkles className="size-3.5" />
+											)}
+											Regenerate
+										</Button>
 									)}
 								</div>
+								{config.conversationStarters.length === 0 ? (
+									<Button
+										variant="outline"
+										size="sm"
+										className="gap-1.5"
+										disabled={isGeneratingStarters}
+										onClick={async () => {
+											setIsGeneratingStarters(true);
+											try {
+												const generated = await mockGenerateStarters({
+													name: config.name,
+													description: config.description,
+													instructions: config.instructions,
+													existingStarters: [],
+												});
+												setConfig((prev) => ({
+													...prev,
+													conversationStarters: generated.slice(0, 4),
+												}));
+											} finally {
+												setIsGeneratingStarters(false);
+											}
+										}}
+									>
+										{isGeneratingStarters ? (
+											<Loader2 className="size-3.5 animate-spin" />
+										) : (
+											<Plus className="size-3.5" />
+										)}
+										Generate conversation starters
+									</Button>
+								) : (
+									<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
+										{config.conversationStarters.map((starter, index) => (
+											<div
+												key={`starter-${starter}-${index}`}
+												className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
+											>
+												<span>{starter}</span>
+												<button
+													type="button"
+													onClick={() => {
+														const updated = config.conversationStarters.filter(
+															(_, i) => i !== index,
+														);
+														setConfig((prev) => ({
+															...prev,
+															conversationStarters: updated,
+														}));
+													}}
+													className="text-muted-foreground hover:text-destructive"
+													aria-label={`Remove ${starter}`}
+												>
+													<X className="size-3" />
+												</button>
+											</div>
+										))}
+									</div>
+								)}
 							</div>
 
 							{/* ====== 6. Guardrails ====== */}
@@ -1228,80 +1398,6 @@ export default function AgentBuilderV1Page() {
 										</Button>
 									</div>
 								)}
-							</div>
-
-							{/* ====== 7. Knowledge (checkboxes only) ====== */}
-							<div className="space-y-2">
-								<div>
-									<div className="flex items-center gap-1.5">
-										<Label className="text-sm font-medium">Knowledge</Label>
-										<FieldHelpPopover
-											description="Sources the agent draws from when answering. Toggle web search and workspace knowledge as needed."
-											examples={[
-												"Enable web search for general/public info",
-												"Enable workspace knowledge for internal docs",
-											]}
-											ariaLabel="Knowledge field help"
-										/>
-									</div>
-									<p className="text-sm text-muted-foreground mt-1">
-										Give your agent general knowledge to answer best
-									</p>
-								</div>
-
-								<div className="border rounded-lg">
-									<div className="px-4">
-										<div className="flex items-start gap-3 py-3">
-											<Checkbox
-												checked={config.capabilities.webSearch}
-												onCheckedChange={(checked) =>
-													setConfig((prev) => ({
-														...prev,
-														capabilities: {
-															...prev.capabilities,
-															webSearch: !!checked,
-														},
-													}))
-												}
-												className="mt-0.5"
-											/>
-											<div className="flex-1">
-												<p className="text-sm font-medium">
-													Search the web for information
-												</p>
-												<p className="text-sm text-muted-foreground mt-1">
-													Let the agent search and reference information found
-													on the websites
-												</p>
-											</div>
-										</div>
-										<div className="border-t" />
-										<div className="flex items-start gap-3 py-3">
-											<Checkbox
-												checked={config.capabilities.useAllWorkspaceContent}
-												onCheckedChange={(checked) =>
-													setConfig((prev) => ({
-														...prev,
-														capabilities: {
-															...prev.capabilities,
-															useAllWorkspaceContent: !!checked,
-														},
-													}))
-												}
-												className="mt-0.5"
-											/>
-											<div className="flex-1">
-												<p className="text-sm font-medium">
-													Enable all workspace knowledge
-												</p>
-												<p className="text-sm text-muted-foreground mt-1">
-													Let the agent use all shared integrations, files, and
-													other assets in this workspace
-												</p>
-											</div>
-										</div>
-									</div>
-								</div>
 							</div>
 						</div>
 					</div>
