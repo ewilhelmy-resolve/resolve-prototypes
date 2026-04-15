@@ -455,7 +455,16 @@ describe("DB State Baseline — Message ordering", () => {
 
 	it("initial load (no cursor) fetches limit+1 for hasMore detection", async () => {
 		mockClient.query
-			.mockResolvedValueOnce({ rows: [{ id: "conv-001" }] })
+			.mockResolvedValueOnce({
+				rows: [
+					{
+						id: "conv-001",
+						user_id: "test-user-id",
+						is_owner: true,
+						participant_since: null,
+					},
+				],
+			})
 			.mockResolvedValueOnce({ rows: [] });
 
 		vi.mocked(withOrgContext).mockImplementation(
@@ -468,9 +477,9 @@ describe("DB State Baseline — Message ordering", () => {
 			.get("/conversations/conv-001/messages?limit=50")
 			.expect(200);
 
-		// Verify LIMIT is limit+1 = 51
+		// Verify LIMIT is limit+1 = 51 (param index 2)
 		const params = mockClient.query.mock.calls[1][1] as any[];
-		expect(params[params.length - 1]).toBe(51);
+		expect(params[2]).toBe(51);
 	});
 
 	it("GET messages SELECT includes metadata and response_group_id columns", async () => {
@@ -633,8 +642,8 @@ describe("DB State Baseline — Conversation ownership", () => {
 		);
 	});
 
-	it("conversation SELECT checks both organization_id and user_id", async () => {
-		mockClient.query.mockResolvedValueOnce({ rows: [] }); // conv check returns empty
+	it("conversation access check verifies organization and determines ownership", async () => {
+		mockClient.query.mockResolvedValueOnce({ rows: [] }); // access check returns empty (no access)
 
 		vi.mocked(withOrgContext).mockImplementation(
 			async (_userId, _orgId, callback) => {
@@ -645,9 +654,11 @@ describe("DB State Baseline — Conversation ownership", () => {
 		await request(app).get("/conversations/conv-001/messages").expect(404);
 
 		const checkSql = mockClient.query.mock.calls[0][0] as string;
-		expect(checkSql).toContain("SELECT id FROM conversations");
+		expect(checkSql).toContain("FROM conversations");
 		expect(checkSql).toContain("organization_id = $2");
-		expect(checkSql).toContain("user_id = $3");
+		// RLS handles user_id filtering (owner or participant)
+		// Query also determines is_owner + participant_since for message cursor
+		expect(checkSql).toContain("is_owner");
 	});
 
 	it("conversation DELETE includes organization_id and user_id in WHERE", async () => {

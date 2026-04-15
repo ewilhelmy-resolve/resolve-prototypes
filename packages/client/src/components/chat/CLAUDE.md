@@ -8,7 +8,7 @@ Extracted from `ChatV1Content` to enable message rendering across multiple entry
 ChatV2MessageRenderer  (pure — props only, no hooks/stores)
   └── Used by:
       ├── ChatV2Content       (orchestrator — connects to Zustand store)
-      └── JarvisSharePage     (read-only — fetches from /api/share, groups locally)
+      └── JarvisSharePage     (shared conversation with participant support)
 ```
 
 ### ChatV2MessageRenderer
@@ -32,7 +32,7 @@ When `interactive` is provided (non-readOnly mode), also renders:
 - `InlineFormRequest` — non-interrupt form requests inline in chat
 - `InterruptFormDialog` — interrupt form requests with 3-tier modal fallback
 
-When `interactive` is undefined (readOnly / share page), all interactive elements are suppressed.
+When `interactive` is undefined, interactive elements are suppressed. Note: the Jarvis share page may provide `interactive` callbacks for participant features.
 
 ### InterruptFormDialog
 

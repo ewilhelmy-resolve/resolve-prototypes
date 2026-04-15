@@ -36,9 +36,11 @@ export default function JarvisSharePage() {
 
 		const apiBase = import.meta.env.VITE_API_URL || "";
 
-		fetch(`${apiBase}/api/share/${shareId}`)
+		fetch(`${apiBase}/api/share/${shareId}`, { credentials: "include" })
 			.then((res) => {
 				if (!res.ok) {
+					if (res.status === 401)
+						throw new Error("Please log in to view this conversation");
 					if (res.status === 404)
 						throw new Error("Shared conversation not found");
 					throw new Error("Failed to load");

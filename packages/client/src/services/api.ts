@@ -156,6 +156,42 @@ export const conversationApi = {
 		apiRequest<{ message: any }>(`/api/messages/${messageId}`),
 };
 
+// Share API (snapshot-based conversation sharing)
+export interface EnableShareResponse {
+	shareUrl: string;
+	shareId: string;
+}
+
+export const shareApi = {
+	/** Enable sharing for an authenticated user's conversation */
+	enable: (conversationId: string) =>
+		apiRequest<EnableShareResponse>(
+			`/api/conversations/${conversationId}/share/enable`,
+			{ method: "POST" },
+		),
+
+	/** Disable sharing for an authenticated user's conversation */
+	disable: (conversationId: string) =>
+		apiRequest<{ success: true }>(
+			`/api/conversations/${conversationId}/share/disable`,
+			{ method: "POST" },
+		),
+
+	/** Platform flow — enable sharing for the iframe session's conversation */
+	enableFromSession: (sessionKey: string) =>
+		apiRequest<EnableShareResponse>("/api/iframe/share", {
+			method: "POST",
+			body: { sessionKey },
+		}),
+
+	/** Platform flow — disable sharing for the iframe session's conversation */
+	disableFromSession: (sessionKey: string) =>
+		apiRequest<{ success: true }>("/api/iframe/share/disable", {
+			method: "POST",
+			body: { sessionKey },
+		}),
+};
+
 // Agent API (proxied through Rita API server → LLM Service)
 export const agentApi = {
 	list: (params?: {

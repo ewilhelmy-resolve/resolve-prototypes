@@ -26,6 +26,7 @@ import {
 	Download,
 	ScrollText,
 	Send,
+	Share2,
 	Trash2,
 	Wrench,
 } from "lucide-react";
@@ -41,6 +42,7 @@ import { Loader } from "../components/ai-elements/loader";
 import type { PromptInputMessage } from "../components/ai-elements/prompt-input";
 import { ChatInput } from "../components/chat/ChatInput";
 import { ChatV2Content } from "../components/chat/ChatV2Content";
+import { ShareConversationDialog } from "../components/chat/ShareConversationDialog";
 import { ritaToast } from "../components/custom/rita-toast";
 import { ValkeySessionPanel } from "../components/devtools/ValkeySessionPanel";
 import IframeChatLayout from "../components/layouts/IframeChatLayout";
@@ -48,6 +50,7 @@ import { Button } from "../components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -757,6 +760,7 @@ function IframeDevTools({
 	onDownloadMetadata,
 	onShowActivityLog,
 	onShowPlatformSimulator,
+	onShowShareDialog,
 	onShowValkeySession,
 	isMockMode,
 }: {
@@ -764,6 +768,7 @@ function IframeDevTools({
 	onDownloadMetadata: () => void;
 	onShowActivityLog: () => void;
 	onShowPlatformSimulator?: () => void;
+	onShowShareDialog?: () => void;
 	onShowValkeySession?: () => void;
 	isMockMode?: boolean;
 }) {
@@ -785,55 +790,70 @@ function IframeDevTools({
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" side="top" className="w-56">
 				{/* Demo Tools - available in mock mode OR dev tools */}
-				<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-					Demo Tools
-				</DropdownMenuLabel>
-				<DropdownMenuItem
-					onClick={onShowPlatformSimulator}
-					className="cursor-pointer"
-				>
-					<Code className="mr-2 h-4 w-4" />
-					Platform Simulator
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={onShowActivityLog}
-					className="cursor-pointer"
-				>
-					<ScrollText className="mr-2 h-4 w-4" />
-					Activity Log
-				</DropdownMenuItem>
+				<DropdownMenuGroup>
+					<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+						Demo Tools
+					</DropdownMenuLabel>
+					<DropdownMenuItem
+						onClick={onShowPlatformSimulator}
+						className="cursor-pointer"
+					>
+						<Code className="mr-2 h-4 w-4" />
+						Platform Simulator
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onClick={onShowActivityLog}
+						className="cursor-pointer"
+					>
+						<ScrollText className="mr-2 h-4 w-4" />
+						Activity Log
+					</DropdownMenuItem>
+					{onShowShareDialog && (
+						<DropdownMenuItem
+							onClick={onShowShareDialog}
+							className="cursor-pointer"
+						>
+							<Share2 className="mr-2 h-4 w-4" />
+							Share link (dev)
+						</DropdownMenuItem>
+					)}
+				</DropdownMenuGroup>
 				{/* Download tools - only when dev tools feature flag enabled */}
 				{devToolsEnabled && (
 					<>
 						<DropdownMenuSeparator />
-						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-							Inspect
-						</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={onShowValkeySession}
-							className="cursor-pointer"
-						>
-							<Database className="mr-2 h-4 w-4" />
-							Valkey Session
-						</DropdownMenuItem>
+						<DropdownMenuGroup>
+							<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+								Inspect
+							</DropdownMenuLabel>
+							<DropdownMenuItem
+								onClick={onShowValkeySession}
+								className="cursor-pointer"
+							>
+								<Database className="mr-2 h-4 w-4" />
+								Valkey Session
+							</DropdownMenuItem>
+						</DropdownMenuGroup>
 						<DropdownMenuSeparator />
-						<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-							Downloads
-						</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={onDownloadConversation}
-							className="cursor-pointer"
-						>
-							<Download className="mr-2 h-4 w-4" />
-							Conversation
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={onDownloadMetadata}
-							className="cursor-pointer"
-						>
-							<Download className="mr-2 h-4 w-4" />
-							Full Metadata
-						</DropdownMenuItem>
+						<DropdownMenuGroup>
+							<DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+								Downloads
+							</DropdownMenuLabel>
+							<DropdownMenuItem
+								onClick={onDownloadConversation}
+								className="cursor-pointer"
+							>
+								<Download className="mr-2 h-4 w-4" />
+								Conversation
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={onDownloadMetadata}
+								className="cursor-pointer"
+							>
+								<Download className="mr-2 h-4 w-4" />
+								Full Metadata
+							</DropdownMenuItem>
+						</DropdownMenuGroup>
 					</>
 				)}
 			</DropdownMenuContent>
@@ -1269,6 +1289,7 @@ export default function IframeChatPage() {
 	// Mock platform panel state (only in mock mode - backend is skipped)
 	const [showPlatformPanel, setShowPlatformPanel] = useState(mockMode);
 	const [showValkeyPanel, setShowValkeyPanel] = useState(false);
+	const [showShareDialog, setShowShareDialog] = useState(false);
 
 	const navigate = useNavigate();
 	const apiUrl = import.meta.env.VITE_API_URL || "";
@@ -1769,6 +1790,9 @@ export default function IframeChatPage() {
 				onDownloadMetadata={downloadMetadata}
 				onShowActivityLog={() => setShowDebug(true)}
 				onShowPlatformSimulator={() => setShowPlatformPanel(true)}
+				onShowShareDialog={
+					sessionKey ? () => setShowShareDialog(true) : undefined
+				}
 				onShowValkeySession={() => setShowValkeyPanel(true)}
 				isMockMode={isDevMode}
 			/>
@@ -1806,6 +1830,13 @@ export default function IframeChatPage() {
 					apiUrl={apiUrl}
 					initialPayload={valkeyPayload}
 					onClose={() => setShowValkeyPanel(false)}
+				/>
+			)}
+			{sessionKey && (
+				<ShareConversationDialog
+					sessionKey={sessionKey}
+					open={showShareDialog}
+					onOpenChange={setShowShareDialog}
 				/>
 			)}
 		</IframeChatLayout>
