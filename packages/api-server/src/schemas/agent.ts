@@ -221,6 +221,22 @@ export const ImproveInstructionsBodySchema = z
 	})
 	.openapi("ImproveInstructionsBody");
 
+// --- Meta-Agent: Generate Conversation Starters Schemas ---
+
+const AgentConfigForStarterGenerationSchema =
+	AgentConfigForImprovementSchema.extend({
+		instructions: z.string().optional().default(""),
+	}).openapi("AgentConfigForStarterGeneration");
+
+export const GenerateConversationStartersBodySchema = z
+	.object({
+		agentConfig: AgentConfigForStarterGenerationSchema.openapi({
+			description:
+				"Agent configuration context for generating conversation starters",
+		}),
+	})
+	.openapi("GenerateConversationStartersBody");
+
 export const CancelMetaAgentBodySchema = z
 	.object({
 		executionRequestId: z.string().uuid().openapi({
@@ -228,3 +244,18 @@ export const CancelMetaAgentBodySchema = z
 		}),
 	})
 	.openapi("CancelMetaAgentBody");
+
+// --- Agent Test Execution Schemas ---
+
+export const AgentExecuteBodySchema = z
+	.object({
+		message: z
+			.string()
+			.min(1)
+			.openapi({ description: "User message to send to the agent" }),
+		transcript: z.string().optional().openapi({
+			description:
+				"Conversation history as JSON array of {role, content} objects",
+		}),
+	})
+	.openapi("AgentExecuteBody");

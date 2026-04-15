@@ -38,5 +38,15 @@ export function buildAgentPrompt(params: AgentGenerateParams): string {
 		}
 	}
 
+	sections.push(
+		"",
+		"IMPORTANT — Runtime Parameter Requirements:",
+		"The created agent's task definition MUST reference these runtime parameters so user messages are processed at runtime:",
+		"- {%utterance} — the user's current message (REQUIRED in every task — without this, the agent cannot read user input)",
+		"- {%transcript} — conversation history as a JSON array of {role, content} objects",
+		"- {%additional_information} — any additional context provided at execution time",
+		"The task MUST process {%utterance} as the primary user input and respond to it directly.",
+	);
+
 	return sections.join("\n");
 }

@@ -57,11 +57,6 @@ async function apiRequest<T>(
 		if (response.status === 401) {
 			console.error("API request returned 401. Session may have expired.");
 		}
-		// Handle 502 - backend is down, redirect to login
-		if (response.status === 502) {
-			console.error("API request returned 502. Backend is down.");
-			keycloak.logout();
-		}
 		throw new ApiError(
 			response.status,
 			errorData.error ||
@@ -296,8 +291,38 @@ export const agentApi = {
 			},
 		),
 
+	generateConversationStarters: (data: {
+		agentConfig: {
+			name?: string;
+			role?: string;
+			description?: string;
+			instructions?: string;
+			agentType?: string | null;
+			guardrails?: string[];
+			conversationStarters?: string[];
+			workflows?: string[];
+			knowledgeSources?: string[];
+			capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+			responsibilities?: string;
+			completionCriteria?: string;
+		};
+	}) =>
+		apiRequest<{ executionRequestId: string }>(
+			"/api/agents/generate-conversation-starters",
+			{
+				method: "POST",
+				body: data,
+			},
+		),
+
 	cancelMetaAgent: (data: { executionRequestId: string }) =>
 		apiRequest<{ success: boolean }>("/api/agents/cancel-meta-agent", {
+			method: "POST",
+			body: data,
+		}),
+
+	execute: (eid: string, data: { message: string; transcript?: string }) =>
+		apiRequest<{ executionRequestId: string }>(`/api/agents/${eid}/execute`, {
 			method: "POST",
 			body: data,
 		}),

@@ -9,11 +9,13 @@ import {
 	AgentCreationInputBodySchema,
 	AgentDeleteResponseSchema,
 	AgentDetailResponseSchema,
+	AgentExecuteBodySchema,
 	AgentGenerateBodySchema,
 	AgentListQuerySchema,
 	AgentListResponseSchema,
 	AgentUpdateBodySchema,
 	CancelMetaAgentBodySchema,
+	GenerateConversationStartersBodySchema,
 	ImproveInstructionsBodySchema,
 } from "../schemas/agent.js";
 import { ErrorResponseSchema } from "../schemas/common.js";
@@ -241,6 +243,50 @@ registry.registerPath({
 		401: {
 			description: "Unauthorized",
 			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		404: {
+			description: "Agent not found",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		502: {
+			description: "LLM Service unavailable",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		500: {
+			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "post",
+	path: "/api/agents/{eid}/execute",
+	tags: ["Agents"],
+	summary: "Execute an agent for testing",
+	description:
+		"Execute a created agent with a user message. Returns 202; results arrive via SSE meta_agent_* events.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		params: z.object({
+			eid: z.string().uuid().openapi({ description: "Agent EID to execute" }),
+		}),
+		body: {
+			content: {
+				"application/json": { schema: AgentExecuteBodySchema },
+			},
+		},
+	},
+	responses: {
+		202: {
+			description: "Execution started",
+			content: {
+				"application/json": {
+					schema: z.object({
+						executionRequestId: z.string().uuid(),
+					}),
+				},
+			},
 		},
 		404: {
 			description: "Agent not found",
@@ -550,6 +596,72 @@ router.post("/improve-instructions", async (req, res) => {
 });
 
 /**
+ * POST /api/agents/generate-conversation-starters
+ * Invoke ConversationStarterGenerator meta-agent.
+ * Returns 202 with executionRequestId; results arrive via SSE.
+ */
+router.post("/generate-conversation-starters", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	try {
+		const body = GenerateConversationStartersBodySchema.parse(req.body);
+		const strategy = getMetaAgentStrategy();
+
+		const config = body.agentConfig;
+
+		// Format additional_information as structured text matching the
+		// agent's few-shot examples (not raw JSON) so the LLM weighs
+		// instructions and description over raw capability flags.
+		// Only list actual workflows/knowledge sources as tools — not
+		// platform capabilities (webSearch, imageGeneration) which are
+		// background features and shouldn't drive conversation starters.
+		const tools: string[] = [
+			...(config.workflows || []),
+			...(config.knowledgeSources || []),
+		];
+
+		const additionalInfoParts = [
+			`Agent Name: ${config.name || "Unnamed Agent"}`,
+			config.description ? `\nDescription: ${config.description}` : "",
+			`\nTools/Skills: ${tools.length > 0 ? tools.join(", ") : "none"}`,
+			config.instructions ? `\nInstructions:\n${config.instructions}` : "",
+			config.guardrails?.length
+				? `\nGuardrails:\n${config.guardrails.map((g) => `- ${g}`).join("\n")}`
+				: "",
+		];
+
+		const result = await strategy.execute({
+			agentName: "ConversationStarterGeneratorAgent",
+			utterance: "Generate conversation starters for this agent.",
+			additionalInformation: additionalInfoParts.join(""),
+			transcript: "[]",
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			organizationId: authReq.user.activeOrganizationId,
+		});
+
+		res.status(202).json({
+			executionRequestId: result.executionRequestId,
+		});
+	} catch (error: any) {
+		if (error?.response) {
+			logger.error(
+				{ status: error.response.status, data: error.response.data },
+				"LLM Service error generating conversation starters",
+			);
+			return res.status(502).json({
+				error: "LLM Service unavailable",
+				code: "LLM_SERVICE_ERROR",
+			});
+		}
+		logger.error({ error }, "Error generating conversation starters");
+		res.status(500).json({
+			error: "Failed to generate conversation starters",
+			code: "INTERNAL_ERROR",
+		});
+	}
+});
+
+/**
  * POST /api/agents/cancel-meta-agent
  * Cancel an in-progress meta-agent execution
  */
@@ -571,6 +683,59 @@ router.post("/cancel-meta-agent", async (req, res) => {
 		logger.error({ error }, "Error cancelling meta-agent execution");
 		res.status(500).json({
 			error: "Failed to cancel meta-agent execution",
+			code: "INTERNAL_ERROR",
+		});
+	}
+});
+
+/**
+ * POST /api/agents/:eid/execute
+ * Execute a created agent for testing. Returns 202; results arrive via SSE.
+ */
+router.post("/:eid/execute", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
+	try {
+		const { eid } = req.params;
+		const body = AgentExecuteBodySchema.parse(req.body);
+
+		// Look up agent name from EID
+		const agent = await agenticService.getAgent(eid);
+		if (!agent?.name) {
+			return res
+				.status(404)
+				.json({ error: "Agent not found", code: "NOT_FOUND" });
+		}
+
+		const strategy = getMetaAgentStrategy();
+		const result = await strategy.execute({
+			agentName: agent.name,
+			utterance: body.message,
+			transcript: body.transcript || "[]",
+			userId: authReq.user.id,
+			userEmail: authReq.user.email,
+			organizationId: authReq.user.activeOrganizationId,
+		});
+
+		res.status(202).json({ executionRequestId: result.executionRequestId });
+	} catch (error: any) {
+		if (error?.response?.status === 404) {
+			return res
+				.status(404)
+				.json({ error: "Agent not found", code: "NOT_FOUND" });
+		}
+		if (error?.response) {
+			logger.error(
+				{ status: error.response.status, data: error.response.data },
+				"LLM Service error executing agent",
+			);
+			return res.status(502).json({
+				error: "LLM Service unavailable",
+				code: "LLM_SERVICE_ERROR",
+			});
+		}
+		logger.error({ error }, "Error executing agent");
+		res.status(500).json({
+			error: "Failed to execute agent",
 			code: "INTERNAL_ERROR",
 		});
 	}
@@ -671,10 +836,13 @@ router.post("/", async (req, res) => {
 			body as unknown as Record<string, unknown>,
 		);
 
-		// Set audit fields to the authenticated user's email
+		// Set audit fields and tenant
 		if (authReq.user?.email) {
 			apiData.sys_created_by = authReq.user.email;
 			apiData.sys_updated_by = authReq.user.email;
+		}
+		if (authReq.user?.activeOrganizationId) {
+			apiData.tenant = authReq.user.activeOrganizationId;
 		}
 
 		logger.info(
@@ -731,9 +899,12 @@ router.put("/:eid", async (req, res) => {
 			body as unknown as Record<string, unknown>,
 		);
 
-		// Set sys_updated_by to the authenticated user's email
+		// Set sys_updated_by and tenant
 		if (authReq.user?.email) {
 			apiData.sys_updated_by = authReq.user.email;
+		}
+		if (authReq.user?.activeOrganizationId) {
+			apiData.tenant = authReq.user.activeOrganizationId;
 		}
 
 		logger.info({ eid, userId: authReq.user?.id }, "Updating agent");

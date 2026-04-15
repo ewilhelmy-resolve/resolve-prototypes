@@ -5,6 +5,7 @@ import type {
 	AgenticService,
 } from "../AgenticService.js";
 import type { SSEService } from "../sse.js";
+import { parseRawJsonResponse } from "./parsers.js";
 import type {
 	MetaAgentCancelParams,
 	MetaAgentExecuteParams,
@@ -346,11 +347,7 @@ export class DirectMetaAgentStrategy implements MetaAgentStrategy {
 
 	private parseRawResponse(msg: AgentExecutionMessage): Record<string, any> {
 		const raw = (msg.content?.raw as string) || "";
-		const cleaned = raw
-			.replace(/^```json\s*/i, "")
-			.replace(/```\s*$/, "")
-			.trim();
-		return JSON.parse(cleaned);
+		return parseRawJsonResponse(raw);
 	}
 
 	private sleep(ms: number): Promise<void> {

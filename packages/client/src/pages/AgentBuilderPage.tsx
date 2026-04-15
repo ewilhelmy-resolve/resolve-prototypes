@@ -64,6 +64,7 @@ import { useAgentCreation } from "@/hooks/useAgentCreation";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useGenerateConversationStarters } from "@/hooks/useGenerateConversationStarters";
 import { useImproveInstructions } from "@/hooks/useImproveInstructions";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -75,6 +76,8 @@ import type {
 	ConversationStep,
 	DebugTraceStep,
 } from "@/types/agent";
+
+const MAX_CONVERSATION_STARTERS = 20;
 
 // Available skills for the Add Skill modal
 // linkedAgent: null = available, string = name of agent using this skill
@@ -393,6 +396,38 @@ export default function AgentBuilderPage() {
 	// Improve instructions with AI
 	const improveInstructions = useImproveInstructions();
 	const [showImproveDialog, setShowImproveDialog] = useState(false);
+
+	// Generate conversation starters with AI
+	const generateStarters = useGenerateConversationStarters();
+
+	// Apply generated conversation starters when they arrive
+	useEffect(() => {
+		if (
+			generateStarters.status === "success" &&
+			generateStarters.generatedStarters
+		) {
+			const starters = generateStarters.generatedStarters;
+			setConfig((prev) => {
+				const existing = prev.conversationStarters;
+				const newOnes = starters.filter((s) => !existing.includes(s));
+				const availableSlots = MAX_CONVERSATION_STARTERS - existing.length;
+				const toAdd = newOnes.slice(0, availableSlots);
+				if (toAdd.length === 0) return prev;
+				return {
+					...prev,
+					conversationStarters: [...existing, ...toAdd],
+				};
+			});
+			generateStarters.reset();
+		} else if (generateStarters.status === "error") {
+			toast.error("Failed to generate conversation starters");
+			generateStarters.reset();
+		}
+	}, [
+		generateStarters.status,
+		generateStarters.generatedStarters,
+		generateStarters.reset,
+	]);
 
 	// Track the original published config for diff comparison (only for editing)
 	const publishedConfigRef = useRef<AgentConfig | null>(null);
@@ -856,7 +891,7 @@ export default function AgentBuilderPage() {
 									iconId: config.iconId,
 									iconColorId: config.iconColorId,
 									conversationStarters: config.conversationStarters,
-									guardrails: config.guardrails,
+									guardrails: config.guardrails.filter((g) => g.trim()),
 								});
 							}}
 							disabled={
@@ -921,7 +956,7 @@ export default function AgentBuilderPage() {
 							iconId: config.iconId,
 							iconColorId: config.iconColorId,
 							conversationStarters: config.conversationStarters,
-							guardrails: config.guardrails,
+							guardrails: config.guardrails.filter((g) => g.trim()),
 						});
 					}}
 					onCancel={() => {
@@ -1253,7 +1288,7 @@ export default function AgentBuilderPage() {
 													agentType: config.agentType,
 													workflows: config.workflows,
 													conversationStarters: config.conversationStarters,
-													guardrails: config.guardrails,
+													guardrails: config.guardrails.filter((g) => g.trim()),
 													knowledgeSources: config.knowledgeSources,
 													capabilities: config.capabilities,
 												});
@@ -1339,18 +1374,53 @@ export default function AgentBuilderPage() {
 
 								{/* Conversation Starters Section */}
 								<div className="space-y-2">
-									<div>
-										<p className="text-sm font-medium text-foreground">
-											Conversation starters
-										</p>
-										<p className="text-sm text-muted-foreground mt-0.5">
-											Suggested prompts shown to users when starting a
-											conversation
-										</p>
+									<div className="flex items-start justify-between">
+										<div>
+											<p className="text-sm font-medium text-foreground">
+												Conversation starters
+											</p>
+											<p className="text-sm text-muted-foreground mt-0.5">
+												Suggested prompts shown to users when starting a
+												conversation
+											</p>
+										</div>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="gap-1.5 h-8 shrink-0"
+											disabled={
+												generateStarters.status === "generating" ||
+												agentCreation.isCreating ||
+												config.conversationStarters.length >=
+													MAX_CONVERSATION_STARTERS ||
+												(!config.instructions.trim() &&
+													!config.description.trim())
+											}
+											onClick={() => {
+												generateStarters.generate({
+													name: config.name,
+													description: config.description,
+													instructions: config.instructions,
+													agentType: config.agentType,
+													workflows: config.workflows,
+													conversationStarters: config.conversationStarters,
+													guardrails: config.guardrails.filter((g) => g.trim()),
+													knowledgeSources: config.knowledgeSources,
+													capabilities: config.capabilities,
+												});
+											}}
+										>
+											{generateStarters.status === "generating" ? (
+												<Loader2 className="size-3.5 animate-spin" />
+											) : (
+												<Sparkles className="size-3.5" />
+											)}
+											Generate
+										</Button>
 									</div>
 									{/* Input with inline tags */}
 									<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-										{/* Added starters as solid badges */}
+										{/* Added starters as badges */}
 										{config.conversationStarters.map((starter, index) => (
 											<div
 												key={index}
@@ -1375,23 +1445,40 @@ export default function AgentBuilderPage() {
 											</div>
 										))}
 										{/* Input for typing new starters */}
-										{config.conversationStarters.length < 6 && (
+										{config.conversationStarters.length <
+											MAX_CONVERSATION_STARTERS && (
 											<input
 												type="text"
-												placeholder="Type and press Enter to add..."
+												placeholder="Type and press Enter or comma to add..."
 												className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
 												onKeyDown={(e) => {
 													const input = e.currentTarget;
-													if (e.key === "Enter" && input.value.trim()) {
+													if (
+														(e.key === "Enter" || e.key === ",") &&
+														input.value.replace(",", "").trim()
+													) {
 														e.preventDefault();
-														const newStarter = input.value.trim();
-														setConfig((prev) => ({
-															...prev,
-															conversationStarters: [
-																...prev.conversationStarters,
-																newStarter,
-															],
-														}));
+														const values = input.value
+															.split(",")
+															.map((v) => v.trim())
+															.filter(Boolean);
+
+														setConfig((prev) => {
+															const existing = prev.conversationStarters;
+															const availableSlots =
+																MAX_CONVERSATION_STARTERS - existing.length;
+															const newStarters = values
+																.filter((v) => !existing.includes(v))
+																.slice(0, availableSlots);
+															if (newStarters.length === 0) return prev;
+															return {
+																...prev,
+																conversationStarters: [
+																	...existing,
+																	...newStarters,
+																],
+															};
+														});
 														input.value = "";
 													}
 												}}
@@ -1584,7 +1671,7 @@ export default function AgentBuilderPage() {
 						agentType: config.agentType,
 						workflows: config.workflows,
 						conversationStarters: config.conversationStarters,
-						guardrails: config.guardrails,
+						guardrails: config.guardrails.filter((g) => g.trim()),
 						knowledgeSources: config.knowledgeSources,
 						capabilities: config.capabilities,
 					});
@@ -1612,7 +1699,7 @@ export default function AgentBuilderPage() {
 						agentType: config.agentType,
 						workflows: config.workflows,
 						conversationStarters: config.conversationStarters,
-						guardrails: config.guardrails,
+						guardrails: config.guardrails.filter((g) => g.trim()),
 						knowledgeSources: config.knowledgeSources,
 						capabilities: config.capabilities,
 					});
@@ -1637,7 +1724,8 @@ export default function AgentBuilderPage() {
 						const startersToAdd = newStarters.filter(
 							(s) => !existingStarters.includes(s),
 						);
-						const availableSlots = 6 - existingStarters.length;
+						const availableSlots =
+							MAX_CONVERSATION_STARTERS - existingStarters.length;
 						const finalNewStarters = startersToAdd.slice(0, availableSlots);
 						return {
 							...prev,

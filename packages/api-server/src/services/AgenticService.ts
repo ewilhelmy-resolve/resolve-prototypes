@@ -60,6 +60,13 @@ export class AgenticService {
 		const baseURL =
 			process.env.LLM_SERVICE_URL || "https://llm-service-staging.resolve.io";
 		const apiKey = process.env.LLM_SERVICE_API_KEY || "";
+		const dbTenant = process.env.LLM_SERVICE_DB_TENANT || "";
+
+		if (!dbTenant) {
+			logger.warn(
+				"LLM_SERVICE_DB_TENANT is not set — LLM Service calls will likely fail",
+			);
+		}
 
 		this.client = axios.create({
 			baseURL,
@@ -67,6 +74,7 @@ export class AgenticService {
 			headers: {
 				"Content-Type": "application/json",
 				...(apiKey && { "X-API-Key": apiKey }),
+				...(dbTenant && { "X-DB-Tenant": dbTenant }),
 			},
 		});
 	}
@@ -211,6 +219,65 @@ export class AgenticService {
 			logger.error(
 				{ agentMetadataId, error },
 				"Failed to list agent tasks from LLM Service",
+			);
+			throw error;
+		}
+	}
+
+	async getTask(taskEid: string): Promise<AgentTaskApiData> {
+		try {
+			const response = await this.client.get<AgentTaskApiData>(
+				`/agents/tasks/eid/${taskEid}`,
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ taskEid, error }, "Failed to get task from LLM Service");
+			throw error;
+		}
+	}
+
+	async createTask(data: Partial<AgentTaskApiData>): Promise<AgentTaskApiData> {
+		try {
+			const response = await this.client.post<AgentTaskApiData>(
+				"/agents/tasks",
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ error }, "Failed to create task in LLM Service");
+			throw error;
+		}
+	}
+
+	async updateTask(
+		taskEid: string,
+		data: Partial<AgentTaskApiData>,
+	): Promise<AgentTaskApiData> {
+		try {
+			const response = await this.client.put<AgentTaskApiData>(
+				`/agents/tasks/eid/${taskEid}`,
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ taskEid, error }, "Failed to update task in LLM Service");
+			throw error;
+		}
+	}
+
+	async deleteTask(
+		taskEid: string,
+	): Promise<{ success: boolean; message: string }> {
+		try {
+			const response = await this.client.delete<{
+				success: boolean;
+				message: string;
+			}>(`/agents/tasks/eid/${taskEid}`);
+			return response.data;
+		} catch (error) {
+			logger.error(
+				{ taskEid, error },
+				"Failed to delete task from LLM Service",
 			);
 			throw error;
 		}
