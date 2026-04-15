@@ -459,6 +459,10 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					queryClient.invalidateQueries({
 						queryKey: ingestionRunKeys.latest(event.data.connection_id),
 					});
+					// Refresh connections list so "last synced" updates
+					queryClient.invalidateQueries({
+						queryKey: dataSourceKeys.list(),
+					});
 
 					if (event.data.status === "completed") {
 						// Refresh ticket dashboard data (clusters, totals, counts)
