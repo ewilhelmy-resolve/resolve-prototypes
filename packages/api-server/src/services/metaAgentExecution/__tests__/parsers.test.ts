@@ -117,6 +117,79 @@ describe("parseConversationStarterContent", () => {
 		const result = parseConversationStarterContent("");
 		expect(result).toEqual([]);
 	});
+
+	it("unwraps Standard Response Format envelope with string content", () => {
+		const envelope = JSON.stringify({
+			role: "assistant",
+			content: "Starter A, Starter B, Starter C",
+			need_inputs: [],
+			terminate: false,
+			success: true,
+			error_message: null,
+		});
+
+		const result = parseConversationStarterContent(envelope);
+		expect(result).toEqual(["Starter A", "Starter B", "Starter C"]);
+	});
+
+	it("unwraps envelope when content is a JSON array of starters", () => {
+		const envelope = JSON.stringify({
+			role: "assistant",
+			content: ["Starter A", "Starter B", "Starter C"],
+			success: true,
+		});
+
+		const result = parseConversationStarterContent(envelope);
+		expect(result).toEqual(["Starter A", "Starter B", "Starter C"]);
+	});
+
+	it("unwraps envelope with reasoning text before the JSON block", () => {
+		const raw = [
+			"Here are the starters for this agent:",
+			"```json",
+			'{"role": "assistant", "content": "Starter 1, Starter 2", "success": true}',
+			"```",
+		].join("\n");
+
+		const result = parseConversationStarterContent(raw);
+		expect(result).toEqual(["Starter 1", "Starter 2"]);
+	});
+
+	it("filters JSON syntax residue when envelope parse fails mid-stream", () => {
+		// Simulates the real bug: naive split on ", " of a raw envelope string
+		// leaks fragments like '{ "role": "assistant"...' into the starters.
+		const raw =
+			'{ "role": "assistant", "content": "Starter One, Starter Two", "need_inputs": [], "success": true }';
+
+		const result = parseConversationStarterContent(raw);
+		// Envelope should unwrap cleanly — residue filter is belt-and-suspenders.
+		expect(result).toEqual(["Starter One", "Starter Two"]);
+	});
+});
+
+describe("parseInstructionsImproverContent — envelope handling", () => {
+	it("unwraps Standard Response Format envelope containing delimited payload", () => {
+		const inner = [
+			"---INSTRUCTIONS---",
+			"## Role",
+			"Helpful assistant.",
+			"---END_INSTRUCTIONS---",
+			"",
+			"---DESCRIPTION---",
+			"A helper.",
+			"---END_DESCRIPTION---",
+		].join("\n");
+
+		const envelope = JSON.stringify({
+			role: "assistant",
+			content: inner,
+			success: true,
+		});
+
+		const result = parseInstructionsImproverContent(envelope);
+		expect(result.instructions).toBe("## Role\nHelpful assistant.");
+		expect(result.description).toBe("A helper.");
+	});
 });
 
 describe("parseRawJsonResponse", () => {
