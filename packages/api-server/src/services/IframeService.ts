@@ -666,7 +666,7 @@ export class IframeService {
 					`INSERT INTO conversations (organization_id, user_id, title, source)
            VALUES ($1, $2, $3, 'jarvis')
            RETURNING id`,
-					[ritaOrgId, ritaUserId, "Iframe Chat"],
+					[ritaOrgId, ritaUserId, "Jarvis Chat"],
 				);
 				return conversationResult.rows[0];
 			},

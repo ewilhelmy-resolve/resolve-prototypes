@@ -612,4 +612,117 @@ describe("Conversations Router - Iframe userId Validation", () => {
 			);
 		});
 	});
+
+	// RG-838: Conversations list must be scoped to the session's app context.
+	// Rita Go and Jarvis iframe share the same user_id (same person), so RLS
+	// alone isn't sufficient — we must filter by source.
+	describe("GET /conversations - source filter by session type (RG-838)", () => {
+		it("Rita Go session excludes jarvis conversations", async () => {
+			mockSessionStore.getSession.mockResolvedValue({
+				sessionId: "test-session-id",
+				isIframeSession: false,
+			});
+
+			mockClient.query
+				.mockResolvedValueOnce({
+					rows: [{ id: "rg-1", title: "Rita Chat", is_owner: true }],
+				})
+				.mockResolvedValueOnce({ rows: [{ total: "1" }] });
+
+			vi.mocked(withOrgContext).mockImplementation(
+				async (_userId, _orgId, callback) => await callback(mockClient),
+			);
+
+			await request(app).get("/conversations").expect(200);
+
+			const listQuery = mockClient.query.mock.calls[0][0];
+			expect(listQuery).toContain(
+				"AND (c.source IS NULL OR c.source <> 'jarvis')",
+			);
+			expect(listQuery).not.toContain("c.source = 'jarvis'");
+
+			const countQuery = mockClient.query.mock.calls[1][0];
+			expect(countQuery).toContain(
+				"AND (source IS NULL OR source <> 'jarvis')",
+			);
+		});
+
+		it("Iframe session includes only jarvis conversations", async () => {
+			mockSessionStore.getSession.mockResolvedValue({
+				sessionId: "test-session-id",
+				isIframeSession: true,
+			});
+
+			mockClient.query
+				.mockResolvedValueOnce({
+					rows: [{ id: "jv-1", title: "Jarvis Chat", is_owner: true }],
+				})
+				.mockResolvedValueOnce({ rows: [{ total: "1" }] });
+
+			vi.mocked(withOrgContext).mockImplementation(
+				async (_userId, _orgId, callback) => await callback(mockClient),
+			);
+
+			await request(app).get("/conversations").expect(200);
+
+			const listQuery = mockClient.query.mock.calls[0][0];
+			expect(listQuery).toContain("AND c.source = 'jarvis'");
+			expect(listQuery).not.toContain("c.source IS NULL");
+
+			const countQuery = mockClient.query.mock.calls[1][0];
+			expect(countQuery).toContain("AND source = 'jarvis'");
+		});
+
+		it("GET messages rejects jarvis conversation from Rita Go session", async () => {
+			mockSessionStore.getSession.mockResolvedValue({
+				sessionId: "test-session-id",
+				isIframeSession: false,
+			});
+
+			// accessCheck query returns no rows — source filter blocks the jarvis row
+			mockClient.query.mockResolvedValueOnce({ rows: [] });
+
+			vi.mocked(withOrgContext).mockImplementation(
+				async (_userId, _orgId, callback) => await callback(mockClient),
+			);
+
+			await request(app)
+				.get("/conversations/jarvis-conv-id/messages")
+				.expect(404);
+
+			const accessQuery = mockClient.query.mock.calls[0][0];
+			expect(accessQuery).toContain(
+				"AND (c.source IS NULL OR c.source <> 'jarvis')",
+			);
+		});
+
+		it("GET messages allows jarvis conversation from iframe session", async () => {
+			mockSessionStore.getSession.mockResolvedValue({
+				sessionId: "test-session-id",
+				isIframeSession: true,
+			});
+
+			mockClient.query
+				.mockResolvedValueOnce({
+					rows: [
+						{
+							id: "jv-1",
+							user_id: "test-user-id",
+							is_owner: true,
+							participant_since: null,
+						},
+					],
+				})
+				.mockResolvedValueOnce({ rows: [] }); // messages
+
+			vi.mocked(withOrgContext).mockImplementation(
+				async (_userId, _orgId, callback) => await callback(mockClient),
+			);
+
+			await request(app).get("/conversations/jv-1/messages").expect(200);
+
+			const accessQuery = mockClient.query.mock.calls[0][0];
+			expect(accessQuery).toContain("AND c.source = 'jarvis'");
+		});
+	});
 });

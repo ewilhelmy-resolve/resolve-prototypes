@@ -338,11 +338,26 @@ router.get("/", authenticateUser, async (req, res) => {
 			req.query,
 		);
 
+		// Scope the list by app context: iframe sessions see only jarvis
+		// conversations, Rita Go sessions see everything except jarvis.
+		// Users share the same user_id across both apps, so RLS alone isn't
+		// enough — same person, different app contexts. See RG-838.
+		const session = await getSessionStore().getSession(
+			authReq.session.sessionId,
+		);
+		const sourceFilter = session?.isIframeSession
+			? "AND c.source = 'jarvis'"
+			: "AND (c.source IS NULL OR c.source <> 'jarvis')";
+		const countSourceFilter = session?.isIframeSession
+			? "AND source = 'jarvis'"
+			: "AND (source IS NULL OR source <> 'jarvis')";
+
 		const result = await withOrgContext(
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
-				// RLS filters to owner's conversations + participated conversations
+				// RLS filters to owner's conversations + participated conversations.
+				// Source filter narrows to current app context (Rita Go vs Jarvis).
 				const conversationsResult = await client.query(
 					`
           SELECT
@@ -354,7 +369,7 @@ router.get("/", authenticateUser, async (req, res) => {
             (c.user_id = $2) as is_owner
           FROM conversations c
           LEFT JOIN user_profiles up ON c.user_id = up.user_id
-          WHERE c.organization_id = $1
+          WHERE c.organization_id = $1 ${sourceFilter}
           ORDER BY c.updated_at DESC
           LIMIT $3 OFFSET $4
         `,
@@ -362,7 +377,7 @@ router.get("/", authenticateUser, async (req, res) => {
 				);
 
 				const countResult = await client.query(
-					"SELECT COUNT(*) as total FROM conversations WHERE organization_id = $1",
+					`SELECT COUNT(*) as total FROM conversations WHERE organization_id = $1 ${countSourceFilter}`,
 					[authReq.user.activeOrganizationId],
 				);
 
@@ -394,11 +409,21 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
 		const { conversationId } = req.params;
 		const { limit = 100, before } = GetMessagesQuerySchema.parse(req.query);
 
+		// Scope access by app context (RG-838). Iframe sessions can only read
+		// jarvis conversations, Rita Go sessions can only read non-jarvis.
+		const session = await getSessionStore().getSession(
+			authReq.session.sessionId,
+		);
+		const sourceFilter = session?.isIframeSession
+			? "AND c.source = 'jarvis'"
+			: "AND (c.source IS NULL OR c.source <> 'jarvis')";
+
 		const result = await withOrgContext(
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
 				// Verify access to conversation (RLS handles owner OR participant).
+				// Source filter prevents cross-context reads via URL guessing.
 				// Also determine the participant's cursor (added_at) if not owner.
 				const accessCheck = await client.query(
 					`SELECT c.id, c.user_id,
@@ -407,7 +432,7 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
 					 FROM conversations c
 					 LEFT JOIN conversation_participants cp
 						ON cp.conversation_id = c.id AND cp.user_id = $3
-					 WHERE c.id = $1 AND c.organization_id = $2`,
+					 WHERE c.id = $1 AND c.organization_id = $2 ${sourceFilter}`,
 					[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
 				);
 
