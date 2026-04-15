@@ -35,6 +35,29 @@ import type { AuthenticatedRequest } from "../types/express.js";
 import type { WebhookResponse } from "../types/webhook.js";
 
 const router = express.Router();
+
+/**
+ * Build a source filter SQL fragment based on the session type (RG-838).
+ *
+ * Rita Go and Jarvis iframe share the same (user_id, org_id) tuples because
+ * both apps resolve to the same person. RLS alone can't separate them — add
+ * a source filter on every endpoint that touches conversations.
+ *
+ * @param sessionId - The session ID from authReq.session.sessionId
+ * @param tableAlias - Optional SQL alias (e.g. "c" for `FROM conversations c`)
+ * @returns `" AND c.source = 'jarvis'"` or
+ *          `" AND (c.source IS NULL OR c.source <> 'jarvis')"` (with alias dot)
+ */
+async function getSourceFilter(
+	sessionId: string,
+	tableAlias = "",
+): Promise<string> {
+	const session = await getSessionStore().getSession(sessionId);
+	const prefix = tableAlias ? `${tableAlias}.` : "";
+	return session?.isIframeSession
+		? ` AND ${prefix}source = 'jarvis'`
+		: ` AND (${prefix}source IS NULL OR ${prefix}source <> 'jarvis')`;
+}
 const webhookService = new WebhookService();
 
 // ============================================================================
@@ -272,19 +295,22 @@ router.post("/", authenticateUser, async (req, res) => {
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
-				// Count user's existing conversations
+				// Count user's existing Rita Go conversations only — don't count
+				// jarvis conversations toward Rita Go's per-user cap, and don't
+				// let the cleanup delete a jarvis conversation. See RG-838.
 				const countResult = await client.query(
 					`
           SELECT COUNT(*) as count
           FROM conversations
           WHERE user_id = $1 AND organization_id = $2
+            AND (source IS NULL OR source <> 'jarvis')
         `,
 					[authReq.user.id, authReq.user.activeOrganizationId],
 				);
 
 				const conversationCount = parseInt(countResult.rows[0].count, 10);
 
-				// If at or above limit, delete oldest conversation
+				// If at or above limit, delete oldest Rita Go conversation
 				if (conversationCount >= MAX_CONVERSATIONS_PER_USER) {
 					await client.query(
 						`
@@ -292,6 +318,7 @@ router.post("/", authenticateUser, async (req, res) => {
             WHERE id = (
               SELECT id FROM conversations
               WHERE user_id = $1 AND organization_id = $2
+                AND (source IS NULL OR source <> 'jarvis')
               ORDER BY created_at ASC
               LIMIT 1
             )
@@ -338,19 +365,8 @@ router.get("/", authenticateUser, async (req, res) => {
 			req.query,
 		);
 
-		// Scope the list by app context: iframe sessions see only jarvis
-		// conversations, Rita Go sessions see everything except jarvis.
-		// Users share the same user_id across both apps, so RLS alone isn't
-		// enough — same person, different app contexts. See RG-838.
-		const session = await getSessionStore().getSession(
-			authReq.session.sessionId,
-		);
-		const sourceFilter = session?.isIframeSession
-			? "AND c.source = 'jarvis'"
-			: "AND (c.source IS NULL OR c.source <> 'jarvis')";
-		const countSourceFilter = session?.isIframeSession
-			? "AND source = 'jarvis'"
-			: "AND (source IS NULL OR source <> 'jarvis')";
+		const sourceFilter = await getSourceFilter(authReq.session.sessionId, "c");
+		const countSourceFilter = await getSourceFilter(authReq.session.sessionId);
 
 		const result = await withOrgContext(
 			authReq.user.id,
@@ -409,14 +425,7 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
 		const { conversationId } = req.params;
 		const { limit = 100, before } = GetMessagesQuerySchema.parse(req.query);
 
-		// Scope access by app context (RG-838). Iframe sessions can only read
-		// jarvis conversations, Rita Go sessions can only read non-jarvis.
-		const session = await getSessionStore().getSession(
-			authReq.session.sessionId,
-		);
-		const sourceFilter = session?.isIframeSession
-			? "AND c.source = 'jarvis'"
-			: "AND (c.source IS NULL OR c.source <> 'jarvis')";
+		const sourceFilter = await getSourceFilter(authReq.session.sessionId, "c");
 
 		const result = await withOrgContext(
 			authReq.user.id,
@@ -554,13 +563,18 @@ router.post("/:conversationId/messages", authenticateUser, async (req, res) => {
 		const { conversationId } = req.params;
 		const { content } = CreateMessageSchema.parse(req.body);
 
+		// RG-838: block cross-context writes (e.g. Rita Go session posting to
+		// a jarvis conversation whose ID was guessed or leaked).
+		const sourceFilter = await getSourceFilter(authReq.session.sessionId);
+
 		const result = await withOrgContext(
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
 				// Verify the conversation exists and user has access (owner or participant via RLS)
+				// Source filter blocks cross-context writes.
 				const convCheck = await client.query(
-					"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2",
+					`SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 ${sourceFilter}`,
 					[conversationId, authReq.user.activeOrganizationId],
 				);
 
@@ -766,13 +780,16 @@ router.patch("/:conversationId", authenticateUser, async (req, res) => {
 		const { conversationId } = req.params;
 		const { title } = UpdateConversationSchema.parse(req.body);
 
+		// RG-838: restrict to current app context (defense-in-depth; user check already here)
+		const sourceFilter = await getSourceFilter(authReq.session.sessionId);
+
 		const result = await withOrgContext(
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
 				// Verify the conversation exists and belongs to the organization AND user
 				const convCheck = await client.query(
-					"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+					`SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3 ${sourceFilter}`,
 					[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
 				);
 
@@ -822,13 +839,16 @@ router.delete("/:conversationId", authenticateUser, async (req, res) => {
 	try {
 		const { conversationId } = req.params;
 
+		// RG-838: restrict to current app context
+		const sourceFilter = await getSourceFilter(authReq.session.sessionId);
+
 		const result = await withOrgContext(
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
 				// Verify the conversation exists and belongs to the organization AND user
 				const convCheck = await client.query(
-					"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+					`SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3 ${sourceFilter}`,
 					[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
 				);
 
@@ -873,13 +893,16 @@ router.get(
 			const authReq = req as AuthenticatedRequest;
 			const { conversationId } = req.params;
 
+			// RG-838: scope to current app context
+			const sourceFilter = await getSourceFilter(authReq.session.sessionId);
+
 			const result = await withOrgContext(
 				authReq.user.id,
 				authReq.user.activeOrganizationId,
 				async (client) => {
 					// RLS ensures only owner/participant can see the conversation
 					const convCheck = await client.query(
-						"SELECT id, user_id FROM conversations WHERE id = $1 AND organization_id = $2",
+						`SELECT id, user_id FROM conversations WHERE id = $1 AND organization_id = $2 ${sourceFilter}`,
 						[conversationId, authReq.user.activeOrganizationId],
 					);
 					if (convCheck.rows.length === 0) return null;
@@ -929,13 +952,16 @@ router.post(
 				return res.status(400).json({ error: "userId is required" });
 			}
 
+			// RG-838: scope to current app context
+			const sourceFilter = await getSourceFilter(authReq.session.sessionId);
+
 			const result = await withOrgContext(
 				authReq.user.id,
 				authReq.user.activeOrganizationId,
 				async (client) => {
 					// Only the owner can add participants
 					const convCheck = await client.query(
-						"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+						`SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3 ${sourceFilter}`,
 						[
 							conversationId,
 							authReq.user.activeOrganizationId,
@@ -995,13 +1021,16 @@ router.delete(
 			const authReq = req as AuthenticatedRequest;
 			const { conversationId, userId } = req.params;
 
+			// RG-838: scope to current app context
+			const sourceFilter = await getSourceFilter(authReq.session.sessionId);
+
 			const result = await withOrgContext(
 				authReq.user.id,
 				authReq.user.activeOrganizationId,
 				async (client) => {
 					// Only the owner can remove participants
 					const convCheck = await client.query(
-						"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+						`SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3 ${sourceFilter}`,
 						[
 							conversationId,
 							authReq.user.activeOrganizationId,

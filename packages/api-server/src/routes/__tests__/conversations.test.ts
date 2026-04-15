@@ -724,5 +724,65 @@ describe("Conversations Router - Iframe userId Validation", () => {
 			const accessQuery = mockClient.query.mock.calls[0][0];
 			expect(accessQuery).toContain("AND c.source = 'jarvis'");
 		});
+
+		it("POST messages rejects jarvis conversation from Rita Go session", async () => {
+			mockSessionStore.getSession.mockResolvedValue({
+				sessionId: "test-session-id",
+				isIframeSession: false,
+			});
+
+			// convCheck returns 0 rows because the source filter blocks it
+			mockClient.query.mockResolvedValueOnce({ rows: [] });
+
+			vi.mocked(withOrgContext).mockImplementation(
+				async (_userId, _orgId, callback) => await callback(mockClient),
+			);
+
+			const response = await request(app)
+				.post("/conversations/jarvis-conv-id/messages")
+				.send({ content: "hello" })
+				.expect(500); // "Conversation not found or access denied" throws
+
+			expect(response.body.error).toBeDefined();
+
+			const convCheckQuery = mockClient.query.mock.calls[0][0];
+			expect(convCheckQuery).toContain(
+				"AND (source IS NULL OR source <> 'jarvis')",
+			);
+		});
+
+		it("POST conversation cleanup only counts non-jarvis rows", async () => {
+			mockSessionStore.getSession.mockResolvedValue({
+				sessionId: "test-session-id",
+				isIframeSession: false,
+			});
+
+			mockClient.query
+				.mockResolvedValueOnce({ rows: [{ count: "5" }] }) // count (below limit)
+				.mockResolvedValueOnce({
+					rows: [
+						{
+							id: "new-id",
+							title: "New",
+							created_at: new Date(),
+							updated_at: new Date(),
+						},
+					],
+				}); // insert
+
+			vi.mocked(withOrgContext).mockImplementation(
+				async (_userId, _orgId, callback) => await callback(mockClient),
+			);
+
+			await request(app)
+				.post("/conversations")
+				.send({ title: "New conversation" })
+				.expect(201);
+
+			const countQuery = mockClient.query.mock.calls[0][0];
+			expect(countQuery).toContain(
+				"AND (source IS NULL OR source <> 'jarvis')",
+			);
+		});
 	});
 });
