@@ -32,6 +32,14 @@ vi.mock("@/hooks/api/useAgents", () => ({
 	useUpdateAgent: () => mockUpdateAgent,
 	useCheckAgentName: () => ({ data: { available: true } }),
 	useGenerateAgent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+	useImproveInstructionsMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+	useGenerateConversationStartersMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
 }));
 
 const mockAgentCreationCreate = vi.fn();
@@ -58,6 +66,16 @@ vi.mock("@/hooks/useImproveInstructions", () => ({
 		improve: vi.fn(),
 		status: "idle",
 		isImproving: false,
+		reset: vi.fn(),
+	}),
+}));
+
+vi.mock("@/hooks/useGenerateConversationStarters", () => ({
+	useGenerateConversationStarters: () => ({
+		generate: vi.fn(),
+		status: "idle",
+		isGenerating: false,
+		generatedStarters: null,
 		reset: vi.fn(),
 	}),
 }));
