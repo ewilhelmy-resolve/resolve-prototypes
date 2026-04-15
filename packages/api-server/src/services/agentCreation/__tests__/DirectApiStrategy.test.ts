@@ -107,7 +107,7 @@ describe("DirectApiStrategy", () => {
 	});
 
 	describe("draft enforcement", () => {
-		it("should force-update agent to draft when created as published (active: true)", async () => {
+		it("should enforce draft status unconditionally even when agent-builder reports active:true", async () => {
 			mockExecuteAgent.mockResolvedValue({
 				executionId: "exec-123",
 				conversationId: "conv-123",
@@ -142,11 +142,15 @@ describe("DirectApiStrategy", () => {
 			// Let polling run
 			await vi.advanceTimersByTimeAsync(7000);
 
-			// Should have called updateAgent to force draft
-			expect(mockUpdateAgent).toHaveBeenCalledWith("new-agent-eid", {
-				active: false,
-				sys_updated_by: "test@example.com",
-			});
+			// Consolidated update must include active:false for draft enforcement
+			expect(mockUpdateAgent).toHaveBeenCalledWith(
+				"new-agent-eid",
+				expect.objectContaining({
+					active: false,
+					sys_updated_by: "test@example.com",
+					tenant: "org-1",
+				}),
+			);
 
 			// Should still send completed SSE
 			expect(mockSendToUser).toHaveBeenCalledWith(
@@ -162,7 +166,7 @@ describe("DirectApiStrategy", () => {
 			);
 		});
 
-		it("should NOT call updateAgent for draft enforcement when agent is already draft (active: false)", async () => {
+		it("should still set active:false when agent-builder reports active:false (idempotent)", async () => {
 			mockExecuteAgent.mockResolvedValue({
 				executionId: "exec-123",
 				conversationId: "conv-123",
@@ -189,16 +193,14 @@ describe("DirectApiStrategy", () => {
 			await strategy.createAgent(baseParams);
 			await vi.advanceTimersByTimeAsync(7000);
 
-			// Should NOT have called updateAgent with active:false (draft enforcement)
-			const draftCalls = mockUpdateAgent.mock.calls.filter(
-				(call: any[]) => call[1]?.active === false,
-			);
-			expect(draftCalls).toHaveLength(0);
-
-			// Should have called updateAgent once for tenant
+			// Draft enforcement is unconditional — meta-agent's self-report is not
+			// authoritative about persisted state, so we always push active:false.
 			expect(mockUpdateAgent).toHaveBeenCalledWith(
 				"new-agent-eid",
-				expect.objectContaining({ tenant: "org-1" }),
+				expect.objectContaining({
+					active: false,
+					tenant: "org-1",
+				}),
 			);
 
 			// Should still send completed SSE
