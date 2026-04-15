@@ -249,6 +249,7 @@ jobs:
                    VALKEY_URL: ${{ secrets.VALKEY_URL_PROD }}
                    LLM_SERVICE_URL: ${{ secrets.PROD_LLM_SERVICE_URL }}
                    LLM_SERVICE_API_KEY: ${{ secrets.PROD_LLM_SERVICE_API_KEY }}
+                   LLM_SERVICE_DB_TENANT: ${{ secrets.PROD_LLM_SERVICE_DB_TENANT }}
                  healthcheck:
                    test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
                    interval: 30s

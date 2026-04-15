@@ -162,7 +162,7 @@ describe("DirectApiStrategy", () => {
 			);
 		});
 
-		it("should NOT call updateAgent when agent is already draft (active: false)", async () => {
+		it("should NOT call updateAgent for draft enforcement when agent is already draft (active: false)", async () => {
 			mockExecuteAgent.mockResolvedValue({
 				executionId: "exec-123",
 				conversationId: "conv-123",
@@ -184,11 +184,22 @@ describe("DirectApiStrategy", () => {
 				}),
 			]);
 
+			mockUpdateAgent.mockResolvedValue({});
+
 			await strategy.createAgent(baseParams);
 			await vi.advanceTimersByTimeAsync(7000);
 
-			// Should NOT have called updateAgent
-			expect(mockUpdateAgent).not.toHaveBeenCalled();
+			// Should NOT have called updateAgent with active:false (draft enforcement)
+			const draftCalls = mockUpdateAgent.mock.calls.filter(
+				(call: any[]) => call[1]?.active === false,
+			);
+			expect(draftCalls).toHaveLength(0);
+
+			// Should have called updateAgent once for tenant
+			expect(mockUpdateAgent).toHaveBeenCalledWith(
+				"new-agent-eid",
+				expect.objectContaining({ tenant: "org-1" }),
+			);
 
 			// Should still send completed SSE
 			expect(mockSendToUser).toHaveBeenCalledWith(
@@ -299,15 +310,16 @@ describe("DirectApiStrategy", () => {
 				}),
 			]);
 
+			// Both draft enforcement and tenant update calls will fail
 			mockUpdateAgent.mockRejectedValue(new Error("LLM Service unavailable"));
 
 			await strategy.createAgent(baseParams);
 			await vi.advanceTimersByTimeAsync(7000);
 
-			// updateAgent was attempted
+			// updateAgent was attempted (draft enforcement + tenant)
 			expect(mockUpdateAgent).toHaveBeenCalled();
 
-			// Should still send completed SSE despite update failure
+			// Should still send completed SSE despite update failures
 			expect(mockSendToUser).toHaveBeenCalledWith(
 				"user-1",
 				"org-1",

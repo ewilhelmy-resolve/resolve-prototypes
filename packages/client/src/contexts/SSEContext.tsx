@@ -15,6 +15,8 @@ import { dataSourceKeys, ingestionRunKeys } from "../hooks/useDataSources";
 import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
 import { useAgentCreationStore } from "../stores/agentCreationStore";
+import { useAgentTestStore } from "../stores/agentTestStore";
+import { useConversationStarterGenerationStore } from "../stores/conversationStarterGenerationStore";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
@@ -596,38 +598,95 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					store.receiveError(event.data.error || "Agent creation failed");
 				}
 			} else if (event.type === "meta_agent_progress") {
-				const store = useInstructionsImprovementStore.getState();
-				if (event.data.execution_request_id === store.improvementId) {
-					store.receiveProgress({
-						stepType: "meta_agent_progress",
-						stepLabel: event.data.step_label,
-						stepDetail: event.data.step_detail,
-						timestamp: event.data.timestamp,
-					});
+				const instructionsStore = useInstructionsImprovementStore.getState();
+				const startersStore = useConversationStarterGenerationStore.getState();
+
+				const progressStep = {
+					stepType: "meta_agent_progress",
+					stepLabel: event.data.step_label,
+					stepDetail: event.data.step_detail,
+					timestamp: event.data.timestamp,
+				};
+
+				if (
+					event.data.execution_request_id === instructionsStore.improvementId
+				) {
+					instructionsStore.receiveProgress(progressStep);
+				} else if (
+					event.data.execution_request_id === startersStore.generationId
+				) {
+					startersStore.receiveProgress(progressStep);
+				} else {
+					const agentTestStore = useAgentTestStore.getState();
+					if (
+						event.data.execution_request_id ===
+						agentTestStore.executionRequestId
+					) {
+						agentTestStore.receiveProgress(progressStep);
+					}
 				}
 			} else if (event.type === "meta_agent_completed") {
-				const store = useInstructionsImprovementStore.getState();
-				if (event.data.execution_request_id === store.improvementId) {
+				const instructionsStore = useInstructionsImprovementStore.getState();
+				const startersStore = useConversationStarterGenerationStore.getState();
+				const agentTestStore = useAgentTestStore.getState();
+
+				if (
+					event.data.execution_request_id === instructionsStore.improvementId
+				) {
 					// Parse the delimited content on client side
 					const content = event.data.content || "";
 					const instructionsMatch = content.match(
 						/---INSTRUCTIONS---\s*([\s\S]*?)\s*---END_INSTRUCTIONS---/,
 					);
 					if (instructionsMatch) {
-						store.receiveResult({
+						instructionsStore.receiveResult({
 							instructions: instructionsMatch[1].trim(),
 						});
 					} else {
-						store.receiveError(
+						instructionsStore.receiveError(
 							"Failed to parse improved instructions from response",
 						);
 					}
+				} else if (
+					event.data.execution_request_id === startersStore.generationId
+				) {
+					const content = event.data.content || "";
+					const starters = content
+						.split(", ")
+						.map((s: string) => s.trim())
+						.filter(Boolean);
+					if (starters.length > 0) {
+						startersStore.receiveResult({ starters });
+					} else {
+						startersStore.receiveError("No conversation starters generated");
+					}
+				} else if (
+					event.data.execution_request_id === agentTestStore.executionRequestId
+				) {
+					agentTestStore.receiveResult(event.data.content || "");
 				}
 			} else if (event.type === "meta_agent_failed") {
-				const store = useInstructionsImprovementStore.getState();
-				if (event.data.execution_request_id === store.improvementId) {
-					store.receiveError(
+				const instructionsStore = useInstructionsImprovementStore.getState();
+				const startersStore = useConversationStarterGenerationStore.getState();
+				const agentTestStore = useAgentTestStore.getState();
+
+				if (
+					event.data.execution_request_id === instructionsStore.improvementId
+				) {
+					instructionsStore.receiveError(
 						event.data.error || "Failed to improve instructions",
+					);
+				} else if (
+					event.data.execution_request_id === startersStore.generationId
+				) {
+					startersStore.receiveError(
+						event.data.error || "Failed to generate conversation starters",
+					);
+				} else if (
+					event.data.execution_request_id === agentTestStore.executionRequestId
+				) {
+					agentTestStore.receiveError(
+						event.data.error || "Agent execution failed",
 					);
 				}
 			}

@@ -57,4 +57,27 @@ describe("buildAgentPrompt", () => {
 		expect(prompt).not.toContain("Web Search");
 		expect(prompt).not.toContain("useAllWorkspaceContent");
 	});
+
+	it("should include runtime parameter requirements with {%utterance}", () => {
+		const prompt = buildAgentPrompt(baseParams);
+		expect(prompt).toContain("{%utterance}");
+		expect(prompt).toContain("{%transcript}");
+		expect(prompt).toContain("{%additional_information}");
+		expect(prompt).toContain("MUST process {%utterance}");
+	});
+
+	it("should include runtime parameter section even without optional fields", () => {
+		const minimalParams: AgentGenerateParams = {
+			name: "Minimal Agent",
+			description: "",
+			instructions: "",
+			iconId: "bot",
+			iconColorId: "slate",
+			userId: "user-1",
+			userEmail: "test@example.com",
+			organizationId: "org-1",
+		};
+		const prompt = buildAgentPrompt(minimalParams);
+		expect(prompt).toContain("{%utterance}");
+	});
 });

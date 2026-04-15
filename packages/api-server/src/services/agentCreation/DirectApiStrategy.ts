@@ -311,16 +311,25 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 				//   });
 				// }
 
-				if (agentEid && creation.conversationStarters?.length) {
-					await this.agenticService.updateAgent(agentEid, {
-						conversation_starters: creation.conversationStarters,
-					});
-				}
-
-				if (agentEid && creation.guardrails?.length) {
-					await this.agenticService.updateAgent(agentEid, {
-						guardrails: creation.guardrails,
-					});
+				if (agentEid) {
+					try {
+						const updatePayload: Record<string, unknown> = {
+							tenant: creation.tenantId,
+						};
+						if (creation.conversationStarters?.length) {
+							updatePayload.conversation_starters =
+								creation.conversationStarters;
+						}
+						if (creation.guardrails?.length) {
+							updatePayload.guardrails = creation.guardrails;
+						}
+						await this.agenticService.updateAgent(agentEid, updatePayload);
+					} catch (err) {
+						logger.warn(
+							{ agentEid, error: err },
+							"Failed to update agent metadata (tenant/starters/guardrails)",
+						);
+					}
 				}
 
 				this.sseService.sendToUser(creation.userId, creation.tenantId, {

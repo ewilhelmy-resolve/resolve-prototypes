@@ -54,6 +54,41 @@ export function parseInstructionsImproverContent(
 }
 
 // ============================================================================
+// Generic raw response parser
+// ============================================================================
+
+/**
+ * Extract a JSON object from a raw LLM response string.
+ *
+ * Handles multiple formats:
+ * - Clean JSON string: `{"success": true, ...}`
+ * - Markdown-fenced JSON: ` ```json\n{...}\n``` `
+ * - Reasoning text followed by fenced or bare JSON (e.g. Claude Opus chain-of-thought)
+ */
+export function parseRawJsonResponse(raw: string): Record<string, any> {
+	// 1. Try extracting from ```json fence
+	const fenceMatch = raw.match(/```json\s*([\s\S]*?)```/i);
+	if (fenceMatch) {
+		return JSON.parse(fenceMatch[1].trim());
+	}
+
+	// 2. Try parsing the whole string as JSON
+	const trimmed = raw.trim();
+	if (trimmed.startsWith("{")) {
+		return JSON.parse(trimmed);
+	}
+
+	// 3. Extract the first JSON object from free-text output
+	const jsonStart = raw.indexOf("{");
+	const jsonEnd = raw.lastIndexOf("}");
+	if (jsonStart !== -1 && jsonEnd > jsonStart) {
+		return JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
+	}
+
+	throw new Error("No JSON object found in raw response");
+}
+
+// ============================================================================
 // ConversationStarterGenerator
 // ============================================================================
 

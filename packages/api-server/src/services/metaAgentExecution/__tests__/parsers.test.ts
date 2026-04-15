@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	parseConversationStarterContent,
 	parseInstructionsImproverContent,
+	parseRawJsonResponse,
 } from "../parsers.js";
 
 describe("parseInstructionsImproverContent", () => {
@@ -115,5 +116,87 @@ describe("parseConversationStarterContent", () => {
 	it("handles empty content", () => {
 		const result = parseConversationStarterContent("");
 		expect(result).toEqual([]);
+	});
+});
+
+describe("parseRawJsonResponse", () => {
+	it("parses clean JSON string", () => {
+		const raw = '{"success": true, "content": "hello"}';
+		const result = parseRawJsonResponse(raw);
+		expect(result.success).toBe(true);
+		expect(result.content).toBe("hello");
+	});
+
+	it("parses markdown-fenced JSON", () => {
+		const raw = '```json\n{"success": true, "content": "fenced"}\n```';
+		const result = parseRawJsonResponse(raw);
+		expect(result.success).toBe(true);
+		expect(result.content).toBe("fenced");
+	});
+
+	it("extracts JSON from reasoning text + fenced block", () => {
+		const raw = [
+			"I need to analyze this agent's configuration carefully.",
+			"",
+			"**Step 1:** Extract capabilities",
+			"- Name: Test Agent",
+			"",
+			"```json",
+			'{"role": "assistant", "content": "Hello, How are you?", "success": true}',
+			"```",
+		].join("\n");
+
+		const result = parseRawJsonResponse(raw);
+		expect(result.success).toBe(true);
+		expect(result.content).toBe("Hello, How are you?");
+	});
+
+	it("extracts bare JSON object from free text", () => {
+		const raw =
+			'Some reasoning text\n{"success": true, "content": "bare json"}';
+		const result = parseRawJsonResponse(raw);
+		expect(result.content).toBe("bare json");
+	});
+
+	it("throws on empty string", () => {
+		expect(() => parseRawJsonResponse("")).toThrow(
+			"No JSON object found in raw response",
+		);
+	});
+
+	it("throws on text with no JSON", () => {
+		expect(() =>
+			parseRawJsonResponse("Just some plain text without any JSON"),
+		).toThrow("No JSON object found in raw response");
+	});
+
+	it("handles multiline JSON inside fence", () => {
+		const raw = [
+			"Reasoning...",
+			"```json",
+			"{",
+			'  "role": "assistant",',
+			'  "content": "Starter 1, Starter 2",',
+			'  "need_inputs": [],',
+			'  "success": true',
+			"}",
+			"```",
+		].join("\n");
+
+		const result = parseRawJsonResponse(raw);
+		expect(result.success).toBe(true);
+		expect(result.need_inputs).toEqual([]);
+	});
+
+	it("prefers fenced JSON over bare JSON in text", () => {
+		const raw = [
+			'Some text with a stray { brace and "key": "value" }',
+			"```json",
+			'{"success": true, "content": "correct"}',
+			"```",
+		].join("\n");
+
+		const result = parseRawJsonResponse(raw);
+		expect(result.content).toBe("correct");
 	});
 });

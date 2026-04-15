@@ -295,7 +295,9 @@ export default function AgentsPage() {
 							</div>
 						) : agentsError ? (
 							<div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-								Failed to load agents. Please try again.
+								{agentsError instanceof Error
+									? agentsError.message
+									: "Failed to load agents. Please try again."}
 							</div>
 						) : (
 							<InfiniteScrollContainer
