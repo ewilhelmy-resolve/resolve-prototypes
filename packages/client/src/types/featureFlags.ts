@@ -13,7 +13,6 @@ export type FeatureFlagKey =
 	| "ENABLE_DEBUG_MODE"
 	| "ENABLE_EXPERIMENTAL_FEATURES"
 	| "ENABLE_AGENTS"
-	| "ENABLE_MULTI_FILE_UPLOAD"
 	| "ENABLE_CLUSTER_ADVANCED_FEATURES"
 	| "ENABLE_WORKFLOWS"
 	| "ENABLE_LANGUAGE_SWITCHER"
@@ -85,13 +84,6 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagConfig> = {
 		key: "ENABLE_AGENTS",
 		label: "Agents",
 		description: "Enable the Agents experience (Agents list + agent builder)",
-		defaultValue: false,
-		category: "experimental",
-	},
-	ENABLE_MULTI_FILE_UPLOAD: {
-		key: "ENABLE_MULTI_FILE_UPLOAD",
-		label: "Multi-File Upload",
-		description: "Enable uploading multiple files at once in file inputs",
 		defaultValue: false,
 		category: "experimental",
 	},
