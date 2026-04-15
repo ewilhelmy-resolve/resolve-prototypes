@@ -361,6 +361,43 @@ export class AgenticService {
 		}
 	}
 
+	// ============================================================================
+	// Prompt Rulesets (sync completion via /prompts/completion)
+	// ============================================================================
+
+	async executePromptCompletion(params: {
+		promptName: string;
+		promptParameters: Record<string, unknown>;
+		llmParameters?: Record<string, unknown>;
+		isJsonResponse?: boolean;
+		referenceId?: string;
+	}): Promise<PromptCompletionResponse> {
+		try {
+			const body: Record<string, unknown> = {
+				prompt_name: params.promptName,
+				prompt_parameters: params.promptParameters,
+				...(params.llmParameters && { llm_parameters: params.llmParameters }),
+				...(params.isJsonResponse !== undefined && {
+					is_json_response: params.isJsonResponse,
+				}),
+				...(params.referenceId && { reference_id: params.referenceId }),
+			};
+
+			const response = await this.client.post<PromptCompletionResponse>(
+				"/prompts/completion",
+				body,
+				{ timeout: 60000 },
+			);
+			return response.data;
+		} catch (error) {
+			logger.error(
+				{ promptName: params.promptName, error },
+				"Failed to execute prompt completion via LLM Service",
+			);
+			throw error;
+		}
+	}
+
 	async stopExecution(
 		executionId: string,
 	): Promise<{ success: boolean; message: string }> {
@@ -383,6 +420,14 @@ export class AgenticService {
 // ============================================================================
 // Execution Message Types (from poll endpoint)
 // ============================================================================
+
+export interface PromptCompletionResponse {
+	/** The raw completion text, or (when is_json_response=true) a parsed object */
+	data?: string | Record<string, unknown>;
+	usage?: Record<string, unknown>;
+	reference_id?: string;
+	[key: string]: unknown;
+}
 
 export interface AgentExecutionMessage {
 	id: number;

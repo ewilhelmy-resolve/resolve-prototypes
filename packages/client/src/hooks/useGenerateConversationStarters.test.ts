@@ -6,7 +6,7 @@ import { useConversationStarterGenerationStore } from "@/stores/conversationStar
 let lastMutationData: any = null;
 const mockMutateAsync = vi.fn((data) => {
 	lastMutationData = data;
-	return Promise.resolve({ executionRequestId: "test-exec-id" });
+	return Promise.resolve({ starters: ["Starter A", "Starter B"] });
 });
 
 vi.mock("./api/useAgents", () => ({
@@ -28,7 +28,7 @@ describe("useGenerateConversationStarters", () => {
 		mockMutateAsync.mockClear();
 		mockMutateAsync.mockImplementation((data) => {
 			lastMutationData = data;
-			return Promise.resolve({ executionRequestId: "test-exec-id" });
+			return Promise.resolve({ starters: ["Starter A", "Starter B"] });
 		});
 	});
 
@@ -86,7 +86,7 @@ describe("useGenerateConversationStarters", () => {
 		});
 	});
 
-	it("sets generationId from mutation response", async () => {
+	it("transitions to success with parsed starters", async () => {
 		const { result } = renderHook(() => useGenerateConversationStarters());
 
 		await act(async () => {
@@ -98,8 +98,25 @@ describe("useGenerateConversationStarters", () => {
 		});
 
 		const store = useConversationStarterGenerationStore.getState();
-		expect(store.generationId).toBe("test-exec-id");
-		expect(store.status).toBe("generating");
+		expect(store.status).toBe("success");
+		expect(store.generatedStarters).toEqual(["Starter A", "Starter B"]);
+	});
+
+	it("transitions to error when no starters returned", async () => {
+		mockMutateAsync.mockResolvedValueOnce({ starters: [] });
+
+		const { result } = renderHook(() => useGenerateConversationStarters());
+
+		await act(async () => {
+			await result.current.generate({
+				name: "Test",
+				description: "",
+				instructions: "some instructions",
+			});
+		});
+
+		const store = useConversationStarterGenerationStore.getState();
+		expect(store.status).toBe("error");
 	});
 
 	it("transitions to error when mutation fails", async () => {
