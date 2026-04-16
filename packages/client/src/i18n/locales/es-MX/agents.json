@@ -36,5 +36,319 @@
 		"cancel": "Cancelar",
 		"deleteAgent": "Eliminar agente",
 		"deleteDraft": "Eliminar borrador"
+	},
+	"list": {
+		"title": "Agentes",
+		"createAgent": "Crear agente",
+		"banner": {
+			"dismiss": "Cerrar",
+			"heading": "Construye agentes inteligentes",
+			"description": "Crea agentes impulsados por IA que respondan preguntas de tu base de conocimiento, automaticen flujos de trabajo y ayuden a tu equipo a ser más productivo. Conecta con tus herramientas existentes y deja que los agentes se encarguen de las tareas repetitivas.",
+			"howToCreate": "Cómo crear un agente",
+			"addingSkills": "Agregar habilidades a tu agente",
+			"illustrationAlt": "Ejemplos de agentes"
+		},
+		"filters": {
+			"ownerLabel": "Propietario: {{value}}",
+			"statusLabel": "Estado: {{value}}",
+			"all": "Todos",
+			"me": "Yo",
+			"others": "Otros",
+			"published": "Publicado",
+			"draft": "Borrador",
+			"searchPlaceholder": "Buscar agentes..."
+		},
+		"loading": "Cargando",
+		"error": "No se pudieron cargar los agentes. Inténtalo de nuevo.",
+		"toasts": {
+			"published": "{{name}} publicado",
+			"publishedDescription": "El agente está activo y disponible para los usuarios.",
+			"unpublished": "{{name}} movido a borrador",
+			"unpublishedDescription": "El agente ya no está disponible para los usuarios.",
+			"deleted": "{{name}} eliminado",
+			"deleteFailed": "No se pudo eliminar el agente"
+		}
+	},
+	"table": {
+		"ariaLabel": "Lista de agentes",
+		"columns": {
+			"name": "Nombre",
+			"skills": "Habilidades",
+			"status": "Estado",
+			"updatedBy": "Actualizado por",
+			"lastUpdated": "Última actualización"
+		},
+		"statusPublished": "Publicado",
+		"statusDraft": "Borrador",
+		"actions": {
+			"ariaLabel": "Acciones del agente",
+			"edit": "Editar",
+			"delete": "Eliminar"
+		}
+	},
+	"card": {
+		"ariaLabel": "Agente {{name}} - {{status}}",
+		"statusDraft": "Borrador",
+		"statusPublished": "Publicado",
+		"statusDisabled": "Deshabilitado",
+		"skillsLabel": "Habilidades:"
+	},
+	"saveStatus": {
+		"saving": "Guardando...",
+		"saved": "Guardado",
+		"error": "Error al guardar",
+		"unsavedChanges": "Cambios sin guardar",
+		"draft": "Borrador"
+	},
+	"builder": {
+		"helpTriggerAria": "Más información sobre {{label}}",
+		"help": {
+			"name": {
+				"description": "Elige un nombre claro y orientado a la acción que tus usuarios reconozcan.",
+				"examples": ["Asistente de onboarding RH", "Agente de soporte TI"]
+			},
+			"skills": {
+				"description": "Capacidades que el agente puede realizar. Agrega habilidades de tu biblioteca o crea nuevas.",
+				"examples": ["Restablecer contraseña", "Consultar saldo de PTO"]
+			},
+			"instructions": {
+				"description": "Indica al agente quién es, cómo debe comportarse y cuándo termina su trabajo. Usa encabezados ## para estructurar (Rol, Historia, Objetivo, Tarea).",
+				"examples": [
+					"## Rol Eres un asistente de onboarding de RH…",
+					"## Objetivo El usuario ha enviado su I-9 y revisado el manual."
+				]
+			},
+			"conversationStarters": {
+				"description": "Sugerencias de inicio que se muestran a los usuarios al abrir este agente.",
+				"examples": ["¿Cómo solicito PTO?", "Restablecer mi contraseña"]
+			},
+			"guardrails": {
+				"description": "Temas o acciones que el agente NO debe manejar. Sé específico.",
+				"examples": [
+					"No dar asesoría legal",
+					"Nunca compartir información salarial"
+				]
+			}
+		},
+		"loading": "Cargando agente...",
+		"loadError": "No se pudo cargar el agente. Inténtalo de nuevo.",
+		"backToAgents": "Volver a agentes",
+		"goBack": "Volver a la lista de agentes",
+		"statusPublished": "Publicado",
+		"statusDraft": "Borrador",
+		"statusReady": "Listo para publicar",
+		"howItWorks": "Cómo funciona el constructor de agentes",
+		"test": "Probar",
+		"unpublish": "Despublicar",
+		"publishChanges": "Publicar cambios",
+		"createAgent": "Crear agente",
+		"publish": "Publicar",
+		"failedToCreate": "No se pudo crear el agente",
+		"failedToPublish": "No se pudo publicar el agente",
+		"untitledAgent": "Agente sin título",
+		"failedToUnpublish": "No se pudo despublicar el agente",
+		"form": {
+			"nameLabel": "Nombre del agente",
+			"namePlaceholder": "Ingresa el nombre del agente",
+			"nameRequired": "El nombre del agente es obligatorio",
+			"nameTaken": "Ya existe un agente con este nombre",
+			"nameAvailable": "El nombre está disponible",
+			"addDescription": "Agregar descripción",
+			"descriptionLabel": "Descripción",
+			"descriptionPlaceholder": "Responde preguntas de soporte de TI y ayuda a los empleados a solucionar problemas técnicos comunes.",
+			"skillsLabel": "Habilidades",
+			"skillsDescription": "Ayuda a los usuarios a comprender con qué puede ayudarles este agente agregando habilidades",
+			"addSkill": "Agregar habilidad",
+			"addSkills": "Agregar habilidades",
+			"addSkillsDescription": "Agrega habilidades existentes a este agente para mejorar el contexto",
+			"instructionsLabel": "Instrucciones",
+			"instructionsDescription": "Controla el comportamiento de tu agente agregando instrucciones.",
+			"instructionsHint": "Actualiza las instrucciones según sea necesario",
+			"updatedFromSkills": "Actualizado según las habilidades",
+			"instructionsRequired": "Se requieren instrucciones o descripción para publicar",
+			"expandInstructions": "Expandir instrucciones",
+			"conversationStartersLabel": "Inicios de conversación",
+			"conversationStartersDescription": "Sugerencias de mensajes que se muestran a los usuarios al iniciar una conversación",
+			"conversationStarterPlaceholder": "Escribe y presiona Enter o coma para agregar...",
+			"guardrailsLabel": "Restricciones",
+			"guardrailsDescription": "Temas o solicitudes que el agente NO debe manejar",
+			"addGuardrail": "Agregar una restricción",
+			"guardrailPlaceholder": "ej., Preguntas sobre políticas de RR.HH.",
+			"addGuardrailButton": "Agregar restricción",
+			"removeStarter": "Eliminar {{starter}}",
+			"improve": "Mejorar",
+			"generate": "Generar"
+		},
+		"configChanges": {
+			"name": "Nombre",
+			"icon": "Icono"
+		},
+		"demo": {
+			"trigger": "Demo",
+			"title": "Modo demostración",
+			"next": "Siguiente",
+			"exit": "Salir de demo",
+			"steps": {
+				"createAgent": "Crear agente",
+				"createAgentDesc": "Completar datos del agente",
+				"addSkills": "Agregar habilidades",
+				"addSkillsDesc": "Configurar flujos de trabajo",
+				"addStarters": "Agregar inicios",
+				"addStartersDesc": "Configurar inicios de conversación",
+				"testAgent": "Probar agente",
+				"testAgentDesc": "Navegar a la página de prueba",
+				"publish": "Publicar",
+				"publishDesc": "Poner agente en producción"
+			}
+		},
+		"iconPicker": {
+			"changeIcon": "Cambiar icono del agente",
+			"colorLabel": "Color",
+			"iconLabel": "Icono",
+			"searchPlaceholder": "Buscar por tipo, rol o especialidad",
+			"selectColor": "Seleccionar color {{color}}"
+		},
+		"unlinkedToast": "{{skill}} desvinculado de {{agent}} y agregado a este agente"
+	},
+	"test": {
+		"notFound": "No se encontró configuración del agente.",
+		"backToAgents": "Volver a Agentes",
+		"testMode": "Modo de prueba",
+		"reset": "Reiniciar",
+		"publish": "Publicar",
+		"tryPrompt": "Prueba un mensaje:",
+		"inputPlaceholder": "Prueba otro mensaje...",
+		"rateResponse": "Califica esta respuesta:",
+		"goodResponse": "Buena respuesta",
+		"badResponse": "Mala respuesta",
+		"feedbackPlaceholder": "Ayúdanos a mejorar. ¿Qué salió mal?",
+		"cancel": "Cancelar",
+		"submit": "Enviar",
+		"instructionsUpdated": "Instrucciones actualizadas",
+		"dismiss": "Cerrar",
+		"suggestedImprovement": "Mejora sugerida",
+		"instructionsUpdate": "ACTUALIZACIÓN DE INSTRUCCIONES",
+		"applied": "Aplicado",
+		"retestVerify": "Vuelve a probar para verificar la mejora, o publica si estás satisfecho.",
+		"applyToInstructions": "Aplicar a las instrucciones del agente",
+		"skipSuggestion": "Omitir sugerencia",
+		"retestPrompt": "Volver a probar",
+		"newPrompt": "Nuevo mensaje",
+		"sources": "Fuentes ({{count}})",
+		"revision": "Revisión {{number}}",
+		"includesImprovements": "Incluye mejoras de las pruebas",
+		"publishDialog": {
+			"title": "Publicar agente",
+			"description": "Al publicar, este agente estará activo y disponible para emparejarse con usuarios reales en este entorno."
+		}
+	},
+	"chat": {
+		"notFound": "Agente no encontrado.",
+		"browseAgents": "Explorar agentes",
+		"live": "Activo",
+		"browseMore": "Explorar más",
+		"createNew": "Crear nuevo",
+		"edit": "Editar",
+		"askAnything": "Pregunta lo que sea",
+		"showOverview": "Mostrar resumen",
+		"closeOverview": "Cerrar panel de resumen",
+		"overview": "Resumen",
+		"knowledge": "Conocimiento de {{name}}",
+		"noKnowledgeSources": "Sin fuentes de conocimiento",
+		"addKnowledge": "Agregar conocimiento",
+		"skillsApplied": "Habilidades aplicadas",
+		"noSkills": "Sin habilidades configuradas",
+		"addSkills": "Agregar habilidades"
+	},
+	"testPanel": {
+		"preview": "Vista previa",
+		"test": "Probar",
+		"close": "Cerrar",
+		"configure": "Configura tu agente para ver una vista previa",
+		"configureHint": "Agrega nombre, instrucciones o habilidades",
+		"noDescription": "Sin descripción",
+		"conversationStarters": "Inicios de conversación:",
+		"readyToTest": "Listo para probar",
+		"readyToTestHint": "Haz clic en \"Probar\" para probar tu agente",
+		"skillConfigured": "{{count}} habilidad configurada",
+		"skillConfigured_other": "{{count}} habilidades configuradas",
+		"knowledgeSource": "{{count}} fuente de conocimiento",
+		"knowledgeSource_other": "{{count}} fuentes de conocimiento",
+		"openTestExperience": "Abrir experiencia de prueba"
+	},
+	"addSkillModal": {
+		"close": "Cerrar",
+		"title": "Agregar habilidades",
+		"description": "Ayuda a los usuarios a comprender con qué puede ayudarles este agente agregando habilidades",
+		"searchPlaceholder": "Buscar habilidades...",
+		"tabAvailable": "Disponibles",
+		"tabAll": "Todas",
+		"added": "Agregada",
+		"duplicateInActions": "Duplicar en Actions",
+		"usedIn": "usada en {{agent}}",
+		"noResults": "No se encontraron habilidades para \"{{query}}\"",
+		"cancel": "Cancelar",
+		"add": "Agregar",
+		"addCount": "Agregar ({{count}})"
+	},
+	"changeTypeModal": {
+		"title": "Cambiar tipo de agente",
+		"description": "Selecciona un nuevo tipo de agente. Esto afectará las opciones de configuración disponibles.",
+		"whatWillChange": "Lo que cambiará:",
+		"knowledgeRemoved": "Las fuentes de conocimiento se eliminarán ({{count}} fuentes)",
+		"workflowsRemoved": "Las acciones/flujos de trabajo se eliminarán ({{count}} flujo)",
+		"workflowConfigCleared": "La configuración del flujo de trabajo se borrará",
+		"knowledgeSettingsAdjusted": "La configuración exclusiva de conocimiento se ajustará",
+		"behaviorChange": "El comportamiento y las capacidades del agente cambiarán",
+		"cancel": "Cancelar",
+		"continue": "Continuar",
+		"confirmChange": "Confirmar cambio"
+	},
+	"confirmTypeChangeModal": {
+		"title": "Confirmar cambio de tipo",
+		"subtitle": "Esta acción afecta a un agente guardado",
+		"currentType": "Tipo actual:",
+		"newType": "Nuevo tipo:",
+		"warning": "Advertencia",
+		"warningMessage": "Cambiar el tipo de agente de <strong>{{agentName}}</strong> modificará cómo funciona este agente. Los usuarios que interactúen con este agente pueden experimentar un comportamiento diferente.",
+		"goBack": "Volver",
+		"confirmChange": "Confirmar cambio"
+	},
+	"createWorkflowModal": {
+		"title": "Nuevo flujo de trabajo",
+		"close": "Cerrar",
+		"describeWorkflow": "Describe tu flujo de trabajo",
+		"placeholder": "Cada vez que reciba un correo electrónico, revisa el contenido y...",
+		"comingSoon": "Creación de flujos de trabajo con IA disponible en v3",
+		"startFromScratch": "Empezar desde cero",
+		"startFromScratchComingSoon": "Empezar desde cero disponible en v3",
+		"startFromExample": "Empieza desde un ejemplo"
+	},
+	"instructionsModal": {
+		"hint": "Actualiza las instrucciones según sea necesario",
+		"done": "Listo",
+		"improve": "Mejorar"
+	},
+	"publishModal": {
+		"title": "Publicar agente",
+		"description": "Al publicar, este agente estará activo y disponible para emparejarse con usuarios reales en este entorno.",
+		"skills": "Habilidades",
+		"knowledgeSources": "Fuentes de conocimiento",
+		"guardrails": "Restricciones",
+		"cancel": "Cancelar",
+		"publish": "Publicar"
+	},
+	"unlinkWorkflowModal": {
+		"title": "Desvincular flujo de trabajo",
+		"description": "<strong>{{workflowName}}</strong> está actualmente vinculado a <strong>{{agentName}}</strong>.",
+		"warning": "Desvincular este flujo de trabajo lo eliminará del otro agente. Cada flujo de trabajo solo puede estar conectado a un agente a la vez.",
+		"cancel": "Cancelar",
+		"unlinkAndAdd": "Desvincular y agregar"
+	},
+	"unpublishModal": {
+		"title": "¿Despublicar agente?",
+		"description": "Esto eliminará al agente del emparejamiento activo. Los usuarios ya no podrán interactuar con él. Puedes volver a publicarlo en cualquier momento.",
+		"cancel": "Cancelar",
+		"unpublish": "Despublicar"
 	}
 }

@@ -19,7 +19,9 @@
 			"Create and manage agents",
 			"View ticket clusters and analytics"
 		],
-		"constraints": ["LAST_OWNER — cannot be demoted if last active owner in organization"]
+		"constraints": [
+			"LAST_OWNER — cannot be demoted if last active owner in organization"
+		]
 	},
 	{
 		"id": "admin",
@@ -63,7 +65,12 @@
 			"canDeleteConversations: false",
 			"canManageFiles: false"
 		],
-		"blocked_routes": ["/agents/*", "/content", "/tickets/*", "/settings/users (view-only)"]
+		"blocked_routes": [
+			"/agents/*",
+			"/content",
+			"/tickets/*",
+			"/settings/users (view-only)"
+		]
 	},
 	{
 		"id": "iframe-user",

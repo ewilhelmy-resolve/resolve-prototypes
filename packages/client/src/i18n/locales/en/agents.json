@@ -1,35 +1,4 @@
 {
-	"builder": {
-		"helpTriggerAria": "More info about {{label}}",
-		"help": {
-			"name": {
-				"description": "Pick a clear, action-oriented name your users will recognize.",
-				"examples": ["HR Onboarding Buddy", "IT HelpDesk Agent"]
-			},
-			"skills": {
-				"description": "Capabilities the agent can perform. Add skills from your library or create new ones.",
-				"examples": ["Reset password", "Lookup PTO balance"]
-			},
-			"instructions": {
-				"description": "Tell the agent who it is, how it should behave, and when its job is done. Use ## headings to structure (Role, Backstory, Goal, Task).",
-				"examples": [
-					"## Role You are an HR onboarding assistant…",
-					"## Goal The user has submitted their I-9 and reviewed the handbook."
-				]
-			},
-			"conversationStarters": {
-				"description": "Suggested prompts shown to users when they open this agent.",
-				"examples": ["How do I request PTO?", "Reset my password"]
-			},
-			"guardrails": {
-				"description": "Topics or actions the agent must NOT handle. Be specific.",
-				"examples": [
-					"Do not give legal advice",
-					"Never share salary information"
-				]
-			}
-		}
-	},
 	"createWithAI": {
 		"button": "Create with AI",
 		"creating": "Creating your agent...",
@@ -90,5 +59,319 @@
 		"cancel": "Cancel",
 		"deleteAgent": "Delete agent",
 		"deleteDraft": "Delete draft"
+	},
+	"list": {
+		"title": "Agents",
+		"createAgent": "Create agent",
+		"banner": {
+			"dismiss": "Dismiss",
+			"heading": "Build intelligent agents",
+			"description": "Create AI-powered agents that answer questions from your knowledge base, automate workflows, and help your team be more productive. Connect to your existing tools and let agents handle repetitive tasks.",
+			"howToCreate": "How to create an agent",
+			"addingSkills": "Adding skills to your agent",
+			"illustrationAlt": "Agent examples"
+		},
+		"filters": {
+			"ownerLabel": "Owner: {{value}}",
+			"statusLabel": "Status: {{value}}",
+			"all": "All",
+			"me": "Me",
+			"others": "Others",
+			"published": "Published",
+			"draft": "Draft",
+			"searchPlaceholder": "Search agents..."
+		},
+		"loading": "Loading",
+		"error": "Failed to load agents. Please try again.",
+		"toasts": {
+			"published": "{{name}} published",
+			"publishedDescription": "Agent is now live and available to users.",
+			"unpublished": "{{name}} moved to draft",
+			"unpublishedDescription": "Agent is no longer available to users.",
+			"deleted": "{{name}} deleted",
+			"deleteFailed": "Failed to delete agent"
+		}
+	},
+	"table": {
+		"ariaLabel": "Agents list",
+		"columns": {
+			"name": "Name",
+			"skills": "Skills",
+			"status": "Status",
+			"updatedBy": "Updated by",
+			"lastUpdated": "Last updated"
+		},
+		"statusPublished": "Published",
+		"statusDraft": "Draft",
+		"actions": {
+			"ariaLabel": "Agent actions",
+			"edit": "Edit",
+			"delete": "Delete"
+		}
+	},
+	"card": {
+		"ariaLabel": "{{name}} agent - {{status}}",
+		"statusDraft": "Draft",
+		"statusPublished": "Published",
+		"statusDisabled": "Disabled",
+		"skillsLabel": "Skills:"
+	},
+	"saveStatus": {
+		"saving": "Saving...",
+		"saved": "Saved",
+		"error": "Failed to save",
+		"unsavedChanges": "Unsaved changes",
+		"draft": "Draft"
+	},
+	"builder": {
+		"helpTriggerAria": "More info about {{label}}",
+		"help": {
+			"name": {
+				"description": "Pick a clear, action-oriented name your users will recognize.",
+				"examples": ["HR Onboarding Buddy", "IT HelpDesk Agent"]
+			},
+			"skills": {
+				"description": "Capabilities the agent can perform. Add skills from your library or create new ones.",
+				"examples": ["Reset password", "Lookup PTO balance"]
+			},
+			"instructions": {
+				"description": "Tell the agent who it is, how it should behave, and when its job is done. Use ## headings to structure (Role, Backstory, Goal, Task).",
+				"examples": [
+					"## Role You are an HR onboarding assistant…",
+					"## Goal The user has submitted their I-9 and reviewed the handbook."
+				]
+			},
+			"conversationStarters": {
+				"description": "Suggested prompts shown to users when they open this agent.",
+				"examples": ["How do I request PTO?", "Reset my password"]
+			},
+			"guardrails": {
+				"description": "Topics or actions the agent must NOT handle. Be specific.",
+				"examples": [
+					"Do not give legal advice",
+					"Never share salary information"
+				]
+			}
+		},
+		"loading": "Loading agent...",
+		"loadError": "Failed to load agent. Please try again.",
+		"backToAgents": "Back to agents",
+		"goBack": "Go back to agents",
+		"statusPublished": "Published",
+		"statusDraft": "Draft",
+		"statusReady": "Ready to publish",
+		"howItWorks": "How agent builder works",
+		"test": "Test",
+		"unpublish": "Unpublish",
+		"publishChanges": "Publish changes",
+		"createAgent": "Create agent",
+		"publish": "Publish",
+		"failedToCreate": "Failed to create agent",
+		"failedToPublish": "Failed to publish agent",
+		"untitledAgent": "Untitled Agent",
+		"failedToUnpublish": "Failed to unpublish agent",
+		"form": {
+			"nameLabel": "Name of agent",
+			"namePlaceholder": "Enter agent name",
+			"nameRequired": "Agent name is required",
+			"nameTaken": "An agent with this name already exists",
+			"nameAvailable": "Name is available",
+			"addDescription": "Add description",
+			"descriptionLabel": "Description",
+			"descriptionPlaceholder": "Answers IT support questions and helps employees troubleshoot common technical issues.",
+			"skillsLabel": "Skills",
+			"skillsDescription": "Help users understand what this agent can help them with by adding skills",
+			"addSkill": "Add skill",
+			"addSkills": "Add skills",
+			"addSkillsDescription": "Add existing skills to this agent to improve context",
+			"instructionsLabel": "Instructions",
+			"instructionsDescription": "Control your agents behavior by adding instructions.",
+			"instructionsHint": "Update instructions as needed",
+			"updatedFromSkills": "Updated based on skills",
+			"instructionsRequired": "Instructions or description is required to publish",
+			"expandInstructions": "Expand instructions",
+			"conversationStartersLabel": "Conversation starters",
+			"conversationStartersDescription": "Suggested prompts shown to users when starting a conversation",
+			"conversationStarterPlaceholder": "Type and press Enter or comma to add...",
+			"guardrailsLabel": "Guardrails",
+			"guardrailsDescription": "Topics or requests the agent should NOT handle",
+			"addGuardrail": "Add a guardrail",
+			"guardrailPlaceholder": "e.g., HR policy questions",
+			"addGuardrailButton": "Add guardrail",
+			"removeStarter": "Remove {{starter}}",
+			"improve": "Improve",
+			"generate": "Generate"
+		},
+		"configChanges": {
+			"name": "Name",
+			"icon": "Icon"
+		},
+		"demo": {
+			"trigger": "Demo",
+			"title": "Demo Mode",
+			"next": "Next",
+			"exit": "Exit Demo",
+			"steps": {
+				"createAgent": "Create Agent",
+				"createAgentDesc": "Fill in agent details",
+				"addSkills": "Add Skills",
+				"addSkillsDesc": "Configure workflows",
+				"addStarters": "Add Starters",
+				"addStartersDesc": "Set conversation starters",
+				"testAgent": "Test Agent",
+				"testAgentDesc": "Navigate to test page",
+				"publish": "Publish",
+				"publishDesc": "Make agent live"
+			}
+		},
+		"iconPicker": {
+			"changeIcon": "Change agent icon",
+			"colorLabel": "Color",
+			"iconLabel": "Icon",
+			"searchPlaceholder": "Find by type, role, or expertise",
+			"selectColor": "Select {{color}} color"
+		},
+		"unlinkedToast": "{{skill}} unlinked from {{agent}} and added to this agent"
+	},
+	"test": {
+		"notFound": "No agent configuration found.",
+		"backToAgents": "Back to Agents",
+		"testMode": "Test mode",
+		"reset": "Reset",
+		"publish": "Publish",
+		"tryPrompt": "Try a prompt:",
+		"inputPlaceholder": "Test another prompt...",
+		"rateResponse": "Rate this response:",
+		"goodResponse": "Good response",
+		"badResponse": "Bad response",
+		"feedbackPlaceholder": "Help us improve. What went wrong?",
+		"cancel": "Cancel",
+		"submit": "Submit",
+		"instructionsUpdated": "Instructions updated",
+		"dismiss": "Dismiss",
+		"suggestedImprovement": "Suggested improvement",
+		"instructionsUpdate": "INSTRUCTIONS UPDATE",
+		"applied": "Applied",
+		"retestVerify": "Retest to verify the improvement, or publish if you're satisfied.",
+		"applyToInstructions": "Apply to Agent Instructions",
+		"skipSuggestion": "Skip suggestion",
+		"retestPrompt": "Retest prompt",
+		"newPrompt": "New prompt",
+		"sources": "Sources ({{count}})",
+		"revision": "Revision {{number}}",
+		"includesImprovements": "Includes improvements from testing",
+		"publishDialog": {
+			"title": "Publish Agent",
+			"description": "Publishing will make this agent active and available to be matched with real users in this environment."
+		}
+	},
+	"chat": {
+		"notFound": "Agent not found.",
+		"browseAgents": "Browse Agents",
+		"live": "Live",
+		"browseMore": "Browse more",
+		"createNew": "Create new",
+		"edit": "Edit",
+		"askAnything": "Ask anything",
+		"showOverview": "Show overview",
+		"closeOverview": "Close overview panel",
+		"overview": "Overview",
+		"knowledge": "{{name}} knowledge",
+		"noKnowledgeSources": "No knowledge sources",
+		"addKnowledge": "Add knowledge",
+		"skillsApplied": "Skills applied",
+		"noSkills": "No skills configured",
+		"addSkills": "Add skills"
+	},
+	"testPanel": {
+		"preview": "Preview",
+		"test": "Test",
+		"close": "Close",
+		"configure": "Configure your agent to see a preview",
+		"configureHint": "Add name, instructions, or skills",
+		"noDescription": "No description",
+		"conversationStarters": "Conversation starters:",
+		"readyToTest": "Ready to test",
+		"readyToTestHint": "Click \"Test\" to try out your agent",
+		"skillConfigured": "{{count}} skill configured",
+		"skillConfigured_other": "{{count}} skills configured",
+		"knowledgeSource": "{{count}} knowledge source",
+		"knowledgeSource_other": "{{count}} knowledge sources",
+		"openTestExperience": "Open Test Experience"
+	},
+	"addSkillModal": {
+		"close": "Close",
+		"title": "Add skills",
+		"description": "Help users understand what this agent can help them with by adding skills",
+		"searchPlaceholder": "Search skills...",
+		"tabAvailable": "Available",
+		"tabAll": "All",
+		"added": "Added",
+		"duplicateInActions": "Duplicate in Actions",
+		"usedIn": "used in {{agent}}",
+		"noResults": "No skills found matching \"{{query}}\"",
+		"cancel": "Cancel",
+		"add": "Add",
+		"addCount": "Add ({{count}})"
+	},
+	"changeTypeModal": {
+		"title": "Change Agent Type",
+		"description": "Select a new agent type. This will affect available configuration options.",
+		"whatWillChange": "What will change:",
+		"knowledgeRemoved": "Knowledge sources will be removed ({{count}} sources)",
+		"workflowsRemoved": "Actions/workflows will be removed ({{count}} workflow)",
+		"workflowConfigCleared": "Workflow configuration will be cleared",
+		"knowledgeSettingsAdjusted": "Knowledge-only settings will be adjusted",
+		"behaviorChange": "Agent behavior and capabilities will change",
+		"cancel": "Cancel",
+		"continue": "Continue",
+		"confirmChange": "Confirm Change"
+	},
+	"confirmTypeChangeModal": {
+		"title": "Confirm Type Change",
+		"subtitle": "This action affects a saved agent",
+		"currentType": "Current type:",
+		"newType": "New type:",
+		"warning": "Warning",
+		"warningMessage": "Changing the agent type for <strong>{{agentName}}</strong> will modify how this agent works. Users who interact with this agent may experience different behavior.",
+		"goBack": "Go Back",
+		"confirmChange": "Confirm Change"
+	},
+	"createWorkflowModal": {
+		"title": "New workflow",
+		"close": "Close",
+		"describeWorkflow": "Describe your workflow",
+		"placeholder": "Every time I receive an email, review the content and...",
+		"comingSoon": "Workflow creation with AI coming in v3",
+		"startFromScratch": "Start from scratch",
+		"startFromScratchComingSoon": "Start from scratch coming in v3",
+		"startFromExample": "Start from an example"
+	},
+	"instructionsModal": {
+		"hint": "Update instructions as needed",
+		"done": "Done",
+		"improve": "Improve"
+	},
+	"publishModal": {
+		"title": "Publish agent",
+		"description": "Publishing will make this agent active and available to be matched with real users in this environment.",
+		"skills": "Skills",
+		"knowledgeSources": "Knowledge Sources",
+		"guardrails": "Guardrails",
+		"cancel": "Cancel",
+		"publish": "Publish"
+	},
+	"unlinkWorkflowModal": {
+		"title": "Unlink Workflow",
+		"description": "<strong>{{workflowName}}</strong> is currently linked to <strong>{{agentName}}</strong>.",
+		"warning": "Unlinking this workflow will remove it from the other agent. Each workflow can only be connected to one agent at a time.",
+		"cancel": "Cancel",
+		"unlinkAndAdd": "Unlink & Add"
+	},
+	"unpublishModal": {
+		"title": "Unpublish agent?",
+		"description": "This will remove the agent from active matching. Users will no longer be able to interact with it. You can republish at any time.",
+		"cancel": "Cancel",
+		"unpublish": "Unpublish"
 	}
 }

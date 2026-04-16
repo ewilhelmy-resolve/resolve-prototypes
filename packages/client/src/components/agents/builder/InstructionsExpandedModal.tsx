@@ -3,6 +3,7 @@
  */
 
 import { Loader2, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +25,8 @@ export function InstructionsExpandedModal({
 	onImproveClick,
 	isImproving,
 }: InstructionsExpandedModalProps) {
+	const { t } = useTranslation("agents");
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
@@ -40,7 +43,7 @@ export function InstructionsExpandedModal({
 				</div>
 				<div className="flex items-center justify-between px-6 py-4 border-t">
 					<p className="text-xs text-muted-foreground">
-						Update instructions as needed
+						{t("instructionsModal.hint")}
 					</p>
 					<div className="flex gap-2">
 						{onImproveClick && (
@@ -56,11 +59,11 @@ export function InstructionsExpandedModal({
 								) : (
 									<Sparkles className="size-3.5" />
 								)}
-								Improve
+								{t("instructionsModal.improve")}
 							</Button>
 						)}
 						<Button size="sm" onClick={() => onOpenChange(false)}>
-							Done
+							{t("instructionsModal.done")}
 						</Button>
 					</div>
 				</div>
