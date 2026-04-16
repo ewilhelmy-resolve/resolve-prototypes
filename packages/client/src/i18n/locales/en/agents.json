@@ -15,6 +15,21 @@
 		"inputPlaceholder": "Type your response...",
 		"send": "Send"
 	},
+	"improveInstructions": {
+		"title": "Improve instructions",
+		"description": "Review the suggested changes before accepting.",
+		"improving": "Improving your instructions...",
+		"improvingDescription": "AI is analyzing and enhancing your agent configuration",
+		"failed": "Failed to improve instructions",
+		"tryAgain": "Try Again",
+		"current": "Current",
+		"improved": "Improved",
+		"discard": "Discard",
+		"accept": "Accept"
+	},
+	"guardrails": {
+		"emptyError": "All guardrails must have content or be removed"
+	},
 	"deleteModal": {
 		"title": "Delete \"{{agentName}}\"?",
 		"descriptionPublished": "This action cannot be undone.",

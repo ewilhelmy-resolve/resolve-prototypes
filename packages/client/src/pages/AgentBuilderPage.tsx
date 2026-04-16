@@ -34,6 +34,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
 	AddSkillModal,
@@ -242,6 +243,7 @@ function getPublishedWorkflowSkills() {
 
 // Icon picker options
 export default function AgentBuilderPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
@@ -336,6 +338,8 @@ export default function AgentBuilderPage() {
 		instructionsTouched &&
 		config.instructions.trim().length === 0 &&
 		config.description.trim().length === 0;
+	const hasEmptyGuardrails =
+		config.guardrails.length > 0 && config.guardrails.some((g) => !g.trim());
 
 	const [_showConfirmButtons, _setShowConfirmButtons] = useState(false);
 
@@ -898,6 +902,7 @@ export default function AgentBuilderPage() {
 								!config.name.trim() ||
 								!config.instructions.trim() ||
 								nameTaken ||
+								hasEmptyGuardrails ||
 								agentCreation.isCreating
 							}
 						>
@@ -1527,7 +1532,11 @@ export default function AgentBuilderPage() {
 															}));
 														}}
 														placeholder="e.g., HR policy questions"
-														className="flex-1"
+														className={cn(
+															"flex-1",
+															!guardrail.trim() && "border-destructive",
+														)}
+														aria-invalid={!guardrail.trim()}
 													/>
 													<Button
 														variant="ghost"
@@ -1561,6 +1570,11 @@ export default function AgentBuilderPage() {
 												<Plus className="size-4" />
 												Add guardrail
 											</Button>
+											{hasEmptyGuardrails && (
+												<p className="text-sm text-destructive">
+													{t("guardrails.emptyError")}
+												</p>
+											)}
 										</div>
 									)}
 								</div>

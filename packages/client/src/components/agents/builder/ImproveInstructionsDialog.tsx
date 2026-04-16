@@ -1,5 +1,6 @@
 import { Loader2, XCircle } from "lucide-react";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { ReasoningSteps } from "@/components/ai-elements/reasoning-steps";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,6 +73,7 @@ export function ImproveInstructionsDialog({
 	onAcceptInstructions,
 	onRetry,
 }: ImproveInstructionsDialogProps) {
+	const { t } = useTranslation("agents");
 	const {
 		status,
 		progressSteps,
@@ -105,9 +107,9 @@ export function ImproveInstructionsDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-4xl h-[70vh] flex flex-col p-0 gap-0">
 				<DialogHeader className="px-6 pt-6 pb-4 shrink-0">
-					<DialogTitle>Improve instructions</DialogTitle>
+					<DialogTitle>{t("improveInstructions.title")}</DialogTitle>
 					<DialogDescription>
-						Review the suggested changes before accepting.
+						{t("improveInstructions.description")}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -116,10 +118,10 @@ export function ImproveInstructionsDialog({
 					<div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-6 px-6">
 						<div className="flex flex-col items-center gap-2 text-center">
 							<h2 className="text-lg font-semibold">
-								Improving your instructions...
+								{t("improveInstructions.improving")}
 							</h2>
 							<p className="text-sm text-muted-foreground">
-								AI is analyzing and enhancing your agent configuration
+								{t("improveInstructions.improvingDescription")}
 							</p>
 						</div>
 
@@ -141,12 +143,12 @@ export function ImproveInstructionsDialog({
 						<XCircle className="size-14 text-destructive" />
 						<div className="flex flex-col items-center gap-2 text-center">
 							<h2 className="text-lg font-semibold">
-								Failed to improve instructions
+								{t("improveInstructions.failed")}
 							</h2>
 							<p className="text-sm text-muted-foreground max-w-sm">{error}</p>
 						</div>
 						<Button variant="outline" onClick={onRetry}>
-							Try Again
+							{t("improveInstructions.tryAgain")}
 						</Button>
 					</div>
 				)}
@@ -158,7 +160,7 @@ export function ImproveInstructionsDialog({
 							{/* Current (left) */}
 							<div className="flex flex-col gap-2 min-h-0">
 								<p className="text-sm font-medium text-muted-foreground shrink-0">
-									Current
+									{t("improveInstructions.current")}
 								</p>
 								<div className="flex-1 bg-white border rounded-lg overflow-hidden min-h-0 dark:bg-gray-950">
 									<ScrollArea className="h-full max-h-[calc(70vh-200px)]">
@@ -185,7 +187,7 @@ export function ImproveInstructionsDialog({
 							{/* Improved (right) */}
 							<div className="flex flex-col gap-2 min-h-0">
 								<p className="text-sm font-medium text-muted-foreground shrink-0">
-									Improved
+									{t("improveInstructions.improved")}
 								</p>
 								<div className="flex-1 bg-white border rounded-lg overflow-hidden min-h-0 dark:bg-gray-950">
 									<ScrollArea className="h-full max-h-[calc(70vh-200px)]">
@@ -216,9 +218,11 @@ export function ImproveInstructionsDialog({
 				{status === "success" && (
 					<DialogFooter className="px-6 py-4 border-t">
 						<Button variant="outline" onClick={handleDiscard}>
-							Discard
+							{t("improveInstructions.discard")}
 						</Button>
-						<Button onClick={handleAccept}>Accept</Button>
+						<Button onClick={handleAccept}>
+							{t("improveInstructions.accept")}
+						</Button>
 					</DialogFooter>
 				)}
 			</DialogContent>
