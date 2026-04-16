@@ -7,7 +7,7 @@ interface GenerateConversationStartersData {
 	description: string;
 	instructions: string;
 	agentType?: string | null;
-	workflows?: string[];
+	tools?: string[];
 	conversationStarters?: string[];
 	guardrails?: string[];
 	knowledgeSources?: string[];
@@ -31,7 +31,7 @@ export function useGenerateConversationStarters() {
 						agentType: data.agentType,
 						conversationStarters: data.conversationStarters,
 						guardrails: data.guardrails,
-						workflows: data.workflows,
+						tools: data.tools,
 						knowledgeSources: data.knowledgeSources,
 						capabilities: data.capabilities,
 					},

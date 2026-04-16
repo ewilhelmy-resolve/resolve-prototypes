@@ -33,7 +33,7 @@ interface AddSkillModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	availableSkills: Skill[];
-	currentWorkflows: string[];
+	currentTools: string[];
 	onAdd: (skillNames: string[], starters: string[]) => void;
 }
 
@@ -41,7 +41,7 @@ export function AddSkillModal({
 	open,
 	onOpenChange,
 	availableSkills,
-	currentWorkflows,
+	currentTools,
 	onAdd,
 }: AddSkillModalProps) {
 	const { t } = useTranslation("agents");
@@ -62,7 +62,7 @@ export function AddSkillModal({
 		skill.author.toLowerCase().includes(searchQuery.toLowerCase());
 
 	const unlinkedSkills = availableSkills
-		.filter((s) => s.linkedAgent === null && !currentWorkflows.includes(s.name))
+		.filter((s) => s.linkedAgent === null && !currentTools.includes(s.name))
 		.filter(filterBySearch);
 
 	const allFiltered = availableSkills.filter(filterBySearch);
@@ -154,7 +154,7 @@ export function AddSkillModal({
 				{/* Skills list */}
 				<div className="flex-1 overflow-y-auto max-h-[400px] mt-5">
 					{displayedSkills.map((skill) => {
-						const isAlreadyAdded = currentWorkflows.includes(skill.name);
+						const isAlreadyAdded = currentTools.includes(skill.name);
 						const isLinkedToOther =
 							skill.linkedAgent !== null && !isAlreadyAdded;
 						const isSelected = selectedSkills.includes(skill.name);

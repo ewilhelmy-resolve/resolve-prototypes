@@ -107,6 +107,7 @@ vi.mock("@/lib/toast", () => ({
 
 vi.mock("@/components/agents/builder", () => ({
 	AddSkillModal: () => null,
+	AddToolsModal: () => null,
 	AgentCreationOverlay: () => null,
 	ChangeAgentTypeModal: () => null,
 	ConfirmTypeChangeModal: () => null,
@@ -116,10 +117,6 @@ vi.mock("@/components/agents/builder", () => ({
 	PublishModal: () => null,
 	UnlinkWorkflowModal: () => null,
 	UnpublishModal: () => null,
-}));
-
-vi.mock("@/components/agents/SaveStatusIndicator", () => ({
-	SaveStatusIndicator: () => <span data-testid="save-status" />,
 }));
 
 import { useAgent } from "@/hooks/api/useAgents";
@@ -141,7 +138,7 @@ const draftAgent: AgentConfig = {
 	status: "draft",
 	conversationStarters: [],
 	knowledgeSources: [],
-	workflows: [],
+	tools: [],
 	guardrails: [],
 	capabilities: {
 		webSearch: true,

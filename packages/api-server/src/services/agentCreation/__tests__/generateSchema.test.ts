@@ -41,9 +41,9 @@ describe("AgentGenerateBodySchema", () => {
 		expect(shape).not.toHaveProperty("knowledgeSources");
 	});
 
-	it("should NOT accept workflows field", () => {
+	it("should NOT accept tools field", () => {
 		const shape = AgentGenerateBodySchema.shape;
-		expect(shape).not.toHaveProperty("workflows");
+		expect(shape).not.toHaveProperty("tools");
 	});
 
 	it("should NOT accept capabilities field", () => {

@@ -41,7 +41,7 @@ describe("useGenerateConversationStarters", () => {
 				description: "A test agent",
 				instructions: "## Role\nYou are a test assistant.",
 				agentType: "knowledge",
-				workflows: [],
+				tools: [],
 				guardrails: [],
 				knowledgeSources: [],
 				capabilities: { webSearch: true },
@@ -63,7 +63,7 @@ describe("useGenerateConversationStarters", () => {
 				description: "Helps with sales",
 				instructions: "## Role\nSales assistant.",
 				agentType: "workflow",
-				workflows: ["CRM Lookup"],
+				tools: ["CRM Lookup"],
 				conversationStarters: ["Existing starter"],
 				guardrails: ["No pricing info"],
 				knowledgeSources: ["Product Catalog"],
@@ -76,7 +76,7 @@ describe("useGenerateConversationStarters", () => {
 		expect(config.description).toBe("Helps with sales");
 		expect(config.instructions).toBe("## Role\nSales assistant.");
 		expect(config.agentType).toBe("workflow");
-		expect(config.workflows).toEqual(["CRM Lookup"]);
+		expect(config.tools).toEqual(["CRM Lookup"]);
 		expect(config.conversationStarters).toEqual(["Existing starter"]);
 		expect(config.guardrails).toEqual(["No pricing info"]);
 		expect(config.knowledgeSources).toEqual(["Product Catalog"]);

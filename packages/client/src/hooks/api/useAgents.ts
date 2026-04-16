@@ -152,7 +152,7 @@ export function useImproveInstructionsMutation() {
 				agentType?: string | null;
 				guardrails?: string[];
 				conversationStarters?: string[];
-				workflows?: string[];
+				tools?: string[];
 				knowledgeSources?: string[];
 				capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
 				responsibilities?: string;
@@ -173,7 +173,7 @@ export function useGenerateConversationStartersMutation() {
 				agentType?: string | null;
 				guardrails?: string[];
 				conversationStarters?: string[];
-				workflows?: string[];
+				tools?: string[];
 				knowledgeSources?: string[];
 				capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
 				responsibilities?: string;

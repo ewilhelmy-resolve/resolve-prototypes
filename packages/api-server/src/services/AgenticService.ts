@@ -23,6 +23,23 @@ interface AgentMetadataApiData {
 	sys_updated_by: string | null;
 }
 
+export interface ToolApiData {
+	id: number;
+	eid: string;
+	name: string;
+	description: string;
+	active: boolean;
+	type: string;
+}
+
+export interface ToolListFilters {
+	name?: string;
+	active?: boolean;
+	type?: string;
+	limit?: number;
+	offset?: number;
+}
+
 interface AgentTaskApiData {
 	id: number | null;
 	eid: string | null;
@@ -106,6 +123,45 @@ export class AgenticService {
 			return response.data;
 		} catch (error) {
 			logger.error({ error }, "Failed to list agents from LLM Service");
+			throw error;
+		}
+	}
+
+	async listTools(filters?: ToolListFilters): Promise<ToolApiData[]> {
+		try {
+			const params: Record<string, string | number | boolean> = {};
+			if (filters?.name) params.name = filters.name;
+			if (filters?.active !== undefined) params.active = filters.active;
+			if (filters?.type) params.type = filters.type;
+			if (filters?.limit) params.limit = filters.limit;
+			if (filters?.offset) params.offset = filters.offset;
+
+			const response = await this.client.get<ToolApiData[]>("/tools/", {
+				params,
+			});
+			return response.data;
+		} catch (error) {
+			logger.error({ error }, "Failed to list tools from LLM Service");
+			throw error;
+		}
+	}
+
+	async filterTools(
+		query: string,
+		opts?: { limit?: number; offset?: number; order_by?: string },
+	): Promise<ToolApiData[]> {
+		try {
+			const params: Record<string, string | number> = { query };
+			if (opts?.limit) params.limit = opts.limit;
+			if (opts?.offset) params.offset = opts.offset;
+			if (opts?.order_by) params.order_by = opts.order_by;
+
+			const response = await this.client.get<ToolApiData[]>("/tools/filter", {
+				params,
+			});
+			return response.data;
+		} catch (error) {
+			logger.error({ error }, "Failed to filter tools from LLM Service");
 			throw error;
 		}
 	}

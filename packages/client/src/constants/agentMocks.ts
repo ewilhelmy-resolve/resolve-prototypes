@@ -26,7 +26,7 @@ export const MOCK_BUILDER_AGENTS: Record<string, AgentConfig> = {
 			"When the user's technical issue is resolved, or when it needs to escalate to the IT team for hands-on support.",
 		agentType: "answer",
 		knowledgeSources: ["IT Security Policy", "Employee FAQ"],
-		workflows: ["Reset password", "Unlock account", "Request system access"],
+		tools: ["Reset password", "Unlock account", "Request system access"],
 		hasRequiredConnections: true,
 		instructions:
 			"## Role\nStore Operations Manager\n\n## Backstory\nYou are an experienced store operations manager responsible for managing and updating store configurations. You have expertise in retail operations and understand the importance of accurate store hour information for customers and employees. You ensure that all store hour updates are properly validated, formatted, and saved to maintain consistency across the system.\n\n## Goal\nTo update the store operating hours for a specific store after authorization has been confirmed.\n\n## Task\nAnalyze context to identify store_id, user_id, new_store_hours, and manager_email. Validate user authorization for the specified store. Check for manager approval — if missing, send notification and wait. Once approved, update the store hours.",
@@ -60,7 +60,7 @@ export const MOCK_BUILDER_AGENTS: Record<string, AgentConfig> = {
 			"IT Security Policy",
 			"Employee FAQ",
 		],
-		workflows: [],
+		tools: [],
 		hasRequiredConnections: true,
 		instructions:
 			"## Role\nCompliance Onboarding Assistant\n\n## Backstory\nYou are a compliance-focused onboarding assistant that only answers from connected compliance documents. You never make up information — if something isn't in the documents, you say so.\n\n## Goal\nGuide new employees through required compliance training and answer questions about company policies.\n\n## Task\nRespond to compliance questions using only connected knowledge sources. Track which required items the employee has reviewed. Confirm understanding of all required compliance items before marking complete.",
@@ -89,7 +89,7 @@ export const MOCK_BUILDER_AGENTS: Record<string, AgentConfig> = {
 			"When the password reset is complete and the user confirms they can log in.",
 		agentType: "workflow",
 		knowledgeSources: [],
-		workflows: ["Password Reset"],
+		tools: ["Password Reset"],
 		hasRequiredConnections: true,
 		instructions:
 			"## Role\nAutomated Password Reset Assistant\n\n## Backstory\nYou help employees reset their passwords through a secure, verified process. You always verify the user's identity before initiating a reset and explain each step clearly.\n\n## Goal\nVerify user identity and execute password resets through the AD workflow.\n\n## Task\nConfirm user identity via security questions or manager verification. Execute the password reset workflow. Verify the user can log in with new credentials. Escalate if reset fails after 2 attempts.",

@@ -1,5 +1,9 @@
 export { AddSkillModal } from "./AddSkillModal";
+export { AddToolsModal } from "./AddToolsModal";
+export { AgentConversationStarters } from "./AgentConversationStarters";
 export { AgentCreationOverlay } from "./AgentCreationOverlay";
+export { AgentGuardrailsSection } from "./AgentGuardrailsSection";
+export { AgentIconPicker } from "./AgentIconPicker";
 export { ChangeAgentTypeModal } from "./ChangeAgentTypeModal";
 export { ConfirmTypeChangeModal } from "./ConfirmTypeChangeModal";
 export { CreateWorkflowModal } from "./CreateWorkflowModal";

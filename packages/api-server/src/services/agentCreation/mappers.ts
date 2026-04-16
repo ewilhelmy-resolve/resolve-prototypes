@@ -51,7 +51,7 @@ export function apiDataToAgentConfig(
 		iconColorId: ui.icon_color ?? configs.iconColorId ?? "slate",
 		conversationStarters: (agent.conversation_starters as string[]) || [],
 		knowledgeSources: [],
-		workflows: [],
+		tools: [],
 		skills,
 		guardrails: (agent.guardrails as string[]) || [],
 		capabilities: {

@@ -1024,7 +1024,7 @@ export default function AgentTestPage() {
 												agentType: config.agentType,
 												iconId: config.iconId,
 												iconColorId: config.iconColorId,
-												skills: config.workflows,
+												skills: config.tools,
 											},
 										},
 									});
