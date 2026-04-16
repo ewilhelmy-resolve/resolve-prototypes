@@ -333,36 +333,30 @@ function formatDate(isoDate: string | null): string {
  * List agents from LLM Service, enriched with skills from tasks
  */
 router.get("/", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
 	try {
-		const { name, search, active, limit, offset } = AgentListQuerySchema.parse(
+		const { search, active, limit, offset } = AgentListQuerySchema.parse(
 			req.query,
 		);
 
-		// Fetch agents from LLM Service
-		let agents: Awaited<ReturnType<typeof agenticService.listAgents>>;
+		// Always scope to caller's organization
+		const orgId = authReq.user.activeOrganizationId;
+		let query = `tenant__exact="${orgId}"`;
 
 		if (search) {
-			// Build OR filter: name OR description match
 			const escaped = search.replace(/"/g, '\\"');
 			const searchFilter = `name__icontains="${escaped}"|description__icontains="${escaped}"`;
-			const activeFilter =
-				active !== undefined ? `active__exact=${active}` : "";
-			const query = activeFilter
-				? `(${searchFilter})&${activeFilter}`
-				: searchFilter;
-
-			agents = await agenticService.filterAgents(query, {
-				limit: Number(limit),
-				offset: Number(offset),
-			});
-		} else {
-			agents = await agenticService.listAgents({
-				name,
-				active: active !== undefined ? active === "true" : undefined,
-				limit: Number(limit),
-				offset: Number(offset),
-			});
+			query = `(${searchFilter})&${query}`;
 		}
+
+		if (active !== undefined) {
+			query = `${query}&active__exact=${active}`;
+		}
+
+		const agents = await agenticService.filterAgents(query, {
+			limit: Number(limit),
+			offset: Number(offset),
+		});
 
 		// Batch-fetch all tasks to avoid N+1
 		let allTasks: Awaited<ReturnType<typeof agenticService.listTasks>> = [];
@@ -422,10 +416,16 @@ router.get("/", async (req, res) => {
  * Check if an agent name is available
  */
 router.get("/check-name", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
 	try {
 		const { name } = AgentCheckNameQuerySchema.parse(req.query);
-		const existing = await agenticService.getAgentByName(name);
-		res.json({ available: existing === null });
+		const orgId = authReq.user.activeOrganizationId;
+		const escaped = name.replace(/"/g, '\\"');
+		const matches = await agenticService.filterAgents(
+			`name__exact="${escaped}"&tenant__exact="${orgId}"`,
+			{ limit: 1 },
+		);
+		res.json({ available: matches.length === 0 });
 	} catch (error: any) {
 		if (error?.response) {
 			logger.error(
@@ -739,8 +739,11 @@ router.post("/:eid/execute", async (req, res) => {
 		const { eid } = req.params;
 		const body = AgentExecuteBodySchema.parse(req.body);
 
-		// Look up agent name from EID
-		const agent = await agenticService.getAgent(eid);
+		// Look up agent — verifies org ownership
+		const agent = await agenticService.assertAgentOrg(
+			eid,
+			authReq.user.activeOrganizationId,
+		);
 		if (!agent?.name) {
 			return res
 				.status(404)
@@ -790,6 +793,10 @@ router.delete("/:eid", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const { eid } = req.params;
+
+		// Verify org ownership before deleting
+		await agenticService.assertAgentOrg(eid, authReq.user.activeOrganizationId);
+
 		logger.info({ eid, userId: authReq.user?.id }, "Deleting agent");
 
 		const result = await agenticService.deleteAgent(eid);
@@ -823,9 +830,13 @@ router.delete("/:eid", async (req, res) => {
  * Get a single agent by EID, enriched with skills
  */
 router.get("/:eid", async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
 	try {
 		const { eid } = req.params;
-		const agent = await agenticService.getAgent(eid);
+		const agent = await agenticService.assertAgentOrg(
+			eid,
+			authReq.user.activeOrganizationId,
+		);
 
 		// Fetch tasks for skills enrichment
 		let skills: string[] = [];
@@ -935,6 +946,10 @@ router.put("/:eid", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const { eid } = req.params;
+
+		// Verify org ownership before updating
+		await agenticService.assertAgentOrg(eid, authReq.user.activeOrganizationId);
+
 		const body = AgentUpdateBodySchema.parse(req.body);
 		const apiData = agentConfigToApiData(
 			body as unknown as Record<string, unknown>,
