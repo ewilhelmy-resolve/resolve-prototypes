@@ -725,6 +725,27 @@ describe("Conversations Router - Iframe userId Validation", () => {
 			expect(accessQuery).toContain("AND c.source = 'jarvis'");
 		});
 
+		it("Iframe session cannot read non-jarvis conversation (symmetric)", async () => {
+			mockSessionStore.getSession.mockResolvedValue({
+				sessionId: "test-session-id",
+				isIframeSession: true,
+			});
+
+			// accessCheck returns 0 rows — source = 'jarvis' filter blocks rita_go row
+			mockClient.query.mockResolvedValueOnce({ rows: [] });
+
+			vi.mocked(withOrgContext).mockImplementation(
+				async (_userId, _orgId, callback) => await callback(mockClient),
+			);
+
+			await request(app)
+				.get("/conversations/rita-go-conv-id/messages")
+				.expect(404);
+
+			const accessQuery = mockClient.query.mock.calls[0][0];
+			expect(accessQuery).toContain("AND c.source = 'jarvis'");
+		});
+
 		it("POST messages rejects jarvis conversation from Rita Go session", async () => {
 			mockSessionStore.getSession.mockResolvedValue({
 				sessionId: "test-session-id",

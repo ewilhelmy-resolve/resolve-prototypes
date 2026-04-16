@@ -45,8 +45,9 @@ const router = express.Router();
  *
  * @param sessionId - The session ID from authReq.session.sessionId
  * @param tableAlias - Optional SQL alias (e.g. "c" for `FROM conversations c`)
- * @returns `" AND c.source = 'jarvis'"` or
- *          `" AND (c.source IS NULL OR c.source <> 'jarvis')"` (with alias dot)
+ * @returns A leading-space-prefixed SQL fragment, e.g. `" AND c.source = 'jarvis'"`.
+ *          Concatenate directly after a WHERE clause — the leading space prevents
+ *          double-spacing but is safe in SQL.
  */
 async function getSourceFilter(
 	sessionId: string,
@@ -366,7 +367,8 @@ router.get("/", authenticateUser, async (req, res) => {
 		);
 
 		const sourceFilter = await getSourceFilter(authReq.session.sessionId, "c");
-		const countSourceFilter = await getSourceFilter(authReq.session.sessionId);
+		// Reuse the same session lookup — getSourceFilter is deterministic per session
+		const countSourceFilter = sourceFilter.replace(/c\./g, "");
 
 		const result = await withOrgContext(
 			authReq.user.id,
@@ -797,12 +799,12 @@ router.patch("/:conversationId", authenticateUser, async (req, res) => {
 					return null; // Will result in a 404
 				}
 
-				// Update the conversation title
+				// Update the conversation title (sourceFilter on UPDATE too for defense-in-depth)
 				const updateResult = await client.query(
 					`
           UPDATE conversations
           SET title = $1, updated_at = NOW()
-          WHERE id = $2 AND organization_id = $3 AND user_id = $4
+          WHERE id = $2 AND organization_id = $3 AND user_id = $4 ${sourceFilter}
           RETURNING id, title, created_at, updated_at
         `,
 					[
@@ -858,7 +860,7 @@ router.delete("/:conversationId", authenticateUser, async (req, res) => {
 
 				// Delete the conversation (CASCADE will handle messages and document links)
 				await client.query(
-					"DELETE FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+					`DELETE FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3 ${sourceFilter}`,
 					[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
 				);
 
