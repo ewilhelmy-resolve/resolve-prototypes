@@ -189,11 +189,13 @@ describe("AgentBuilderPage - Status Badge", () => {
 		renderPage("/agents/agent-draft-1");
 
 		await waitFor(() => {
-			const badges = screen.getAllByText("Draft");
+			const badges = screen.getAllByText("builder.statusDraft");
 			expect(badges.length).toBeGreaterThanOrEqual(1);
 		});
 
-		expect(screen.queryByText("Published")).not.toBeInTheDocument();
+		expect(
+			screen.queryByText("builder.statusPublished"),
+		).not.toBeInTheDocument();
 	});
 
 	it("shows 'Published' badge with checkmark when editing a published agent", async () => {
@@ -206,7 +208,7 @@ describe("AgentBuilderPage - Status Badge", () => {
 		renderPage("/agents/agent-pub-1");
 
 		await waitFor(() => {
-			expect(screen.getByText("Published")).toBeInTheDocument();
+			expect(screen.getByText("builder.statusPublished")).toBeInTheDocument();
 		});
 	});
 
@@ -220,7 +222,7 @@ describe("AgentBuilderPage - Status Badge", () => {
 		renderPage("/agents/create");
 
 		await waitFor(() => {
-			const badges = screen.getAllByText("Draft");
+			const badges = screen.getAllByText("builder.statusDraft");
 			expect(badges.length).toBeGreaterThanOrEqual(1);
 		});
 	});
@@ -246,10 +248,10 @@ describe("AgentBuilderPage - Action Buttons", () => {
 		});
 
 		expect(
-			screen.getByRole("button", { name: /^Publish$/i }),
+			screen.getByRole("button", { name: /^builder\.publish$/i }),
 		).toBeInTheDocument();
 		expect(
-			screen.queryByRole("button", { name: /Unpublish/i }),
+			screen.queryByRole("button", { name: /builder\.unpublish/i }),
 		).not.toBeInTheDocument();
 	});
 
@@ -267,10 +269,10 @@ describe("AgentBuilderPage - Action Buttons", () => {
 		});
 
 		expect(
-			screen.getByRole("button", { name: /Unpublish/i }),
+			screen.getByRole("button", { name: /builder\.unpublish/i }),
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole("button", { name: /Publish changes/i }),
+			screen.getByRole("button", { name: /builder\.publishChanges/i }),
 		).toBeInTheDocument();
 	});
 });
@@ -293,7 +295,7 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		// Wait for render to settle
 		await waitFor(() => {
 			expect(
-				screen.getByRole("button", { name: /Create agent/i }),
+				screen.getByRole("button", { name: /builder\.createAgent/i }),
 			).toBeInTheDocument();
 		});
 
@@ -311,13 +313,13 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 
 		await waitFor(() => {
 			expect(
-				screen.getByRole("button", { name: /Create agent/i }),
+				screen.getByRole("button", { name: /builder\.createAgent/i }),
 			).toBeInTheDocument();
 		});
 
 		// Should not show Publish in create mode
 		expect(
-			screen.queryByRole("button", { name: /^Publish$/i }),
+			screen.queryByRole("button", { name: /^builder\.publish$/i }),
 		).not.toBeInTheDocument();
 	});
 
@@ -333,7 +335,9 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		renderPage("/agents/create");
 
 		// Fill required fields: name + instructions
-		const nameInput = await screen.findByPlaceholderText(/enter agent name/i);
+		const nameInput = await screen.findByPlaceholderText(
+			/builder\.form\.namePlaceholder/i,
+		);
 		await user.clear(nameInput);
 		await user.type(nameInput, "Test Agent");
 
@@ -342,7 +346,9 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		) as HTMLTextAreaElement;
 		await user.type(instructionsArea, "Be helpful");
 
-		const createBtn = screen.getByRole("button", { name: /Create agent/i });
+		const createBtn = screen.getByRole("button", {
+			name: /builder\.createAgent/i,
+		});
 		await user.click(createBtn);
 
 		await waitFor(() => {
@@ -371,7 +377,7 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		});
 
 		expect(
-			screen.queryByRole("button", { name: /Create agent/i }),
+			screen.queryByRole("button", { name: /builder\.createAgent/i }),
 		).not.toBeInTheDocument();
 		expect(mockCreateAgent.mutateAsync).not.toHaveBeenCalled();
 	});
@@ -386,7 +392,7 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		renderPage("/agents/create");
 
 		const createBtn = await screen.findByRole("button", {
-			name: /Create agent/i,
+			name: /builder\.createAgent/i,
 		});
 		expect(createBtn).toBeDisabled();
 	});
@@ -403,11 +409,15 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		renderPage("/agents/create");
 
 		// Fill in the name
-		const nameInput = await screen.findByPlaceholderText(/enter agent name/i);
+		const nameInput = await screen.findByPlaceholderText(
+			/builder\.form\.namePlaceholder/i,
+		);
 		await user.clear(nameInput);
 		await user.type(nameInput, "My Test Agent");
 
-		const createBtn = screen.getByRole("button", { name: /Create agent/i });
+		const createBtn = screen.getByRole("button", {
+			name: /builder\.createAgent/i,
+		});
 		// Should still be disabled because instructions are empty
 		expect(createBtn).toBeDisabled();
 	});
