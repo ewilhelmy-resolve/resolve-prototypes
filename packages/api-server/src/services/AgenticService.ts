@@ -13,6 +13,8 @@ interface AgentMetadataApiData {
 	tags: Record<string, unknown> | null;
 	parameters: Record<string, unknown> | null;
 	tenant: string | null;
+	conversation_starters: string[] | null;
+	guardrails: string[] | null;
 	prompt_name: string | null;
 	llm_parameters: Record<string, unknown> | null;
 	sys_date_created: string | null;
@@ -58,6 +60,13 @@ export class AgenticService {
 		const baseURL =
 			process.env.LLM_SERVICE_URL || "https://llm-service-staging.resolve.io";
 		const apiKey = process.env.LLM_SERVICE_API_KEY || "";
+		const dbTenant = process.env.LLM_SERVICE_DB_TENANT || "";
+
+		if (!dbTenant) {
+			logger.warn(
+				"LLM_SERVICE_DB_TENANT is not set — LLM Service calls will likely fail",
+			);
+		}
 
 		this.client = axios.create({
 			baseURL,
@@ -65,6 +74,7 @@ export class AgenticService {
 			headers: {
 				"Content-Type": "application/json",
 				...(apiKey && { "X-API-Key": apiKey }),
+				...(dbTenant && { "X-DB-Tenant": dbTenant }),
 			},
 		});
 	}
@@ -213,4 +223,175 @@ export class AgenticService {
 			throw error;
 		}
 	}
+
+	async getTask(taskEid: string): Promise<AgentTaskApiData> {
+		try {
+			const response = await this.client.get<AgentTaskApiData>(
+				`/agents/tasks/eid/${taskEid}`,
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ taskEid, error }, "Failed to get task from LLM Service");
+			throw error;
+		}
+	}
+
+	async createTask(data: Partial<AgentTaskApiData>): Promise<AgentTaskApiData> {
+		try {
+			const response = await this.client.post<AgentTaskApiData>(
+				"/agents/tasks",
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ error }, "Failed to create task in LLM Service");
+			throw error;
+		}
+	}
+
+	async updateTask(
+		taskEid: string,
+		data: Partial<AgentTaskApiData>,
+	): Promise<AgentTaskApiData> {
+		try {
+			const response = await this.client.put<AgentTaskApiData>(
+				`/agents/tasks/eid/${taskEid}`,
+				data,
+			);
+			return response.data;
+		} catch (error) {
+			logger.error({ taskEid, error }, "Failed to update task in LLM Service");
+			throw error;
+		}
+	}
+
+	async deleteTask(
+		taskEid: string,
+	): Promise<{ success: boolean; message: string }> {
+		try {
+			const response = await this.client.delete<{
+				success: boolean;
+				message: string;
+			}>(`/agents/tasks/eid/${taskEid}`);
+			return response.data;
+		} catch (error) {
+			logger.error(
+				{ taskEid, error },
+				"Failed to delete task from LLM Service",
+			);
+			throw error;
+		}
+	}
+
+	// ============================================================================
+	// Agent Execution (invoke, poll, stop)
+	// ============================================================================
+
+	async executeAgent(
+		agentName: string,
+		params: {
+			utterance: string;
+			transcript?: string;
+			additionalInformation?: string;
+			prevExecutionId?: string;
+		},
+	): Promise<{
+		conversationId: string;
+		executionId: string;
+		agentMetadataId: string;
+	}> {
+		try {
+			const body: Record<string, unknown> = {
+				query: {
+					agent_metadata_parameters: {
+						agent_name: agentName,
+						...(params.prevExecutionId && {
+							prev_execution_id: params.prevExecutionId,
+						}),
+						parameters: {
+							utterance: params.utterance,
+							...(params.transcript && { transcript: params.transcript }),
+							...(params.additionalInformation && {
+								additional_information: params.additionalInformation,
+							}),
+						},
+					},
+				},
+			};
+
+			const response = await this.client.post("/services/agentic", body, {
+				timeout: 30000,
+			});
+
+			const result = response.data?.result;
+			if (!result?.execution_id) {
+				throw new Error("Missing execution_id in agentic response");
+			}
+
+			return {
+				conversationId: result.conversation_id,
+				executionId: result.execution_id,
+				agentMetadataId: result.agent_metadata_id,
+			};
+		} catch (error) {
+			logger.error(
+				{ agentName, error },
+				"Failed to execute agent via LLM Service",
+			);
+			throw error;
+		}
+	}
+
+	async pollExecution(
+		executionId: string,
+		limit = 100,
+	): Promise<AgentExecutionMessage[]> {
+		try {
+			const response = await this.client.get<AgentExecutionMessage[]>(
+				`/agents/messages/execution/poll/${executionId}`,
+				{ params: { limit }, timeout: 10000 },
+			);
+			return response.data;
+		} catch (error) {
+			logger.error(
+				{ executionId, error },
+				"Failed to poll execution from LLM Service",
+			);
+			throw error;
+		}
+	}
+
+	async stopExecution(
+		executionId: string,
+	): Promise<{ success: boolean; message: string }> {
+		try {
+			const response = await this.client.post<{
+				success: boolean;
+				message: string;
+			}>("/agents/request_stop_agent", { execution_id: executionId });
+			return response.data;
+		} catch (error) {
+			logger.error(
+				{ executionId, error },
+				"Failed to stop agent execution in LLM Service",
+			);
+			throw error;
+		}
+	}
+}
+
+// ============================================================================
+// Execution Message Types (from poll endpoint)
+// ============================================================================
+
+export interface AgentExecutionMessage {
+	id: number;
+	eid: string;
+	execution_id: string;
+	role: string;
+	event_type: string;
+	content: Record<string, unknown>;
+	tenant: string | null;
+	sys_date_created: string;
+	display_value?: string;
 }

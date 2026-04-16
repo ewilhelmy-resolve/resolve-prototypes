@@ -3,8 +3,9 @@ import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import i18n from "@/i18n";
-import { credentialErrorI18nKey } from "../components/connection-sources/utils";
+import { errorI18nKey } from "../components/connection-sources/utils";
 import { ritaToast } from "../components/custom/rita-toast";
+import { agentKeys } from "../hooks/api/useAgents";
 import { type FileDocument, fileKeys } from "../hooks/api/useFiles";
 import { memberKeys } from "../hooks/api/useMembers";
 import { profileKeys } from "../hooks/api/useProfile";
@@ -13,9 +14,13 @@ import { clusterKeys } from "../hooks/useClusters";
 import { dataSourceKeys, ingestionRunKeys } from "../hooks/useDataSources";
 import { useSSE } from "../hooks/useSSE";
 import type { SSEEvent } from "../services/EventSourceSSEClient";
+import { useAgentCreationStore } from "../stores/agentCreationStore";
+import { useAgentTestStore } from "../stores/agentTestStore";
+import { useConversationStarterGenerationStore } from "../stores/conversationStarterGenerationStore";
 import type { Message } from "../stores/conversationStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { useFeatureFlagsStore } from "../stores/feature-flags-store";
+import { useInstructionsImprovementStore } from "../stores/instructionsImprovementStore";
 import { useKnowledgeGenerationStore } from "../stores/knowledgeGenerationStore";
 import {
 	DEFAULT_MINIMUM_TICKETS,
@@ -133,7 +138,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 				addMessage(newMessage);
 
 				// Interrupt form modals (interrupt=true) are triggered by
-				// ChatV1Content's SimpleMessage component on render via triggerHostModal().
+				// InterruptFormDialog on render via triggerHostModal().
 				// That handles all tiers: same-origin injection, cross-origin ACK, and
 				// in-iframe Dialog fallback.
 			} else if (event.type === "data_source_update") {
@@ -157,14 +162,16 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					event.data.last_verification_error
 				) {
 					const connectionType = event.data.connection_type || "Data source";
+					const verifyError = event.data.last_verification_error;
+					const verifyI18nKey = verifyError ? errorI18nKey(verifyError) : null;
 					ritaToast.error({
 						title: i18n.t("error.verificationFailed", {
 							type: connectionType,
 							ns: "toast",
 						}),
-						description:
-							event.data.last_verification_error ||
-							"Failed to verify connection",
+						description: verifyI18nKey
+							? i18n.t(verifyI18nKey, { ns: "connections" })
+							: verifyError || "Failed to verify connection",
 						action: {
 							label: "View",
 							onClick: () => navigate("/settings/connections"),
@@ -190,9 +197,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 						});
 					} else if (syncStatus === "failed") {
 						const syncError = event.data.last_sync_error;
-						const credI18nKey = syncError
-							? credentialErrorI18nKey(syncError)
-							: null;
+						const credI18nKey = syncError ? errorI18nKey(syncError) : null;
 						const description = credI18nKey
 							? i18n.t(credI18nKey, { ns: "connections" })
 							: syncError || "An error occurred";
@@ -454,6 +459,10 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					queryClient.invalidateQueries({
 						queryKey: ingestionRunKeys.latest(event.data.connection_id),
 					});
+					// Refresh connections list so "last synced" updates
+					queryClient.invalidateQueries({
+						queryKey: dataSourceKeys.list(),
+					});
 
 					if (event.data.status === "completed") {
 						// Refresh ticket dashboard data (clusters, totals, counts)
@@ -496,7 +505,7 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 								}),
 							});
 						} else if (event.data.error_message) {
-							const credKey = credentialErrorI18nKey(event.data.error_message);
+							const credKey = errorI18nKey(event.data.error_message);
 							if (credKey) {
 								ritaToast.error({
 									title: i18n.t("syncError.credentialFailedTitle", {
@@ -558,6 +567,132 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					detail: event.data,
 				});
 				window.dispatchEvent(workflowEvent);
+			} else if (event.type === "agent_creation_progress") {
+				const store = useAgentCreationStore.getState();
+				if (event.data.creation_id === store.creationId) {
+					store.receiveProgress({
+						stepType: event.data.step_type,
+						stepLabel: event.data.step_label,
+						stepDetail: event.data.step_detail,
+						stepIndex: event.data.step_index,
+						totalSteps: event.data.total_steps,
+						timestamp: event.data.timestamp,
+					});
+				}
+			} else if (event.type === "agent_creation_input_required") {
+				const store = useAgentCreationStore.getState();
+				if (event.data.creation_id === store.creationId) {
+					store.receiveInputRequired(
+						event.data.message,
+						event.data.execution_id,
+					);
+				}
+			} else if (event.type === "agent_creation_completed") {
+				const store = useAgentCreationStore.getState();
+				if (event.data.creation_id === store.creationId) {
+					store.receiveResult({
+						agentId: event.data.agent_id,
+						agentName: event.data.agent_name,
+					});
+					queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
+				}
+			} else if (event.type === "agent_creation_failed") {
+				const store = useAgentCreationStore.getState();
+				if (event.data.creation_id === store.creationId) {
+					store.receiveError(event.data.error || "Agent creation failed");
+				}
+			} else if (event.type === "meta_agent_progress") {
+				const instructionsStore = useInstructionsImprovementStore.getState();
+				const startersStore = useConversationStarterGenerationStore.getState();
+
+				const progressStep = {
+					stepType: "meta_agent_progress",
+					stepLabel: event.data.step_label,
+					stepDetail: event.data.step_detail,
+					timestamp: event.data.timestamp,
+				};
+
+				if (
+					event.data.execution_request_id === instructionsStore.improvementId
+				) {
+					instructionsStore.receiveProgress(progressStep);
+				} else if (
+					event.data.execution_request_id === startersStore.generationId
+				) {
+					startersStore.receiveProgress(progressStep);
+				} else {
+					const agentTestStore = useAgentTestStore.getState();
+					if (
+						event.data.execution_request_id ===
+						agentTestStore.executionRequestId
+					) {
+						agentTestStore.receiveProgress(progressStep);
+					}
+				}
+			} else if (event.type === "meta_agent_completed") {
+				const instructionsStore = useInstructionsImprovementStore.getState();
+				const startersStore = useConversationStarterGenerationStore.getState();
+				const agentTestStore = useAgentTestStore.getState();
+
+				if (
+					event.data.execution_request_id === instructionsStore.improvementId
+				) {
+					// Parse the delimited content on client side
+					const content = event.data.content || "";
+					const instructionsMatch = content.match(
+						/---INSTRUCTIONS---\s*([\s\S]*?)\s*---END_INSTRUCTIONS---/,
+					);
+					if (instructionsMatch) {
+						instructionsStore.receiveResult({
+							instructions: instructionsMatch[1].trim(),
+						});
+					} else {
+						instructionsStore.receiveError(
+							"Failed to parse improved instructions from response",
+						);
+					}
+				} else if (
+					event.data.execution_request_id === startersStore.generationId
+				) {
+					const content = event.data.content || "";
+					const starters = content
+						.split(", ")
+						.map((s: string) => s.trim())
+						.filter(Boolean);
+					if (starters.length > 0) {
+						startersStore.receiveResult({ starters });
+					} else {
+						startersStore.receiveError("No conversation starters generated");
+					}
+				} else if (
+					event.data.execution_request_id === agentTestStore.executionRequestId
+				) {
+					agentTestStore.receiveResult(event.data.content || "");
+				}
+			} else if (event.type === "meta_agent_failed") {
+				const instructionsStore = useInstructionsImprovementStore.getState();
+				const startersStore = useConversationStarterGenerationStore.getState();
+				const agentTestStore = useAgentTestStore.getState();
+
+				if (
+					event.data.execution_request_id === instructionsStore.improvementId
+				) {
+					instructionsStore.receiveError(
+						event.data.error || "Failed to improve instructions",
+					);
+				} else if (
+					event.data.execution_request_id === startersStore.generationId
+				) {
+					startersStore.receiveError(
+						event.data.error || "Failed to generate conversation starters",
+					);
+				} else if (
+					event.data.execution_request_id === agentTestStore.executionRequestId
+				) {
+					agentTestStore.receiveError(
+						event.data.error || "Agent execution failed",
+					);
+				}
 			}
 			// Note: ui_form_request events are now handled via new_message with metadata.type = 'ui_form_request'
 			// The form request detection happens in the new_message handler above

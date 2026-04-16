@@ -1,4 +1,20 @@
 {
+	"createWithAI": {
+		"button": "Create with AI",
+		"creating": "Creating your agent...",
+		"creatingDescription": "AI is building your agent configuration",
+		"success": "Agent created successfully!",
+		"successDescription": "Your agent \"{{agentName}}\" is ready",
+		"editAgent": "Edit agent",
+		"testAgent": "Test agent",
+		"error": "Failed to create agent",
+		"errorDefault": "An unexpected error occurred. Please try again.",
+		"tryAgain": "Try again",
+		"cancel": "Cancel",
+		"awaitingInput": "Additional information needed",
+		"inputPlaceholder": "Type your response...",
+		"send": "Send"
+	},
 	"deleteModal": {
 		"title": "Delete \"{{agentName}}\"?",
 		"descriptionPublished": "This action cannot be undone.",
@@ -124,13 +140,15 @@
 			"expandInstructions": "Expand instructions",
 			"conversationStartersLabel": "Conversation starters",
 			"conversationStartersDescription": "Suggested prompts shown to users when starting a conversation",
-			"conversationStarterPlaceholder": "Type and press Enter to add...",
+			"conversationStarterPlaceholder": "Type and press Enter or comma to add...",
 			"guardrailsLabel": "Guardrails",
 			"guardrailsDescription": "Topics or requests the agent should NOT handle",
 			"addGuardrail": "Add a guardrail",
 			"guardrailPlaceholder": "e.g., HR policy questions",
 			"addGuardrailButton": "Add guardrail",
-			"removeStarter": "Remove {{starter}}"
+			"removeStarter": "Remove {{starter}}",
+			"improve": "Improve",
+			"generate": "Generate"
 		},
 		"configChanges": {
 			"name": "Name",
@@ -279,7 +297,8 @@
 	},
 	"instructionsModal": {
 		"hint": "Update instructions as needed",
-		"done": "Done"
+		"done": "Done",
+		"improve": "Improve"
 	},
 	"publishModal": {
 		"title": "Publish agent",

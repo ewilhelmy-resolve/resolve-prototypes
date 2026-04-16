@@ -110,3 +110,89 @@ export function useDeleteAgent() {
 		},
 	});
 }
+
+export function useGenerateAgent() {
+	return useMutation({
+		mutationFn: (data: {
+			name: string;
+			description?: string;
+			instructions?: string;
+			iconId?: string;
+			iconColorId?: string;
+			conversationStarters?: string[];
+			guardrails?: string[];
+		}) => agentApi.generate(data),
+	});
+}
+
+export function useAgentCreationInput() {
+	return useMutation({
+		mutationFn: (data: {
+			creationId: string;
+			prevExecutionId: string;
+			prompt: string;
+		}) => agentApi.sendCreationInput(data),
+	});
+}
+
+export function useCancelAgentCreation() {
+	return useMutation({
+		mutationFn: (data: { creationId: string }) => agentApi.cancelCreation(data),
+	});
+}
+
+export function useImproveInstructionsMutation() {
+	return useMutation({
+		mutationFn: (data: {
+			instructions: string;
+			agentConfig: {
+				name?: string;
+				role?: string;
+				description?: string;
+				agentType?: string | null;
+				guardrails?: string[];
+				conversationStarters?: string[];
+				workflows?: string[];
+				knowledgeSources?: string[];
+				capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+				responsibilities?: string;
+				completionCriteria?: string;
+			};
+		}) => agentApi.improveInstructions(data),
+	});
+}
+
+export function useGenerateConversationStartersMutation() {
+	return useMutation({
+		mutationFn: (data: {
+			agentConfig: {
+				name?: string;
+				role?: string;
+				description?: string;
+				instructions?: string;
+				agentType?: string | null;
+				guardrails?: string[];
+				conversationStarters?: string[];
+				workflows?: string[];
+				knowledgeSources?: string[];
+				capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+				responsibilities?: string;
+				completionCriteria?: string;
+			};
+		}) => agentApi.generateConversationStarters(data),
+	});
+}
+
+export function useExecuteAgent() {
+	return useMutation({
+		mutationFn: ({
+			eid,
+			message,
+			transcript,
+		}: {
+			eid: string;
+			message: string;
+			transcript?: string;
+		}) => agentApi.execute(eid, { message, transcript }),
+	});
+}

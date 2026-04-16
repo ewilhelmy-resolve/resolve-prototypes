@@ -13,6 +13,7 @@ import {
 import ConnectionsForm from "../form-elements/ConnectionsForm";
 import FormField from "../form-elements/FormField";
 import FormSection from "../form-elements/FormSection";
+import { errorI18nKey } from "../utils";
 
 export interface FreshserviceFormData {
 	domain: string;
@@ -38,6 +39,12 @@ export function FreshserviceForm({
 
 	const verificationError = source.backendData?.last_verification_error;
 	const verificationFailed = !!verificationError;
+	const verificationI18nKey = verificationError
+		? errorI18nKey(verificationError)
+		: null;
+	const verificationDescription = verificationI18nKey
+		? t(verificationI18nKey)
+		: verificationError;
 
 	const {
 		register,
@@ -119,7 +126,7 @@ export function FreshserviceForm({
 						<p className="font-semibold">
 							{t("form.alerts.verificationFailed")}
 						</p>
-						<p>{verificationError}</p>
+						<p>{verificationDescription}</p>
 						<p className="text-sm mt-2">{t("form.alerts.checkCredentials")}</p>
 					</StatusAlert>
 				)}

@@ -176,6 +176,12 @@ export async function syncProviderData(
 			"Cleaned up existing tickets and clusters",
 		);
 
+		// Deactivate existing ml_models before creating the new one
+		await client.query(
+			`UPDATE ml_models SET active = false, updated_at = NOW() WHERE organization_id = $1 AND active = true`,
+			[organizationId],
+		);
+
 		// Create/update ml_model
 		const externalModelId = `${config.externalModelIdPrefix}${organizationId.substring(0, 8)}`;
 		const modelMetadata = JSON.stringify({ training_state: initialState });

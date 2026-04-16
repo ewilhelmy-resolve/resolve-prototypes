@@ -54,6 +54,22 @@ vi.mock("../../config/logger.js", () => ({
 		warn: vi.fn(),
 		debug: vi.fn(),
 	},
+	dbLogger: {
+		info: vi.fn(),
+		error: vi.fn(),
+		warn: vi.fn(),
+		debug: vi.fn(),
+		fatal: vi.fn(),
+	},
+}));
+
+vi.mock("../../services/agentCreation/index.js", () => ({
+	getAgentCreationStrategy: vi.fn(),
+}));
+
+vi.mock("../../config/database.js", () => ({
+	pool: { query: vi.fn() },
+	withOrgContext: vi.fn(),
 }));
 
 vi.mock("../../middleware/auth.js", () => ({

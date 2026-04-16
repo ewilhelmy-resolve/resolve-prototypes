@@ -306,7 +306,9 @@ export default function AgentsPage() {
 							</div>
 						) : agentsError ? (
 							<div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-								{t("list.error")}
+								{agentsError instanceof Error
+									? agentsError.message
+									: t("list.error")}
 							</div>
 						) : (
 							<InfiniteScrollContainer

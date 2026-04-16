@@ -1,4 +1,20 @@
 {
+	"createWithAI": {
+		"button": "Crear con IA",
+		"creating": "Creando tu agente...",
+		"creatingDescription": "La IA está construyendo la configuración de tu agente",
+		"success": "Agente creado exitosamente!",
+		"successDescription": "Tu agente \"{{agentName}}\" está listo",
+		"editAgent": "Editar agente",
+		"testAgent": "Probar agente",
+		"error": "Error al crear el agente",
+		"errorDefault": "Ocurrió un error inesperado. Por favor intenta de nuevo.",
+		"tryAgain": "Intentar de nuevo",
+		"cancel": "Cancelar",
+		"awaitingInput": "Se necesita informacion adicional",
+		"inputPlaceholder": "Escribe tu respuesta...",
+		"send": "Enviar"
+	},
 	"deleteModal": {
 		"title": "Eliminar \"{{agentName}}\"?",
 		"descriptionPublished": "Esta acción no se puede deshacer.",
@@ -124,13 +140,15 @@
 			"expandInstructions": "Expandir instrucciones",
 			"conversationStartersLabel": "Inicios de conversación",
 			"conversationStartersDescription": "Sugerencias de mensajes que se muestran a los usuarios al iniciar una conversación",
-			"conversationStarterPlaceholder": "Escribe y presiona Enter para agregar...",
+			"conversationStarterPlaceholder": "Escribe y presiona Enter o coma para agregar...",
 			"guardrailsLabel": "Restricciones",
 			"guardrailsDescription": "Temas o solicitudes que el agente NO debe manejar",
 			"addGuardrail": "Agregar una restricción",
 			"guardrailPlaceholder": "ej., Preguntas sobre políticas de RR.HH.",
 			"addGuardrailButton": "Agregar restricción",
-			"removeStarter": "Eliminar {{starter}}"
+			"removeStarter": "Eliminar {{starter}}",
+			"improve": "Mejorar",
+			"generate": "Generar"
 		},
 		"configChanges": {
 			"name": "Nombre",
@@ -279,7 +297,8 @@
 	},
 	"instructionsModal": {
 		"hint": "Actualiza las instrucciones según sea necesario",
-		"done": "Listo"
+		"done": "Listo",
+		"improve": "Mejorar"
 	},
 	"publishModal": {
 		"title": "Publicar agente",

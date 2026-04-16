@@ -342,6 +342,7 @@ router.get("/", authenticateUser, async (req, res) => {
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
+				// RLS filters to owner's conversations + participated conversations
 				const conversationsResult = await client.query(
 					`
           SELECT
@@ -349,10 +350,11 @@ router.get("/", authenticateUser, async (req, res) => {
             c.title,
             c.created_at,
             c.updated_at,
-            up.email as user_email
+            up.email as user_email,
+            (c.user_id = $2) as is_owner
           FROM conversations c
           LEFT JOIN user_profiles up ON c.user_id = up.user_id
-          WHERE c.organization_id = $1 AND c.user_id = $2
+          WHERE c.organization_id = $1
           ORDER BY c.updated_at DESC
           LIMIT $3 OFFSET $4
         `,
@@ -360,8 +362,8 @@ router.get("/", authenticateUser, async (req, res) => {
 				);
 
 				const countResult = await client.query(
-					"SELECT COUNT(*) as total FROM conversations WHERE organization_id = $1 AND user_id = $2",
-					[authReq.user.activeOrganizationId, authReq.user.id],
+					"SELECT COUNT(*) as total FROM conversations WHERE organization_id = $1",
+					[authReq.user.activeOrganizationId],
 				);
 
 				return {
@@ -396,24 +398,37 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
-				// First, verify the conversation belongs to the organization AND user
-				const convCheck = await client.query(
-					"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+				// Verify access to conversation (RLS handles owner OR participant).
+				// Also determine the participant's cursor (added_at) if not owner.
+				const accessCheck = await client.query(
+					`SELECT c.id, c.user_id,
+						(c.user_id = $3) AS is_owner,
+						cp.added_at AS participant_since
+					 FROM conversations c
+					 LEFT JOIN conversation_participants cp
+						ON cp.conversation_id = c.id AND cp.user_id = $3
+					 WHERE c.id = $1 AND c.organization_id = $2`,
 					[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
 				);
 
-				if (convCheck.rows.length === 0) {
+				if (accessCheck.rows.length === 0) {
 					return null; // Will result in a 404
 				}
 
+				const { is_owner, participant_since } = accessCheck.rows[0];
+
 				// Build query with cursor-based pagination
-				// If 'before' cursor is provided, fetch older messages before that timestamp
-				// Otherwise, fetch the most recent messages (initial load)
+				// Participants only see messages from their added_at timestamp forward
 				let messagesQuery: string;
 				let queryParams: any[];
 
+				// Participant cursor: only see messages from added_at forward
+				// Use a very old date for owners (effectively no filter)
+				const messageFloor = is_owner
+					? new Date(0)
+					: new Date(participant_since);
+
 				if (before) {
-					// Pagination: fetch older messages before the cursor
 					messagesQuery = `
             SELECT
               m.id,
@@ -432,6 +447,7 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
             WHERE m.conversation_id = $1
               AND m.organization_id = $2
               AND m.created_at < $3
+              AND m.created_at >= $5
             ORDER BY m.created_at DESC, m.id DESC
             LIMIT $4
           `;
@@ -440,9 +456,9 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
 						authReq.user.activeOrganizationId,
 						before,
 						limit + 1,
+						messageFloor,
 					];
 				} else {
-					// Initial load: fetch most recent messages
 					messagesQuery = `
             SELECT
               m.id,
@@ -459,6 +475,7 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
             FROM messages m
             LEFT JOIN user_profiles up ON m.user_id = up.user_id
             WHERE m.conversation_id = $1 AND m.organization_id = $2
+              AND m.created_at >= $4
             ORDER BY m.created_at DESC, m.id DESC
             LIMIT $3
           `;
@@ -466,6 +483,7 @@ router.get("/:conversationId/messages", authenticateUser, async (req, res) => {
 						conversationId,
 						authReq.user.activeOrganizationId,
 						limit + 1,
+						messageFloor,
 					];
 				}
 
@@ -515,10 +533,10 @@ router.post("/:conversationId/messages", authenticateUser, async (req, res) => {
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
-				// Verify the conversation exists and belongs to the organization AND user
+				// Verify the conversation exists and user has access (owner or participant via RLS)
 				const convCheck = await client.query(
-					"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
-					[conversationId, authReq.user.activeOrganizationId, authReq.user.id],
+					"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2",
+					[conversationId, authReq.user.activeOrganizationId],
 				);
 
 				if (convCheck.rows.length === 0) {
@@ -813,5 +831,182 @@ router.delete("/:conversationId", authenticateUser, async (req, res) => {
 		res.status(500).json({ error: "Failed to delete conversation" });
 	}
 });
+
+// =============================================================================
+// Participant Management
+// =============================================================================
+
+/**
+ * GET /api/conversations/:conversationId/participants
+ * List participants of a conversation. Available to owner and participants.
+ */
+router.get(
+	"/:conversationId/participants",
+	authenticateUser,
+	async (req, res) => {
+		try {
+			const authReq = req as AuthenticatedRequest;
+			const { conversationId } = req.params;
+
+			const result = await withOrgContext(
+				authReq.user.id,
+				authReq.user.activeOrganizationId,
+				async (client) => {
+					// RLS ensures only owner/participant can see the conversation
+					const convCheck = await client.query(
+						"SELECT id, user_id FROM conversations WHERE id = $1 AND organization_id = $2",
+						[conversationId, authReq.user.activeOrganizationId],
+					);
+					if (convCheck.rows.length === 0) return null;
+
+					const participants = await client.query(
+						`SELECT cp.user_id, cp.role, cp.added_at, up.email, up.first_name, up.last_name
+					 FROM conversation_participants cp
+					 LEFT JOIN user_profiles up ON cp.user_id = up.user_id
+					 WHERE cp.conversation_id = $1 AND cp.organization_id = $2
+					 ORDER BY cp.added_at ASC`,
+						[conversationId, authReq.user.activeOrganizationId],
+					);
+
+					return {
+						owner: convCheck.rows[0].user_id,
+						participants: participants.rows,
+					};
+				},
+			);
+
+			if (!result) {
+				return res.status(404).json({ error: "Conversation not found" });
+			}
+			return res.json(result);
+		} catch (error) {
+			console.error("Error listing participants:", error);
+			return res.status(500).json({ error: "Failed to list participants" });
+		}
+	},
+);
+
+/**
+ * POST /api/conversations/:conversationId/participants
+ * Add a participant to a conversation. Owner only.
+ * Body: { userId: string }
+ */
+router.post(
+	"/:conversationId/participants",
+	authenticateUser,
+	async (req, res) => {
+		try {
+			const authReq = req as AuthenticatedRequest;
+			const { conversationId } = req.params;
+			const { userId } = req.body || {};
+
+			if (!userId || typeof userId !== "string") {
+				return res.status(400).json({ error: "userId is required" });
+			}
+
+			const result = await withOrgContext(
+				authReq.user.id,
+				authReq.user.activeOrganizationId,
+				async (client) => {
+					// Only the owner can add participants
+					const convCheck = await client.query(
+						"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+						[
+							conversationId,
+							authReq.user.activeOrganizationId,
+							authReq.user.id,
+						],
+					);
+					if (convCheck.rows.length === 0) return { error: "not_owner" };
+
+					// Verify target user exists in the same org
+					const userCheck = await client.query(
+						"SELECT user_id FROM organization_members WHERE user_id = $1 AND organization_id = $2",
+						[userId, authReq.user.activeOrganizationId],
+					);
+					if (userCheck.rows.length === 0) return { error: "user_not_found" };
+
+					// Insert participant (ON CONFLICT = already a participant, no-op)
+					await client.query(
+						`INSERT INTO conversation_participants (conversation_id, user_id, organization_id, role)
+					 VALUES ($1, $2, $3, 'participant')
+					 ON CONFLICT (conversation_id, user_id) DO NOTHING`,
+						[conversationId, userId, authReq.user.activeOrganizationId],
+					);
+
+					return { success: true };
+				},
+			);
+
+			if (!result || result.error === "not_owner") {
+				return res.status(404).json({ error: "Conversation not found" });
+			}
+			if (result.error === "user_not_found") {
+				return res
+					.status(400)
+					.json({ error: "User not found in this organization" });
+			}
+
+			// TODO: Send event to Platform via sendEvent API
+			// webhookService.sendEvent({ type: "participant_added", conversationId, userId })
+
+			return res.status(201).json({ success: true });
+		} catch (error) {
+			console.error("Error adding participant:", error);
+			return res.status(500).json({ error: "Failed to add participant" });
+		}
+	},
+);
+
+/**
+ * DELETE /api/conversations/:conversationId/participants/:userId
+ * Remove a participant from a conversation. Owner only.
+ */
+router.delete(
+	"/:conversationId/participants/:userId",
+	authenticateUser,
+	async (req, res) => {
+		try {
+			const authReq = req as AuthenticatedRequest;
+			const { conversationId, userId } = req.params;
+
+			const result = await withOrgContext(
+				authReq.user.id,
+				authReq.user.activeOrganizationId,
+				async (client) => {
+					// Only the owner can remove participants
+					const convCheck = await client.query(
+						"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+						[
+							conversationId,
+							authReq.user.activeOrganizationId,
+							authReq.user.id,
+						],
+					);
+					if (convCheck.rows.length === 0) return { error: "not_owner" };
+
+					const deleteResult = await client.query(
+						"DELETE FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2 AND organization_id = $3",
+						[conversationId, userId, authReq.user.activeOrganizationId],
+					);
+
+					return { deleted: deleteResult.rowCount > 0 };
+				},
+			);
+
+			if (!result || result.error === "not_owner") {
+				return res.status(404).json({ error: "Conversation not found" });
+			}
+
+			// TODO: Send event to Platform via sendEvent API
+			// webhookService.sendEvent({ type: "participant_removed", conversationId, userId })
+
+			return res.json({ success: true });
+		} catch (error) {
+			console.error("Error removing participant:", error);
+			return res.status(500).json({ error: "Failed to remove participant" });
+		}
+	},
+);
 
 export default router;

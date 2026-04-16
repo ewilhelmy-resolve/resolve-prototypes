@@ -290,6 +290,25 @@ Body: { execution_id: string, tenant?: string, sys_updated_by?: string }
 
 ---
 
+## Agent Selection (`/agents/select-agent`)
+
+### Select best matching agent
+```
+POST /agents/select-agent
+Body: {
+  parameters?: Record<string, any>,
+  tool_name?: string,
+  prompt_name?: string,
+  verbose?: boolean,
+  reference_id?: string,
+  tenant?: string
+}
+→ { success: boolean, selected_agent?: object }
+```
+Selects the best matching agent based on provided criteria (parameters, tool name, prompt name).
+
+---
+
 ## Agent Messages (`/agents/messages`)
 
 ### Create message

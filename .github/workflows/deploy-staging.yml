@@ -251,6 +251,7 @@ jobs:
                    ROLLBAR_HASH_SALT: ${{ secrets.ROLLBAR_HASH_SALT }}
                    LLM_SERVICE_URL: ${{ secrets.STAGING_LLM_SERVICE_URL }}
                    LLM_SERVICE_API_KEY: ${{ secrets.STAGING_LLM_SERVICE_API_KEY }}
+                   LLM_SERVICE_DB_TENANT: ${{ secrets.STAGING_LLM_SERVICE_DB_TENANT }}
                  healthcheck:
                    test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
                    interval: 30s

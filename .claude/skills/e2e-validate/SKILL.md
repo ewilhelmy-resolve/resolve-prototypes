@@ -182,7 +182,6 @@ Browser → /settings/connections/itsm (client)
 | `ENABLE_FRESHSERVICE` | Freshservice ITSM in connection sources |
 | `ENABLE_TICKETS_V2` | New cluster-based tickets UI |
 | `ENABLE_WORKFLOWS` | Workflow builder (JIRITA) |
-| `ENABLE_MULTI_FILE_UPLOAD` | Multi-file upload in chat and files |
 | `ENABLE_LANGUAGE_SWITCHER` | EN/ES-MX language dropdown in header |
 | `ENABLE_EXPERIMENTAL_FEATURES` | Experimental features |
 | `SHOW_WELCOME_MODAL` | Force welcome modal to show |

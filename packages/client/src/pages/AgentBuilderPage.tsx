@@ -17,7 +17,6 @@ import {
 	Check,
 	ChevronDown,
 	Clock,
-	HelpCircle,
 	Key,
 	Loader2,
 	Lock,
@@ -27,6 +26,7 @@ import {
 	Search,
 	// Icon picker icons
 	ShieldCheck,
+	Sparkles,
 	Trash2,
 	Users,
 	Workflow,
@@ -38,9 +38,11 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
 	AddSkillModal,
+	AgentCreationOverlay,
 	ChangeAgentTypeModal,
 	ConfirmTypeChangeModal,
 	CreateWorkflowModal,
+	ImproveInstructionsDialog,
 	InstructionsExpandedModal,
 	PublishModal,
 	UnlinkWorkflowModal,
@@ -59,17 +61,24 @@ import {
 	useCreateAgent,
 	useUpdateAgent,
 } from "@/hooks/api/useAgents";
+import { useAgentCreation } from "@/hooks/useAgentCreation";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useGenerateConversationStarters } from "@/hooks/useGenerateConversationStarters";
+import { useImproveInstructions } from "@/hooks/useImproveInstructions";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { agentApi } from "@/services/api";
+import { useAgentCreationStore } from "@/stores/agentCreationStore";
 import type {
 	AgentConfig,
 	BuilderMessage,
 	ConversationStep,
 	DebugTraceStep,
 } from "@/types/agent";
+
+const MAX_CONVERSATION_STARTERS = 20;
 
 // Available skills for the Add Skill modal
 // linkedAgent: null = available, string = name of agent using this skill
@@ -311,7 +320,7 @@ export default function AgentBuilderPage() {
 		}
 	}, [savedAgent, hasLoadedFromApi, isDuplicate, initialConfig]);
 
-	const [isCreatingDraft, setIsCreatingDraft] = useState(false);
+	// isCreatingDraft removed — creation now uses async AI flow
 
 	// Debounced name uniqueness check
 	const debouncedName = useDebounce(config.name, 300);
@@ -381,6 +390,46 @@ export default function AgentBuilderPage() {
 	// Publish modal state
 	const [showPublishModal, setShowPublishModal] = useState(false);
 	const [showUnpublishModal, setShowUnpublishModal] = useState(false);
+
+	// Create with AI
+	const agentCreation = useAgentCreation();
+	const isCreationActive = agentCreation.status !== "idle";
+
+	// Improve instructions with AI
+	const improveInstructions = useImproveInstructions();
+	const [showImproveDialog, setShowImproveDialog] = useState(false);
+
+	// Generate conversation starters with AI
+	const generateStarters = useGenerateConversationStarters();
+
+	// Apply generated conversation starters when they arrive
+	useEffect(() => {
+		if (
+			generateStarters.status === "success" &&
+			generateStarters.generatedStarters
+		) {
+			const starters = generateStarters.generatedStarters;
+			setConfig((prev) => {
+				const existing = prev.conversationStarters;
+				const newOnes = starters.filter((s) => !existing.includes(s));
+				const availableSlots = MAX_CONVERSATION_STARTERS - existing.length;
+				const toAdd = newOnes.slice(0, availableSlots);
+				if (toAdd.length === 0) return prev;
+				return {
+					...prev,
+					conversationStarters: [...existing, ...toAdd],
+				};
+			});
+			generateStarters.reset();
+		} else if (generateStarters.status === "error") {
+			toast.error("Failed to generate conversation starters");
+			generateStarters.reset();
+		}
+	}, [
+		generateStarters.status,
+		generateStarters.generatedStarters,
+		generateStarters.reset,
+	]);
 
 	// Track the original published config for diff comparison (only for editing)
 	const publishedConfigRef = useRef<AgentConfig | null>(null);
@@ -625,26 +674,7 @@ export default function AgentBuilderPage() {
 		navigate("/agents");
 	};
 
-	const handleCreate = async () => {
-		if (!config.name.trim() || nameTaken) return;
-		setIsCreatingDraft(true);
-		try {
-			const created = await createAgent.mutateAsync({
-				name: config.name,
-				status: "draft",
-			});
-			if (created.id) {
-				navigate(`/agents/${created.id}`, {
-					replace: true,
-					state: { initialConfig: config },
-				});
-			}
-		} catch {
-			toast.error(t("builder.failedToCreate"));
-		} finally {
-			setIsCreatingDraft(false);
-		}
-	};
+	// handleCreate removed — "Create agent" now uses agentCreation.create() (AI flow)
 
 	const handlePublish = () => {
 		// Show publish confirmation modal
@@ -824,29 +854,30 @@ export default function AgentBuilderPage() {
 					)}
 				</div>
 				<div className="flex items-center gap-2">
-					<Button variant="outline" className="gap-2">
-						<HelpCircle className="size-4" />
-						{t("builder.howItWorks")}
-					</Button>
-					<Button
-						variant="outline"
-						className="gap-2"
-						onClick={() =>
-							navigate(agentEid ? `/agents/${agentEid}/test` : "/agents/test", {
-								state: { agentConfig: config },
-							})
-						}
-						disabled={
-							!config.name ||
-							config.name === "my agent" ||
-							(!config.description &&
-								!config.instructions &&
-								!config.conversationStarters.some((s) => s.trim()))
-						}
-					>
-						<Play className="size-4" />
-						{t("builder.test")}
-					</Button>
+					{(isEditing || agentEid) && (
+						<Button
+							variant="outline"
+							className="gap-2"
+							onClick={() =>
+								navigate(
+									agentEid ? `/agents/${agentEid}/test` : "/agents/test",
+									{
+										state: { agentConfig: config },
+									},
+								)
+							}
+							disabled={
+								!config.name ||
+								config.name === "my agent" ||
+								(!config.description &&
+									!config.instructions &&
+									!config.conversationStarters.some((s) => s.trim()))
+							}
+						>
+							<Play className="size-4" />
+							{t("builder.test")}
+						</Button>
+					)}
 					{isPublished ? (
 						<>
 							<Button
@@ -869,10 +900,27 @@ export default function AgentBuilderPage() {
 						</>
 					) : !isEditing && !agentEid ? (
 						<Button
-							onClick={handleCreate}
-							disabled={!config.name.trim() || nameTaken || isCreatingDraft}
+							onClick={() => {
+								agentCreation.create({
+									name: config.name,
+									description: config.description,
+									instructions: config.instructions,
+									iconId: config.iconId,
+									iconColorId: config.iconColorId,
+									conversationStarters: config.conversationStarters,
+									guardrails: config.guardrails.filter((g) => g.trim()),
+								});
+							}}
+							disabled={
+								!config.name.trim() ||
+								!config.instructions.trim() ||
+								nameTaken ||
+								agentCreation.isCreating
+							}
 						>
-							{isCreatingDraft && <Loader2 className="size-4 animate-spin" />}
+							{agentCreation.isCreating && (
+								<Loader2 className="size-4 animate-spin" />
+							)}
 							{t("builder.createAgent")}
 						</Button>
 					) : (
@@ -888,532 +936,667 @@ export default function AgentBuilderPage() {
 				</div>
 			</header>
 
-			{/* Main content */}
-			<div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
-				{/* Left panel - Configure/Access */}
-				<div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
-					{/* Configure content */}
-					<div className="flex-1 overflow-y-auto p-6">
-						<div className="max-w-2xl mx-auto space-y-8">
-							{/* Name of agent with icon picker */}
-							<div>
-								<Label htmlFor="agent-name" className="text-sm font-medium">
-									{t("builder.form.nameLabel")}
-								</Label>
-								<div className="flex items-start gap-4 mt-2">
-									<div className="flex-1">
+			{/* Main content — replaced by creation overlay when active */}
+			{isCreationActive ? (
+				<AgentCreationOverlay
+					status={agentCreation.status}
+					executionSteps={agentCreation.executionSteps}
+					inputMessage={agentCreation.inputMessage}
+					agentName={agentCreation.agentName}
+					agentId={agentCreation.agentId}
+					error={agentCreation.error}
+					onEditAgent={(id) => {
+						agentCreation.reset();
+						navigate(`/agents/${id}`);
+					}}
+					onTestAgent={(id) => {
+						agentCreation.reset();
+						navigate(`/agents/${id}/test`);
+					}}
+					onSendInput={(input) => {
+						if (agentCreation.creationId && agentCreation.executionId) {
+							agentApi.sendCreationInput({
+								creationId: agentCreation.creationId,
+								prevExecutionId: agentCreation.executionId,
+								prompt: input,
+							});
+							const store = useAgentCreationStore.getState();
+							store.resumeCreation();
+						}
+					}}
+					onRetry={() => {
+						agentCreation.reset();
+						agentCreation.create({
+							name: config.name,
+							description: config.description,
+							instructions: config.instructions,
+							iconId: config.iconId,
+							iconColorId: config.iconColorId,
+							conversationStarters: config.conversationStarters,
+							guardrails: config.guardrails.filter((g) => g.trim()),
+						});
+					}}
+					onCancel={() => {
+						agentCreation.reset();
+					}}
+				/>
+			) : (
+				<div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
+					{/* Left panel - Configure/Access */}
+					<div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
+						{/* Configure content */}
+						<div className="flex-1 overflow-y-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-8">
+								{/* Name of agent with icon picker */}
+								<div>
+									<Label htmlFor="agent-name" className="text-sm font-medium">
+										{t("builder.form.nameLabel")}
+									</Label>
+									<div className="flex items-start gap-4 mt-2">
+										<div className="flex-1">
+											<div className="relative">
+												<Input
+													id="agent-name"
+													value={config.name}
+													onChange={(e) => {
+														setConfig((prev) => ({
+															...prev,
+															name: e.target.value,
+														}));
+														if (!nameTouched) setNameTouched(true);
+													}}
+													onBlur={() => setNameTouched(true)}
+													placeholder={t("builder.form.namePlaceholder")}
+													aria-invalid={nameEmpty || nameTaken}
+													aria-describedby="builder-name-feedback"
+												/>
+												{isCheckingName && config.name.trim() && (
+													<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+												)}
+											</div>
+											<div
+												id="builder-name-feedback"
+												aria-live="polite"
+												className="min-h-5 mt-1"
+											>
+												{nameEmpty && (
+													<p className="text-sm text-destructive">
+														{t("builder.form.nameRequired")}
+													</p>
+												)}
+												{nameTaken && (
+													<p className="text-sm text-destructive">
+														{t("builder.form.nameTaken")}
+													</p>
+												)}
+												{nameAvailable && !nameEmpty && (
+													<p className="text-sm text-emerald-600 flex items-center gap-1">
+														<Check className="size-3.5" />
+														{t("builder.form.nameAvailable")}
+													</p>
+												)}
+											</div>
+										</div>
+										{/* Icon picker button */}
+										<div
+											ref={iconPickerRef}
+											className="relative flex items-center"
+										>
+											<button
+												onClick={() => setShowIconPicker(!showIconPicker)}
+												className={cn(
+													"size-[38px] rounded-lg flex items-center justify-center transition-colors",
+													ICON_COLORS.find((c) => c.id === config.iconColorId)
+														?.bg || "bg-violet-200",
+												)}
+												aria-label={t("builder.iconPicker.changeIcon")}
+											>
+												{(() => {
+													const iconData = AVAILABLE_ICONS.find(
+														(i) => i.id === config.iconId,
+													);
+													const colorData = ICON_COLORS.find(
+														(c) => c.id === config.iconColorId,
+													);
+													const IconComponent = (iconData?.icon ||
+														Bot) as React.ElementType;
+													return (
+														<IconComponent
+															className={cn(
+																"size-6",
+																colorData?.text || "text-white",
+															)}
+														/>
+													);
+												})()}
+											</button>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="size-9"
+												onClick={() => setShowIconPicker(!showIconPicker)}
+											>
+												<ChevronDown className="size-4" />
+											</Button>
+
+											{/* Icon Picker Dropdown */}
+											{showIconPicker && (
+												<div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border z-50 p-4">
+													{/* Color selection */}
+													<div className="mb-4">
+														<p className="text-sm font-medium text-muted-foreground mb-2">
+															{t("builder.iconPicker.colorLabel")}
+														</p>
+														<div className="flex gap-2">
+															{ICON_COLORS.map((color) => (
+																<button
+																	key={color.id}
+																	onClick={() =>
+																		setConfig((prev) => ({
+																			...prev,
+																			iconColorId: color.id,
+																		}))
+																	}
+																	className={cn(
+																		"size-10 rounded-full transition-all",
+																		color.bg,
+																		config.iconColorId === color.id
+																			? "ring-2 ring-offset-2 ring-primary"
+																			: "hover:scale-110",
+																	)}
+																	aria-label={t(
+																		"builder.iconPicker.selectColor",
+																		{ color: color.id },
+																	)}
+																/>
+															))}
+														</div>
+													</div>
+
+													{/* Icon selection */}
+													<div>
+														<p className="text-sm font-medium text-muted-foreground mb-2">
+															{t("builder.iconPicker.iconLabel")}
+														</p>
+														<div className="relative mb-3">
+															<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+															<Input
+																placeholder={t(
+																	"builder.iconPicker.searchPlaceholder",
+																)}
+																value={iconSearchQuery}
+																onChange={(e) =>
+																	setIconSearchQuery(e.target.value)
+																}
+																className="pl-9"
+															/>
+														</div>
+														<div className="grid grid-cols-6 gap-1 max-h-[240px] overflow-y-auto">
+															{AVAILABLE_ICONS.filter((icon) => {
+																if (!iconSearchQuery) return true;
+																const query = iconSearchQuery.toLowerCase();
+																return (
+																	icon.id.includes(query) ||
+																	icon.keywords.some((k) => k.includes(query))
+																);
+															}).map((iconData) => {
+																const IconComponent =
+																	iconData.icon as React.ElementType;
+																return (
+																	<button
+																		key={iconData.id}
+																		onClick={() => {
+																			setConfig((prev) => ({
+																				...prev,
+																				iconId: iconData.id,
+																			}));
+																			setShowIconPicker(false);
+																			setIconSearchQuery("");
+																		}}
+																		className={cn(
+																			"size-10 rounded-lg flex items-center justify-center transition-colors",
+																			config.iconId === iconData.id
+																				? "bg-primary/10 text-primary"
+																				: "hover:bg-muted text-muted-foreground hover:text-foreground",
+																		)}
+																	>
+																		<IconComponent className="size-5" />
+																	</button>
+																);
+															})}
+														</div>
+													</div>
+												</div>
+											)}
+										</div>
+									</div>
+								</div>
+
+								{/* Description - Collapsible, only visible when editing */}
+								{isEditing &&
+									(!showDescription && !config.description?.trim() ? (
+										<button
+											onClick={() => setShowDescription(true)}
+											className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+										>
+											<Plus className="size-4" />
+											<span>{t("builder.form.addDescription")}</span>
+										</button>
+									) : (
+										<div>
+											<Label
+												htmlFor="agent-description"
+												className="text-sm font-medium"
+											>
+												{t("builder.form.descriptionLabel")}
+											</Label>
+											<Textarea
+												id="agent-description"
+												value={config.description}
+												onChange={(e) =>
+													setConfig((prev) => ({
+														...prev,
+														description: e.target.value,
+													}))
+												}
+												placeholder={t("builder.form.descriptionPlaceholder")}
+												className="mt-2 min-h-[60px] resize-none text-muted-foreground"
+												autoFocus={showDescription && !config.description}
+											/>
+										</div>
+									))}
+
+								{/* Skills Section */}
+								<div id="skills-section" className="space-y-2">
+									<div className="flex items-start justify-between">
+										<div>
+											<Label className="text-sm font-medium">
+												{t("builder.form.skillsLabel")}
+											</Label>
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.skillsDescription")}
+											</p>
+										</div>
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-8 gap-1.5"
+											onClick={() => setShowAddSkillModal(true)}
+										>
+											<Plus className="size-4" />
+											{t("builder.form.addSkill")}
+										</Button>
+									</div>
+
+									{config.workflows.length === 0 ? (
+										/* Empty state */
+										<button
+											onClick={() => setShowAddSkillModal(true)}
+											className="w-full border border-dashed rounded-lg py-6 px-4 text-center hover:border-muted-foreground/50 transition-colors"
+										>
+											<p className="text-sm font-medium">
+												{t("builder.form.addSkills")}
+											</p>
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.addSkillsDescription")}
+											</p>
+										</button>
+									) : (
+										/* Added skills list - Resolve Actions/Workflows use violet icons */
+										<div className="border rounded-md px-4 py-2">
+											<div className="space-y-1">
+												{config.workflows.map((workflow, index) => {
+													const skillData = AVAILABLE_SKILLS.find(
+														(s) => s.name === workflow,
+													);
+													const SkillIcon = skillData?.icon || Zap;
+													return (
+														<div
+															key={index}
+															className="flex items-center gap-2.5 py-1"
+														>
+															<div className="size-5 rounded flex items-center justify-center flex-shrink-0 bg-violet-200">
+																<SkillIcon className="size-3 text-foreground" />
+															</div>
+															<span className="text-xs flex-1">{workflow}</span>
+															<button
+																onClick={() => {
+																	const updated = config.workflows.filter(
+																		(_, i) => i !== index,
+																	);
+																	setConfig((prev) => ({
+																		...prev,
+																		workflows: updated,
+																	}));
+																}}
+																className="p-2 text-muted-foreground hover:text-foreground"
+															>
+																<X className="size-3" />
+															</button>
+														</div>
+													);
+												})}
+											</div>
+										</div>
+									)}
+								</div>
+
+								{/* Instructions Section */}
+								<div className="space-y-2">
+									<div className="flex items-center justify-between">
+										<div>
+											<Label
+												htmlFor="instructions"
+												className="text-sm font-medium"
+											>
+												{t("builder.form.instructionsLabel")}
+											</Label>
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.instructionsDescription")}
+											</p>
+										</div>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="gap-1.5 h-8"
+											disabled={
+												improveInstructions.status === "improving" ||
+												isCreationActive ||
+												(!config.instructions.trim() &&
+													!config.description.trim())
+											}
+											onClick={() => {
+												improveInstructions.improve({
+													name: config.name,
+													description: config.description,
+													instructions: config.instructions,
+													agentType: config.agentType,
+													workflows: config.workflows,
+													conversationStarters: config.conversationStarters,
+													guardrails: config.guardrails.filter((g) => g.trim()),
+													knowledgeSources: config.knowledgeSources,
+													capabilities: config.capabilities,
+												});
+												setShowImproveDialog(true);
+											}}
+										>
+											{improveInstructions.status === "improving" ? (
+												<Loader2 className="size-3.5 animate-spin" />
+											) : (
+												<Sparkles className="size-3.5" />
+											)}
+											{t("builder.form.improve")}
+										</Button>
+									</div>
+
+									{/* Instructions textarea with footer */}
+									<div className="border rounded-lg overflow-hidden">
 										<div className="relative">
-											<Input
-												id="agent-name"
-												value={config.name}
+											<Textarea
+												id="instructions"
+												value={config.instructions}
 												onChange={(e) => {
 													setConfig((prev) => ({
 														...prev,
-														name: e.target.value,
+														instructions: e.target.value,
 													}));
-													if (!nameTouched) setNameTouched(true);
+													if (!instructionsTouched)
+														setInstructionsTouched(true);
 												}}
-												onBlur={() => setNameTouched(true)}
-												placeholder={t("builder.form.namePlaceholder")}
-												aria-invalid={nameEmpty || nameTaken}
-												aria-describedby="builder-name-feedback"
+												onBlur={() => setInstructionsTouched(true)}
+												placeholder={
+													"## Role\n\n## Backstory\n\n## Goal\n\n## Task"
+												}
+												aria-invalid={instructionsError}
+												aria-describedby="instructions-feedback"
+												className="min-h-[80px] resize-y text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
 											/>
-											{isCheckingName && config.name.trim() && (
-												<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
-											)}
-										</div>
-										<div
-											id="builder-name-feedback"
-											aria-live="polite"
-											className="min-h-5 mt-1"
-										>
-											{nameEmpty && (
-												<p className="text-sm text-destructive">
-													{t("builder.form.nameRequired")}
-												</p>
-											)}
-											{nameTaken && (
-												<p className="text-sm text-destructive">
-													{t("builder.form.nameTaken")}
-												</p>
-											)}
-											{nameAvailable && !nameEmpty && (
-												<p className="text-sm text-emerald-600 flex items-center gap-1">
-													<Check className="size-3.5" />
-													{t("builder.form.nameAvailable")}
-												</p>
-											)}
+											<button
+												className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
+												aria-label={t("builder.form.expandInstructions")}
+												onClick={() => setShowInstructionsModal(true)}
+											>
+												<svg
+													width="16"
+													height="16"
+													viewBox="0 0 16 16"
+													fill="none"
+													xmlns="http://www.w3.org/2000/svg"
+												>
+													<path
+														d="M10 2H14V6M6 14H2V10M14 2L9 7M2 14L7 9"
+														stroke="currentColor"
+														strokeWidth="1.5"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+													/>
+												</svg>
+											</button>
 										</div>
 									</div>
-									{/* Icon picker button */}
+									<p className="text-xs text-muted-foreground">
+										{t("builder.form.instructionsHint")}
+									</p>
+
+									{/* Updated from skills message */}
+									{instructionsUpdatedFromSkills && (
+										<p className="text-xs text-primary mt-1">
+											{t("builder.form.updatedFromSkills")}
+										</p>
+									)}
 									<div
-										ref={iconPickerRef}
-										className="relative flex items-center"
+										id="instructions-feedback"
+										aria-live="polite"
+										className="min-h-5 mt-1"
 									>
-										<button
-											onClick={() => setShowIconPicker(!showIconPicker)}
-											className={cn(
-												"size-[38px] rounded-lg flex items-center justify-center transition-colors",
-												ICON_COLORS.find((c) => c.id === config.iconColorId)
-													?.bg || "bg-violet-200",
-											)}
-											aria-label={t("builder.iconPicker.changeIcon")}
-										>
-											{(() => {
-												const iconData = AVAILABLE_ICONS.find(
-													(i) => i.id === config.iconId,
-												);
-												const colorData = ICON_COLORS.find(
-													(c) => c.id === config.iconColorId,
-												);
-												const IconComponent = (iconData?.icon ||
-													Bot) as React.ElementType;
-												return (
-													<IconComponent
-														className={cn(
-															"size-6",
-															colorData?.text || "text-white",
-														)}
-													/>
-												);
-											})()}
-										</button>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="size-9"
-											onClick={() => setShowIconPicker(!showIconPicker)}
-										>
-											<ChevronDown className="size-4" />
-										</Button>
-
-										{/* Icon Picker Dropdown */}
-										{showIconPicker && (
-											<div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border z-50 p-4">
-												{/* Color selection */}
-												<div className="mb-4">
-													<p className="text-sm font-medium text-muted-foreground mb-2">
-														{t("builder.iconPicker.colorLabel")}
-													</p>
-													<div className="flex gap-2">
-														{ICON_COLORS.map((color) => (
-															<button
-																key={color.id}
-																onClick={() =>
-																	setConfig((prev) => ({
-																		...prev,
-																		iconColorId: color.id,
-																	}))
-																}
-																className={cn(
-																	"size-10 rounded-full transition-all",
-																	color.bg,
-																	config.iconColorId === color.id
-																		? "ring-2 ring-offset-2 ring-primary"
-																		: "hover:scale-110",
-																)}
-																aria-label={t(
-																	"builder.iconPicker.selectColor",
-																	{ color: color.id },
-																)}
-															/>
-														))}
-													</div>
-												</div>
-
-												{/* Icon selection */}
-												<div>
-													<p className="text-sm font-medium text-muted-foreground mb-2">
-														{t("builder.iconPicker.iconLabel")}
-													</p>
-													<div className="relative mb-3">
-														<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-														<Input
-															placeholder={t(
-																"builder.iconPicker.searchPlaceholder",
-															)}
-															value={iconSearchQuery}
-															onChange={(e) =>
-																setIconSearchQuery(e.target.value)
-															}
-															className="pl-9"
-														/>
-													</div>
-													<div className="grid grid-cols-6 gap-1 max-h-[240px] overflow-y-auto">
-														{AVAILABLE_ICONS.filter((icon) => {
-															if (!iconSearchQuery) return true;
-															const query = iconSearchQuery.toLowerCase();
-															return (
-																icon.id.includes(query) ||
-																icon.keywords.some((k) => k.includes(query))
-															);
-														}).map((iconData) => {
-															const IconComponent =
-																iconData.icon as React.ElementType;
-															return (
-																<button
-																	key={iconData.id}
-																	onClick={() => {
-																		setConfig((prev) => ({
-																			...prev,
-																			iconId: iconData.id,
-																		}));
-																		setShowIconPicker(false);
-																		setIconSearchQuery("");
-																	}}
-																	className={cn(
-																		"size-10 rounded-lg flex items-center justify-center transition-colors",
-																		config.iconId === iconData.id
-																			? "bg-primary/10 text-primary"
-																			: "hover:bg-muted text-muted-foreground hover:text-foreground",
-																	)}
-																>
-																	<IconComponent className="size-5" />
-																</button>
-															);
-														})}
-													</div>
-												</div>
-											</div>
+										{instructionsError && (
+											<p className="text-sm text-destructive">
+												{t("builder.form.instructionsRequired")}
+											</p>
 										)}
 									</div>
 								</div>
-							</div>
 
-							{/* Description - Collapsible, only visible when editing */}
-							{isEditing &&
-								(!showDescription && !config.description?.trim() ? (
-									<button
-										onClick={() => setShowDescription(true)}
-										className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-									>
-										<Plus className="size-4" />
-										<span>{t("builder.form.addDescription")}</span>
-									</button>
-								) : (
-									<div>
-										<Label
-											htmlFor="agent-description"
-											className="text-sm font-medium"
-										>
-											{t("builder.form.descriptionLabel")}
-										</Label>
-										<Textarea
-											id="agent-description"
-											value={config.description}
-											onChange={(e) =>
-												setConfig((prev) => ({
-													...prev,
-													description: e.target.value,
-												}))
-											}
-											placeholder={t("builder.form.descriptionPlaceholder")}
-											className="mt-2 min-h-[60px] resize-none text-muted-foreground"
-											autoFocus={showDescription && !config.description}
-										/>
-									</div>
-								))}
-
-							{/* Skills Section */}
-							<div id="skills-section" className="space-y-2">
-								<div className="flex items-start justify-between">
-									<div>
-										<Label className="text-sm font-medium">
-											{t("builder.form.skillsLabel")}
-										</Label>
-										<p className="text-sm text-muted-foreground mt-1">
-											{t("builder.form.skillsDescription")}
-										</p>
-									</div>
-									<Button
-										variant="outline"
-										size="sm"
-										className="h-8 gap-1.5"
-										onClick={() => setShowAddSkillModal(true)}
-									>
-										<Plus className="size-4" />
-										{t("builder.form.addSkill")}
-									</Button>
-								</div>
-
-								{config.workflows.length === 0 ? (
-									/* Empty state */
-									<button
-										onClick={() => setShowAddSkillModal(true)}
-										className="w-full border border-dashed rounded-lg py-6 px-4 text-center hover:border-muted-foreground/50 transition-colors"
-									>
-										<p className="text-sm font-medium">
-											{t("builder.form.addSkills")}
-										</p>
-										<p className="text-sm text-muted-foreground mt-1">
-											{t("builder.form.addSkillsDescription")}
-										</p>
-									</button>
-								) : (
-									/* Added skills list - Resolve Actions/Workflows use violet icons */
-									<div className="border rounded-md px-4 py-2">
-										<div className="space-y-1">
-											{config.workflows.map((workflow, index) => {
-												const skillData = AVAILABLE_SKILLS.find(
-													(s) => s.name === workflow,
-												);
-												const SkillIcon = skillData?.icon || Zap;
-												return (
-													<div
-														key={index}
-														className="flex items-center gap-2.5 py-1"
-													>
-														<div className="size-5 rounded flex items-center justify-center flex-shrink-0 bg-violet-200">
-															<SkillIcon className="size-3 text-foreground" />
-														</div>
-														<span className="text-xs flex-1">{workflow}</span>
-														<button
-															onClick={() => {
-																const updated = config.workflows.filter(
-																	(_, i) => i !== index,
-																);
-																setConfig((prev) => ({
-																	...prev,
-																	workflows: updated,
-																}));
-															}}
-															className="p-2 text-muted-foreground hover:text-foreground"
-														>
-															<X className="size-3" />
-														</button>
-													</div>
-												);
-											})}
+								{/* Conversation Starters Section */}
+								<div className="space-y-2">
+									<div className="flex items-start justify-between">
+										<div>
+											<p className="text-sm font-medium text-foreground">
+												{t("builder.form.conversationStartersLabel")}
+											</p>
+											<p className="text-sm text-muted-foreground mt-0.5">
+												{t("builder.form.conversationStartersDescription")}
+											</p>
 										</div>
-									</div>
-								)}
-							</div>
-
-							{/* Instructions Section */}
-							<div className="space-y-2">
-								<div>
-									<Label htmlFor="instructions" className="text-sm font-medium">
-										{t("builder.form.instructionsLabel")}
-									</Label>
-									<p className="text-sm text-muted-foreground mt-1">
-										{t("builder.form.instructionsDescription")}
-									</p>
-								</div>
-
-								{/* Instructions textarea with footer */}
-								<div className="border rounded-lg overflow-hidden">
-									<div className="relative">
-										<Textarea
-											id="instructions"
-											value={config.instructions}
-											onChange={(e) => {
-												setConfig((prev) => ({
-													...prev,
-													instructions: e.target.value,
-												}));
-												if (!instructionsTouched) setInstructionsTouched(true);
+										<Button
+											variant="ghost"
+											size="sm"
+											className="gap-1.5 h-8 shrink-0"
+											disabled={
+												generateStarters.status === "generating" ||
+												agentCreation.isCreating ||
+												config.conversationStarters.length >=
+													MAX_CONVERSATION_STARTERS ||
+												(!config.instructions.trim() &&
+													!config.description.trim())
+											}
+											onClick={() => {
+												generateStarters.generate({
+													name: config.name,
+													description: config.description,
+													instructions: config.instructions,
+													agentType: config.agentType,
+													workflows: config.workflows,
+													conversationStarters: config.conversationStarters,
+													guardrails: config.guardrails.filter((g) => g.trim()),
+													knowledgeSources: config.knowledgeSources,
+													capabilities: config.capabilities,
+												});
 											}}
-											onBlur={() => setInstructionsTouched(true)}
-											placeholder={
-												"## Role\n\n## Backstory\n\n## Goal\n\n## Task"
-											}
-											aria-invalid={instructionsError}
-											aria-describedby="instructions-feedback"
-											className="min-h-[80px] resize-y text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
-										/>
-										<button
-											className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
-											aria-label={t("builder.form.expandInstructions")}
-											onClick={() => setShowInstructionsModal(true)}
 										>
-											<svg
-												width="16"
-												height="16"
-												viewBox="0 0 16 16"
-												fill="none"
-												xmlns="http://www.w3.org/2000/svg"
-											>
-												<path
-													d="M10 2H14V6M6 14H2V10M14 2L9 7M2 14L7 9"
-													stroke="currentColor"
-													strokeWidth="1.5"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												/>
-											</svg>
-										</button>
-									</div>
-								</div>
-								<p className="text-xs text-muted-foreground">
-									{t("builder.form.instructionsHint")}
-								</p>
-
-								{/* Updated from skills message */}
-								{instructionsUpdatedFromSkills && (
-									<p className="text-xs text-primary mt-1">
-										{t("builder.form.updatedFromSkills")}
-									</p>
-								)}
-								<div
-									id="instructions-feedback"
-									aria-live="polite"
-									className="min-h-5 mt-1"
-								>
-									{instructionsError && (
-										<p className="text-sm text-destructive">
-											{t("builder.form.instructionsRequired")}
-										</p>
-									)}
-								</div>
-							</div>
-
-							{/* Conversation Starters Section */}
-							<div className="space-y-2">
-								<div>
-									<p className="text-sm font-medium text-foreground">
-										{t("builder.form.conversationStartersLabel")}
-									</p>
-									<p className="text-sm text-muted-foreground mt-0.5">
-										{t("builder.form.conversationStartersDescription")}
-									</p>
-								</div>
-								{/* Input with inline tags */}
-								<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-									{/* Added starters as solid badges */}
-									{config.conversationStarters.map((starter, index) => (
-										<div
-											key={index}
-											className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
-										>
-											<span>{starter}</span>
-											<button
-												onClick={() => {
-													const updated = config.conversationStarters.filter(
-														(_, i) => i !== index,
-													);
-													setConfig((prev) => ({
-														...prev,
-														conversationStarters: updated,
-													}));
-												}}
-												className="text-muted-foreground hover:text-destructive"
-												aria-label={t("builder.form.removeStarter", {
-													starter,
-												})}
-											>
-												<X className="size-3" />
-											</button>
-										</div>
-									))}
-									{/* Input for typing new starters */}
-									{config.conversationStarters.length < 6 && (
-										<input
-											type="text"
-											placeholder={t(
-												"builder.form.conversationStarterPlaceholder",
+											{generateStarters.status === "generating" ? (
+												<Loader2 className="size-3.5 animate-spin" />
+											) : (
+												<Sparkles className="size-3.5" />
 											)}
-											className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-											onKeyDown={(e) => {
-												const input = e.currentTarget;
-												if (e.key === "Enter" && input.value.trim()) {
-													e.preventDefault();
-													const newStarter = input.value.trim();
-													setConfig((prev) => ({
-														...prev,
-														conversationStarters: [
-															...prev.conversationStarters,
-															newStarter,
-														],
-													}));
-													input.value = "";
-												}
-											}}
-										/>
-									)}
-								</div>
-							</div>
-
-							{/* Guardrails Section */}
-							<div className="space-y-2">
-								<div>
-									<p className="text-sm font-medium text-foreground">
-										{t("builder.form.guardrailsLabel")}
-									</p>
-									<p className="text-xs text-muted-foreground mt-0.5">
-										{t("builder.form.guardrailsDescription")}
-									</p>
-								</div>
-
-								{config.guardrails.length === 0 ? (
-									<button
-										onClick={() => {
-											setConfig((prev) => ({
-												...prev,
-												guardrails: [...prev.guardrails, ""],
-											}));
-										}}
-										className="w-full border border-dashed rounded-lg py-4 px-4 text-center hover:border-muted-foreground/50 transition-colors"
-									>
-										<p className="text-sm text-muted-foreground">
-											{t("builder.form.addGuardrail")}
-										</p>
-									</button>
-								) : (
-									<div className="space-y-2">
-										{config.guardrails.map((guardrail, index) => (
-											<div key={index} className="flex items-center gap-2">
-												<Input
-													value={guardrail}
-													onChange={(e) => {
-														const updated = [...config.guardrails];
-														updated[index] = e.target.value;
-														setConfig((prev) => ({
-															...prev,
-															guardrails: updated,
-														}));
-													}}
-													placeholder={t("builder.form.guardrailPlaceholder")}
-													className="flex-1"
-												/>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="size-9 text-muted-foreground hover:text-foreground"
+											{t("builder.form.generate")}
+										</Button>
+									</div>
+									{/* Input with inline tags */}
+									<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
+										{/* Added starters as badges */}
+										{config.conversationStarters.map((starter, index) => (
+											<div
+												key={index}
+												className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
+											>
+												<span>{starter}</span>
+												<button
 													onClick={() => {
-														const updated = config.guardrails.filter(
+														const updated = config.conversationStarters.filter(
 															(_, i) => i !== index,
 														);
 														setConfig((prev) => ({
 															...prev,
-															guardrails: updated,
+															conversationStarters: updated,
 														}));
 													}}
+													className="text-muted-foreground hover:text-destructive"
+													aria-label={t("builder.form.removeStarter", {
+														starter,
+													})}
 												>
-													<Trash2 className="size-4" />
-												</Button>
+													<X className="size-3" />
+												</button>
 											</div>
 										))}
-										<Button
-											variant="ghost"
-											size="sm"
-											className="h-8 gap-1.5 text-muted-foreground"
+										{/* Input for typing new starters */}
+										{config.conversationStarters.length <
+											MAX_CONVERSATION_STARTERS && (
+											<input
+												type="text"
+												placeholder={t(
+													"builder.form.conversationStarterPlaceholder",
+												)}
+												className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+												onKeyDown={(e) => {
+													const input = e.currentTarget;
+													if (
+														(e.key === "Enter" || e.key === ",") &&
+														input.value.replace(",", "").trim()
+													) {
+														e.preventDefault();
+														const values = input.value
+															.split(",")
+															.map((v) => v.trim())
+															.filter(Boolean);
+
+														setConfig((prev) => {
+															const existing = prev.conversationStarters;
+															const availableSlots =
+																MAX_CONVERSATION_STARTERS - existing.length;
+															const newStarters = values
+																.filter((v) => !existing.includes(v))
+																.slice(0, availableSlots);
+															if (newStarters.length === 0) return prev;
+															return {
+																...prev,
+																conversationStarters: [
+																	...existing,
+																	...newStarters,
+																],
+															};
+														});
+														input.value = "";
+													}
+												}}
+											/>
+										)}
+									</div>
+								</div>
+
+								{/* Guardrails Section */}
+								<div className="space-y-2">
+									<div>
+										<p className="text-sm font-medium text-foreground">
+											{t("builder.form.guardrailsLabel")}
+										</p>
+										<p className="text-xs text-muted-foreground mt-0.5">
+											{t("builder.form.guardrailsDescription")}
+										</p>
+									</div>
+
+									{config.guardrails.length === 0 ? (
+										<button
 											onClick={() => {
 												setConfig((prev) => ({
 													...prev,
 													guardrails: [...prev.guardrails, ""],
 												}));
 											}}
+											className="w-full border border-dashed rounded-lg py-4 px-4 text-center hover:border-muted-foreground/50 transition-colors"
 										>
-											<Plus className="size-4" />
-											{t("builder.form.addGuardrailButton")}
-										</Button>
-									</div>
-								)}
+											<p className="text-sm text-muted-foreground">
+												{t("builder.form.addGuardrail")}
+											</p>
+										</button>
+									) : (
+										<div className="space-y-2">
+											{config.guardrails.map((guardrail, index) => (
+												<div key={index} className="flex items-center gap-2">
+													<Input
+														value={guardrail}
+														onChange={(e) => {
+															const updated = [...config.guardrails];
+															updated[index] = e.target.value;
+															setConfig((prev) => ({
+																...prev,
+																guardrails: updated,
+															}));
+														}}
+														placeholder={t("builder.form.guardrailPlaceholder")}
+														className="flex-1"
+													/>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="size-9 text-muted-foreground hover:text-foreground"
+														onClick={() => {
+															const updated = config.guardrails.filter(
+																(_, i) => i !== index,
+															);
+															setConfig((prev) => ({
+																...prev,
+																guardrails: updated,
+															}));
+														}}
+													>
+														<Trash2 className="size-4" />
+													</Button>
+												</div>
+											))}
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-8 gap-1.5 text-muted-foreground"
+												onClick={() => {
+													setConfig((prev) => ({
+														...prev,
+														guardrails: [...prev.guardrails, ""],
+													}));
+												}}
+											>
+												<Plus className="size-4" />
+												{t("builder.form.addGuardrailButton")}
+											</Button>
+										</div>
+									)}
+								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Change Agent Type Modal */}
 			<ChangeAgentTypeModal
@@ -1508,6 +1691,47 @@ export default function AgentBuilderPage() {
 				onChange={(value) =>
 					setConfig((prev) => ({ ...prev, instructions: value }))
 				}
+				onImproveClick={() => {
+					improveInstructions.improve({
+						name: config.name,
+						description: config.description,
+						instructions: config.instructions,
+						agentType: config.agentType,
+						workflows: config.workflows,
+						conversationStarters: config.conversationStarters,
+						guardrails: config.guardrails.filter((g) => g.trim()),
+						knowledgeSources: config.knowledgeSources,
+						capabilities: config.capabilities,
+					});
+					setShowImproveDialog(true);
+				}}
+				isImproving={improveInstructions.status === "improving"}
+			/>
+
+			{/* Improve Instructions Sheet */}
+			<ImproveInstructionsDialog
+				open={showImproveDialog}
+				onOpenChange={(open) => {
+					setShowImproveDialog(open);
+					if (!open) improveInstructions.reset();
+				}}
+				onAcceptInstructions={(improved) => {
+					setConfig((prev) => ({ ...prev, instructions: improved }));
+					if (!instructionsTouched) setInstructionsTouched(true);
+				}}
+				onRetry={() => {
+					improveInstructions.improve({
+						name: config.name,
+						description: config.description,
+						instructions: config.instructions,
+						agentType: config.agentType,
+						workflows: config.workflows,
+						conversationStarters: config.conversationStarters,
+						guardrails: config.guardrails.filter((g) => g.trim()),
+						knowledgeSources: config.knowledgeSources,
+						capabilities: config.capabilities,
+					});
+				}}
 			/>
 
 			{/* Create New Workflow Modal */}
@@ -1528,7 +1752,8 @@ export default function AgentBuilderPage() {
 						const startersToAdd = newStarters.filter(
 							(s) => !existingStarters.includes(s),
 						);
-						const availableSlots = 6 - existingStarters.length;
+						const availableSlots =
+							MAX_CONVERSATION_STARTERS - existingStarters.length;
 						const finalNewStarters = startersToAdd.slice(0, availableSlots);
 						return {
 							...prev,
