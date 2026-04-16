@@ -2,6 +2,7 @@
  * UnpublishModal - Confirmation modal for unpublishing an agent
  */
 
+import { useTranslation } from "react-i18next";
 import {
 	AlertDialog,
 	AlertDialogCancel,
@@ -24,20 +25,21 @@ export function UnpublishModal({
 	onOpenChange,
 	onConfirm,
 }: UnpublishModalProps) {
+	const { t } = useTranslation("agents");
+
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent className="sm:max-w-md">
 				<AlertDialogHeader>
-					<AlertDialogTitle>Unpublish agent?</AlertDialogTitle>
+					<AlertDialogTitle>{t("unpublishModal.title")}</AlertDialogTitle>
 					<AlertDialogDescription>
-						This will remove the agent from active matching. Users will no
-						longer be able to interact with it. You can republish at any time.
+						{t("unpublishModal.description")}
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
+					<AlertDialogCancel>{t("unpublishModal.cancel")}</AlertDialogCancel>
 					<Button variant="destructive" onClick={onConfirm}>
-						Unpublish
+						{t("unpublishModal.unpublish")}
 					</Button>
 				</AlertDialogFooter>
 			</AlertDialogContent>
