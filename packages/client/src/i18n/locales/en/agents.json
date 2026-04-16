@@ -58,6 +58,14 @@
 		"discard": "Discard",
 		"accept": "Accept"
 	},
+	"conversationStarters": {
+		"label": "Conversation starters",
+		"description": "Suggested prompts shown to users when starting a conversation",
+		"regenerate": "Regenerate",
+		"generate": "Generate conversation starters",
+		"inputPlaceholder": "Type and press Enter or comma to add...",
+		"generateFailed": "Failed to generate conversation starters"
+	},
 	"guardrails": {
 		"emptyError": "All guardrails must have content or be removed"
 	},

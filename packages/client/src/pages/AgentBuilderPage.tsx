@@ -425,13 +425,14 @@ export default function AgentBuilderPage() {
 			});
 			generateStarters.reset();
 		} else if (generateStarters.status === "error") {
-			toast.error("Failed to generate conversation starters");
+			toast.error(t("conversationStarters.generateFailed"));
 			generateStarters.reset();
 		}
 	}, [
 		generateStarters.status,
 		generateStarters.generatedStarters,
 		generateStarters.reset,
+		t,
 	]);
 
 	// Track the original published config for diff comparison (only for editing)
@@ -1422,7 +1423,7 @@ export default function AgentBuilderPage() {
 										<div>
 											<div className="flex items-center gap-1.5">
 												<p className="text-sm font-medium text-foreground">
-													Conversation starters
+													{t("conversationStarters.label")}
 												</p>
 												<FieldHelp
 													label="Conversation starters"
@@ -1438,8 +1439,7 @@ export default function AgentBuilderPage() {
 												/>
 											</div>
 											<p className="text-sm text-muted-foreground mt-0.5">
-												Suggested prompts shown to users when starting a
-												conversation
+												{t("conversationStarters.description")}
 											</p>
 										</div>
 										{config.conversationStarters.length > 0 && (
@@ -1476,7 +1476,7 @@ export default function AgentBuilderPage() {
 												) : (
 													<Sparkles className="size-3.5" />
 												)}
-												Regenerate
+												{t("conversationStarters.regenerate")}
 											</Button>
 										)}
 									</div>
@@ -1510,7 +1510,7 @@ export default function AgentBuilderPage() {
 											) : (
 												<Plus />
 											)}
-											Generate conversation starters
+											{t("conversationStarters.generate")}
 										</Button>
 									) : (
 										/* Populated state — show chips + typing input */
@@ -1543,7 +1543,9 @@ export default function AgentBuilderPage() {
 												MAX_CONVERSATION_STARTERS && (
 												<input
 													type="text"
-													placeholder="Type and press Enter or comma to add..."
+													placeholder={t(
+														"conversationStarters.inputPlaceholder",
+													)}
 													className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
 													onKeyDown={(e) => {
 														const input = e.currentTarget;
