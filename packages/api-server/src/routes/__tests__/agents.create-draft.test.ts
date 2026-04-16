@@ -10,6 +10,7 @@ const {
 	mockGetAgent,
 	mockGetAgentByName,
 	mockDeleteAgent,
+	mockAssertAgentOrg,
 } = vi.hoisted(() => ({
 	mockCreateAgent: vi.fn(),
 	mockUpdateAgent: vi.fn(),
@@ -18,6 +19,7 @@ const {
 	mockGetAgent: vi.fn(),
 	mockGetAgentByName: vi.fn(),
 	mockDeleteAgent: vi.fn(),
+	mockAssertAgentOrg: vi.fn(),
 }));
 
 vi.mock("../../services/AgenticService.js", () => ({
@@ -29,6 +31,7 @@ vi.mock("../../services/AgenticService.js", () => ({
 		getAgent = mockGetAgent;
 		getAgentByName = mockGetAgentByName;
 		deleteAgent = mockDeleteAgent;
+		assertAgentOrg = mockAssertAgentOrg;
 	},
 }));
 

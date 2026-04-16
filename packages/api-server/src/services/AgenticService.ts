@@ -178,6 +178,19 @@ export class AgenticService {
 		}
 	}
 
+	async assertAgentOrg(
+		eid: string,
+		orgId: string,
+	): Promise<AgentMetadataApiData> {
+		const agent = await this.getAgent(eid);
+		if (agent.tenant !== orgId) {
+			const err: any = new Error("Agent not found");
+			err.response = { status: 404 };
+			throw err;
+		}
+		return agent;
+	}
+
 	async getAgentByName(name: string): Promise<AgentMetadataApiData | null> {
 		try {
 			const response = await this.client.get<AgentMetadataApiData>(

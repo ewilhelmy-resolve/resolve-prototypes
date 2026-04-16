@@ -11,6 +11,7 @@ const {
 	mockGetAgent,
 	mockGetAgentByName,
 	mockDeleteAgent,
+	mockAssertAgentOrg,
 } = vi.hoisted(() => ({
 	mockCreateAgent: vi.fn(),
 	mockUpdateAgent: vi.fn(),
@@ -20,6 +21,7 @@ const {
 	mockGetAgent: vi.fn(),
 	mockGetAgentByName: vi.fn(),
 	mockDeleteAgent: vi.fn(),
+	mockAssertAgentOrg: vi.fn(),
 }));
 
 vi.mock("../../services/AgenticService.js", () => ({
@@ -32,6 +34,7 @@ vi.mock("../../services/AgenticService.js", () => ({
 		getAgent = mockGetAgent;
 		getAgentByName = mockGetAgentByName;
 		deleteAgent = mockDeleteAgent;
+		assertAgentOrg = mockAssertAgentOrg;
 	},
 }));
 
@@ -126,13 +129,15 @@ describe("GET /api/agents - search", () => {
 		mockListTasks.mockResolvedValue([]);
 	});
 
-	it("uses listAgents when no search param", async () => {
-		mockListAgents.mockResolvedValue([makeAgent()]);
+	it("uses filterAgents with tenant scope when no search param", async () => {
+		mockFilterAgents.mockResolvedValue([makeAgent()]);
 
 		const res = await request(app).get("/api/agents").expect(200);
 
-		expect(mockListAgents).toHaveBeenCalled();
-		expect(mockFilterAgents).not.toHaveBeenCalled();
+		expect(mockFilterAgents).toHaveBeenCalled();
+		expect(mockListAgents).not.toHaveBeenCalled();
+		const query = mockFilterAgents.mock.calls[0][0];
+		expect(query).toContain('tenant__exact="test-org-id"');
 		expect(res.body.agents).toHaveLength(1);
 	});
 
@@ -190,12 +195,14 @@ describe("GET /api/agents - search", () => {
 		expect(opts).toEqual(expect.objectContaining({ limit: 10, offset: 20 }));
 	});
 
-	it("still uses listAgents with empty search string", async () => {
-		mockListAgents.mockResolvedValue([]);
+	it("uses filterAgents with tenant scope for empty search string", async () => {
+		mockFilterAgents.mockResolvedValue([]);
 
 		await request(app).get("/api/agents?search=").expect(200);
 
-		expect(mockListAgents).toHaveBeenCalled();
-		expect(mockFilterAgents).not.toHaveBeenCalled();
+		expect(mockFilterAgents).toHaveBeenCalled();
+		expect(mockListAgents).not.toHaveBeenCalled();
+		const query = mockFilterAgents.mock.calls[0][0];
+		expect(query).toContain('tenant__exact="test-org-id"');
 	});
 });
