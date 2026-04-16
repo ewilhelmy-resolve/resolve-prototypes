@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { FieldHelp } from "@/components/custom/FieldHelp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export interface AgentGuardrailsSectionProps {
 	guardrails: string[];
@@ -14,6 +15,8 @@ export function AgentGuardrailsSection({
 	onChange,
 }: AgentGuardrailsSectionProps) {
 	const { t } = useTranslation("agents");
+	const hasEmptyGuardrails =
+		guardrails.length > 0 && guardrails.some((g) => !g.trim());
 
 	return (
 		<div className="space-y-2">
@@ -59,7 +62,11 @@ export function AgentGuardrailsSection({
 									onChange(updated);
 								}}
 								placeholder={t("builder.form.guardrailPlaceholder")}
-								className="flex-1"
+								className={cn(
+									"flex-1",
+									!guardrail.trim() && "border-destructive",
+								)}
+								aria-invalid={!guardrail.trim()}
 							/>
 							<Button
 								variant="ghost"
@@ -83,6 +90,11 @@ export function AgentGuardrailsSection({
 						<Plus className="size-4" />
 						{t("builder.form.addGuardrailButton")}
 					</Button>
+					{hasEmptyGuardrails && (
+						<p className="text-sm text-destructive">
+							{t("guardrails.emptyError")}
+						</p>
+					)}
 				</div>
 			)}
 		</div>

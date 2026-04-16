@@ -161,6 +161,8 @@ export default function AgentBuilderPage() {
 		instructionsTouched &&
 		config.instructions.trim().length === 0 &&
 		config.description.trim().length === 0;
+	const hasEmptyGuardrails =
+		config.guardrails.length > 0 && config.guardrails.some((g) => !g.trim());
 
 	const [_showConfirmButtons, _setShowConfirmButtons] = useState(false);
 
@@ -233,13 +235,14 @@ export default function AgentBuilderPage() {
 			});
 			generateStarters.reset();
 		} else if (generateStarters.status === "error") {
-			toast.error("Failed to generate conversation starters");
+			toast.error(t("conversationStarters.generateFailed"));
 			generateStarters.reset();
 		}
 	}, [
 		generateStarters.status,
 		generateStarters.generatedStarters,
 		generateStarters.reset,
+		t,
 	]);
 
 	// Track the original published config for diff comparison (only for editing)
@@ -624,6 +627,7 @@ export default function AgentBuilderPage() {
 								!config.name.trim() ||
 								!config.instructions.trim() ||
 								nameTaken ||
+								hasEmptyGuardrails ||
 								agentCreation.isCreating
 							}
 						>

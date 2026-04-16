@@ -28,10 +28,10 @@ export function AgentConversationStarters({
 				<div>
 					<div className="flex items-center gap-1.5">
 						<p className="text-sm font-medium text-foreground">
-							{t("builder.form.conversationStartersLabel")}
+							{t("conversationStarters.label")}
 						</p>
 						<FieldHelp
-							label={t("builder.form.conversationStartersLabel")}
+							label={t("conversationStarters.label")}
 							description={t("builder.help.conversationStarters.description")}
 							examples={
 								t("builder.help.conversationStarters.examples", {
@@ -42,7 +42,7 @@ export function AgentConversationStarters({
 						/>
 					</div>
 					<p className="text-sm text-muted-foreground mt-0.5">
-						{t("builder.form.conversationStartersDescription")}
+						{t("conversationStarters.description")}
 					</p>
 				</div>
 				{starters.length > 0 && (
@@ -60,7 +60,7 @@ export function AgentConversationStarters({
 						) : (
 							<Sparkles className="size-3.5" />
 						)}
-						Regenerate
+						{t("conversationStarters.regenerate")}
 					</Button>
 				)}
 			</div>
@@ -73,7 +73,7 @@ export function AgentConversationStarters({
 					onClick={onGenerate}
 				>
 					{isGenerating ? <Loader2 className="animate-spin" /> : <Plus />}
-					{t("builder.form.generate")}
+					{t("conversationStarters.generate")}
 				</Button>
 			) : (
 				/* Populated state -- show chips + typing input */
@@ -101,7 +101,7 @@ export function AgentConversationStarters({
 					{starters.length < maxStarters && (
 						<input
 							type="text"
-							placeholder={t("builder.form.conversationStarterPlaceholder")}
+							placeholder={t("conversationStarters.inputPlaceholder")}
 							className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
 							onKeyDown={(e) => {
 								const input = e.currentTarget;
