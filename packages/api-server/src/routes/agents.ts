@@ -339,18 +339,21 @@ router.get("/", async (req, res) => {
 			req.query,
 		);
 
-		// Always scope to caller's organization
+		// Always scope to caller's organization.
+		// The filter syntax has no parentheses — AND binds tighter than OR,
+		// so we distribute AND conditions across each OR term:
+		//   (A|B)&C  →  A&C|B&C
 		const orgId = authReq.user.activeOrganizationId;
-		let query = `tenant__exact="${orgId}"`;
+		const tenantFilter = `tenant__exact="${orgId}"`;
+		const activeFilter = active !== undefined ? `&active__exact=${active}` : "";
 
+		let query: string;
 		if (search) {
 			const escaped = search.replace(/"/g, '\\"');
-			const searchFilter = `name__icontains="${escaped}"|description__icontains="${escaped}"`;
-			query = `(${searchFilter})&${query}`;
-		}
-
-		if (active !== undefined) {
-			query = `${query}&active__exact=${active}`;
+			// Distribute tenant (and active) across each OR branch
+			query = `name__icontains="${escaped}"&${tenantFilter}${activeFilter}|description__icontains="${escaped}"&${tenantFilter}${activeFilter}`;
+		} else {
+			query = `${tenantFilter}${activeFilter}`;
 		}
 
 		const agents = await agenticService.filterAgents(query, {
