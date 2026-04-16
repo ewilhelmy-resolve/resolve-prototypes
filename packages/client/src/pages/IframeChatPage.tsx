@@ -1019,9 +1019,6 @@ function IframeChatContent({
 	const [timeoutOverride, setTimeoutOverride] = useState(false);
 	const lastCheckedConvRef = useRef<string | null>(null);
 
-	// Feature flags
-	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
-
 	// Handle SSE message updates
 	useEffect(() => {
 		if (latestUpdate) {
@@ -1230,7 +1227,7 @@ function IframeChatContent({
 				onChange={ritaChatState.handleFileUpload}
 				accept={SUPPORTED_DOCUMENT_TYPES}
 				disabled={ritaChatState.uploadStatus.isUploading}
-				multiple={enableMultiFileUpload}
+				multiple
 			/>
 		</div>
 	);

@@ -2,6 +2,7 @@
  * UnlinkWorkflowModal - Confirmation for unlinking a workflow from another agent
  */
 
+import { useTranslation } from "react-i18next";
 import {
 	AlertDialog,
 	AlertDialogCancel,
@@ -32,29 +33,40 @@ export function UnlinkWorkflowModal({
 	workflow,
 	onConfirm,
 }: UnlinkWorkflowModalProps) {
+	const { t } = useTranslation("agents");
+
 	if (!workflow) return null;
 
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent className="sm:max-w-md">
 				<AlertDialogHeader>
-					<AlertDialogTitle>Unlink Workflow</AlertDialogTitle>
+					<AlertDialogTitle>{t("unlinkWorkflowModal.title")}</AlertDialogTitle>
 					<AlertDialogDescription>
-						<strong>{workflow.name}</strong> is currently linked to{" "}
-						<strong>{workflow.linkedAgentName}</strong>.
+						{t("unlinkWorkflowModal.description", {
+							workflowName: workflow.name,
+							agentName: workflow.linkedAgentName,
+						})
+							.split(/<strong>|<\/strong>/)
+							.map((part, i) =>
+								i % 2 === 1 ? <strong key={i}>{part}</strong> : part,
+							)}
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 
 				<div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
 					<p className="text-sm text-amber-800">
-						Unlinking this workflow will remove it from the other agent. Each
-						workflow can only be connected to one agent at a time.
+						{t("unlinkWorkflowModal.warning")}
 					</p>
 				</div>
 
 				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
-					<Button onClick={onConfirm}>Unlink & Add</Button>
+					<AlertDialogCancel>
+						{t("unlinkWorkflowModal.cancel")}
+					</AlertDialogCancel>
+					<Button onClick={onConfirm}>
+						{t("unlinkWorkflowModal.unlinkAndAdd")}
+					</Button>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>

@@ -24,6 +24,9 @@ const LOCAL_STORAGE_KEY = "rita_feature_flags";
 /** Renamed flags: old key → new key. Migrates localStorage on load. */
 const RENAMED_FLAGS: Record<string, FeatureFlagKey> = {};
 
+/** Removed flags: deleted from localStorage on load. */
+const REMOVED_FLAGS: string[] = ["ENABLE_MULTI_FILE_UPLOAD"];
+
 /** Platform-controlled flag keys */
 export const PLATFORM_CONTROLLED_FLAGS: FeatureFlagKey[] = [
 	"ENABLE_AUTO_PILOT",
@@ -88,6 +91,15 @@ function loadLocalOverrides(): Record<string, boolean> {
 				migrated = true;
 			}
 		}
+
+		// Clean up removed flags
+		for (const key of REMOVED_FLAGS) {
+			if (key in overrides) {
+				delete overrides[key];
+				migrated = true;
+			}
+		}
+
 		if (migrated) {
 			saveLocalOverrides(overrides);
 		}

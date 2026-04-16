@@ -6,6 +6,7 @@
  */
 
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { AgentStatus } from "@/types/agent";
@@ -29,14 +30,14 @@ export interface AgentCardProps {
 	className?: string;
 }
 
-const statusConfig: Record<
+const statusConfig = {
+	draft: { labelKey: "card.statusDraft", variant: "secondary" },
+	published: { labelKey: "card.statusPublished", variant: "default" },
+	disabled: { labelKey: "card.statusDisabled", variant: "outline" },
+} as const satisfies Record<
 	AgentStatus,
-	{ label: string; variant: "default" | "secondary" | "outline" }
-> = {
-	draft: { label: "Draft", variant: "secondary" },
-	published: { label: "Published", variant: "default" },
-	disabled: { label: "Disabled", variant: "outline" },
-};
+	{ labelKey: string; variant: "default" | "secondary" | "outline" }
+>;
 
 export function AgentCard({
 	name,
@@ -48,13 +49,15 @@ export function AgentCard({
 	onClick,
 	className,
 }: AgentCardProps) {
+	const { t } = useTranslation("agents");
 	const statusInfo = statusConfig[status];
+	const statusLabel = t(statusInfo.labelKey) as string;
 
 	return (
 		<button
 			type="button"
 			onClick={onClick}
-			aria-label={`${name} agent - ${statusInfo.label}`}
+			aria-label={t("card.ariaLabel", { name, status: statusLabel })}
 			className={cn(
 				"flex flex-col items-start p-6 rounded-xl border border-border bg-card",
 				"hover:border-primary/20 hover:bg-muted/70 transition-colors cursor-pointer text-left w-full",
@@ -65,7 +68,7 @@ export function AgentCard({
 				<div className={cn("p-2 rounded-md", iconBgColor)}>
 					<Icon className="size-5 text-foreground" />
 				</div>
-				<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+				<Badge variant={statusInfo.variant}>{statusLabel}</Badge>
 			</div>
 			<h3 className="font-semibold text-base text-card-foreground tracking-tight truncate w-full">
 				{name}
@@ -75,7 +78,7 @@ export function AgentCard({
 			</p>
 			{skills && skills.length > 0 && (
 				<p className="text-xs text-muted-foreground truncate w-full mt-1">
-					<span className="font-medium">Skills:</span>{" "}
+					<span className="font-medium">{t("card.skillsLabel")}</span>{" "}
 					{skills.slice(0, 2).join(", ")}
 					{skills.length > 2 && ` +${skills.length - 2}`}
 				</p>

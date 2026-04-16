@@ -15,17 +15,8 @@ import type { Lexicon } from "../types/lexicon.js";
  *
  * Code entities (services, hooks, components) go to "engineering/" section.
  */
-export async function generateAvcjDocs(
-	lexicon: Lexicon,
-	outputDir: string,
-) {
-	const dirs = [
-		"actors",
-		"views",
-		"journeys",
-		"constraints",
-		"engineering",
-	];
+export async function generateAvcjDocs(lexicon: Lexicon, outputDir: string) {
+	const dirs = ["actors", "views", "journeys", "constraints", "engineering"];
 	// Clean and recreate directories to remove stale files from previous builds
 	const { rmSync } = await import("node:fs");
 	for (const dir of dirs) {
@@ -83,10 +74,7 @@ export async function generateAvcjDocs(
 		const { readdirSync } = await import("node:fs");
 		for (const file of readdirSync(handWrittenDir)) {
 			if (file.endsWith(".md")) {
-				const content = readFileSync(
-					path.join(handWrittenDir, file),
-					"utf-8",
-				);
+				const content = readFileSync(path.join(handWrittenDir, file), "utf-8");
 				writeFileSync(path.join(outputDir, "journeys", file), content);
 			}
 		}
@@ -105,9 +93,7 @@ export async function generateAvcjDocs(
 		);
 	}
 	console.log(
-		chalk.green(
-			`  Generated: ${lexicon.constraints.length} constraint docs`,
-		),
+		chalk.green(`  Generated: ${lexicon.constraints.length} constraint docs`),
 	);
 
 	// --- Engineering: code entities (services, hooks, components) ---
@@ -160,7 +146,10 @@ interface RouteEntry {
 }
 
 function loadActors(outputDir: string): UserActor[] {
-	const actorsPath = path.join(outputDir, "../../packages/spec-engine/data/actors.json");
+	const actorsPath = path.join(
+		outputDir,
+		"../../packages/spec-engine/data/actors.json",
+	);
 	try {
 		return JSON.parse(readFileSync(actorsPath, "utf-8"));
 	} catch {
@@ -169,7 +158,10 @@ function loadActors(outputDir: string): UserActor[] {
 }
 
 function loadRoutes(outputDir: string): RouteEntry[] {
-	const routesPath = path.join(outputDir, "../../packages/spec-engine/data/routes.json");
+	const routesPath = path.join(
+		outputDir,
+		"../../packages/spec-engine/data/routes.json",
+	);
 	try {
 		return JSON.parse(readFileSync(routesPath, "utf-8"));
 	} catch {
@@ -286,7 +278,8 @@ function renderUserActor(actor: UserActor): string {
 // --- Route parser ---
 
 function renderPageView(view: View, routeEntries?: RouteEntry[]): string {
-	const routes = routeEntries?.map((r) => r.path) || (view.route ? [view.route] : []);
+	const routes =
+		routeEntries?.map((r) => r.path) || (view.route ? [view.route] : []);
 	const access = routeEntries?.[0]?.access || "authenticated";
 	const pageDescription = routeEntries?.[0]?.description;
 
@@ -335,13 +328,15 @@ function renderPageView(view: View, routeEntries?: RouteEntry[]): string {
 	if (access === "admin") {
 		body += "- [Owner](../actors/owner.md) — full access\n";
 		body += "- [Admin](../actors/admin.md) — full access\n";
-		body += "- [Standard User](../actors/standard-user.md) — access denied (constraint)\n\n";
+		body +=
+			"- [Standard User](../actors/standard-user.md) — access denied (constraint)\n\n";
 	} else if (access === "authenticated") {
 		body += "- [Owner](../actors/owner.md) — full access\n";
 		body += "- [Admin](../actors/admin.md) — full access\n";
 		body += "- [Standard User](../actors/standard-user.md) — full access\n\n";
 	} else {
-		body += "- [Iframe User](../actors/iframe-user.md) — Valkey session auth\n\n";
+		body +=
+			"- [Iframe User](../actors/iframe-user.md) — Valkey session auth\n\n";
 	}
 
 	if (view.props.length > 0) {
@@ -512,7 +507,8 @@ function renderReadme(
 	}
 
 	md += "\n## Journeys\n\n";
-	md += "*User workflows defined by product. Empty journeys are waiting for product definition.*\n\n";
+	md +=
+		"*User workflows defined by product. Empty journeys are waiting for product definition.*\n\n";
 	if (journeys.length === 0) {
 		md += "*No journeys defined yet. Product team will define these.*\n";
 	}
@@ -527,7 +523,8 @@ function renderReadme(
 	}
 
 	md += "\n## Engineering Reference\n\n";
-	md += "*Code entities — services, hooks, components. Auto-generated from source.*\n\n";
+	md +=
+		"*Code entities — services, hooks, components. Auto-generated from source.*\n\n";
 	md += `- [API Reference](generated/api-reference.md) — ${lexicon.endpoints?.length || 0} endpoints\n`;
 	md += "- [Dashboard](generated/dashboard.md) — coverage stats\n";
 	md += "- [Glossary](generated/glossary.md) — term index\n";

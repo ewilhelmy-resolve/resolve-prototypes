@@ -248,7 +248,7 @@ export default function AgentBuilderPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
-	const agentName = location.state?.agentName || "Untitled Agent";
+	const agentName = location.state?.agentName || t("builder.untitledAgent");
 	const duplicatedConfig = location.state?.duplicatedConfig as
 		| AgentConfig
 		| undefined;
@@ -470,11 +470,26 @@ export default function AgentBuilderPage() {
 	const [demoStep, setDemoStep] = useState(0);
 
 	const DEMO_STEPS = [
-		{ label: "Create Agent", description: "Fill in agent details" },
-		{ label: "Add Skills", description: "Configure workflows" },
-		{ label: "Add Starters", description: "Set conversation starters" },
-		{ label: "Test Agent", description: "Navigate to test page" },
-		{ label: "Publish", description: "Make agent live" },
+		{
+			label: t("builder.demo.steps.createAgent"),
+			description: t("builder.demo.steps.createAgentDesc"),
+		},
+		{
+			label: t("builder.demo.steps.addSkills"),
+			description: t("builder.demo.steps.addSkillsDesc"),
+		},
+		{
+			label: t("builder.demo.steps.addStarters"),
+			description: t("builder.demo.steps.addStartersDesc"),
+		},
+		{
+			label: t("builder.demo.steps.testAgent"),
+			description: t("builder.demo.steps.testAgentDesc"),
+		},
+		{
+			label: t("builder.demo.steps.publish"),
+			description: t("builder.demo.steps.publishDesc"),
+		},
 	];
 
 	const handleDemoNext = () => {
@@ -682,7 +697,7 @@ export default function AgentBuilderPage() {
 		if (config.name !== publishedConfig.name) {
 			changes.push({
 				field: "name",
-				label: "Name",
+				label: t("builder.configChanges.name"),
 				from: publishedConfig.name,
 				to: config.name,
 				type: "changed",
@@ -695,7 +710,7 @@ export default function AgentBuilderPage() {
 		) {
 			changes.push({
 				field: "icon",
-				label: "Icon",
+				label: t("builder.configChanges.icon"),
 				from: "(changed)",
 				to: "(changed)",
 				type: "changed",
@@ -723,7 +738,7 @@ export default function AgentBuilderPage() {
 				if (created.id) setAgentEid(created.id);
 			}
 		} catch {
-			toast.error("Failed to publish agent");
+			toast.error(t("builder.failedToPublish"));
 			setShowPublishModal(false);
 			return;
 		}
@@ -776,7 +791,7 @@ export default function AgentBuilderPage() {
 	if (isEditing && isLoadingAgent) {
 		return (
 			<div className="flex items-center justify-center h-screen bg-muted/50">
-				<div className="text-muted-foreground">Loading agent...</div>
+				<div className="text-muted-foreground">{t("builder.loading")}</div>
 			</div>
 		);
 	}
@@ -785,10 +800,10 @@ export default function AgentBuilderPage() {
 		return (
 			<div className="flex flex-col items-center justify-center h-screen gap-4 bg-muted/50">
 				<div className="text-sm text-muted-foreground">
-					Failed to load agent. Please try again.
+					{t("builder.loadError")}
 				</div>
 				<Button variant="outline" onClick={() => navigate("/agents")}>
-					Back to agents
+					{t("builder.backToAgents")}
 				</Button>
 			</div>
 		);
@@ -803,7 +818,7 @@ export default function AgentBuilderPage() {
 						variant="ghost"
 						size="icon"
 						onClick={handleBack}
-						aria-label="Go back to agents"
+						aria-label={t("builder.goBack")}
 					>
 						<ArrowLeft className="size-5" />
 					</Button>
@@ -818,17 +833,17 @@ export default function AgentBuilderPage() {
 						{isPublished ? (
 							<>
 								<Check className="size-3 mr-1" />
-								Published
+								{t("builder.statusPublished")}
 							</>
 						) : isDraft ? (
-							"Draft"
+							t("builder.statusDraft")
 						) : step === "done" ? (
 							<>
 								<Check className="size-3 mr-1" />
-								Ready to publish
+								{t("builder.statusReady")}
 							</>
 						) : (
-							"Draft"
+							t("builder.statusDraft")
 						)}
 					</Badge>
 					{(step === "done" || isEditing) && (
@@ -861,7 +876,7 @@ export default function AgentBuilderPage() {
 							}
 						>
 							<Play className="size-4" />
-							Test
+							{t("builder.test")}
 						</Button>
 					)}
 					{isPublished ? (
@@ -870,13 +885,13 @@ export default function AgentBuilderPage() {
 								variant="outline"
 								onClick={() => setShowUnpublishModal(true)}
 							>
-								Unpublish
+								{t("builder.unpublish")}
 							</Button>
 							<Button
 								onClick={() => setShowPublishModal(true)}
 								disabled={!hasChanges}
 							>
-								Publish changes
+								{t("builder.publishChanges")}
 								{hasChanges && (
 									<span className="ml-1.5 px-1.5 py-0.5 bg-white/20 rounded text-xs">
 										{configChanges.length}
@@ -907,7 +922,7 @@ export default function AgentBuilderPage() {
 							{agentCreation.isCreating && (
 								<Loader2 className="size-4 animate-spin" />
 							)}
-							Create agent
+							{t("builder.createAgent")}
 						</Button>
 					) : (
 						<Button
@@ -916,7 +931,7 @@ export default function AgentBuilderPage() {
 								!config.name || (!config.instructions && !config.description)
 							}
 						>
-							Publish
+							{t("builder.publish")}
 						</Button>
 					)}
 				</div>
@@ -977,10 +992,10 @@ export default function AgentBuilderPage() {
 								<div>
 									<div className="flex items-center gap-1.5">
 										<Label htmlFor="agent-name" className="text-sm font-medium">
-											Name of agent
+											{t("builder.form.nameLabel")}
 										</Label>
 										<FieldHelp
-											label="Name of agent"
+											label={t("builder.form.nameLabel")}
 											description={t("builder.help.name.description")}
 											examples={
 												t("builder.help.name.examples", {
@@ -1004,7 +1019,7 @@ export default function AgentBuilderPage() {
 														if (!nameTouched) setNameTouched(true);
 													}}
 													onBlur={() => setNameTouched(true)}
-													placeholder="Enter agent name"
+													placeholder={t("builder.form.namePlaceholder")}
 													aria-invalid={nameEmpty || nameTaken}
 													aria-describedby="builder-name-feedback"
 												/>
@@ -1019,18 +1034,18 @@ export default function AgentBuilderPage() {
 											>
 												{nameEmpty && (
 													<p className="text-sm text-destructive">
-														Agent name is required
+														{t("builder.form.nameRequired")}
 													</p>
 												)}
 												{nameTaken && (
 													<p className="text-sm text-destructive">
-														An agent with this name already exists
+														{t("builder.form.nameTaken")}
 													</p>
 												)}
 												{nameAvailable && !nameEmpty && (
 													<p className="text-sm text-emerald-600 flex items-center gap-1">
 														<Check className="size-3.5" />
-														Name is available
+														{t("builder.form.nameAvailable")}
 													</p>
 												)}
 											</div>
@@ -1047,7 +1062,7 @@ export default function AgentBuilderPage() {
 													ICON_COLORS.find((c) => c.id === config.iconColorId)
 														?.bg || "bg-violet-200",
 												)}
-												aria-label="Change agent icon"
+												aria-label={t("builder.iconPicker.changeIcon")}
 											>
 												{(() => {
 													const iconData = AVAILABLE_ICONS.find(
@@ -1083,7 +1098,7 @@ export default function AgentBuilderPage() {
 													{/* Color selection */}
 													<div className="mb-4">
 														<p className="text-sm font-medium text-muted-foreground mb-2">
-															Color
+															{t("builder.iconPicker.colorLabel")}
 														</p>
 														<div className="flex gap-2">
 															{ICON_COLORS.map((color) => (
@@ -1102,7 +1117,10 @@ export default function AgentBuilderPage() {
 																			? "ring-2 ring-offset-2 ring-primary"
 																			: "hover:scale-110",
 																	)}
-																	aria-label={`Select ${color.id} color`}
+																	aria-label={t(
+																		"builder.iconPicker.selectColor",
+																		{ color: color.id },
+																	)}
 																/>
 															))}
 														</div>
@@ -1111,12 +1129,14 @@ export default function AgentBuilderPage() {
 													{/* Icon selection */}
 													<div>
 														<p className="text-sm font-medium text-muted-foreground mb-2">
-															Icon
+															{t("builder.iconPicker.iconLabel")}
 														</p>
 														<div className="relative mb-3">
 															<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
 															<Input
-																placeholder="Find by type, role, or expertise"
+																placeholder={t(
+																	"builder.iconPicker.searchPlaceholder",
+																)}
 																value={iconSearchQuery}
 																onChange={(e) =>
 																	setIconSearchQuery(e.target.value)
@@ -1173,7 +1193,7 @@ export default function AgentBuilderPage() {
 											className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
 										>
 											<Plus className="size-4" />
-											<span>Add description</span>
+											<span>{t("builder.form.addDescription")}</span>
 										</button>
 									) : (
 										<div>
@@ -1181,7 +1201,7 @@ export default function AgentBuilderPage() {
 												htmlFor="agent-description"
 												className="text-sm font-medium"
 											>
-												Description
+												{t("builder.form.descriptionLabel")}
 											</Label>
 											<Textarea
 												id="agent-description"
@@ -1192,7 +1212,7 @@ export default function AgentBuilderPage() {
 														description: e.target.value,
 													}))
 												}
-												placeholder="Answers IT support questions and helps employees troubleshoot common technical issues."
+												placeholder={t("builder.form.descriptionPlaceholder")}
 												className="mt-2 min-h-[60px] resize-none text-muted-foreground"
 												autoFocus={showDescription && !config.description}
 											/>
@@ -1204,9 +1224,11 @@ export default function AgentBuilderPage() {
 									<div className="flex items-start justify-between">
 										<div>
 											<div className="flex items-center gap-1.5">
-												<Label className="text-sm font-medium">Skills</Label>
+												<Label className="text-sm font-medium">
+													{t("builder.form.skillsLabel")}
+												</Label>
 												<FieldHelp
-													label="Skills"
+													label={t("builder.form.skillsLabel")}
 													description={t("builder.help.skills.description")}
 													examples={
 														t("builder.help.skills.examples", {
@@ -1217,8 +1239,7 @@ export default function AgentBuilderPage() {
 												/>
 											</div>
 											<p className="text-sm text-muted-foreground mt-1">
-												Help users understand what this agent can help them with
-												by adding skills
+												{t("builder.form.skillsDescription")}
 											</p>
 										</div>
 										<Button
@@ -1228,7 +1249,7 @@ export default function AgentBuilderPage() {
 											onClick={() => setShowAddSkillModal(true)}
 										>
 											<Plus className="size-4" />
-											Add skill
+											{t("builder.form.addSkill")}
 										</Button>
 									</div>
 
@@ -1238,9 +1259,11 @@ export default function AgentBuilderPage() {
 											onClick={() => setShowAddSkillModal(true)}
 											className="w-full border border-dashed rounded-lg py-6 px-4 text-center hover:border-muted-foreground/50 transition-colors"
 										>
-											<p className="text-sm font-medium">Add skills</p>
+											<p className="text-sm font-medium">
+												{t("builder.form.addSkills")}
+											</p>
 											<p className="text-sm text-muted-foreground mt-1">
-												Add existing skills to this agent to improve context
+												{t("builder.form.addSkillsDescription")}
 											</p>
 										</button>
 									) : (
@@ -1292,10 +1315,10 @@ export default function AgentBuilderPage() {
 													htmlFor="instructions"
 													className="text-sm font-medium"
 												>
-													Instructions
+													{t("builder.form.instructionsLabel")}
 												</Label>
 												<FieldHelp
-													label="Instructions"
+													label={t("builder.form.instructionsLabel")}
 													description={t(
 														"builder.help.instructions.description",
 													)}
@@ -1308,7 +1331,7 @@ export default function AgentBuilderPage() {
 												/>
 											</div>
 											<p className="text-sm text-muted-foreground mt-1">
-												Control your agents behavior by adding instructions.
+												{t("builder.form.instructionsDescription")}
 											</p>
 										</div>
 										<Button
@@ -1341,7 +1364,7 @@ export default function AgentBuilderPage() {
 											) : (
 												<Sparkles className="size-3.5" />
 											)}
-											Improve
+											{t("builder.form.improve")}
 										</Button>
 									</div>
 
@@ -1369,7 +1392,7 @@ export default function AgentBuilderPage() {
 											/>
 											<button
 												className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
-												aria-label="Expand instructions"
+												aria-label={t("builder.form.expandInstructions")}
 												onClick={() => setShowInstructionsModal(true)}
 											>
 												<svg
@@ -1391,13 +1414,13 @@ export default function AgentBuilderPage() {
 										</div>
 									</div>
 									<p className="text-xs text-muted-foreground">
-										Update instructions as needed
+										{t("builder.form.instructionsHint")}
 									</p>
 
 									{/* Updated from skills message */}
 									{instructionsUpdatedFromSkills && (
 										<p className="text-xs text-primary mt-1">
-											Updated based on skills
+											{t("builder.form.updatedFromSkills")}
 										</p>
 									)}
 									<div
@@ -1407,7 +1430,7 @@ export default function AgentBuilderPage() {
 									>
 										{instructionsError && (
 											<p className="text-sm text-destructive">
-												Instructions or description is required to publish
+												{t("builder.form.instructionsRequired")}
 											</p>
 										)}
 									</div>
@@ -1419,10 +1442,10 @@ export default function AgentBuilderPage() {
 										<div>
 											<div className="flex items-center gap-1.5">
 												<p className="text-sm font-medium text-foreground">
-													Conversation starters
+													{t("builder.form.conversationStartersLabel")}
 												</p>
 												<FieldHelp
-													label="Conversation starters"
+													label={t("builder.form.conversationStartersLabel")}
 													description={t(
 														"builder.help.conversationStarters.description",
 													)}
@@ -1435,8 +1458,7 @@ export default function AgentBuilderPage() {
 												/>
 											</div>
 											<p className="text-sm text-muted-foreground mt-0.5">
-												Suggested prompts shown to users when starting a
-												conversation
+												{t("builder.form.conversationStartersDescription")}
 											</p>
 										</div>
 										{config.conversationStarters.length > 0 && (
@@ -1507,7 +1529,7 @@ export default function AgentBuilderPage() {
 											) : (
 												<Plus />
 											)}
-											Generate conversation starters
+											{t("builder.form.generate")}
 										</Button>
 									) : (
 										/* Populated state — show chips + typing input */
@@ -1530,7 +1552,9 @@ export default function AgentBuilderPage() {
 															}));
 														}}
 														className="text-muted-foreground hover:text-destructive"
-														aria-label={`Remove ${starter}`}
+														aria-label={t("builder.form.removeStarter", {
+															starter,
+														})}
 													>
 														<X className="size-3" />
 													</button>
@@ -1540,7 +1564,9 @@ export default function AgentBuilderPage() {
 												MAX_CONVERSATION_STARTERS && (
 												<input
 													type="text"
-													placeholder="Type and press Enter or comma to add..."
+													placeholder={t(
+														"builder.form.conversationStarterPlaceholder",
+													)}
 													className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
 													onKeyDown={(e) => {
 														const input = e.currentTarget;
@@ -1584,10 +1610,10 @@ export default function AgentBuilderPage() {
 									<div>
 										<div className="flex items-center gap-1.5">
 											<p className="text-sm font-medium text-foreground">
-												Guardrails
+												{t("builder.form.guardrailsLabel")}
 											</p>
 											<FieldHelp
-												label="Guardrails"
+												label={t("builder.form.guardrailsLabel")}
 												description={t("builder.help.guardrails.description")}
 												examples={
 													t("builder.help.guardrails.examples", {
@@ -1598,7 +1624,7 @@ export default function AgentBuilderPage() {
 											/>
 										</div>
 										<p className="text-xs text-muted-foreground mt-0.5">
-											Topics or requests the agent should NOT handle
+											{t("builder.form.guardrailsDescription")}
 										</p>
 									</div>
 
@@ -1613,7 +1639,7 @@ export default function AgentBuilderPage() {
 											className="w-full border border-dashed rounded-lg py-4 px-4 text-center hover:border-muted-foreground/50 transition-colors"
 										>
 											<p className="text-sm text-muted-foreground">
-												Add a guardrail
+												{t("builder.form.addGuardrail")}
 											</p>
 										</button>
 									) : (
@@ -1630,7 +1656,7 @@ export default function AgentBuilderPage() {
 																guardrails: updated,
 															}));
 														}}
-														placeholder="e.g., HR policy questions"
+														placeholder={t("builder.form.guardrailPlaceholder")}
 														className="flex-1"
 													/>
 													<Button
@@ -1663,7 +1689,7 @@ export default function AgentBuilderPage() {
 												}}
 											>
 												<Plus className="size-4" />
-												Add guardrail
+												{t("builder.form.addGuardrailButton")}
 											</Button>
 										</div>
 									)}
@@ -1743,7 +1769,7 @@ export default function AgentBuilderPage() {
 							});
 						}
 					} catch {
-						toast.error("Failed to unpublish agent");
+						toast.error(t("builder.failedToUnpublish"));
 						setShowUnpublishModal(false);
 						return;
 					}
@@ -1856,7 +1882,10 @@ export default function AgentBuilderPage() {
 					}));
 					setShowUnlinkConfirm(false);
 					toast.success(
-						`${workflowToUnlink.name} unlinked from ${workflowToUnlink.linkedAgentName} and added to this agent`,
+						t("builder.unlinkedToast", {
+							skill: workflowToUnlink.name,
+							agent: workflowToUnlink.linkedAgentName,
+						}),
 					);
 					setWorkflowToUnlink(null);
 				}}
@@ -1872,7 +1901,7 @@ export default function AgentBuilderPage() {
 					className="fixed bottom-4 left-4 z-50 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-full shadow-lg hover:bg-violet-700 transition-colors flex items-center gap-1.5"
 				>
 					<Play className="size-3" />
-					Demo
+					{t("builder.demo.trigger")}
 				</button>
 			)}
 
@@ -1881,7 +1910,9 @@ export default function AgentBuilderPage() {
 				<div className="fixed bottom-0 left-0 right-0 z-50 bg-violet-900 text-white px-6 py-3 flex items-center gap-4 shadow-2xl">
 					<div className="flex items-center gap-2">
 						<Play className="size-4" />
-						<span className="text-sm font-semibold">Demo Mode</span>
+						<span className="text-sm font-semibold">
+							{t("builder.demo.title")}
+						</span>
 					</div>
 					<div className="flex-1 flex items-center gap-1">
 						{DEMO_STEPS.map((s, i) => (
@@ -1919,7 +1950,7 @@ export default function AgentBuilderPage() {
 							className="text-white/70 hover:text-white hover:bg-white/10 h-7 text-xs"
 							onClick={handleDemoNext}
 						>
-							Next
+							{t("builder.demo.next")}
 						</Button>
 						<Button
 							size="sm"
@@ -1930,7 +1961,7 @@ export default function AgentBuilderPage() {
 								setDemoStep(0);
 							}}
 						>
-							Exit Demo
+							{t("builder.demo.exit")}
 						</Button>
 					</div>
 				</div>
