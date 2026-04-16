@@ -26,6 +26,10 @@ import {
 	apiDataToAgentConfig,
 } from "../services/agentCreation/mappers.js";
 import { getMetaAgentStrategy } from "../services/metaAgentExecution/index.js";
+import {
+	parseConversationStarterContent,
+	parseInstructionsImproverContent,
+} from "../services/metaAgentExecution/parsers.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 
 // ============================================================================
@@ -553,29 +557,67 @@ router.post("/cancel-creation", async (req, res) => {
 });
 
 /**
+ * Extract the raw completion text from a /prompts/completion response.
+ * The endpoint returns { data, usage, reference_id, ... } where `data` may
+ * be a string or (if the ruleset has is_json_response) a parsed object.
+ *
+ * The LLM sometimes returns JSON-escaped content (literal `\n`, `\"`) — we
+ * unescape those so downstream parsers and the UI see real newlines.
+ */
+function unescapeJsonLiterals(text: string): string {
+	// LLM sometimes emits literal backslash-n sequences instead of real
+	// newlines (because the source prompt said "output JSON-escaped text").
+	// Always decode — a no-op when no escape sequences are present.
+	if (!/\\[n"rt\\]/.test(text)) return text;
+	const SENTINEL = "\uE000"; // private-use area, won't appear in real text
+	return text
+		.replace(/\\\\/g, SENTINEL) // protect literal backslashes first
+		.replace(/\\n/g, "\n")
+		.replace(/\\r/g, "\r")
+		.replace(/\\t/g, "\t")
+		.replace(/\\"/g, '"')
+		.replace(new RegExp(SENTINEL, "g"), "\\");
+}
+
+function extractCompletionText(
+	response: { data?: string | Record<string, unknown> | null } | null,
+): string {
+	const data = response?.data;
+	if (typeof data === "string") return unescapeJsonLiterals(data);
+	if (data && typeof data === "object") {
+		// Common shapes: { content: "..." } or { text: "..." } or { message: "..." }
+		for (const key of ["content", "text", "message", "output"]) {
+			const v = (data as Record<string, unknown>)[key];
+			if (typeof v === "string") return unescapeJsonLiterals(v);
+		}
+		return JSON.stringify(data);
+	}
+	throw new Error("Missing 'data' field in /prompts/completion response");
+}
+
+/**
  * POST /api/agents/improve-instructions
- * Invoke AgentInstructionsImprover meta-agent to improve instructions.
- * Returns 202 with executionRequestId; results arrive via SSE.
+ * Invoke the AgentInstructionsImprover prompt ruleset and return the parsed
+ * improved instructions synchronously.
  */
 router.post("/improve-instructions", async (req, res) => {
-	const authReq = req as AuthenticatedRequest;
 	try {
 		const body = ImproveInstructionsBodySchema.parse(req.body);
-		const strategy = getMetaAgentStrategy();
+		const agenticService = new AgenticService();
 
-		const result = await strategy.execute({
-			agentName: "AgentInstructionsImprover",
-			utterance: body.instructions,
-			additionalInformation: JSON.stringify(body.agentConfig),
-			transcript: "[]",
-			userId: authReq.user.id,
-			userEmail: authReq.user.email,
-			organizationId: authReq.user.activeOrganizationId,
+		const completion = await agenticService.executePromptCompletion({
+			promptName: "prompt_improve_agent_instructions",
+			promptParameters: {
+				utterance: body.instructions,
+				additional_information: JSON.stringify(body.agentConfig),
+				transcript: "[]",
+			},
 		});
 
-		res.status(202).json({
-			executionRequestId: result.executionRequestId,
-		});
+		const content = extractCompletionText(completion);
+		const parsed = parseInstructionsImproverContent(content);
+
+		res.status(200).json(parsed);
 	} catch (error: any) {
 		if (error?.response) {
 			logger.error(
@@ -597,19 +639,18 @@ router.post("/improve-instructions", async (req, res) => {
 
 /**
  * POST /api/agents/generate-conversation-starters
- * Invoke ConversationStarterGenerator meta-agent.
- * Returns 202 with executionRequestId; results arrive via SSE.
+ * Invoke the ConversationStarterGeneratorAgent prompt ruleset and return
+ * the parsed starters synchronously.
  */
 router.post("/generate-conversation-starters", async (req, res) => {
-	const authReq = req as AuthenticatedRequest;
 	try {
 		const body = GenerateConversationStartersBodySchema.parse(req.body);
-		const strategy = getMetaAgentStrategy();
+		const agenticService = new AgenticService();
 
 		const config = body.agentConfig;
 
 		// Format additional_information as structured text matching the
-		// agent's few-shot examples (not raw JSON) so the LLM weighs
+		// prompt's few-shot examples (not raw JSON) so the LLM weighs
 		// instructions and description over raw capability flags.
 		// Only list actual workflows/knowledge sources as tools — not
 		// platform capabilities (webSearch, imageGeneration) which are
@@ -629,19 +670,19 @@ router.post("/generate-conversation-starters", async (req, res) => {
 				: "",
 		];
 
-		const result = await strategy.execute({
-			agentName: "ConversationStarterGeneratorAgent",
-			utterance: "Generate conversation starters for this agent.",
-			additionalInformation: additionalInfoParts.join(""),
-			transcript: "[]",
-			userId: authReq.user.id,
-			userEmail: authReq.user.email,
-			organizationId: authReq.user.activeOrganizationId,
+		const completion = await agenticService.executePromptCompletion({
+			promptName: "prompt_generate_conversation_starters",
+			promptParameters: {
+				utterance: "Generate conversation starters for this agent.",
+				additional_information: additionalInfoParts.join(""),
+				transcript: "[]",
+			},
 		});
 
-		res.status(202).json({
-			executionRequestId: result.executionRequestId,
-		});
+		const content = extractCompletionText(completion);
+		const starters = parseConversationStarterContent(content);
+
+		res.status(200).json({ starters });
 	} catch (error: any) {
 		if (error?.response) {
 			logger.error(

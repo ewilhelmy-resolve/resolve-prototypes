@@ -70,7 +70,10 @@ export function useAgentCreation() {
 		agentId: store.agentId,
 		agentName: store.agentName,
 		error: store.error,
-		isCreating: generateAgent.isPending,
+		isCreating:
+			generateAgent.isPending ||
+			store.status === "creating" ||
+			store.status === "awaiting_input",
 		reset: store.reset,
 	};
 }

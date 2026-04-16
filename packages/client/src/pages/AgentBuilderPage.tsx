@@ -49,6 +49,7 @@ import {
 	UnpublishModal,
 } from "@/components/agents/builder";
 import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
+import { FieldHelp } from "@/components/custom/FieldHelp";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -977,9 +978,21 @@ export default function AgentBuilderPage() {
 							<div className="max-w-2xl mx-auto space-y-8">
 								{/* Name of agent with icon picker */}
 								<div>
-									<Label htmlFor="agent-name" className="text-sm font-medium">
-										Name of agent
-									</Label>
+									<div className="flex items-center gap-1.5">
+										<Label htmlFor="agent-name" className="text-sm font-medium">
+											Name of agent
+										</Label>
+										<FieldHelp
+											label="Name of agent"
+											description={t("builder.help.name.description")}
+											examples={
+												t("builder.help.name.examples", {
+													returnObjects: true,
+												}) as string[]
+											}
+											triggerAriaLabel={t("builder.helpTriggerAria")}
+										/>
+									</div>
 									<div className="flex items-start gap-4 mt-2">
 										<div className="flex-1">
 											<div className="relative">
@@ -1193,7 +1206,19 @@ export default function AgentBuilderPage() {
 								<div id="skills-section" className="space-y-2">
 									<div className="flex items-start justify-between">
 										<div>
-											<Label className="text-sm font-medium">Skills</Label>
+											<div className="flex items-center gap-1.5">
+												<Label className="text-sm font-medium">Skills</Label>
+												<FieldHelp
+													label="Skills"
+													description={t("builder.help.skills.description")}
+													examples={
+														t("builder.help.skills.examples", {
+															returnObjects: true,
+														}) as string[]
+													}
+													triggerAriaLabel={t("builder.helpTriggerAria")}
+												/>
+											</div>
 											<p className="text-sm text-muted-foreground mt-1">
 												Help users understand what this agent can help them with
 												by adding skills
@@ -1265,12 +1290,26 @@ export default function AgentBuilderPage() {
 								<div className="space-y-2">
 									<div className="flex items-center justify-between">
 										<div>
-											<Label
-												htmlFor="instructions"
-												className="text-sm font-medium"
-											>
-												Instructions
-											</Label>
+											<div className="flex items-center gap-1.5">
+												<Label
+													htmlFor="instructions"
+													className="text-sm font-medium"
+												>
+													Instructions
+												</Label>
+												<FieldHelp
+													label="Instructions"
+													description={t(
+														"builder.help.instructions.description",
+													)}
+													examples={
+														t("builder.help.instructions.examples", {
+															returnObjects: true,
+														}) as string[]
+													}
+													triggerAriaLabel={t("builder.helpTriggerAria")}
+												/>
+											</div>
 											<p className="text-sm text-muted-foreground mt-1">
 												Control your agents behavior by adding instructions.
 											</p>
@@ -1381,23 +1420,74 @@ export default function AgentBuilderPage() {
 								<div className="space-y-2">
 									<div className="flex items-start justify-between">
 										<div>
-											<p className="text-sm font-medium text-foreground">
-												Conversation starters
-											</p>
+											<div className="flex items-center gap-1.5">
+												<p className="text-sm font-medium text-foreground">
+													Conversation starters
+												</p>
+												<FieldHelp
+													label="Conversation starters"
+													description={t(
+														"builder.help.conversationStarters.description",
+													)}
+													examples={
+														t("builder.help.conversationStarters.examples", {
+															returnObjects: true,
+														}) as string[]
+													}
+													triggerAriaLabel={t("builder.helpTriggerAria")}
+												/>
+											</div>
 											<p className="text-sm text-muted-foreground mt-0.5">
 												Suggested prompts shown to users when starting a
 												conversation
 											</p>
 										</div>
+										{config.conversationStarters.length > 0 && (
+											<Button
+												variant="outline"
+												size="sm"
+												className="gap-1.5 h-8 shrink-0"
+												disabled={
+													generateStarters.status === "generating" ||
+													agentCreation.isCreating ||
+													config.conversationStarters.length >=
+														MAX_CONVERSATION_STARTERS ||
+													(!config.instructions.trim() &&
+														!config.description.trim())
+												}
+												onClick={() => {
+													generateStarters.generate({
+														name: config.name,
+														description: config.description,
+														instructions: config.instructions,
+														agentType: config.agentType,
+														workflows: config.workflows,
+														conversationStarters: config.conversationStarters,
+														guardrails: config.guardrails.filter((g) =>
+															g.trim(),
+														),
+														knowledgeSources: config.knowledgeSources,
+														capabilities: config.capabilities,
+													});
+												}}
+											>
+												{generateStarters.status === "generating" ? (
+													<Loader2 className="size-3.5 animate-spin" />
+												) : (
+													<Sparkles className="size-3.5" />
+												)}
+												Regenerate
+											</Button>
+										)}
+									</div>
+									{config.conversationStarters.length === 0 ? (
+										/* Empty state — single Generate button */
 										<Button
-											variant="ghost"
-											size="sm"
-											className="gap-1.5 h-8 shrink-0"
+											variant="outline"
+											className="w-fit"
 											disabled={
 												generateStarters.status === "generating" ||
 												agentCreation.isCreating ||
-												config.conversationStarters.length >=
-													MAX_CONVERSATION_STARTERS ||
 												(!config.instructions.trim() &&
 													!config.description.trim())
 											}
@@ -1416,88 +1506,100 @@ export default function AgentBuilderPage() {
 											}}
 										>
 											{generateStarters.status === "generating" ? (
-												<Loader2 className="size-3.5 animate-spin" />
+												<Loader2 className="animate-spin" />
 											) : (
-												<Sparkles className="size-3.5" />
+												<Plus />
 											)}
-											Generate
+											Generate conversation starters
 										</Button>
-									</div>
-									{/* Input with inline tags */}
-									<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-										{/* Added starters as badges */}
-										{config.conversationStarters.map((starter, index) => (
-											<div
-												key={index}
-												className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
-											>
-												<span>{starter}</span>
-												<button
-													onClick={() => {
-														const updated = config.conversationStarters.filter(
-															(_, i) => i !== index,
-														);
-														setConfig((prev) => ({
-															...prev,
-															conversationStarters: updated,
-														}));
-													}}
-													className="text-muted-foreground hover:text-destructive"
-													aria-label={`Remove ${starter}`}
+									) : (
+										/* Populated state — show chips + typing input */
+										<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
+											{config.conversationStarters.map((starter, index) => (
+												<div
+													key={index}
+													className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
 												>
-													<X className="size-3" />
-												</button>
-											</div>
-										))}
-										{/* Input for typing new starters */}
-										{config.conversationStarters.length <
-											MAX_CONVERSATION_STARTERS && (
-											<input
-												type="text"
-												placeholder="Type and press Enter or comma to add..."
-												className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-												onKeyDown={(e) => {
-													const input = e.currentTarget;
-													if (
-														(e.key === "Enter" || e.key === ",") &&
-														input.value.replace(",", "").trim()
-													) {
-														e.preventDefault();
-														const values = input.value
-															.split(",")
-															.map((v) => v.trim())
-															.filter(Boolean);
-
-														setConfig((prev) => {
-															const existing = prev.conversationStarters;
-															const availableSlots =
-																MAX_CONVERSATION_STARTERS - existing.length;
-															const newStarters = values
-																.filter((v) => !existing.includes(v))
-																.slice(0, availableSlots);
-															if (newStarters.length === 0) return prev;
-															return {
+													<span>{starter}</span>
+													<button
+														onClick={() => {
+															const updated =
+																config.conversationStarters.filter(
+																	(_, i) => i !== index,
+																);
+															setConfig((prev) => ({
 																...prev,
-																conversationStarters: [
-																	...existing,
-																	...newStarters,
-																],
-															};
-														});
-														input.value = "";
-													}
-												}}
-											/>
-										)}
-									</div>
+																conversationStarters: updated,
+															}));
+														}}
+														className="text-muted-foreground hover:text-destructive"
+														aria-label={`Remove ${starter}`}
+													>
+														<X className="size-3" />
+													</button>
+												</div>
+											))}
+											{config.conversationStarters.length <
+												MAX_CONVERSATION_STARTERS && (
+												<input
+													type="text"
+													placeholder="Type and press Enter or comma to add..."
+													className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+													onKeyDown={(e) => {
+														const input = e.currentTarget;
+														if (
+															(e.key === "Enter" || e.key === ",") &&
+															input.value.replace(",", "").trim()
+														) {
+															e.preventDefault();
+															const values = input.value
+																.split(",")
+																.map((v) => v.trim())
+																.filter(Boolean);
+
+															setConfig((prev) => {
+																const existing = prev.conversationStarters;
+																const availableSlots =
+																	MAX_CONVERSATION_STARTERS - existing.length;
+																const newStarters = values
+																	.filter((v) => !existing.includes(v))
+																	.slice(0, availableSlots);
+																if (newStarters.length === 0) return prev;
+																return {
+																	...prev,
+																	conversationStarters: [
+																		...existing,
+																		...newStarters,
+																	],
+																};
+															});
+															input.value = "";
+														}
+													}}
+												/>
+											)}
+										</div>
+									)}
 								</div>
 
 								{/* Guardrails Section */}
 								<div className="space-y-2">
 									<div>
-										<p className="text-sm font-medium text-foreground">
-											Guardrails
-										</p>
+										<div className="flex items-center gap-1.5">
+											<p className="text-sm font-medium text-foreground">
+												Guardrails
+											</p>
+											<FieldHelp
+												label="Guardrails"
+												description={t("builder.help.guardrails.description")}
+												examples={
+													t("builder.help.guardrails.examples", {
+														returnObjects: true,
+													}) as string[]
+												}
+												triggerAriaLabel={t("builder.helpTriggerAria")}
+											/>
+										</div>
 										<p className="text-xs text-muted-foreground mt-0.5">
 											Topics or requests the agent should NOT handle
 										</p>
