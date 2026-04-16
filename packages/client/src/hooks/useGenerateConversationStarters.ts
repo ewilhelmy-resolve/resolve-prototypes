@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { useConversationStarterGenerationStore } from "@/stores/conversationStarterGenerationStore";
 import { useGenerateConversationStartersMutation } from "./api/useAgents";
-
-const GENERATION_TIMEOUT_MS = 120_000; // 2 minutes
 
 interface GenerateConversationStartersData {
 	name: string;
@@ -19,14 +17,6 @@ interface GenerateConversationStartersData {
 export function useGenerateConversationStarters() {
 	const store = useConversationStarterGenerationStore();
 	const generateMutation = useGenerateConversationStartersMutation();
-	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	const clearTimeoutRef = useCallback(() => {
-		if (timeoutRef.current) {
-			clearTimeout(timeoutRef.current);
-			timeoutRef.current = null;
-		}
-	}, []);
 
 	const generate = useCallback(
 		async (data: GenerateConversationStartersData) => {
@@ -47,36 +37,19 @@ export function useGenerateConversationStarters() {
 					},
 				});
 
-				store.setGenerationId(response.executionRequestId);
-
-				// Safety-net timeout
-				clearTimeoutRef();
-				timeoutRef.current = setTimeout(() => {
-					const currentStore = useConversationStarterGenerationStore.getState();
-					if (currentStore.status === "generating") {
-						currentStore.timeout();
-					}
-				}, GENERATION_TIMEOUT_MS);
+				if (response.starters.length > 0) {
+					store.receiveResult({ starters: response.starters });
+				} else {
+					store.receiveError("No conversation starters generated");
+				}
 			} catch (err: any) {
 				store.receiveError(
-					err?.message || "Failed to start conversation starter generation",
+					err?.message || "Failed to generate conversation starters",
 				);
 			}
 		},
-		[generateMutation, store, clearTimeoutRef],
+		[generateMutation, store],
 	);
-
-	// Clear timeout on terminal states
-	useEffect(() => {
-		if (store.status === "success" || store.status === "error") {
-			clearTimeoutRef();
-		}
-	}, [store.status, clearTimeoutRef]);
-
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => clearTimeoutRef();
-	}, [clearTimeoutRef]);
 
 	return {
 		generate,

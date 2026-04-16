@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { useInstructionsImprovementStore } from "@/stores/instructionsImprovementStore";
 import { useImproveInstructionsMutation } from "./api/useAgents";
-
-const IMPROVEMENT_TIMEOUT_MS = 120_000; // 2 minutes
 
 interface ImproveInstructionsData {
 	name: string;
@@ -19,14 +17,6 @@ interface ImproveInstructionsData {
 export function useImproveInstructions() {
 	const store = useInstructionsImprovementStore();
 	const improveMutation = useImproveInstructionsMutation();
-	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	const clearTimeoutRef = useCallback(() => {
-		if (timeoutRef.current) {
-			clearTimeout(timeoutRef.current);
-			timeoutRef.current = null;
-		}
-	}, []);
 
 	const improve = useCallback(
 		async (data: ImproveInstructionsData) => {
@@ -47,36 +37,13 @@ export function useImproveInstructions() {
 					},
 				});
 
-				store.setImprovementId(response.executionRequestId);
-
-				// Safety-net timeout
-				clearTimeoutRef();
-				timeoutRef.current = setTimeout(() => {
-					const currentStore = useInstructionsImprovementStore.getState();
-					if (currentStore.status === "improving") {
-						currentStore.timeout();
-					}
-				}, IMPROVEMENT_TIMEOUT_MS);
+				store.receiveResult({ instructions: response.instructions });
 			} catch (err: any) {
-				store.receiveError(
-					err?.message || "Failed to start instruction improvement",
-				);
+				store.receiveError(err?.message || "Failed to improve instructions");
 			}
 		},
-		[improveMutation, store, clearTimeoutRef],
+		[improveMutation, store],
 	);
-
-	// Clear timeout on terminal states
-	useEffect(() => {
-		if (store.status === "success" || store.status === "error") {
-			clearTimeoutRef();
-		}
-	}, [store.status, clearTimeoutRef]);
-
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => clearTimeoutRef();
-	}, [clearTimeoutRef]);
 
 	return {
 		improve,

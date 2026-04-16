@@ -8,6 +8,31 @@
  */
 
 // ============================================================================
+// Shared envelope unwrapping
+// ============================================================================
+
+/**
+ * If the raw LLM output is wrapped in the legacy "Standard Response Format"
+ * envelope (`{ role, content, success, ... }`), unwrap it to just the inner
+ * `content` value. Otherwise return the original string.
+ *
+ * This is needed because prompt rulesets inherit the envelope framing from
+ * the legacy agent tasks (see RG-828). The agent framework used to strip the
+ * envelope automatically; raw `/prompts/completion` does not.
+ */
+function unwrapEnvelope(raw: string): string | string[] {
+	try {
+		const parsed = parseRawJsonResponse(raw);
+		const content = parsed?.content;
+		if (typeof content === "string") return content;
+		if (Array.isArray(content)) return content as string[];
+	} catch {
+		// not JSON — fall through
+	}
+	return raw;
+}
+
+// ============================================================================
 // AgentInstructionsImprover
 // ============================================================================
 
@@ -33,10 +58,13 @@ export interface ImprovedInstructions {
 export function parseInstructionsImproverContent(
 	content: string,
 ): ImprovedInstructions {
-	const instructionsMatch = content.match(
+	const unwrapped = unwrapEnvelope(content);
+	const effective = Array.isArray(unwrapped) ? unwrapped.join("\n") : unwrapped;
+
+	const instructionsMatch = effective.match(
 		/---INSTRUCTIONS---\s*([\s\S]*?)\s*---END_INSTRUCTIONS---/,
 	);
-	const descriptionMatch = content.match(
+	const descriptionMatch = effective.match(
 		/---DESCRIPTION---\s*([\s\S]*?)\s*---END_DESCRIPTION---/,
 	);
 
@@ -92,14 +120,29 @@ export function parseRawJsonResponse(raw: string): Record<string, any> {
 // ConversationStarterGenerator
 // ============================================================================
 
+/** Fragments that indicate JSON syntax leaked through as a "starter". */
+const JSON_RESIDUE_RE =
+	/^[{}[\]]|[{}[\]]$|"(role|content|need_inputs|terminate|success|error_message)"\s*:/;
+
 /**
  * Parse the comma-separated content from ConversationStarterGenerator.
  *
  * Expected format: "Starter 1, Starter 2, Starter 3, Starter 4"
+ *
+ * Also handles the legacy "Standard Response Format" envelope — if the LLM
+ * returns `{ "content": "Starter 1, Starter 2, ...", ... }` or
+ * `{ "content": ["Starter 1", "Starter 2", ...], ... }`, unwrap to the inner
+ * payload before splitting.
  */
 export function parseConversationStarterContent(content: string): string[] {
-	return content
-		.split(", ")
+	const unwrapped = unwrapEnvelope(content);
+
+	const raw: string[] = Array.isArray(unwrapped)
+		? unwrapped
+		: unwrapped.split(", ");
+
+	return raw
 		.map((s) => s.trim())
-		.filter(Boolean);
+		.filter(Boolean)
+		.filter((s) => !JSON_RESIDUE_RE.test(s));
 }

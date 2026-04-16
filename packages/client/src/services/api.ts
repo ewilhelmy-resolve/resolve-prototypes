@@ -283,7 +283,7 @@ export const agentApi = {
 			completionCriteria?: string;
 		};
 	}) =>
-		apiRequest<{ executionRequestId: string }>(
+		apiRequest<{ instructions: string; description: string }>(
 			"/api/agents/improve-instructions",
 			{
 				method: "POST",
@@ -307,7 +307,7 @@ export const agentApi = {
 			completionCriteria?: string;
 		};
 	}) =>
-		apiRequest<{ executionRequestId: string }>(
+		apiRequest<{ starters: string[] }>(
 			"/api/agents/generate-conversation-starters",
 			{
 				method: "POST",

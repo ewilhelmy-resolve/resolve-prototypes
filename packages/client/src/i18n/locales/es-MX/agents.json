@@ -101,6 +101,35 @@
 		"draft": "Borrador"
 	},
 	"builder": {
+		"helpTriggerAria": "Más información sobre {{label}}",
+		"help": {
+			"name": {
+				"description": "Elige un nombre claro y orientado a la acción que tus usuarios reconozcan.",
+				"examples": ["Asistente de onboarding RH", "Agente de soporte TI"]
+			},
+			"skills": {
+				"description": "Capacidades que el agente puede realizar. Agrega habilidades de tu biblioteca o crea nuevas.",
+				"examples": ["Restablecer contraseña", "Consultar saldo de PTO"]
+			},
+			"instructions": {
+				"description": "Indica al agente quién es, cómo debe comportarse y cuándo termina su trabajo. Usa encabezados ## para estructurar (Rol, Historia, Objetivo, Tarea).",
+				"examples": [
+					"## Rol Eres un asistente de onboarding de RH…",
+					"## Objetivo El usuario ha enviado su I-9 y revisado el manual."
+				]
+			},
+			"conversationStarters": {
+				"description": "Sugerencias de inicio que se muestran a los usuarios al abrir este agente.",
+				"examples": ["¿Cómo solicito PTO?", "Restablecer mi contraseña"]
+			},
+			"guardrails": {
+				"description": "Temas o acciones que el agente NO debe manejar. Sé específico.",
+				"examples": [
+					"No dar asesoría legal",
+					"Nunca compartir información salarial"
+				]
+			}
+		},
 		"loading": "Cargando agente...",
 		"loadError": "No se pudo cargar el agente. Inténtalo de nuevo.",
 		"backToAgents": "Volver a agentes",

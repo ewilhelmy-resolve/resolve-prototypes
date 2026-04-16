@@ -25,6 +25,7 @@ interface ActiveCreation {
 	userId: string;
 	userEmail: string;
 	tenantId: string;
+	requestedName: string;
 	transcript: string[];
 	conversationStarters?: string[];
 	guardrails?: string[];
@@ -67,6 +68,7 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 			userId: params.userId,
 			userEmail: params.userEmail,
 			tenantId: params.organizationId,
+			requestedName: params.name,
 			transcript: [prompt],
 			conversationStarters: params.conversationStarters,
 			guardrails: params.guardrails,
@@ -278,31 +280,25 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 			) {
 				// Success — extract created agent info
 				const agentEid = finalResponse.agent_metadata?.eid || "";
-				const agentName = finalResponse.agent_metadata?.name || "New Agent";
+				const returnedName = finalResponse.agent_metadata?.name || "New Agent";
+				// Enforce name preservation — agent-builder may normalize (e.g. snake_case).
+				// The user-provided name is canonical; report it in SSE and push it back
+				// to the LLM Service below.
+				const agentName = creation.requestedName || returnedName;
+				const nameWasNormalized =
+					!!finalResponse.agent_metadata?.name &&
+					returnedName !== creation.requestedName;
 
 				logger.info(
-					{ creationId, agentEid, agentName },
+					{
+						creationId,
+						agentEid,
+						agentName,
+						returnedName,
+						returnedActive: finalResponse.agent_metadata?.active,
+					},
 					"Agent created successfully via agentic API",
 				);
-
-				// Enforce draft status — agent-builder may create as published
-				if (agentEid && finalResponse.agent_metadata?.active === true) {
-					try {
-						await this.agenticService.updateAgent(agentEid, {
-							active: false,
-							sys_updated_by: creation.userEmail,
-						});
-						logger.info(
-							{ agentEid },
-							"Forced agent to draft status (was created as published)",
-						);
-					} catch (err) {
-						logger.warn(
-							{ agentEid, error: err },
-							"Failed to force agent to draft status",
-						);
-					}
-				}
 
 				// TODO: Uncomment when LLM API supports icon fields directly
 				// if (agentEid) {
@@ -313,8 +309,16 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 
 				if (agentEid) {
 					try {
+						// Always enforce draft status. The agent-builder's text response
+						// is NOT authoritative about persisted state — the LLM Service
+						// backend tends to create with active:true regardless of what
+						// the meta-agent intended (see routes/agents.ts:896). Setting
+						// active:false here is idempotent (no-op if already draft) and
+						// guarantees new agents are unpublished until the user opts in.
 						const updatePayload: Record<string, unknown> = {
 							tenant: creation.tenantId,
+							active: false,
+							sys_updated_by: creation.userEmail,
 						};
 						if (creation.conversationStarters?.length) {
 							updatePayload.conversation_starters =
@@ -323,11 +327,25 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 						if (creation.guardrails?.length) {
 							updatePayload.guardrails = creation.guardrails;
 						}
+						// Restore the user-provided name if agent-builder normalized it
+						// (e.g. "Support Triage" → "support_triage"). LLMs are
+						// non-deterministic, so this is a belt-and-suspenders safety net.
+						if (nameWasNormalized) {
+							updatePayload.name = creation.requestedName;
+							logger.info(
+								{
+									agentEid,
+									requested: creation.requestedName,
+									returned: returnedName,
+								},
+								"Restoring original agent name (was normalized by agent-builder)",
+							);
+						}
 						await this.agenticService.updateAgent(agentEid, updatePayload);
 					} catch (err) {
 						logger.warn(
 							{ agentEid, error: err },
-							"Failed to update agent metadata (tenant/starters/guardrails)",
+							"Failed to update agent metadata (tenant/active/starters/guardrails/name)",
 						);
 					}
 				}

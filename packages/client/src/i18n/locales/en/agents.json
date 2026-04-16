@@ -101,6 +101,35 @@
 		"draft": "Draft"
 	},
 	"builder": {
+		"helpTriggerAria": "More info about {{label}}",
+		"help": {
+			"name": {
+				"description": "Pick a clear, action-oriented name your users will recognize.",
+				"examples": ["HR Onboarding Buddy", "IT HelpDesk Agent"]
+			},
+			"skills": {
+				"description": "Capabilities the agent can perform. Add skills from your library or create new ones.",
+				"examples": ["Reset password", "Lookup PTO balance"]
+			},
+			"instructions": {
+				"description": "Tell the agent who it is, how it should behave, and when its job is done. Use ## headings to structure (Role, Backstory, Goal, Task).",
+				"examples": [
+					"## Role You are an HR onboarding assistant…",
+					"## Goal The user has submitted their I-9 and reviewed the handbook."
+				]
+			},
+			"conversationStarters": {
+				"description": "Suggested prompts shown to users when they open this agent.",
+				"examples": ["How do I request PTO?", "Reset my password"]
+			},
+			"guardrails": {
+				"description": "Topics or actions the agent must NOT handle. Be specific.",
+				"examples": [
+					"Do not give legal advice",
+					"Never share salary information"
+				]
+			}
+		},
 		"loading": "Loading agent...",
 		"loadError": "Failed to load agent. Please try again.",
 		"backToAgents": "Back to agents",
