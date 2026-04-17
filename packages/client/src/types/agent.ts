@@ -44,7 +44,7 @@ export interface AgentConfig {
 	status?: AgentStatus;
 	conversationStarters: string[];
 	knowledgeSources: string[];
-	workflows: string[];
+	tools: string[];
 	skills?: string[];
 	guardrails: string[];
 	// Builder-specific fields
@@ -192,6 +192,6 @@ export interface AgentTestPanelConfig {
 	agentType: AgentType | null;
 	conversationStarters: string[];
 	knowledgeSources: string[];
-	workflows: string[];
+	tools: string[];
 	guardrails: string[];
 }

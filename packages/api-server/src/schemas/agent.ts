@@ -108,7 +108,7 @@ export const AgentDetailResponseSchema = z
 			.default(null),
 		conversationStarters: z.array(z.string()).optional().default([]),
 		knowledgeSources: z.array(z.string()).optional().default([]),
-		workflows: z.array(z.string()).optional().default([]),
+		tools: z.array(z.string()).optional().default([]),
 		skills: z.array(z.string()).optional(),
 		guardrails: z.array(z.string()).optional().default([]),
 		responsibilities: z.string().optional(),
@@ -196,7 +196,7 @@ const AgentConfigForImprovementSchema = z
 			.default(null),
 		guardrails: z.array(z.string()).optional().default([]),
 		conversationStarters: z.array(z.string()).optional().default([]),
-		workflows: z.array(z.string()).optional().default([]),
+		tools: z.array(z.string()).optional().default([]),
 		knowledgeSources: z.array(z.string()).optional().default([]),
 		capabilities: z
 			.object({
@@ -259,3 +259,51 @@ export const AgentExecuteBodySchema = z
 		}),
 	})
 	.openapi("AgentExecuteBody");
+
+// --- Tools Schemas ---
+
+export const ToolListQuerySchema = z
+	.object({
+		search: z
+			.string()
+			.optional()
+			.openapi({ description: "Search tools by name" }),
+		type: z.string().optional().openapi({ description: "Filter by tool type" }),
+		active: z
+			.enum(["true", "false"])
+			.optional()
+			.openapi({ description: "Filter by active status" }),
+		limit: z.coerce
+			.number()
+			.int()
+			.min(1)
+			.max(500)
+			.default(50)
+			.openapi({ description: "Maximum results to return" }),
+		offset: z.coerce
+			.number()
+			.int()
+			.min(0)
+			.default(0)
+			.openapi({ description: "Number of results to skip" }),
+	})
+	.openapi("ToolListQuery");
+
+export const ToolItemSchema = z
+	.object({
+		eid: z.string(),
+		name: z.string(),
+		description: z.string(),
+		type: z.string(),
+		active: z.boolean(),
+	})
+	.openapi("ToolItem");
+
+export const ToolListResponseSchema = z
+	.object({
+		tools: z.array(ToolItemSchema),
+		limit: z.number(),
+		offset: z.number(),
+		hasMore: z.boolean(),
+	})
+	.openapi("ToolListResponse");

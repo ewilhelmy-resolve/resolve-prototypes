@@ -15,7 +15,7 @@ const baseParams: AgentGenerateParams = {
 	organizationId: "org-1",
 };
 
-// Note: role, agentType, knowledgeSources, workflows, capabilities
+// Note: role, agentType, knowledgeSources, tools, capabilities
 // are intentionally NOT in AgentGenerateParams — they don't exist in the builder form
 
 describe("buildAgentPrompt", () => {
@@ -50,7 +50,7 @@ describe("buildAgentPrompt", () => {
 		expect(prompt).not.toContain("Role:");
 	});
 
-	it("should NOT include knowledgeSources, workflows, webSearch, or useAllWorkspaceContent", () => {
+	it("should NOT include knowledgeSources, tools, webSearch, or useAllWorkspaceContent", () => {
 		const prompt = buildAgentPrompt(baseParams);
 		expect(prompt).not.toContain("Knowledge Sources");
 		expect(prompt).not.toContain("Workflows");

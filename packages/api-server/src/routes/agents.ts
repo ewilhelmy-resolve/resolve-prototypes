@@ -17,6 +17,8 @@ import {
 	CancelMetaAgentBodySchema,
 	GenerateConversationStartersBodySchema,
 	ImproveInstructionsBodySchema,
+	ToolListQuerySchema,
+	ToolListResponseSchema,
 } from "../schemas/agent.js";
 import { ErrorResponseSchema } from "../schemas/common.js";
 import { AgenticService } from "../services/AgenticService.js";
@@ -132,6 +134,32 @@ registry.registerPath({
 		},
 		500: {
 			description: "Server error",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: "get",
+	path: "/api/agents/tools",
+	tags: ["Agents"],
+	summary: "List available tools",
+	description: "List tools from the LLM Service with optional search filter.",
+	security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+	request: {
+		query: ToolListQuerySchema,
+	},
+	responses: {
+		200: {
+			description: "Tools list",
+			content: { "application/json": { schema: ToolListResponseSchema } },
+		},
+		401: {
+			description: "Unauthorized",
+			content: { "application/json": { schema: ErrorResponseSchema } },
+		},
+		502: {
+			description: "LLM Service unavailable",
 			content: { "application/json": { schema: ErrorResponseSchema } },
 		},
 	},
@@ -449,6 +477,75 @@ router.get("/check-name", async (req, res) => {
 });
 
 /**
+ * GET /api/agents/tools
+ * List tools from LLM Service with optional search filter
+ */
+router.get("/tools", async (req, res) => {
+	try {
+		const { search, type, active, limit, offset } = ToolListQuerySchema.parse(
+			req.query,
+		);
+
+		let tools: Awaited<ReturnType<typeof agenticService.listTools>>;
+
+		if (search) {
+			// Build OR filter: name OR description match (same pattern as agents)
+			const escaped = search.replace(/"/g, '\\"');
+			const searchFilter = `name__icontains="${escaped}"|description__icontains="${escaped}"`;
+			const filters: string[] = [searchFilter];
+			if (active !== undefined) filters.push(`active__exact=${active}`);
+			if (type) filters.push(`type__exact=${type}`);
+			const query =
+				filters.length > 1
+					? `(${filters[0]})&${filters.slice(1).join("&")}`
+					: filters[0];
+
+			tools = await agenticService.filterTools(query, {
+				limit: Number(limit),
+				offset: Number(offset),
+			});
+		} else {
+			tools = await agenticService.listTools({
+				active: active !== undefined ? active === "true" : undefined,
+				type,
+				limit: Number(limit),
+				offset: Number(offset),
+			});
+		}
+
+		const items = tools.map((t) => ({
+			eid: t.eid,
+			name: t.name,
+			description: t.description || "",
+			type: t.type,
+			active: t.active,
+		}));
+
+		res.json({
+			tools: items,
+			limit: Number(limit),
+			offset: Number(offset),
+			hasMore: tools.length === Number(limit),
+		});
+	} catch (error: any) {
+		if (error?.response) {
+			logger.error(
+				{ status: error.response.status, data: error.response.data },
+				"LLM Service error listing tools",
+			);
+			return res.status(502).json({
+				error: "LLM Service unavailable",
+				code: "LLM_SERVICE_ERROR",
+			});
+		}
+		logger.error({ error }, "Error listing tools");
+		res
+			.status(500)
+			.json({ error: "Failed to list tools", code: "INTERNAL_ERROR" });
+	}
+});
+
+/**
  * POST /api/agents/generate
  * Create agent via AI — strategy pattern (direct API or workflow)
  */
@@ -655,11 +752,11 @@ router.post("/generate-conversation-starters", async (req, res) => {
 		// Format additional_information as structured text matching the
 		// prompt's few-shot examples (not raw JSON) so the LLM weighs
 		// instructions and description over raw capability flags.
-		// Only list actual workflows/knowledge sources as tools — not
+		// Only list actual tools/knowledge sources — not
 		// platform capabilities (webSearch, imageGeneration) which are
 		// background features and shouldn't drive conversation starters.
 		const tools: string[] = [
-			...(config.workflows || []),
+			...(config.tools || []),
 			...(config.knowledgeSources || []),
 		];
 

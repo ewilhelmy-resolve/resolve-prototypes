@@ -276,7 +276,7 @@ export const agentApi = {
 			agentType?: string | null;
 			guardrails?: string[];
 			conversationStarters?: string[];
-			workflows?: string[];
+			tools?: string[];
 			knowledgeSources?: string[];
 			capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
 			responsibilities?: string;
@@ -300,7 +300,7 @@ export const agentApi = {
 			agentType?: string | null;
 			guardrails?: string[];
 			conversationStarters?: string[];
-			workflows?: string[];
+			tools?: string[];
 			knowledgeSources?: string[];
 			capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
 			responsibilities?: string;
@@ -326,6 +326,40 @@ export const agentApi = {
 			method: "POST",
 			body: data,
 		}),
+};
+
+// Tools API (fetches available tools from LLM Service via proxy)
+export interface ToolItem {
+	eid: string;
+	name: string;
+	description: string;
+	type: string;
+	active: boolean;
+}
+
+export const toolsApi = {
+	list: (params?: {
+		search?: string;
+		type?: string;
+		active?: string;
+		limit?: number;
+		offset?: number;
+	}) => {
+		const searchParams = new URLSearchParams();
+		if (params?.search) searchParams.set("search", params.search);
+		if (params?.type) searchParams.set("type", params.type);
+		if (params?.active) searchParams.set("active", params.active);
+		if (params?.limit != null) searchParams.set("limit", String(params.limit));
+		if (params?.offset != null)
+			searchParams.set("offset", String(params.offset));
+		const query = searchParams.toString();
+		return apiRequest<{
+			tools: ToolItem[];
+			limit: number;
+			offset: number;
+			hasMore: boolean;
+		}>(`/api/agents/tools${query ? `?${query}` : ""}`);
+	},
 };
 
 // Organization API

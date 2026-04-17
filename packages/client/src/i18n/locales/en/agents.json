@@ -314,6 +314,18 @@
 		"add": "Add",
 		"addCount": "Add ({{count}})"
 	},
+	"addToolsModal": {
+		"close": "Close",
+		"title": "Add tools",
+		"description": "Select tools this agent can use to help resolve requests",
+		"searchPlaceholder": "Search tools...",
+		"added": "Added",
+		"noResults": "No tools found matching \"{{query}}\"",
+		"empty": "No tools available",
+		"cancel": "Cancel",
+		"add": "Add",
+		"addCount": "Add ({{count}})"
+	},
 	"changeTypeModal": {
 		"title": "Change Agent Type",
 		"description": "Select a new agent type. This will affect available configuration options.",

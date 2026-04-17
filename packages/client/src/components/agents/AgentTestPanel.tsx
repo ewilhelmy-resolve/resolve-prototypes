@@ -34,7 +34,7 @@ export function AgentTestPanel({
 	const isReady = !!(
 		config.name &&
 		(config.instructions ||
-			config.workflows.length > 0 ||
+			config.tools.length > 0 ||
 			config.knowledgeSources.length > 0)
 	);
 	const hasStarters = starters.length > 0;
@@ -145,13 +145,13 @@ export function AgentTestPanel({
 						)}
 
 						{/* Skills/Sources summary */}
-						{(config.workflows.length > 0 ||
+						{(config.tools.length > 0 ||
 							config.knowledgeSources.length > 0) && (
 							<div className="pt-4 mt-4 border-t space-y-2">
-								{config.workflows.length > 0 && (
+								{config.tools.length > 0 && (
 									<div className="text-xs text-muted-foreground">
 										{t("testPanel.skillConfigured", {
-											count: config.workflows.length,
+											count: config.tools.length,
 										})}
 									</div>
 								)}

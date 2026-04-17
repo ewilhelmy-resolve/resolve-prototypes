@@ -69,10 +69,10 @@ export function PublishModal({
 									{config.description}
 								</p>
 							</div>
-							{config.workflows.length > 0 && (
+							{config.tools.length > 0 && (
 								<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
 									<span>{t("publishModal.skills")}</span>
-									<span className="text-right">{config.workflows.length}</span>
+									<span className="text-right">{config.tools.length}</span>
 								</div>
 							)}
 							{config.knowledgeSources.length > 0 && (

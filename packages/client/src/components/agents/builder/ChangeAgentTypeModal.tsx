@@ -18,7 +18,7 @@ interface ChangeAgentTypeModalProps {
 	onOpenChange: (open: boolean) => void;
 	currentType: AgentType | null;
 	knowledgeSourcesCount: number;
-	workflowsCount: number;
+	toolsCount: number;
 	isEditing: boolean;
 	onConfirm: (newType: AgentType, needsDoubleConfirm: boolean) => void;
 }
@@ -34,7 +34,7 @@ export function ChangeAgentTypeModal({
 	onOpenChange,
 	currentType,
 	knowledgeSourcesCount,
-	workflowsCount,
+	toolsCount,
 	isEditing,
 	onConfirm,
 }: ChangeAgentTypeModalProps) {
@@ -109,11 +109,11 @@ export function ChangeAgentTypeModal({
 									})}
 								</li>
 							)}
-							{pendingType === "knowledge" && workflowsCount > 0 && (
+							{pendingType === "knowledge" && toolsCount > 0 && (
 								<li>
 									&bull;{" "}
 									{t("changeTypeModal.workflowsRemoved", {
-										count: workflowsCount,
+										count: toolsCount,
 									})}
 								</li>
 							)}
