@@ -339,6 +339,8 @@ export default function AgentBuilderPage() {
 		instructionsTouched &&
 		config.instructions.trim().length === 0 &&
 		config.description.trim().length === 0;
+	const hasEmptyGuardrails =
+		config.guardrails.length > 0 && config.guardrails.some((g) => !g.trim());
 
 	const [_showConfirmButtons, _setShowConfirmButtons] = useState(false);
 
@@ -423,13 +425,14 @@ export default function AgentBuilderPage() {
 			});
 			generateStarters.reset();
 		} else if (generateStarters.status === "error") {
-			toast.error("Failed to generate conversation starters");
+			toast.error(t("conversationStarters.generateFailed"));
 			generateStarters.reset();
 		}
 	}, [
 		generateStarters.status,
 		generateStarters.generatedStarters,
 		generateStarters.reset,
+		t,
 	]);
 
 	// Track the original published config for diff comparison (only for editing)
@@ -916,6 +919,7 @@ export default function AgentBuilderPage() {
 								!config.name.trim() ||
 								!config.instructions.trim() ||
 								nameTaken ||
+								hasEmptyGuardrails ||
 								agentCreation.isCreating
 							}
 						>
@@ -1495,7 +1499,7 @@ export default function AgentBuilderPage() {
 												) : (
 													<Sparkles className="size-3.5" />
 												)}
-												Regenerate
+												{t("conversationStarters.regenerate")}
 											</Button>
 										)}
 									</div>
@@ -1657,7 +1661,11 @@ export default function AgentBuilderPage() {
 															}));
 														}}
 														placeholder={t("builder.form.guardrailPlaceholder")}
-														className="flex-1"
+														className={cn(
+															"flex-1",
+															!guardrail.trim() && "border-destructive",
+														)}
+														aria-invalid={!guardrail.trim()}
 													/>
 													<Button
 														variant="ghost"
@@ -1691,6 +1699,11 @@ export default function AgentBuilderPage() {
 												<Plus className="size-4" />
 												{t("builder.form.addGuardrailButton")}
 											</Button>
+											{hasEmptyGuardrails && (
+												<p className="text-sm text-destructive">
+													{t("guardrails.emptyError")}
+												</p>
+											)}
 										</div>
 									)}
 								</div>
