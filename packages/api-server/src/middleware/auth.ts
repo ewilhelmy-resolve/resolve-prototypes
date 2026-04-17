@@ -26,11 +26,12 @@ export const authenticateUser = async (
 	try {
 		const sessionService = getSessionService();
 
-		// Try iframe cookie first, then regular cookie. This prevents cookie
-		// clobbering (RG-838): Rita Go and iframe run on the same domain,
-		// so they need separate cookie names. Iframe routes look for
-		// rita_iframe_session; regular routes look for rita_session.
-		// Trying both ensures backward compatibility during rollout.
+		// RG-838: Rita Go and iframe run on the same domain with separate
+		// cookies (rita_session vs rita_iframe_session). Determine which
+		// session to use based on:
+		// 1. X-Session-Context header (set by client — most reliable)
+		// 2. URL path (fallback for SSE/EventSource which can't set headers)
+		// 3. Whichever cookie exists (single-context user)
 		const iframeSessionId = sessionService.parseSessionIdFromCookie(
 			req.headers.cookie,
 			SessionService.IFRAME_COOKIE_NAME,
@@ -39,10 +40,12 @@ export const authenticateUser = async (
 			req.headers.cookie,
 		);
 
-		// Prefer iframe cookie for /api/iframe routes, regular for everything else
-		const isIframePath =
-			req.path.startsWith("/iframe") || req.baseUrl?.includes("/iframe");
-		const sessionId = isIframePath
+		const contextHeader = req.headers["x-session-context"];
+		const isIframeContext =
+			contextHeader === "iframe" ||
+			req.path.startsWith("/iframe") ||
+			req.baseUrl?.includes("/iframe");
+		const sessionId = isIframeContext
 			? iframeSessionId || regularSessionId
 			: regularSessionId || iframeSessionId;
 

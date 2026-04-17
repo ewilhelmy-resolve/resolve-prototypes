@@ -25,10 +25,19 @@ async function apiRequest<T>(
 ): Promise<T> {
 	const { method = "GET", headers = {}, body } = options;
 
+	// RG-838: Tell the server which session context this request belongs to.
+	// When both rita_session and rita_iframe_session cookies exist (user has
+	// both tabs open), the server uses this header to pick the right one.
+	const isIframeContext = window.location.pathname.startsWith("/iframe");
+	const contextHeaders: Record<string, string> = isIframeContext
+		? { "X-Session-Context": "iframe" }
+		: {};
+
 	const config: RequestInit = {
 		method,
 		headers: {
 			"Content-Type": "application/json",
+			...contextHeaders,
 			...headers,
 		},
 		credentials: "include", // Include cookies for session-based auth
