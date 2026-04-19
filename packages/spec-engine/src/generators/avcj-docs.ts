@@ -4,6 +4,29 @@ import chalk from "chalk";
 import type { Actor, Constraint, Journey, View } from "../types/avcj.js";
 import type { Lexicon } from "../types/lexicon.js";
 
+// The RITA Client Storybook lives at storybook.resolve.io — single source of
+// truth for views, components, and journeys. Override via env for previews.
+const STORYBOOK_BASE_URL =
+	process.env.STORYBOOK_BASE_URL ?? "https://storybook.resolve.io";
+
+function toStorybookSlug(...segments: string[]): string {
+	return segments
+		.flatMap((s) => s.split("/"))
+		.map((s) =>
+			s
+				.trim()
+				.toLowerCase()
+				.replace(/\s+/g, "-")
+				.replace(/[^a-z0-9-]/g, ""),
+		)
+		.filter(Boolean)
+		.join("-");
+}
+
+function storybookDocsUrl(...segments: string[]): string {
+	return `${STORYBOOK_BASE_URL}/?path=/docs/${toStorybookSlug(...segments)}--docs`;
+}
+
 export async function generateAvcjDocs(lexicon: Lexicon, outputDir: string) {
 	const dirs = ["actors", "views", "journeys", "constraints"];
 	for (const dir of dirs) {
@@ -108,9 +131,13 @@ function renderView(view: View): string {
 		}
 	}
 
-	if (view.storybookPath) {
-		body += `\n## Storybook\n\n[View in Storybook](${view.storybookPath})\n`;
-	}
+	// Link to the RITA Client Storybook view page. Prefer the extracted
+	// title (if still present in the client's local stories) and fall back to
+	// the canonical `RITA Client/Views/<id>` slug which matches resolve.ui.
+	const viewStorybookUrl = view.storybookPath
+		? storybookDocsUrl(view.storybookPath)
+		: storybookDocsUrl("RITA Client/Views", view.id);
+	body += `\n## Storybook\n\n[Open in Storybook](${viewStorybookUrl})\n`;
 
 	body += "\n## Source\n\n";
 	for (const s of view.sources) {
@@ -148,6 +175,11 @@ function renderJourney(journey: Journey): string {
 			body += "\n";
 		}
 	}
+
+	// Link to the playable RITA Client Storybook journey. Journey ids are
+	// kebab-cased and match resolve.ui's `RITA Client/Journeys/<name>` slug.
+	const journeyUrl = storybookDocsUrl("RITA Client/Journeys", journey.id);
+	body += `\n## Storybook\n\n[Play this journey in Storybook](${journeyUrl})\n`;
 
 	return frontmatter + body;
 }
