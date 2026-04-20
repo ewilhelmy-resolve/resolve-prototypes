@@ -10,6 +10,8 @@ Meta-agents are agents that generate or update other agents' configurations. Ins
 
 See [Agent Prompt Catalog](agent-prompt-catalog.md) for the full catalog of prompt definitions.
 
+> **AgentRitaDeveloper is the exception to this pattern.** It runs on a dedicated webhook (`create_agent`) and a dedicated SSE channel (`agent_creation_*`, not `meta_agent_*`), and it discriminates create vs update via an optional `target_agent_eid` runtime parameter. See [Agent Developer Workflow Integration](agent-developer-workflow-integration.md) for its full contract.
+
 ### Generic 3-Parameter Contract
 
 Every meta-agent receives these execution-time parameters (substituted via `{%param}` syntax in the LLM Service prompt):
@@ -92,7 +94,7 @@ flowchart LR
 
 Both modes are async from the client's perspective: the API returns an `executionRequestId` immediately and results arrive via SSE.
 
-> **Data source for `additional_information`:** When a meta-agent operates on an existing (saved) agent, the `additional_information` parameter is populated from persisted agent metadata via `GET /agents/metadata/eid/{eid}`, which now includes `guardrails` and `conversation_starters`. For unsaved agents during creation, the data comes from the client form state. See [Agent Creation Workflow Integration — Section 15](agent-creation-workflow-integration.md) for the full metadata API schema.
+> **Data source for `additional_information`:** When a meta-agent operates on an existing (saved) agent, the `additional_information` parameter is populated from persisted agent metadata via `GET /agents/metadata/eid/{eid}`, which now includes `guardrails` and `conversation_starters`. For unsaved agents during creation, the data comes from the client form state. See [Agent Developer Workflow Integration — Section 15](agent-developer-workflow-integration.md) for the full metadata API schema.
 
 ### Generic Happy-Path Sequence (Direct Mode)
 
@@ -514,4 +516,4 @@ The generic webhook contract (`action: "run_meta_agent"`) passes `agent_name` as
 ## References
 
 - [Agent Prompt Catalog](agent-prompt-catalog.md) -- prompt definitions and standard response format
-- [Agent Creation Workflow Integration](agent-creation-workflow-integration.md) -- related pattern for agent creation (uses separate strategy + events)
+- [Agent Developer Workflow Integration](agent-developer-workflow-integration.md) -- related pattern for the create + update developer flow (uses separate strategy + events; supports both modes via optional `target_agent_eid`)

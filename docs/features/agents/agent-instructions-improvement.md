@@ -37,7 +37,7 @@ flowchart LR
 
 > **Prompt definition:** See [agent-prompt-catalog.md](agent-prompt-catalog.md#1-agentinstructionsimprover) for the full AgentInstructionsImprover prompt, input/output format, and examples.
 
-> **Shared infrastructure:** The meta-agent execution strategy, SSE event types, and factory pattern are shared with other meta-agents (e.g. ConversationStarterGenerator). See [agent-creation-workflow-integration.md](agent-creation-workflow-integration.md) for the broader agent creation architecture.
+> **Shared infrastructure:** The meta-agent execution strategy, SSE event types, and factory pattern are shared with other meta-agents (e.g. ConversationStarterGenerator). See [agent-developer-workflow-integration.md](agent-developer-workflow-integration.md) for the broader agent developer (create + update) architecture.
 
 ---
 
