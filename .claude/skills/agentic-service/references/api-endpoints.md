@@ -2,7 +2,21 @@
 
 Base URL: `https://llm-service-staging.resolve.io`
 
-All endpoints return arrays directly (not wrapped in `{ data: [] }`). All list endpoints support `limit` and `offset` pagination.
+All endpoints return arrays directly (not wrapped in `{ data: [] }`). All list endpoints support `limit` and `offset` pagination. Field shapes for request/response bodies are defined in [`data-models.md`](./data-models.md).
+
+## Contents
+
+- [Agents Metadata](#agents-metadata-agentsmetadata) — CRUD, duplicate, update-parameters
+- [Agent Tasks](#agent-tasks-agentstasks) — sub-task CRUD
+- [Tools](#tools-tools) — CRUD, duplicate, invoke, execute Python; groups & associations
+- [Agent Execution](#agent-execution-servicesagentic) — `/services/agentic`, stop
+- [Agent Selection](#agent-selection-agentsselect-agent)
+- [Agent Messages](#agent-messages-agentsmessages) — raw + UI-formatted polling
+- [Agent State](#agent-state-agentsstates)
+- [Agent Conversations](#agent-conversations-agentsconversations)
+- [Agent Definitions](#agent-definitions) — `prepare` for execution
+- [Agent Maintenance](#agent-maintenance) — cleanup, datasource retrieval
+- [Filter Query Syntax](#filter-query-syntax) — Django-like syntax used by `/filter` endpoints
 
 ---
 
@@ -10,10 +24,12 @@ All endpoints return arrays directly (not wrapped in `{ data: [] }`). All list e
 
 ### List agents
 ```
-GET /agents/metadata?eid=&name=&description=&active=true&limit=50&offset=0
+GET /agents/metadata?eid=&name=&description=&active=true&state=&admin_type=&limit=50&offset=0
 → AgentMetadataApiData[]
 ```
-Filters: `eid`, `name`, `description`, `active` (boolean), `limit`, `offset`
+Filters: `eid`, `name`, `description`, `active` (boolean), `state` ("DRAFT" | "PUBLISHED" | "RETIRED" | "TESTING"), `admin_type` ("user" | "system"), `limit`, `offset`.
+
+> **Prefer `state` over `active`** for lifecycle filtering — `state` is the source of truth; `active` is legacy and typically `true`.
 
 ### Filter agents (advanced query syntax)
 ```
@@ -51,6 +67,18 @@ POST /agents/metadata
 Body: AgentMetadataApiData (with markdown_text for markdown-based creation)
 → 201 AgentMetadataApiData
 ```
+
+**Create-time fields the builder should set:**
+- `name` (required)
+- `description`
+- `markdown_text` — when creating from markdown
+- `state` — `"DRAFT" | "PUBLISHED" | "RETIRED" | "TESTING"` (defaults to `"DRAFT"`)
+- `admin_type` — `"user"` for builder-created agents, `"system"` for platform-owned
+- `ui_configs` — `{ icon, icon_color }` for builder display
+- `conversation_starters` — array of suggested opening prompts
+- `guardrails` — array of guardrail rules
+- `configs` / `llm_parameters` — required at execution time (e.g. `{ llm_parameters: { model } }`)
+- `tags`, `default_parameters` — optional
 
 ### Update by EID
 ```
@@ -105,10 +133,10 @@ Bulk version — scans all agents. Set `reset=true` to clear existing parameters
 
 ### List tasks
 ```
-GET /agents/tasks?agent_metadata_id={eid}&name=&active=true&limit=50&offset=0
+GET /agents/tasks?agent_metadata_id={eid}&name=&active=true&admin_type=&limit=50&offset=0
 → AgentTaskApiData[]
 ```
-Filters: `name`, `agent_metadata_id` (UUID string), `active`, `limit`, `offset`
+Filters: `name`, `agent_metadata_id` (UUID string), `active`, `admin_type` ("user" | "system"), `limit`, `offset`
 
 ### Get by EID
 ```
@@ -167,10 +195,10 @@ DELETE /agents/tasks/{task_id}
 
 ### List tools
 ```
-GET /tools/?name=&type=&active=true&limit=50&offset=0
+GET /tools/?name=&type=&active=true&state=&admin_type=&limit=50&offset=0
 → ToolApiData[]
 ```
-Filters: `name`, `type` (URL/PYTHON/WORKFLOW/LLM), `active`, `limit`, `offset`
+Filters: `name`, `type` (URL/PYTHON/WORKFLOW/LLM), `active`, `state` ("DRAFT" | "PUBLISHED" | "RETIRED" | "TESTING"), `admin_type` ("user" | "system"), `limit`, `offset`
 
 ### Filter tools (advanced query syntax)
 ```
