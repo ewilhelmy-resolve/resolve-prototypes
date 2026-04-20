@@ -8,7 +8,7 @@
  */
 
 import { BookOpen, ChevronDown, Loader2, Plus, X, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AgentsTable } from "@/components/agents/AgentsTable";
@@ -33,6 +33,15 @@ import type { AgentState, AgentTableRow } from "@/types/agent";
 // in the filter dropdown.
 type FilterState = "all" | "DRAFT" | "PUBLISHED";
 type FilterOwner = "all" | "me" | "others";
+
+const STATE_FILTER_LABEL: Record<
+	FilterState,
+	"list.filters.all" | "list.filters.draft" | "list.filters.published"
+> = {
+	all: "list.filters.all",
+	DRAFT: "list.filters.draft",
+	PUBLISHED: "list.filters.published",
+};
 
 interface PublishedAgentState {
 	id: string;
@@ -93,7 +102,10 @@ export default function AgentsPage() {
 	);
 	const deleteAgent = useDeleteAgent();
 
-	const agents = agentsData?.pages.flatMap((p) => p.agents) ?? [];
+	const agents = useMemo(
+		() => agentsData?.pages.flatMap((p) => p.agents) ?? [],
+		[agentsData],
+	);
 
 	// Handle newly published or unpublished agent from navigation state
 	useEffect(() => {
@@ -259,12 +271,7 @@ export default function AgentsPage() {
 									<DropdownMenuTrigger asChild>
 										<Button variant="secondary" className="gap-2">
 											{t("list.filters.stateLabel", {
-												value:
-													stateFilter === "all"
-														? t("list.filters.all")
-														: stateFilter === "DRAFT"
-															? t("list.filters.draft")
-															: t("list.filters.published"),
+												value: t(STATE_FILTER_LABEL[stateFilter]),
 											})}
 											<ChevronDown className="size-4" />
 										</Button>
