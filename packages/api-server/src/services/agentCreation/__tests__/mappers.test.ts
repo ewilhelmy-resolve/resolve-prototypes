@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { logger } from "../../../config/logger.js";
 import type { AgentTaskApiData } from "../../AgenticService.js";
 import { agentConfigToApiData, apiDataToAgentConfig } from "../mappers.js";
 
@@ -380,5 +381,68 @@ describe("agentConfigToApiData", () => {
 			guardrails: ["no PII", "no HR topics"],
 		});
 		expect(result.guardrails).toEqual(["no PII", "no HR topics"]);
+	});
+});
+
+describe("apiDataToAgentConfig — schema drift canary", () => {
+	it("does NOT warn for a well-formed LLM response", () => {
+		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+		apiDataToAgentConfig({
+			id: 1,
+			eid: "a-1",
+			name: "Agent",
+			description: "",
+			state: "DRAFT",
+			admin_type: "user",
+			markdown_text: "",
+			conversation_starters: [],
+			guardrails: [],
+			ui_configs: { icon: "bot", icon_color: "slate" },
+			sys_date_created: "2026-04-10T12:00:00.000Z",
+			sys_date_updated: "2026-04-10T12:00:00.000Z",
+		});
+
+		expect(warnSpy).not.toHaveBeenCalledWith(
+			expect.anything(),
+			expect.stringContaining("shape drift"),
+		);
+		warnSpy.mockRestore();
+	});
+
+	it("warns when a required-shape field has the wrong type", () => {
+		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+		apiDataToAgentConfig({
+			eid: "a-2",
+			name: 42, // wrong type — should be string or null
+			markdown_text: "",
+		});
+
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				issues: expect.arrayContaining([
+					expect.objectContaining({ path: "name" }),
+				]),
+			}),
+			expect.stringContaining("shape drift"),
+		);
+		warnSpy.mockRestore();
+	});
+
+	it("tolerates unknown fields (future LLM Service additions)", () => {
+		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+		apiDataToAgentConfig({
+			eid: "a-3",
+			name: "Agent",
+			brand_new_field_from_llm_service: "hello",
+		});
+
+		expect(warnSpy).not.toHaveBeenCalledWith(
+			expect.anything(),
+			expect.stringContaining("shape drift"),
+		);
+		warnSpy.mockRestore();
 	});
 });

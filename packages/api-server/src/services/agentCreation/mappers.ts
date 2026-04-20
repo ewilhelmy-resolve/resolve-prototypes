@@ -4,9 +4,55 @@
  * Extracted from routes/agents.ts for reuse by strategy implementations.
  */
 
+import { z } from "zod";
+import { logger } from "../../config/logger.js";
 import type { AgentTaskApiData } from "../AgenticService.js";
 
 const VALID_STATES = new Set(["DRAFT", "PUBLISHED", "RETIRED", "TESTING"]);
+
+/**
+ * Canary schema for LLM Service AgentMetadataApiData responses. Mirrors the
+ * interface in AgenticService.ts. All fields are optional/nullable because the
+ * LLM Service occasionally adds new ones or omits null-valued fields entirely.
+ *
+ * We don't strictly parse — instead we `safeParse` in the mapper and log a
+ * warning when drift is detected. The mapper continues with its existing
+ * defensive destructuring so production stays up; the warning gives us an
+ * early signal when LLM Service shape changes.
+ */
+const AgentMetadataApiDataShape = z.looseObject({
+	id: z.union([z.number(), z.null()]).optional(),
+	eid: z.union([z.string(), z.null()]).optional(),
+	name: z.union([z.string(), z.null()]).optional(),
+	description: z.union([z.string(), z.null()]).optional(),
+	state: z.union([z.string(), z.null()]).optional(),
+	admin_type: z.union([z.string(), z.null()]).optional(),
+	markdown_text: z.union([z.string(), z.null()]).optional(),
+	configs: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
+	ui_configs: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
+	conversation_starters: z.union([z.array(z.string()), z.null()]).optional(),
+	guardrails: z.union([z.array(z.string()), z.null()]).optional(),
+	sys_date_created: z.union([z.string(), z.null()]).optional(),
+	sys_date_updated: z.union([z.string(), z.null()]).optional(),
+});
+
+function validateAgentMetadataShape(agent: Record<string, unknown>): void {
+	const result = AgentMetadataApiDataShape.safeParse(agent);
+	if (!result.success) {
+		logger.warn(
+			{
+				eid: agent.eid,
+				id: agent.id,
+				issues: result.error.issues.map((i) => ({
+					path: i.path.join("."),
+					code: i.code,
+					message: i.message,
+				})),
+			},
+			"LLM Service AgentMetadata shape drift detected — mapper will use defensive defaults",
+		);
+	}
+}
 
 /**
  * Default LLM execution config written on agent CREATE. The LLM Service
@@ -156,6 +202,8 @@ export function apiDataToAgentConfig(
 	agent: Record<string, unknown>,
 	tasks: AgentTaskApiData[] = [],
 ): Record<string, unknown> {
+	validateAgentMetadataShape(agent);
+
 	const configs = (agent.configs as Record<string, unknown>) || {};
 	const legacyUi = (configs.ui as Record<string, unknown>) || {};
 	const uiConfigs = (agent.ui_configs as Record<string, unknown>) || {};
