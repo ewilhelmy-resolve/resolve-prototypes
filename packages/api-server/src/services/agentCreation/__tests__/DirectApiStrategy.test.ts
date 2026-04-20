@@ -577,5 +577,54 @@ describe("DirectApiStrategy", () => {
 
 			expect(mockDeleteAgent).not.toHaveBeenCalled();
 		});
+
+		it("deletes the orphan shell when the user cancels a shell-first create", async () => {
+			// Symmetric with the failure rollback: a user-cancelled shell-first
+			// CREATE must not leave a draft behind. Without cleanup, clicking
+			// Cancel leaves an empty DRAFT in the agents list.
+			mockExecuteAgent.mockResolvedValue({
+				executionId: "exec-123",
+				conversationId: "conv-123",
+				agentMetadataId: "meta-123",
+			});
+			mockPollExecution.mockResolvedValue([]);
+			mockStopExecution.mockResolvedValue({ success: true });
+			mockDeleteAgent.mockResolvedValue({ success: true, message: "ok" });
+
+			const { creationId } = await strategy.createAgent(shellParams);
+			await strategy.cancel({
+				creationId,
+				userId: "user-1",
+				userEmail: "test@example.com",
+				organizationId: "org-1",
+			});
+
+			expect(mockDeleteAgent).toHaveBeenCalledTimes(1);
+			expect(mockDeleteAgent).toHaveBeenCalledWith("shell-eid-1");
+		});
+
+		it("does NOT delete on cancel for user-initiated UPDATE", async () => {
+			mockExecuteAgent.mockResolvedValue({
+				executionId: "exec-123",
+				conversationId: "conv-123",
+				agentMetadataId: "meta-123",
+			});
+			mockPollExecution.mockResolvedValue([]);
+			mockStopExecution.mockResolvedValue({ success: true });
+
+			const { creationId } = await strategy.createAgent({
+				...baseParams,
+				targetAgentEid: "user-owned-agent",
+				shellAlreadyCreated: false,
+			});
+			await strategy.cancel({
+				creationId,
+				userId: "user-1",
+				userEmail: "test@example.com",
+				organizationId: "org-1",
+			});
+
+			expect(mockDeleteAgent).not.toHaveBeenCalled();
+		});
 	});
 });

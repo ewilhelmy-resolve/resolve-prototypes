@@ -209,6 +209,32 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 			);
 		}
 
+		// Symmetric with failure rollback: if RITA minted the shell just before
+		// this creation started, deleting on cancel keeps orphan drafts out of
+		// the user's agent list. User-initiated UPDATEs (shellAlreadyCreated=false)
+		// must never be deleted — the row is the user's.
+		if (creation.shellAlreadyCreated) {
+			try {
+				await this.agenticService.deleteAgent(creation.targetAgentEid);
+				logger.info(
+					{
+						creationId: params.creationId,
+						eid: creation.targetAgentEid,
+					},
+					"Rolled back orphan shell after user cancellation",
+				);
+			} catch (err) {
+				logger.error(
+					{
+						creationId: params.creationId,
+						eid: creation.targetAgentEid,
+						error: err,
+					},
+					"Failed to roll back orphan shell on cancel — draft may linger",
+				);
+			}
+		}
+
 		this.activeCreations.delete(params.creationId);
 		return { success: true };
 	}
