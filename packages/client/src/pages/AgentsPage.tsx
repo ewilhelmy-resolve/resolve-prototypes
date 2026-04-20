@@ -26,9 +26,9 @@ import { Input } from "@/components/ui/input";
 import { useDeleteAgent, useInfiniteAgents } from "@/hooks/api/useAgents";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/toast";
-import type { AgentTableRow } from "@/types/agent";
+import type { AgentState, AgentTableRow } from "@/types/agent";
 
-type FilterStatus = "all" | "published" | "draft";
+type FilterState = "all" | AgentState;
 type FilterOwner = "all" | "me" | "others";
 
 interface PublishedAgentState {
@@ -55,7 +55,7 @@ export default function AgentsPage() {
 	}, [searchQuery]);
 
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
-	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
+	const [stateFilter, setStateFilter] = useState<FilterState>("all");
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [agentToDelete, setAgentToDelete] = useState<AgentTableRow | null>(
 		null,
@@ -63,9 +63,12 @@ export default function AgentsPage() {
 	const [showEducationBanner, setShowEducationBanner] = useState(true);
 
 	// Fetch agents from API with infinite scroll
-	const agentsFilters: Record<string, string> = {};
-	if (statusFilter !== "all") {
-		agentsFilters.active = statusFilter === "published" ? "true" : "false";
+	const agentsFilters: {
+		state?: AgentState;
+		search?: string;
+	} = {};
+	if (stateFilter !== "all") {
+		agentsFilters.state = stateFilter;
 	}
 	if (debouncedSearch) {
 		agentsFilters.search = debouncedSearch;
@@ -257,34 +260,55 @@ export default function AgentsPage() {
 									</DropdownMenuContent>
 								</DropdownMenu>
 
-								{/* Status filter */}
+								{/* State filter */}
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="secondary" className="gap-2">
-											{t("list.filters.statusLabel", {
-												value: t(`list.filters.${statusFilter}`),
+											{t("list.filters.stateLabel", {
+												value:
+													stateFilter === "all"
+														? t("list.filters.all")
+														: stateFilter === "DRAFT"
+															? t("list.filters.draft")
+															: stateFilter === "PUBLISHED"
+																? t("list.filters.published")
+																: stateFilter === "RETIRED"
+																	? t("list.filters.retired")
+																	: t("list.filters.testing"),
 											})}
 											<ChevronDown className="size-4" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "all"}
-											onCheckedChange={() => setStatusFilter("all")}
+											checked={stateFilter === "all"}
+											onCheckedChange={() => setStateFilter("all")}
 										>
 											{t("list.filters.all")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "published"}
-											onCheckedChange={() => setStatusFilter("published")}
+											checked={stateFilter === "PUBLISHED"}
+											onCheckedChange={() => setStateFilter("PUBLISHED")}
 										>
 											{t("list.filters.published")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "draft"}
-											onCheckedChange={() => setStatusFilter("draft")}
+											checked={stateFilter === "DRAFT"}
+											onCheckedChange={() => setStateFilter("DRAFT")}
 										>
 											{t("list.filters.draft")}
+										</DropdownMenuCheckboxItem>
+										<DropdownMenuCheckboxItem
+											checked={stateFilter === "TESTING"}
+											onCheckedChange={() => setStateFilter("TESTING")}
+										>
+											{t("list.filters.testing")}
+										</DropdownMenuCheckboxItem>
+										<DropdownMenuCheckboxItem
+											checked={stateFilter === "RETIRED"}
+											onCheckedChange={() => setStateFilter("RETIRED")}
+										>
+											{t("list.filters.retired")}
 										</DropdownMenuCheckboxItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
@@ -333,7 +357,7 @@ export default function AgentsPage() {
 					open={deleteModalOpen}
 					onOpenChange={setDeleteModalOpen}
 					agentName={agentToDelete.name}
-					agentStatus={agentToDelete.status}
+					agentState={agentToDelete.state}
 					impact={{
 						skills: agentToDelete.skills?.length ?? 0,
 						conversationStarters: 0, // TODO: populate from API when available

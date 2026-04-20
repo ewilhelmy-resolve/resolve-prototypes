@@ -159,7 +159,7 @@ export default function AgentChatPage() {
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="start" className="w-64">
 								{allAgents
-									.filter((a) => a.status === "published")
+									.filter((a) => a.state === "PUBLISHED")
 									.map((agent) => {
 										const AgentIcon = AGENT_ICON_MAP[agent.iconId] || Bot;
 										const agentColor =
@@ -188,7 +188,7 @@ export default function AgentChatPage() {
 														<span className="font-medium truncate">
 															{agent.name}
 														</span>
-														{agent.status === "published" && (
+														{agent.state === "PUBLISHED" && (
 															<span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">
 																{t("chat.live")}
 															</span>

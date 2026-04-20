@@ -105,6 +105,11 @@ export interface AgentCreationCompletedEvent {
 		creation_id: string;
 		agent_id: string;
 		agent_name: string;
+		/**
+		 * Discriminates create vs update flows. Absent = "create" for backward
+		 * compat with existing server publishers.
+		 */
+		mode?: "create" | "update";
 		timestamp: string;
 	};
 }

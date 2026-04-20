@@ -39,7 +39,7 @@ interface AgentsTableProps {
 	onDelete?: (agent: AgentTableRow) => void;
 }
 
-type SortField = "status" | "updatedBy" | "lastUpdated";
+type SortField = "state" | "updatedBy" | "lastUpdated";
 type SortDirection = "asc" | "desc";
 
 function SortableHeader({
@@ -93,8 +93,8 @@ export function AgentsTable({
 
 		let comparison = 0;
 		switch (sortField) {
-			case "status":
-				comparison = a.status.localeCompare(b.status);
+			case "state":
+				comparison = a.state.localeCompare(b.state);
 				break;
 			case "updatedBy":
 				comparison = (a.updatedBy || "").localeCompare(b.updatedBy || "");
@@ -120,8 +120,8 @@ export function AgentsTable({
 							{t("table.columns.skills")}
 						</TableHead>
 						<TableHead className="w-[127px]">
-							<SortableHeader field="status" onSort={handleSort}>
-								{t("table.columns.status")}
+							<SortableHeader field="state" onSort={handleSort}>
+								{t("table.columns.state")}
 							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-[136px]">
@@ -182,11 +182,15 @@ export function AgentsTable({
 							</TableCell>
 							<TableCell>
 								<Badge
-									variant={agent.status === "published" ? "default" : "outline"}
+									variant={agent.state === "PUBLISHED" ? "default" : "outline"}
 								>
-									{agent.status === "published"
-										? t("table.statusPublished")
-										: t("table.statusDraft")}
+									{agent.state === "PUBLISHED"
+										? t("table.statePublished")
+										: agent.state === "RETIRED"
+											? t("table.stateRetired")
+											: agent.state === "TESTING"
+												? t("table.stateTesting")
+												: t("table.stateDraft")}
 								</Badge>
 							</TableCell>
 							<TableCell>

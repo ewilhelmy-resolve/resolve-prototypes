@@ -19,7 +19,7 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -53,6 +53,14 @@ import { useAgentCreation } from "@/hooks/useAgentCreation";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useGenerateConversationStarters } from "@/hooks/useGenerateConversationStarters";
 import { useImproveInstructions } from "@/hooks/useImproveInstructions";
+import {
+	diffAgentConfig,
+	validateSkillReferences,
+} from "@/lib/agentConfigDiff";
+import {
+	addToolToInstructions,
+	removeToolFromInstructions,
+} from "@/lib/agentInstructionsTools";
 import { toast } from "@/lib/toast";
 import { cn, humanizeToolName } from "@/lib/utils";
 import { agentApi } from "@/services/api";
@@ -92,8 +100,8 @@ export default function AgentBuilderPage() {
 		error: loadError,
 	} = useAgent(agentId);
 
-	const isPublished = savedAgent?.status === "published";
-	const isDraft = savedAgent?.status === "draft";
+	const isPublished = savedAgent?.state === "PUBLISHED";
+	const isDraft = savedAgent?.state === "DRAFT";
 
 	// Track live EID (starts undefined for create, set after first save)
 	const [agentEid, setAgentEid] = useState<string | undefined>(agentId);
@@ -251,7 +259,7 @@ export default function AgentBuilderPage() {
 		if (
 			savedAgent &&
 			!publishedConfigRef.current &&
-			savedAgent.status === "published"
+			savedAgent.state === "PUBLISHED"
 		) {
 			publishedConfigRef.current = structuredClone(savedAgent);
 		}
@@ -400,6 +408,95 @@ export default function AgentBuilderPage() {
 		setShowPublishModal(true);
 	};
 
+	// Update Agent — smart save router
+	// ---------------------------------
+	// Diff form state against the server-loaded baseline. Cheap-only changes
+	// (name/description/icon/conversationStarters/guardrails) are PUT directly
+	// via updateAgent. Any change to instructions or skills requires running
+	// AgentRitaDeveloper because those fields drive agent_tasks + tools.
+	const updateDiff = useMemo(() => {
+		if (!savedAgent) return null;
+		return diffAgentConfig(config, savedAgent);
+	}, [config, savedAgent]);
+	const skillValidation = useMemo(() => {
+		if (!savedAgent) return null;
+		return validateSkillReferences(config, savedAgent);
+	}, [config, savedAgent]);
+
+	const cheapSaveDisabled =
+		!updateDiff?.hasChanges ||
+		agentCreation.isCreating ||
+		updateAgent.isPending ||
+		nameTaken ||
+		hasEmptyGuardrails ||
+		!skillValidation?.valid;
+
+	const handleUpdateAgent = async () => {
+		if (!agentEid || !savedAgent || !updateDiff) return;
+
+		// Defense-in-depth: the button is disabled when skillValidation fails,
+		// but re-check at submit time in case the disabled check was bypassed
+		// (keyboard, stale state, etc.).
+		if (skillValidation && !skillValidation.valid) {
+			// Dynamic key: validateSkillReferences returns a translation key string
+			// that's resolved at runtime. i18next's heavy t() overloads can't
+			// narrow a runtime key + params object — escape the type via any.
+			const dynT = t as unknown as (
+				key: string,
+				params?: Record<string, string>,
+			) => string;
+			toast.error(
+				dynT(
+					skillValidation.messageKey ?? "builder.failedToUpdate",
+					skillValidation.messageParams ?? {},
+				),
+			);
+			return;
+		}
+
+		if (!updateDiff.hasChanges) return;
+
+		// Expensive changes → need the meta-agent. Kick it off directly with
+		// the current form values; AgentCreationOverlay streams progress.
+		if (updateDiff.expensiveFields.length > 0) {
+			// Ask the server to regenerate the description when the user didn't
+			// touch it — instructions likely drifted and the stale description
+			// no longer reflects what the agent does.
+			const descriptionUnchanged =
+				!updateDiff.cheapFields.includes("description");
+			agentCreation.create({
+				name: config.name,
+				description: config.description,
+				instructions: config.instructions,
+				iconId: config.iconId,
+				iconColorId: config.iconColorId,
+				conversationStarters: config.conversationStarters,
+				guardrails: config.guardrails.filter((g) => g.trim()),
+				targetAgentEid: agentEid,
+				generateDescription: descriptionUnchanged,
+			});
+			return;
+		}
+
+		// Cheap-only path: direct PUT, no meta-agent, no overlay.
+		try {
+			await updateAgent.mutateAsync({
+				eid: agentEid,
+				data: {
+					name: config.name,
+					description: config.description,
+					iconId: config.iconId,
+					iconColorId: config.iconColorId,
+					conversationStarters: config.conversationStarters,
+					guardrails: config.guardrails.filter((g) => g.trim()),
+				},
+			});
+			toast.success(t("builder.agentUpdated"));
+		} catch {
+			toast.error(t("builder.failedToUpdate"));
+		}
+	};
+
 	// Calculate diff between current config and published config (persisted fields only)
 	const getConfigChanges = () => {
 		if (!publishedConfig) return [];
@@ -447,7 +544,7 @@ export default function AgentBuilderPage() {
 				name: config.name,
 				iconId: config.iconId,
 				iconColorId: config.iconColorId,
-				status: "published" as const,
+				state: "PUBLISHED" as const,
 			};
 			if (agentEid) {
 				await updateAgent.mutateAsync({ eid: agentEid, data: publishData });
@@ -610,6 +707,40 @@ export default function AgentBuilderPage() {
 								)}
 							</Button>
 						</>
+					) : isEditing && agentEid ? (
+						<>
+							<Button
+								variant="outline"
+								onClick={handleUpdateAgent}
+								disabled={cheapSaveDisabled}
+								title={
+									skillValidation && !skillValidation.valid
+										? (
+												t as unknown as (
+													key: string,
+													params?: Record<string, string>,
+												) => string
+											)(
+												skillValidation.messageKey ?? "",
+												skillValidation.messageParams ?? {},
+											)
+										: undefined
+								}
+							>
+								{updateAgent.isPending && (
+									<Loader2 className="size-4 animate-spin" />
+								)}
+								{t("builder.updateAgent")}
+							</Button>
+							<Button
+								onClick={handlePublish}
+								disabled={
+									!config.name || (!config.instructions && !config.description)
+								}
+							>
+								{t("builder.publish")}
+							</Button>
+						</>
 					) : !isEditing && !agentEid ? (
 						<Button
 							onClick={() => {
@@ -621,6 +752,7 @@ export default function AgentBuilderPage() {
 									iconColorId: config.iconColorId,
 									conversationStarters: config.conversationStarters,
 									guardrails: config.guardrails.filter((g) => g.trim()),
+									generateDescription: !config.description.trim(),
 								});
 							}}
 							disabled={
@@ -653,6 +785,7 @@ export default function AgentBuilderPage() {
 			{isCreationActive ? (
 				<AgentCreationOverlay
 					status={agentCreation.status}
+					mode={agentCreation.mode}
 					executionSteps={agentCreation.executionSteps}
 					inputMessage={agentCreation.inputMessage}
 					agentName={agentCreation.agentName}
@@ -660,6 +793,13 @@ export default function AgentBuilderPage() {
 					error={agentCreation.error}
 					onEditAgent={(id) => {
 						agentCreation.reset();
+						// In update mode we're already on /agents/:id — reset clears the
+						// overlay and the form rehydrates from the freshly-invalidated
+						// detail query (SSEContext handles the invalidation).
+						if (agentCreation.mode === "update" && id === agentEid) {
+							setHasLoadedFromApi(false);
+							return;
+						}
 						navigate(`/agents/${id}`);
 					}}
 					onTestAgent={(id) => {
@@ -687,6 +827,7 @@ export default function AgentBuilderPage() {
 							iconColorId: config.iconColorId,
 							conversationStarters: config.conversationStarters,
 							guardrails: config.guardrails.filter((g) => g.trim()),
+							generateDescription: !config.description.trim(),
 						});
 					}}
 					onCancel={() => {
@@ -881,12 +1022,15 @@ export default function AgentBuilderPage() {
 															</span>
 															<button
 																onClick={() => {
-																	const updated = config.tools.filter(
-																		(_, i) => i !== index,
-																	);
 																	setConfig((prev) => ({
 																		...prev,
-																		tools: updated,
+																		tools: prev.tools.filter(
+																			(_, i) => i !== index,
+																		),
+																		instructions: removeToolFromInstructions(
+																			prev.instructions ?? "",
+																			toolName,
+																		),
 																	}));
 																}}
 																className="p-2 text-muted-foreground hover:text-foreground"
@@ -1136,7 +1280,7 @@ export default function AgentBuilderPage() {
 						if (agentEid) {
 							await updateAgent.mutateAsync({
 								eid: agentEid,
-								data: { status: "draft" },
+								data: { state: "DRAFT" },
 							});
 						}
 					} catch {
@@ -1219,10 +1363,17 @@ export default function AgentBuilderPage() {
 				onOpenChange={setShowAddSkillModal}
 				currentTools={config.tools}
 				onAdd={(toolNames) => {
-					setConfig((prev) => ({
-						...prev,
-						tools: [...prev.tools, ...toolNames],
-					}));
+					setConfig((prev) => {
+						let nextInstructions = prev.instructions ?? "";
+						for (const name of toolNames) {
+							nextInstructions = addToolToInstructions(nextInstructions, name);
+						}
+						return {
+							...prev,
+							tools: [...prev.tools, ...toolNames],
+							instructions: nextInstructions,
+						};
+					});
 				}}
 			/>
 

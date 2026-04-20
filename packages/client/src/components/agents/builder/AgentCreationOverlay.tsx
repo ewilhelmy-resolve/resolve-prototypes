@@ -25,6 +25,7 @@ import type { ExecutionStep } from "@/stores/agentCreationStore";
 // Labels are produced by DirectApiStrategy.getProgressLabel on the server.
 const STEP_DIRECTIVE: Record<string, string> = {
 	Starting: "[icon:zap,color:primary]",
+	Saved: "[icon:check-circle,color:green]",
 	Analyzing: "[icon:search,color:primary]",
 	Building: "[icon:code,color:primary]",
 	Requirements: "[icon:shield,color:green]",
@@ -44,6 +45,11 @@ function buildReasoningContent(steps: ExecutionStep[]): string {
 
 interface AgentCreationOverlayProps {
 	status: "idle" | "creating" | "awaiting_input" | "success" | "error";
+	/**
+	 * Create vs update. Drives the success-state copy and the primary CTA
+	 * (Edit/Test for create, Back to Agent for update).
+	 */
+	mode?: "create" | "update";
 	executionSteps: ExecutionStep[];
 	inputMessage: string | null;
 	agentName: string | null;
@@ -58,6 +64,7 @@ interface AgentCreationOverlayProps {
 
 export function AgentCreationOverlay({
 	status,
+	mode = "create",
 	executionSteps,
 	inputMessage,
 	agentName,
@@ -85,10 +92,14 @@ export function AgentCreationOverlay({
 					<div className="flex flex-col items-center gap-6">
 						<div className="flex flex-col items-center gap-2 text-center">
 							<h2 className="text-lg font-semibold">
-								{t("createWithAI.creating")}
+								{mode === "update"
+									? t("createWithAI.updating")
+									: t("createWithAI.creating")}
 							</h2>
 							<p className="text-sm text-muted-foreground">
-								{t("createWithAI.creatingDescription")}
+								{mode === "update"
+									? t("createWithAI.updatingDescription")
+									: t("createWithAI.creatingDescription")}
 							</p>
 						</div>
 
@@ -158,27 +169,45 @@ export function AgentCreationOverlay({
 						<CheckCircle2 className="size-14 text-emerald-500" />
 						<div className="flex flex-col items-center gap-2 text-center">
 							<h2 className="text-lg font-semibold">
-								{t("createWithAI.success")}
+								{mode === "update"
+									? t("createWithAI.updateSuccess")
+									: t("createWithAI.success")}
 							</h2>
 							<p className="text-sm text-muted-foreground">
-								{t("createWithAI.successDescription", {
-									agentName: agentName || "",
-								})}
+								{mode === "update"
+									? t("createWithAI.updateSuccessDescription", {
+											agentName: agentName || "",
+										})
+									: t("createWithAI.successDescription", {
+											agentName: agentName || "",
+										})}
 							</p>
 						</div>
 						<div className="flex gap-3">
-							<Button
-								variant="outline"
-								className="gap-2"
-								onClick={() => onEditAgent(agentId)}
-							>
-								<Pencil className="size-4" />
-								{t("createWithAI.editAgent")}
-							</Button>
-							<Button className="gap-2" onClick={() => onTestAgent(agentId)}>
-								<Play className="size-4" />
-								{t("createWithAI.testAgent")}
-							</Button>
+							{mode === "update" ? (
+								<Button className="gap-2" onClick={() => onEditAgent(agentId)}>
+									<Pencil className="size-4" />
+									{t("createWithAI.backToAgent")}
+								</Button>
+							) : (
+								<>
+									<Button
+										variant="outline"
+										className="gap-2"
+										onClick={() => onEditAgent(agentId)}
+									>
+										<Pencil className="size-4" />
+										{t("createWithAI.editAgent")}
+									</Button>
+									<Button
+										className="gap-2"
+										onClick={() => onTestAgent(agentId)}
+									>
+										<Play className="size-4" />
+										{t("createWithAI.testAgent")}
+									</Button>
+								</>
+							)}
 						</div>
 					</div>
 				)}
@@ -188,7 +217,9 @@ export function AgentCreationOverlay({
 						<XCircle className="size-14 text-destructive" />
 						<div className="flex flex-col items-center gap-2 text-center">
 							<h2 className="text-lg font-semibold">
-								{t("createWithAI.error")}
+								{mode === "update"
+									? t("createWithAI.updateError")
+									: t("createWithAI.error")}
 							</h2>
 							<p className="text-sm text-muted-foreground max-w-sm">
 								{error || t("createWithAI.errorDefault")}

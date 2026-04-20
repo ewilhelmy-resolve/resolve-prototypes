@@ -9,15 +9,15 @@ import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { AgentStatus } from "@/types/agent";
+import type { AgentState } from "@/types/agent";
 
 export interface AgentCardProps {
 	/** Agent name */
 	name: string;
 	/** Agent description */
 	description: string;
-	/** Agent status */
-	status: AgentStatus;
+	/** Agent lifecycle state */
+	state: AgentState;
 	/** Icon component to display */
 	icon: LucideIcon;
 	/** Background color for icon container */
@@ -30,19 +30,20 @@ export interface AgentCardProps {
 	className?: string;
 }
 
-const statusConfig = {
-	draft: { labelKey: "card.statusDraft", variant: "secondary" },
-	published: { labelKey: "card.statusPublished", variant: "default" },
-	disabled: { labelKey: "card.statusDisabled", variant: "outline" },
+const stateConfig = {
+	DRAFT: { labelKey: "card.stateDraft", variant: "secondary" },
+	PUBLISHED: { labelKey: "card.statePublished", variant: "default" },
+	RETIRED: { labelKey: "card.stateRetired", variant: "outline" },
+	TESTING: { labelKey: "card.stateTesting", variant: "secondary" },
 } as const satisfies Record<
-	AgentStatus,
+	AgentState,
 	{ labelKey: string; variant: "default" | "secondary" | "outline" }
 >;
 
 export function AgentCard({
 	name,
 	description,
-	status,
+	state,
 	icon: Icon,
 	iconBgColor = "bg-slate-100",
 	skills,
@@ -50,14 +51,14 @@ export function AgentCard({
 	className,
 }: AgentCardProps) {
 	const { t } = useTranslation("agents");
-	const statusInfo = statusConfig[status];
-	const statusLabel = t(statusInfo.labelKey) as string;
+	const stateInfo = stateConfig[state];
+	const stateLabel = t(stateInfo.labelKey) as string;
 
 	return (
 		<button
 			type="button"
 			onClick={onClick}
-			aria-label={t("card.ariaLabel", { name, status: statusLabel })}
+			aria-label={t("card.ariaLabel", { name, status: stateLabel })}
 			className={cn(
 				"flex flex-col items-start p-6 rounded-xl border border-border bg-card",
 				"hover:border-primary/20 hover:bg-muted/70 transition-colors cursor-pointer text-left w-full",
@@ -68,7 +69,7 @@ export function AgentCard({
 				<div className={cn("p-2 rounded-md", iconBgColor)}>
 					<Icon className="size-5 text-foreground" />
 				</div>
-				<Badge variant={statusInfo.variant}>{statusLabel}</Badge>
+				<Badge variant={stateInfo.variant}>{stateLabel}</Badge>
 			</div>
 			<h3 className="font-semibold text-base text-card-foreground tracking-tight truncate w-full">
 				{name}

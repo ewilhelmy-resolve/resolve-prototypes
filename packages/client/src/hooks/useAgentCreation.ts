@@ -9,12 +9,39 @@ import { useAgentCreationStore } from "@/stores/agentCreationStore";
 // server's budget so normal late completions are never misreported as timeouts.
 const CREATION_TIMEOUT_MS = 600_000; // 10 minutes
 
+interface CreateInput {
+	name: string;
+	description?: string;
+	instructions?: string;
+	iconId?: string;
+	iconColorId?: string;
+	conversationStarters?: string[];
+	guardrails?: string[];
+	/**
+	 * When present, the server routes this through AgentRitaDeveloper in
+	 * UPDATE mode against the referenced agent. Also flips the local store
+	 * mode so the overlay shows "Agent updated" copy on success.
+	 */
+	targetAgentEid?: string;
+	/**
+	 * Optional free-form change request. Ignored server-side when
+	 * `targetAgentEid` is absent (i.e. create mode).
+	 */
+	updatePrompt?: string;
+	/**
+	 * When true, the server auto-generates the description from the submitted
+	 * instructions. Set when the user left description blank (CREATE) or
+	 * didn't edit it (UPDATE expensive path).
+	 */
+	generateDescription?: boolean;
+}
+
 /**
- * Orchestration hook for agent creation.
+ * Orchestration hook for agent creation and update-via-AI.
  *
  * Calls POST /api/agents/generate, gets a creationId, then waits for
- * SSE events (progress, completed, failed, input_required).
- * Both direct and workflow modes are async.
+ * SSE events (progress, completed, failed, input_required). The backend
+ * discriminates create vs update via the optional `targetAgentEid` field.
  */
 export function useAgentCreation() {
 	const generateAgent = useGenerateAgent();
@@ -22,16 +49,11 @@ export function useAgentCreation() {
 	const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
 	const create = useCallback(
-		async (formData: {
-			name: string;
-			description?: string;
-			instructions?: string;
-			iconId?: string;
-			iconColorId?: string;
-			conversationStarters?: string[];
-			guardrails?: string[];
-		}) => {
-			store.startCreation();
+		async (formData: CreateInput) => {
+			store.startCreation(
+				undefined,
+				formData.targetAgentEid ? "update" : "create",
+			);
 
 			try {
 				const response = await generateAgent.mutateAsync(formData);
@@ -63,6 +85,7 @@ export function useAgentCreation() {
 	return {
 		create,
 		status: store.status,
+		mode: store.mode,
 		creationId: store.creationId,
 		executionId: store.executionId,
 		executionSteps: store.executionSteps,
