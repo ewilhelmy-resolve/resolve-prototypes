@@ -6,6 +6,7 @@
 
 import { BookOpen, MessageSquare, Workflow } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AGENT_TYPE_INFO } from "@/constants/agents";
@@ -17,7 +18,7 @@ interface ChangeAgentTypeModalProps {
 	onOpenChange: (open: boolean) => void;
 	currentType: AgentType | null;
 	knowledgeSourcesCount: number;
-	workflowsCount: number;
+	toolsCount: number;
 	isEditing: boolean;
 	onConfirm: (newType: AgentType, needsDoubleConfirm: boolean) => void;
 }
@@ -33,10 +34,11 @@ export function ChangeAgentTypeModal({
 	onOpenChange,
 	currentType,
 	knowledgeSourcesCount,
-	workflowsCount,
+	toolsCount,
 	isEditing,
 	onConfirm,
 }: ChangeAgentTypeModalProps) {
+	const { t } = useTranslation("agents");
 	const [pendingType, setPendingType] = useState<AgentType | null>(null);
 
 	const handleClose = () => {
@@ -47,10 +49,9 @@ export function ChangeAgentTypeModal({
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
 			<DialogContent className="sm:max-w-md" showCloseButton>
-				<h2 className="text-lg font-medium">Change Agent Type</h2>
+				<h2 className="text-lg font-medium">{t("changeTypeModal.title")}</h2>
 				<p className="text-sm text-muted-foreground">
-					Select a new agent type. This will affect available configuration
-					options.
+					{t("changeTypeModal.description")}
 				</p>
 
 				<div className="space-y-2">
@@ -97,35 +98,39 @@ export function ChangeAgentTypeModal({
 				{pendingType && pendingType !== currentType && (
 					<div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
 						<p className="text-sm font-medium text-amber-800 mb-2">
-							What will change:
+							{t("changeTypeModal.whatWillChange")}
 						</p>
 						<ul className="text-sm text-amber-700 space-y-1">
 							{pendingType === "workflow" && knowledgeSourcesCount > 0 && (
 								<li>
-									&bull; Knowledge sources will be removed (
-									{knowledgeSourcesCount} sources)
+									&bull;{" "}
+									{t("changeTypeModal.knowledgeRemoved", {
+										count: knowledgeSourcesCount,
+									})}
 								</li>
 							)}
-							{pendingType === "knowledge" && workflowsCount > 0 && (
+							{pendingType === "knowledge" && toolsCount > 0 && (
 								<li>
-									&bull; Actions/workflows will be removed ({workflowsCount}{" "}
-									workflow)
+									&bull;{" "}
+									{t("changeTypeModal.workflowsRemoved", {
+										count: toolsCount,
+									})}
 								</li>
 							)}
 							{currentType === "workflow" && pendingType !== "workflow" && (
-								<li>&bull; Workflow configuration will be cleared</li>
+								<li>&bull; {t("changeTypeModal.workflowConfigCleared")}</li>
 							)}
 							{currentType === "knowledge" && pendingType !== "knowledge" && (
-								<li>&bull; Knowledge-only settings will be adjusted</li>
+								<li>&bull; {t("changeTypeModal.knowledgeSettingsAdjusted")}</li>
 							)}
-							<li>&bull; Agent behavior and capabilities will change</li>
+							<li>&bull; {t("changeTypeModal.behaviorChange")}</li>
 						</ul>
 					</div>
 				)}
 
 				<div className="flex justify-end gap-2 pt-2">
 					<Button variant="outline" onClick={handleClose}>
-						Cancel
+						{t("changeTypeModal.cancel")}
 					</Button>
 					<Button
 						onClick={() => {
@@ -136,7 +141,9 @@ export function ChangeAgentTypeModal({
 						}}
 						disabled={!pendingType || pendingType === currentType}
 					>
-						{isEditing ? "Continue" : "Confirm Change"}
+						{isEditing
+							? t("changeTypeModal.continue")
+							: t("changeTypeModal.confirmChange")}
 					</Button>
 				</div>
 			</DialogContent>

@@ -63,7 +63,9 @@ describe("AgentsPage search", () => {
 			</TestProviders>,
 		);
 
-		const searchInput = screen.getByPlaceholderText("Search agents...");
+		const searchInput = screen.getByPlaceholderText(
+			"list.filters.searchPlaceholder",
+		);
 		await user.type(searchInput, "HR Bot");
 
 		// Before debounce: no search filter
@@ -110,7 +112,9 @@ describe("AgentsPage search", () => {
 			</TestProviders>,
 		);
 
-		const searchInput = screen.getByPlaceholderText("Search agents...");
+		const searchInput = screen.getByPlaceholderText(
+			"list.filters.searchPlaceholder",
+		);
 
 		// Type search
 		await user.type(searchInput, "bot");

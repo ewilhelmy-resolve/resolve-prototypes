@@ -108,7 +108,6 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 
 	// Feature flags
 	const showWelcomeModal = useFeatureFlag("SHOW_WELCOME_MODAL");
-	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
 	const enableWorkflows = useFeatureFlag("ENABLE_WORKFLOWS");
 	const enableLanguageSwitcher = useFeatureFlag("ENABLE_LANGUAGE_SWITCHER");
 	const enableAgents = useFeatureFlag("ENABLE_AGENTS");
@@ -616,7 +615,7 @@ function RitaLayoutContent({ children, activePage = "chat" }: RitaLayoutProps) {
 				className="hidden"
 				onChange={handleDocumentUpload}
 				accept={SUPPORTED_DOCUMENT_TYPES}
-				multiple={enableMultiFileUpload}
+				multiple
 				disabled={uploadingFiles.size > 0}
 			/>
 

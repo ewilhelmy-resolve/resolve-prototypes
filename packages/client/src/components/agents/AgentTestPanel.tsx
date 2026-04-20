@@ -5,6 +5,7 @@
  */
 
 import { ExternalLink, MessageSquare, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AgentTestPanelConfig } from "@/types/agent";
@@ -24,6 +25,7 @@ export function AgentTestPanel({
 	iconComponent,
 	className,
 }: AgentTestPanelProps) {
+	const { t } = useTranslation("agents");
 	const starters = config.conversationStarters
 		.filter((s) => s.trim())
 		.slice(0, 4);
@@ -32,7 +34,7 @@ export function AgentTestPanel({
 	const isReady = !!(
 		config.name &&
 		(config.instructions ||
-			config.workflows.length > 0 ||
+			config.tools.length > 0 ||
 			config.knowledgeSources.length > 0)
 	);
 	const hasStarters = starters.length > 0;
@@ -46,7 +48,7 @@ export function AgentTestPanel({
 		>
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 py-3 border-b bg-white/80 backdrop-blur-sm rounded-t-xl">
-				<h2 className="text-sm font-medium">Preview</h2>
+				<h2 className="text-sm font-medium">{t("testPanel.preview")}</h2>
 				<div className="flex items-center gap-0.5">
 					{isReady && onTest && (
 						<Button
@@ -56,7 +58,7 @@ export function AgentTestPanel({
 							onClick={onTest}
 						>
 							<ExternalLink className="size-3" />
-							Test
+							{t("testPanel.test")}
 						</Button>
 					)}
 					<Button
@@ -64,7 +66,7 @@ export function AgentTestPanel({
 						size="icon"
 						className="size-7"
 						onClick={onClose}
-						title="Close"
+						title={t("testPanel.close")}
 					>
 						<X className="size-4" />
 					</Button>
@@ -90,10 +92,10 @@ export function AgentTestPanel({
 						{/* Mock empty state */}
 						<div className="flex-1 flex flex-col items-center justify-center text-center px-6">
 							<p className="text-sm text-muted-foreground/60">
-								Configure your agent to see a preview
+								{t("testPanel.configure")}
 							</p>
 							<p className="text-xs text-muted-foreground/40 mt-1">
-								Add name, instructions, or skills
+								{t("testPanel.configureHint")}
 							</p>
 						</div>
 
@@ -111,7 +113,7 @@ export function AgentTestPanel({
 							<div className="flex-1 min-w-0">
 								<h3 className="font-medium truncate">{config.name}</h3>
 								<p className="text-xs text-muted-foreground line-clamp-1">
-									{config.description || "No description"}
+									{config.description || t("testPanel.noDescription")}
 								</p>
 							</div>
 						</div>
@@ -120,7 +122,7 @@ export function AgentTestPanel({
 						{hasStarters ? (
 							<div className="space-y-2 flex-1">
 								<p className="text-xs text-muted-foreground">
-									Conversation starters:
+									{t("testPanel.conversationStarters")}
 								</p>
 								{starters.map((starter, i) => (
 									<div
@@ -133,32 +135,31 @@ export function AgentTestPanel({
 							</div>
 						) : (
 							<div className="flex-1 flex flex-col items-center justify-center text-center">
-								<p className="text-sm text-muted-foreground">Ready to test</p>
+								<p className="text-sm text-muted-foreground">
+									{t("testPanel.readyToTest")}
+								</p>
 								<p className="text-xs text-muted-foreground/60 mt-1">
-									Click "Test" to try out your agent
+									{t("testPanel.readyToTestHint")}
 								</p>
 							</div>
 						)}
 
 						{/* Skills/Sources summary */}
-						{(config.workflows.length > 0 ||
+						{(config.tools.length > 0 ||
 							config.knowledgeSources.length > 0) && (
 							<div className="pt-4 mt-4 border-t space-y-2">
-								{config.workflows.length > 0 && (
+								{config.tools.length > 0 && (
 									<div className="text-xs text-muted-foreground">
-										<span className="font-medium">
-											{config.workflows.length}
-										</span>{" "}
-										skill{config.workflows.length > 1 ? "s" : ""} configured
+										{t("testPanel.skillConfigured", {
+											count: config.tools.length,
+										})}
 									</div>
 								)}
 								{config.knowledgeSources.length > 0 && (
 									<div className="text-xs text-muted-foreground">
-										<span className="font-medium">
-											{config.knowledgeSources.length}
-										</span>{" "}
-										knowledge source
-										{config.knowledgeSources.length > 1 ? "s" : ""}
+										{t("testPanel.knowledgeSource", {
+											count: config.knowledgeSources.length,
+										})}
 									</div>
 								)}
 							</div>
@@ -173,7 +174,7 @@ export function AgentTestPanel({
 									variant="default"
 								>
 									<ExternalLink className="size-4" />
-									Open Test Experience
+									{t("testPanel.openTestExperience")}
 								</Button>
 							</div>
 						)}

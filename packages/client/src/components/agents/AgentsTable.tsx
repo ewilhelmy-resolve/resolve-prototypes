@@ -10,6 +10,7 @@
 
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +39,7 @@ interface AgentsTableProps {
 	onDelete?: (agent: AgentTableRow) => void;
 }
 
-type SortField = "status" | "updatedBy" | "lastUpdated";
+type SortField = "state" | "updatedBy" | "lastUpdated";
 type SortDirection = "asc" | "desc";
 
 function SortableHeader({
@@ -74,6 +75,7 @@ export function AgentsTable({
 	onEdit,
 	onDelete,
 }: AgentsTableProps) {
+	const { t } = useTranslation("agents");
 	const [sortField, setSortField] = useState<SortField | null>(null);
 	const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -91,8 +93,8 @@ export function AgentsTable({
 
 		let comparison = 0;
 		switch (sortField) {
-			case "status":
-				comparison = a.status.localeCompare(b.status);
+			case "state":
+				comparison = a.state.localeCompare(b.state);
 				break;
 			case "updatedBy":
 				comparison = (a.updatedBy || "").localeCompare(b.updatedBy || "");
@@ -108,19 +110,23 @@ export function AgentsTable({
 
 	return (
 		<div className="rounded-md border overflow-hidden">
-			<Table aria-label="Agents list">
+			<Table aria-label={t("table.ariaLabel")}>
 				<TableHeader>
 					<TableRow className="hover:bg-transparent">
-						<TableHead className="min-w-[250px] pl-4">Name</TableHead>
-						<TableHead className="w-[200px]">Skills</TableHead>
+						<TableHead className="min-w-[250px] pl-4">
+							{t("table.columns.name")}
+						</TableHead>
+						<TableHead className="w-[200px]">
+							{t("table.columns.skills")}
+						</TableHead>
 						<TableHead className="w-[127px]">
-							<SortableHeader field="status" onSort={handleSort}>
-								Status
+							<SortableHeader field="state" onSort={handleSort}>
+								{t("table.columns.state")}
 							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-[136px]">
 							<SortableHeader field="updatedBy" onSort={handleSort}>
-								Updated by
+								{t("table.columns.updatedBy")}
 							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-[162px]">
@@ -129,7 +135,7 @@ export function AgentsTable({
 								align="right"
 								onSort={handleSort}
 							>
-								Last updated
+								{t("table.columns.lastUpdated")}
 							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-16" />
@@ -176,9 +182,15 @@ export function AgentsTable({
 							</TableCell>
 							<TableCell>
 								<Badge
-									variant={agent.status === "published" ? "default" : "outline"}
+									variant={agent.state === "PUBLISHED" ? "default" : "outline"}
 								>
-									{agent.status === "published" ? "Published" : "Draft"}
+									{agent.state === "PUBLISHED"
+										? t("table.statePublished")
+										: agent.state === "RETIRED"
+											? t("table.stateRetired")
+											: agent.state === "TESTING"
+												? t("table.stateTesting")
+												: t("table.stateDraft")}
 								</Badge>
 							</TableCell>
 							<TableCell>
@@ -196,20 +208,20 @@ export function AgentsTable({
 											variant="ghost"
 											size="icon"
 											className="size-8"
-											aria-label="Agent actions"
+											aria-label={t("table.actions.ariaLabel")}
 										>
 											<MoreHorizontal className="size-4" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end">
 										<DropdownMenuItem onClick={() => onEdit?.(agent)}>
-											Edit
+											{t("table.actions.edit")}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onClick={() => onDelete?.(agent)}
 											className="text-destructive focus:text-destructive"
 										>
-											Delete
+											{t("table.actions.delete")}
 										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>

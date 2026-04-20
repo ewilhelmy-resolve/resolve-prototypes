@@ -19,13 +19,13 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { AgentImpact, AgentStatus } from "@/types/agent";
+import type { AgentImpact, AgentState } from "@/types/agent";
 
 interface DeleteAgentModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	agentName: string;
-	agentStatus: AgentStatus;
+	agentState: AgentState;
 	impact?: AgentImpact;
 	onConfirmDelete: () => void;
 }
@@ -34,14 +34,14 @@ export function DeleteAgentModal({
 	open,
 	onOpenChange,
 	agentName,
-	agentStatus,
+	agentState,
 	impact,
 	onConfirmDelete,
 }: DeleteAgentModalProps) {
 	const { t } = useTranslation("agents");
 	const [confirmText, setConfirmText] = useState("");
 
-	const isPublished = agentStatus === "published";
+	const isPublished = agentState === "PUBLISHED";
 	const canDelete = isPublished ? confirmText.toLowerCase() === "delete" : true;
 
 	const handleDelete = () => {

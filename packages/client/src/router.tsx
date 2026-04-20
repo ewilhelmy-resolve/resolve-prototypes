@@ -23,6 +23,7 @@ import FilesV1Page from "./pages/FilesV1Page";
 import HelpPage from "./pages/HelpPage";
 import IframeChatPage from "./pages/IframeChatPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
+// Hibernated: import JarvisSharePage from "./pages/JarvisSharePage";
 import LinkExpiredPage from "./pages/LinkExpiredPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import SchemaRendererDemo from "./pages/SchemaRendererDemo";
@@ -32,7 +33,6 @@ import KnowledgeSources from "./pages/settings/KnowledgeSources";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TermsOfService from "./pages/TermsOfService";
 import TicketDetailPage from "./pages/TicketDetailPage";
-
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
@@ -78,6 +78,8 @@ const router = createBrowserRouter([
 		path: "/iframe/chat/:conversationId",
 		element: <IframeChatPage />,
 	},
+	// Hibernated: public snapshot share page. Re-enable when public sharing is needed.
+	// { path: "/jarvis/:shareId", element: <JarvisSharePage /> },
 	// Redirect /agent to /agents
 	{
 		path: "/agent",

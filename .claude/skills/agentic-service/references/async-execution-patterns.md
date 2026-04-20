@@ -1,6 +1,6 @@
 # Async Agent Execution Patterns
 
-Agent execution is asynchronous. The caller invokes, then polls for results.
+Agent execution is asynchronous. The caller invokes, then polls for results. Body/response field shapes for `/services/agentic`, `/agents/messages`, `/agents/states`, and `/agents/conversations` live in [`data-models.md`](./data-models.md).
 
 ## Execution Flow
 
@@ -147,3 +147,7 @@ Agents can have multiple sub-tasks that execute sequentially. Each task:
 - Early termination if `need_inputs` is non-empty or `terminate` is true (when configured)
 
 The output of dependent tasks is passed as input context to subsequent tasks.
+
+## Meta-Agent Execution
+
+For meta-agent patterns (agents that modify other agents' configurations — improve instructions, generate conversation starters, etc.), see `references/meta-agent-patterns.md`.

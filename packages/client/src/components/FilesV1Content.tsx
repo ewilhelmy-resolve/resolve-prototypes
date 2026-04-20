@@ -44,7 +44,6 @@ import {
 	useUploadFile,
 } from "@/hooks/api/useFiles";
 import { useDataSources } from "@/hooks/useDataSources";
-import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import {
 	SUPPORTED_DOCUMENT_TYPES,
 	validateFileForUpload,
@@ -95,7 +94,6 @@ export default function FilesV1Content() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const enableMultiFileUpload = useFeatureFlag("ENABLE_MULTI_FILE_UPLOAD");
 
 	// Debounce search input - wait 500ms after user stops typing
 	useEffect(() => {
@@ -778,7 +776,7 @@ export default function FilesV1Content() {
 			<input
 				ref={fileInputRef}
 				type="file"
-				multiple={enableMultiFileUpload}
+				multiple
 				className="hidden"
 				onChange={handleFileChange}
 				accept={SUPPORTED_DOCUMENT_TYPES}

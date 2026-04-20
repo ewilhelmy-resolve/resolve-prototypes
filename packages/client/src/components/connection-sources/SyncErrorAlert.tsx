@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
 import type { DataSourceConnection } from "@/types/dataSource";
-import { credentialErrorI18nKey, isCredentialError } from "./utils";
+import { errorI18nKey, isCredentialError } from "./utils";
 
 interface SyncErrorAlertProps {
 	/** Backend data source connection with sync status fields */
@@ -38,7 +38,7 @@ export function SyncErrorAlert({
 	// Case 1: Sync failed with credential/permission error
 	if (last_sync_status === "failed" && isCredentialError(last_sync_error)) {
 		// When last_sync_error is an error code, show translated description; otherwise show as-is
-		const i18nKey = credentialErrorI18nKey(last_sync_error);
+		const i18nKey = errorI18nKey(last_sync_error);
 		const description = i18nKey ? t(i18nKey) : last_sync_error;
 
 		return (

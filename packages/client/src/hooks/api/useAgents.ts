@@ -5,7 +5,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { agentApi } from "@/services/api.ts";
-import type { AgentConfig } from "@/types/agent";
+import type { AgentConfig, AgentState } from "@/types/agent";
 
 const AGENTS_PAGE_SIZE = 20;
 
@@ -21,7 +21,7 @@ export const agentKeys = {
 
 export function useAgents(filters?: {
 	name?: string;
-	active?: string;
+	state?: AgentState;
 	search?: string;
 }) {
 	return useQuery({
@@ -33,7 +33,7 @@ export function useAgents(filters?: {
 
 export function useInfiniteAgents(filters?: {
 	name?: string;
-	active?: string;
+	state?: AgentState;
 	search?: string;
 }) {
 	return useInfiniteQuery({
@@ -108,5 +108,95 @@ export function useDeleteAgent() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
 		},
+	});
+}
+
+export function useGenerateAgent() {
+	return useMutation({
+		mutationFn: (data: {
+			name: string;
+			description?: string;
+			instructions?: string;
+			iconId?: string;
+			iconColorId?: string;
+			conversationStarters?: string[];
+			guardrails?: string[];
+			targetAgentEid?: string;
+			updatePrompt?: string;
+			generateDescription?: boolean;
+		}) => agentApi.generate(data),
+	});
+}
+
+export function useAgentCreationInput() {
+	return useMutation({
+		mutationFn: (data: {
+			creationId: string;
+			prevExecutionId: string;
+			prompt: string;
+			targetAgentEid?: string;
+		}) => agentApi.sendCreationInput(data),
+	});
+}
+
+export function useCancelAgentCreation() {
+	return useMutation({
+		mutationFn: (data: { creationId: string }) => agentApi.cancelCreation(data),
+	});
+}
+
+export function useImproveInstructionsMutation() {
+	return useMutation({
+		mutationFn: (data: {
+			instructions: string;
+			agentConfig: {
+				name?: string;
+				role?: string;
+				description?: string;
+				agentType?: string | null;
+				guardrails?: string[];
+				conversationStarters?: string[];
+				tools?: string[];
+				knowledgeSources?: string[];
+				capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+				responsibilities?: string;
+				completionCriteria?: string;
+			};
+		}) => agentApi.improveInstructions(data),
+	});
+}
+
+export function useGenerateConversationStartersMutation() {
+	return useMutation({
+		mutationFn: (data: {
+			agentConfig: {
+				name?: string;
+				role?: string;
+				description?: string;
+				instructions?: string;
+				agentType?: string | null;
+				guardrails?: string[];
+				conversationStarters?: string[];
+				tools?: string[];
+				knowledgeSources?: string[];
+				capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+				responsibilities?: string;
+				completionCriteria?: string;
+			};
+		}) => agentApi.generateConversationStarters(data),
+	});
+}
+
+export function useExecuteAgent() {
+	return useMutation({
+		mutationFn: ({
+			eid,
+			message,
+			transcript,
+		}: {
+			eid: string;
+			message: string;
+			transcript?: string;
+		}) => agentApi.execute(eid, { message, transcript }),
 	});
 }

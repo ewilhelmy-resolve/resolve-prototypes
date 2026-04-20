@@ -20,6 +20,7 @@ import validationEn from "./locales/en/validation.json";
 import agentsEsMX from "./locales/es-MX/agents.json";
 import chatEsMX from "./locales/es-MX/chat.json";
 import commonEsMX from "./locales/es-MX/common.json";
+import validationEsMX from "./locales/es-MX/validation.json";
 
 export const defaultNS = "common";
 
@@ -59,6 +60,7 @@ export const resources = {
 		agents: agentsEsMX,
 		chat: chatEsMX,
 		common: commonEsMX,
+		validation: validationEsMX,
 	},
 } as const;
 

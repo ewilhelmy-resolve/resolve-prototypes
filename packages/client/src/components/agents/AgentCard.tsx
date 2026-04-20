@@ -6,17 +6,18 @@
  */
 
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { AgentStatus } from "@/types/agent";
+import type { AgentState } from "@/types/agent";
 
 export interface AgentCardProps {
 	/** Agent name */
 	name: string;
 	/** Agent description */
 	description: string;
-	/** Agent status */
-	status: AgentStatus;
+	/** Agent lifecycle state */
+	state: AgentState;
 	/** Icon component to display */
 	icon: LucideIcon;
 	/** Background color for icon container */
@@ -29,32 +30,35 @@ export interface AgentCardProps {
 	className?: string;
 }
 
-const statusConfig: Record<
-	AgentStatus,
-	{ label: string; variant: "default" | "secondary" | "outline" }
-> = {
-	draft: { label: "Draft", variant: "secondary" },
-	published: { label: "Published", variant: "default" },
-	disabled: { label: "Disabled", variant: "outline" },
-};
+const stateConfig = {
+	DRAFT: { labelKey: "card.stateDraft", variant: "secondary" },
+	PUBLISHED: { labelKey: "card.statePublished", variant: "default" },
+	RETIRED: { labelKey: "card.stateRetired", variant: "outline" },
+	TESTING: { labelKey: "card.stateTesting", variant: "secondary" },
+} as const satisfies Record<
+	AgentState,
+	{ labelKey: string; variant: "default" | "secondary" | "outline" }
+>;
 
 export function AgentCard({
 	name,
 	description,
-	status,
+	state,
 	icon: Icon,
 	iconBgColor = "bg-slate-100",
 	skills,
 	onClick,
 	className,
 }: AgentCardProps) {
-	const statusInfo = statusConfig[status];
+	const { t } = useTranslation("agents");
+	const stateInfo = stateConfig[state];
+	const stateLabel = t(stateInfo.labelKey) as string;
 
 	return (
 		<button
 			type="button"
 			onClick={onClick}
-			aria-label={`${name} agent - ${statusInfo.label}`}
+			aria-label={t("card.ariaLabel", { name, status: stateLabel })}
 			className={cn(
 				"flex flex-col items-start p-6 rounded-xl border border-border bg-card",
 				"hover:border-primary/20 hover:bg-muted/70 transition-colors cursor-pointer text-left w-full",
@@ -65,7 +69,7 @@ export function AgentCard({
 				<div className={cn("p-2 rounded-md", iconBgColor)}>
 					<Icon className="size-5 text-foreground" />
 				</div>
-				<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+				<Badge variant={stateInfo.variant}>{stateLabel}</Badge>
 			</div>
 			<h3 className="font-semibold text-base text-card-foreground tracking-tight truncate w-full">
 				{name}
@@ -75,7 +79,7 @@ export function AgentCard({
 			</p>
 			{skills && skills.length > 0 && (
 				<p className="text-xs text-muted-foreground truncate w-full mt-1">
-					<span className="font-medium">Skills:</span>{" "}
+					<span className="font-medium">{t("card.skillsLabel")}</span>{" "}
 					{skills.slice(0, 2).join(", ")}
 					{skills.length > 2 && ` +${skills.length - 2}`}
 				</p>

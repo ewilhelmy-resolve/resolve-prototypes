@@ -9,6 +9,7 @@
 
 import { BookOpen, ChevronDown, Loader2, Plus, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AgentsTable } from "@/components/agents/AgentsTable";
 import { DeleteAgentModal } from "@/components/agents/DeleteAgentModal";
@@ -25,9 +26,9 @@ import { Input } from "@/components/ui/input";
 import { useDeleteAgent, useInfiniteAgents } from "@/hooks/api/useAgents";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/toast";
-import type { AgentTableRow } from "@/types/agent";
+import type { AgentState, AgentTableRow } from "@/types/agent";
 
-type FilterStatus = "all" | "published" | "draft";
+type FilterState = "all" | AgentState;
 type FilterOwner = "all" | "me" | "others";
 
 interface PublishedAgentState {
@@ -41,6 +42,7 @@ interface PublishedAgentState {
 }
 
 export default function AgentsPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { getUserEmail } = useAuth();
@@ -53,7 +55,7 @@ export default function AgentsPage() {
 	}, [searchQuery]);
 
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
-	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
+	const [stateFilter, setStateFilter] = useState<FilterState>("all");
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [agentToDelete, setAgentToDelete] = useState<AgentTableRow | null>(
 		null,
@@ -61,9 +63,12 @@ export default function AgentsPage() {
 	const [showEducationBanner, setShowEducationBanner] = useState(true);
 
 	// Fetch agents from API with infinite scroll
-	const agentsFilters: Record<string, string> = {};
-	if (statusFilter !== "all") {
-		agentsFilters.active = statusFilter === "published" ? "true" : "false";
+	const agentsFilters: {
+		state?: AgentState;
+		search?: string;
+	} = {};
+	if (stateFilter !== "all") {
+		agentsFilters.state = stateFilter;
 	}
 	if (debouncedSearch) {
 		agentsFilters.search = debouncedSearch;
@@ -89,19 +94,25 @@ export default function AgentsPage() {
 			unpublishedAgent?: { id: string; name: string };
 		} | null;
 		if (state?.publishedAgent) {
-			toast.success(`${state.publishedAgent.name} published`, {
-				description: "Agent is now live and available to users.",
-			});
+			toast.success(
+				t("list.toasts.published", { name: state.publishedAgent.name }),
+				{
+					description: t("list.toasts.publishedDescription"),
+				},
+			);
 			window.history.replaceState({}, document.title);
 		}
 
 		if (state?.unpublishedAgent) {
-			toast.info(`${state.unpublishedAgent.name} moved to draft`, {
-				description: "Agent is no longer available to users.",
-			});
+			toast.info(
+				t("list.toasts.unpublished", { name: state.unpublishedAgent.name }),
+				{
+					description: t("list.toasts.unpublishedDescription"),
+				},
+			);
 			window.history.replaceState({}, document.title);
 		}
-	}, [location.state]);
+	}, [location.state, t]);
 
 	// TODO: owner filter is client-side — pages may appear empty while hasMore=true.
 	// Move to server-side filter when LLM Service supports owner param.
@@ -131,12 +142,12 @@ export default function AgentsPage() {
 
 		deleteAgent.mutate(agentToDelete.id, {
 			onSuccess: () => {
-				toast.success(`${agentToDelete.name} deleted`);
+				toast.success(t("list.toasts.deleted", { name: agentToDelete.name }));
 				setAgentToDelete(null);
 				setDeleteModalOpen(false);
 			},
 			onError: () => {
-				toast.error("Failed to delete agent");
+				toast.error(t("list.toasts.deleteFailed"));
 			},
 		});
 	};
@@ -146,10 +157,12 @@ export default function AgentsPage() {
 			<div className="flex flex-col gap-6 p-4">
 				{/* Header */}
 				<div className="flex items-center justify-between">
-					<h1 className="text-xl font-serif text-card-foreground">Agents</h1>
+					<h1 className="text-xl font-serif text-card-foreground">
+						{t("list.title")}
+					</h1>
 					<Button className="gap-2" onClick={() => navigate("/agents/create")}>
 						<Plus className="size-4" />
-						Create agent
+						{t("list.createAgent")}
 					</Button>
 				</div>
 
@@ -160,7 +173,7 @@ export default function AgentsPage() {
 						<button
 							onClick={() => setShowEducationBanner(false)}
 							className="absolute top-0 right-0 p-2 rounded-md hover:bg-muted transition-colors"
-							aria-label="Dismiss"
+							aria-label={t("list.banner.dismiss")}
 						>
 							<X className="size-4" />
 						</button>
@@ -169,13 +182,10 @@ export default function AgentsPage() {
 							{/* Left content */}
 							<div className="flex-1 flex flex-col gap-2.5 p-5">
 								<h2 className="text-4xl font-serif">
-									Build intelligent agents
+									{t("list.banner.heading")}
 								</h2>
 								<p className="text-base text-foreground leading-relaxed">
-									Create AI-powered agents that answer questions from your
-									knowledge base, automate workflows, and help your team be more
-									productive. Connect to your existing tools and let agents
-									handle repetitive tasks.
+									{t("list.banner.description")}
 								</p>
 
 								{/* Action links */}
@@ -187,7 +197,7 @@ export default function AgentsPage() {
 										className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
 									>
 										<BookOpen className="size-4" />
-										How to create an agent
+										{t("list.banner.howToCreate")}
 									</button>
 									<button
 										onClick={() => {
@@ -196,7 +206,7 @@ export default function AgentsPage() {
 										className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
 									>
 										<Zap className="size-4" />
-										Adding skills to your agent
+										{t("list.banner.addingSkills")}
 									</button>
 								</div>
 							</div>
@@ -204,7 +214,7 @@ export default function AgentsPage() {
 							{/* Right illustration */}
 							<img
 								src="/images/agents-banner-illustration.svg"
-								alt="Agent examples"
+								alt={t("list.banner.illustrationAlt")}
 								className="hidden lg:block w-[350px] h-[204px] rounded-lg flex-shrink-0"
 							/>
 						</div>
@@ -222,7 +232,9 @@ export default function AgentsPage() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="secondary" className="gap-2">
-											Owner: {ownerFilter}
+											{t("list.filters.ownerLabel", {
+												value: t(`list.filters.${ownerFilter}`),
+											})}
 											<ChevronDown className="size-4" />
 										</Button>
 									</DropdownMenuTrigger>
@@ -231,49 +243,72 @@ export default function AgentsPage() {
 											checked={ownerFilter === "all"}
 											onCheckedChange={() => setOwnerFilter("all")}
 										>
-											All
+											{t("list.filters.all")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
 											checked={ownerFilter === "me"}
 											onCheckedChange={() => setOwnerFilter("me")}
 										>
-											Me
+											{t("list.filters.me")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
 											checked={ownerFilter === "others"}
 											onCheckedChange={() => setOwnerFilter("others")}
 										>
-											Others
+											{t("list.filters.others")}
 										</DropdownMenuCheckboxItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
 
-								{/* Status filter */}
+								{/* State filter */}
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="secondary" className="gap-2">
-											Status: {statusFilter}
+											{t("list.filters.stateLabel", {
+												value:
+													stateFilter === "all"
+														? t("list.filters.all")
+														: stateFilter === "DRAFT"
+															? t("list.filters.draft")
+															: stateFilter === "PUBLISHED"
+																? t("list.filters.published")
+																: stateFilter === "RETIRED"
+																	? t("list.filters.retired")
+																	: t("list.filters.testing"),
+											})}
 											<ChevronDown className="size-4" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "all"}
-											onCheckedChange={() => setStatusFilter("all")}
+											checked={stateFilter === "all"}
+											onCheckedChange={() => setStateFilter("all")}
 										>
-											All
+											{t("list.filters.all")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "published"}
-											onCheckedChange={() => setStatusFilter("published")}
+											checked={stateFilter === "PUBLISHED"}
+											onCheckedChange={() => setStateFilter("PUBLISHED")}
 										>
-											Published
+											{t("list.filters.published")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "draft"}
-											onCheckedChange={() => setStatusFilter("draft")}
+											checked={stateFilter === "DRAFT"}
+											onCheckedChange={() => setStateFilter("DRAFT")}
 										>
-											Draft
+											{t("list.filters.draft")}
+										</DropdownMenuCheckboxItem>
+										<DropdownMenuCheckboxItem
+											checked={stateFilter === "TESTING"}
+											onCheckedChange={() => setStateFilter("TESTING")}
+										>
+											{t("list.filters.testing")}
+										</DropdownMenuCheckboxItem>
+										<DropdownMenuCheckboxItem
+											checked={stateFilter === "RETIRED"}
+											onCheckedChange={() => setStateFilter("RETIRED")}
+										>
+											{t("list.filters.retired")}
 										</DropdownMenuCheckboxItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
@@ -281,7 +316,7 @@ export default function AgentsPage() {
 
 							{/* Search */}
 							<Input
-								placeholder="Search agents..."
+								placeholder={t("list.filters.searchPlaceholder")}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className="max-w-[384px]"
@@ -295,7 +330,9 @@ export default function AgentsPage() {
 							</div>
 						) : agentsError ? (
 							<div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-								Failed to load agents. Please try again.
+								{agentsError instanceof Error
+									? agentsError.message
+									: t("list.error")}
 							</div>
 						) : (
 							<InfiniteScrollContainer
@@ -320,7 +357,7 @@ export default function AgentsPage() {
 					open={deleteModalOpen}
 					onOpenChange={setDeleteModalOpen}
 					agentName={agentToDelete.name}
-					agentStatus={agentToDelete.status}
+					agentState={agentToDelete.state}
 					impact={{
 						skills: agentToDelete.skills?.length ?? 0,
 						conversationStarters: 0, // TODO: populate from API when available

@@ -6,15 +6,31 @@ export const CREDENTIAL_ERROR_CODES = [
 	"permission_denied",
 ] as const;
 
-/** Map a credential error code to its i18n key. Returns null for non-code strings. */
-export function credentialErrorI18nKey(
+/** All structured error codes sent by the platform (superset of credential errors) */
+export const KNOWN_ERROR_CODES = [
+	...CREDENTIAL_ERROR_CODES,
+	"instance_unavailable",
+] as const;
+
+/** Map a known error code to its i18n key. Returns null for non-code strings. */
+export function errorI18nKey(
 	error: string,
-): "syncError.authentication_failed" | "syncError.permission_denied" | null {
+):
+	| "syncError.authentication_failed"
+	| "syncError.permission_denied"
+	| "syncError.instance_unavailable"
+	| null {
 	if (error === "authentication_failed")
 		return "syncError.authentication_failed";
 	if (error === "permission_denied") return "syncError.permission_denied";
+	if (error === "instance_unavailable") return "syncError.instance_unavailable";
 	return null;
 }
+
+/**
+ * @deprecated Use {@link errorI18nKey} instead.
+ */
+export const credentialErrorI18nKey = errorI18nKey;
 
 /**
  * Check if an error string indicates a credential/permission issue.

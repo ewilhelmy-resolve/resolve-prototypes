@@ -57,11 +57,6 @@ async function apiRequest<T>(
 		if (response.status === 401) {
 			console.error("API request returned 401. Session may have expired.");
 		}
-		// Handle 502 - backend is down, redirect to login
-		if (response.status === 502) {
-			console.error("API request returned 502. Backend is down.");
-			keycloak.logout();
-		}
 		throw new ApiError(
 			response.status,
 			errorData.error ||
@@ -131,7 +126,7 @@ export const conversationApi = {
 
 	sendMessage: (
 		conversationId: string,
-		data: { content: string; metadata?: Record<string, string> },
+		data: { content: string; metadata?: Record<string, string | boolean> },
 	) =>
 		apiRequest<{ message: any }>(
 			`/api/conversations/${conversationId}/messages`,
@@ -154,6 +149,42 @@ export const conversationApi = {
 
 	getMessage: (messageId: string) =>
 		apiRequest<{ message: any }>(`/api/messages/${messageId}`),
+};
+
+// Share API (snapshot-based conversation sharing)
+export interface EnableShareResponse {
+	shareUrl: string;
+	shareId: string;
+}
+
+export const shareApi = {
+	/** Enable sharing for an authenticated user's conversation */
+	enable: (conversationId: string) =>
+		apiRequest<EnableShareResponse>(
+			`/api/conversations/${conversationId}/share/enable`,
+			{ method: "POST" },
+		),
+
+	/** Disable sharing for an authenticated user's conversation */
+	disable: (conversationId: string) =>
+		apiRequest<{ success: true }>(
+			`/api/conversations/${conversationId}/share/disable`,
+			{ method: "POST" },
+		),
+
+	/** Platform flow — enable sharing for the iframe session's conversation */
+	enableFromSession: (sessionKey: string) =>
+		apiRequest<EnableShareResponse>("/api/iframe/share", {
+			method: "POST",
+			body: { sessionKey },
+		}),
+
+	/** Platform flow — disable sharing for the iframe session's conversation */
+	disableFromSession: (sessionKey: string) =>
+		apiRequest<{ success: true }>("/api/iframe/share/disable", {
+			method: "POST",
+			body: { sessionKey },
+		}),
 };
 
 // Agent API (proxied through Rita API server → LLM Service)
@@ -205,6 +236,151 @@ export const agentApi = {
 		apiRequest<{ success: boolean; message: string }>(`/api/agents/${eid}`, {
 			method: "DELETE",
 		}),
+
+	generate: (data: {
+		name: string;
+		description?: string;
+		instructions?: string;
+		iconId?: string;
+		iconColorId?: string;
+		conversationStarters?: string[];
+		guardrails?: string[];
+		/**
+		 * When present, the server routes this through AgentRitaDeveloper in
+		 * UPDATE mode against the referenced agent instead of creating a new one.
+		 */
+		targetAgentEid?: string;
+		/**
+		 * Optional free-form change request (e.g. "tighten guardrails; drop the
+		 * HR triage task"). Ignored in create mode.
+		 */
+		updatePrompt?: string;
+		/**
+		 * When true, the server auto-generates the description from the
+		 * submitted instructions. Set on CREATE when the user left description
+		 * blank, or on UPDATE when the user didn't edit the description.
+		 */
+		generateDescription?: boolean;
+	}) =>
+		apiRequest<{ mode: "async"; creationId: string }>("/api/agents/generate", {
+			method: "POST",
+			body: data,
+		}),
+
+	sendCreationInput: (data: {
+		creationId: string;
+		prevExecutionId: string;
+		prompt: string;
+		/**
+		 * Carried from the original generate call so the server stays in UPDATE
+		 * mode across multi-turn clarifications.
+		 */
+		targetAgentEid?: string;
+	}) =>
+		apiRequest<{ success: boolean }>("/api/agents/creation-input", {
+			method: "POST",
+			body: data,
+		}),
+
+	cancelCreation: (data: { creationId: string }) =>
+		apiRequest<{ success: boolean }>("/api/agents/cancel-creation", {
+			method: "POST",
+			body: data,
+		}),
+
+	improveInstructions: (data: {
+		instructions: string;
+		agentConfig: {
+			name?: string;
+			role?: string;
+			description?: string;
+			agentType?: string | null;
+			guardrails?: string[];
+			conversationStarters?: string[];
+			tools?: string[];
+			knowledgeSources?: string[];
+			capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+			responsibilities?: string;
+			completionCriteria?: string;
+		};
+	}) =>
+		apiRequest<{ instructions: string; description: string }>(
+			"/api/agents/improve-instructions",
+			{
+				method: "POST",
+				body: data,
+			},
+		),
+
+	generateConversationStarters: (data: {
+		agentConfig: {
+			name?: string;
+			role?: string;
+			description?: string;
+			instructions?: string;
+			agentType?: string | null;
+			guardrails?: string[];
+			conversationStarters?: string[];
+			tools?: string[];
+			knowledgeSources?: string[];
+			capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
+			responsibilities?: string;
+			completionCriteria?: string;
+		};
+	}) =>
+		apiRequest<{ starters: string[] }>(
+			"/api/agents/generate-conversation-starters",
+			{
+				method: "POST",
+				body: data,
+			},
+		),
+
+	cancelMetaAgent: (data: { executionRequestId: string }) =>
+		apiRequest<{ success: boolean }>("/api/agents/cancel-meta-agent", {
+			method: "POST",
+			body: data,
+		}),
+
+	execute: (eid: string, data: { message: string; transcript?: string }) =>
+		apiRequest<{ executionRequestId: string }>(`/api/agents/${eid}/execute`, {
+			method: "POST",
+			body: data,
+		}),
+};
+
+// Tools API (fetches available tools from LLM Service via proxy)
+export interface ToolItem {
+	eid: string;
+	name: string;
+	description: string;
+	type: string;
+	active: boolean;
+}
+
+export const toolsApi = {
+	list: (params?: {
+		search?: string;
+		type?: string;
+		active?: string;
+		limit?: number;
+		offset?: number;
+	}) => {
+		const searchParams = new URLSearchParams();
+		if (params?.search) searchParams.set("search", params.search);
+		if (params?.type) searchParams.set("type", params.type);
+		if (params?.active) searchParams.set("active", params.active);
+		if (params?.limit != null) searchParams.set("limit", String(params.limit));
+		if (params?.offset != null)
+			searchParams.set("offset", String(params.offset));
+		const query = searchParams.toString();
+		return apiRequest<{
+			tools: ToolItem[];
+			limit: number;
+			offset: number;
+			hasMore: boolean;
+		}>(`/api/agents/tools${query ? `?${query}` : ""}`);
+	},
 };
 
 // Organization API

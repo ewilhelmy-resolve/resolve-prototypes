@@ -10,6 +10,7 @@
 
 import { Search, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -32,7 +33,7 @@ interface AddSkillModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	availableSkills: Skill[];
-	currentWorkflows: string[];
+	currentTools: string[];
 	onAdd: (skillNames: string[], starters: string[]) => void;
 }
 
@@ -40,9 +41,10 @@ export function AddSkillModal({
 	open,
 	onOpenChange,
 	availableSkills,
-	currentWorkflows,
+	currentTools,
 	onAdd,
 }: AddSkillModalProps) {
+	const { t } = useTranslation("agents");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 	const [activeTab, setActiveTab] = useState<"available" | "all">("available");
@@ -60,7 +62,7 @@ export function AddSkillModal({
 		skill.author.toLowerCase().includes(searchQuery.toLowerCase());
 
 	const unlinkedSkills = availableSkills
-		.filter((s) => s.linkedAgent === null && !currentWorkflows.includes(s.name))
+		.filter((s) => s.linkedAgent === null && !currentTools.includes(s.name))
 		.filter(filterBySearch);
 
 	const allFiltered = availableSkills.filter(filterBySearch);
@@ -98,7 +100,7 @@ export function AddSkillModal({
 					type="button"
 					onClick={handleClose}
 					className="absolute right-4 top-4 text-muted-foreground/70 hover:text-foreground z-10"
-					aria-label="Close"
+					aria-label={t("addSkillModal.close")}
 				>
 					<X className="size-4" />
 				</button>
@@ -106,16 +108,17 @@ export function AddSkillModal({
 				{/* Header + Search + Tabs */}
 				<div className="px-6 pt-6 flex flex-col gap-4">
 					<div>
-						<h2 className="text-lg font-semibold">Add skills</h2>
+						<h2 className="text-lg font-semibold">
+							{t("addSkillModal.title")}
+						</h2>
 						<p className="text-sm text-muted-foreground mt-1.5">
-							Help users understand what this agent can help them with by adding
-							skills
+							{t("addSkillModal.description")}
 						</p>
 					</div>
 					<div className="relative">
 						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
 						<Input
-							placeholder="Search skills..."
+							placeholder={t("addSkillModal.searchPlaceholder")}
 							className="pl-9 rounded-lg"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -127,7 +130,7 @@ export function AddSkillModal({
 					>
 						<TabsList className="w-full">
 							<TabsTrigger value="available" className="flex-1">
-								Available
+								{t("addSkillModal.tabAvailable")}
 								<Badge
 									variant="secondary"
 									className="ml-1.5 text-xs px-1.5 py-0"
@@ -136,7 +139,7 @@ export function AddSkillModal({
 								</Badge>
 							</TabsTrigger>
 							<TabsTrigger value="all" className="flex-1">
-								All
+								{t("addSkillModal.tabAll")}
 								<Badge
 									variant="secondary"
 									className="ml-1.5 text-xs px-1.5 py-0"
@@ -151,7 +154,7 @@ export function AddSkillModal({
 				{/* Skills list */}
 				<div className="flex-1 overflow-y-auto max-h-[400px] mt-5">
 					{displayedSkills.map((skill) => {
-						const isAlreadyAdded = currentWorkflows.includes(skill.name);
+						const isAlreadyAdded = currentTools.includes(skill.name);
 						const isLinkedToOther =
 							skill.linkedAgent !== null && !isAlreadyAdded;
 						const isSelected = selectedSkills.includes(skill.name);
@@ -183,14 +186,18 @@ export function AddSkillModal({
 								</div>
 								<div className="flex-shrink-0">
 									{isAlreadyAdded ? (
-										<span className="text-xs text-muted-foreground">Added</span>
+										<span className="text-xs text-muted-foreground">
+											{t("addSkillModal.added")}
+										</span>
 									) : isLinkedToOther ? (
 										<div className="text-right">
 											<p className="text-xs text-primary">
-												Duplicate in Actions
+												{t("addSkillModal.duplicateInActions")}
 											</p>
 											<p className="text-xs text-muted-foreground">
-												used in {skill.linkedAgent}
+												{t("addSkillModal.usedIn", {
+													agent: skill.linkedAgent,
+												})}
 											</p>
 										</div>
 									) : (
@@ -211,7 +218,7 @@ export function AddSkillModal({
 					})}
 					{displayedSkills.length === 0 && (
 						<div className="py-8 text-center text-sm text-muted-foreground">
-							No skills found matching &quot;{searchQuery}&quot;
+							{t("addSkillModal.noResults", { query: searchQuery })}
 						</div>
 					)}
 				</div>
@@ -219,14 +226,16 @@ export function AddSkillModal({
 				{/* Footer */}
 				<div className="px-6 py-3 flex justify-end gap-2">
 					<Button variant="outline" size="sm" onClick={handleClose}>
-						Cancel
+						{t("addSkillModal.cancel")}
 					</Button>
 					<Button
 						size="sm"
 						disabled={selectedSkills.length === 0}
 						onClick={handleAdd}
 					>
-						Add {selectedSkills.length > 0 ? `(${selectedSkills.length})` : ""}
+						{selectedSkills.length > 0
+							? t("addSkillModal.addCount", { count: selectedSkills.length })
+							: t("addSkillModal.add")}
 					</Button>
 				</div>
 			</DialogContent>

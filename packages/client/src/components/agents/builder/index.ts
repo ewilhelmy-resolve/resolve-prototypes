@@ -1,7 +1,13 @@
 export { AddSkillModal } from "./AddSkillModal";
+export { AddToolsModal } from "./AddToolsModal";
+export { AgentConversationStarters } from "./AgentConversationStarters";
+export { AgentCreationOverlay } from "./AgentCreationOverlay";
+export { AgentGuardrailsSection } from "./AgentGuardrailsSection";
+export { AgentIconPicker } from "./AgentIconPicker";
 export { ChangeAgentTypeModal } from "./ChangeAgentTypeModal";
 export { ConfirmTypeChangeModal } from "./ConfirmTypeChangeModal";
 export { CreateWorkflowModal } from "./CreateWorkflowModal";
+export { ImproveInstructionsDialog } from "./ImproveInstructionsDialog";
 export { InstructionsExpandedModal } from "./InstructionsExpandedModal";
 export { PublishModal } from "./PublishModal";
 export { UnlinkWorkflowModal } from "./UnlinkWorkflowModal";

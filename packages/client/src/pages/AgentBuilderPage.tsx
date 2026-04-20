@@ -11,58 +11,60 @@
 import confetti from "canvas-confetti";
 import {
 	ArrowLeft,
-	Bot,
-	Briefcase,
-	Calendar,
 	Check,
-	ChevronDown,
-	Clock,
-	HelpCircle,
-	Key,
 	Loader2,
-	Lock,
-	MessageSquare,
 	Play,
 	Plus,
-	Search,
-	// Icon picker icons
-	ShieldCheck,
-	Trash2,
-	Users,
-	Workflow,
+	Sparkles,
 	X,
 	Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-	AddSkillModal,
+	AddToolsModal,
+	AgentConversationStarters,
+	AgentCreationOverlay,
+	AgentGuardrailsSection,
+	AgentIconPicker,
 	ChangeAgentTypeModal,
 	ConfirmTypeChangeModal,
 	CreateWorkflowModal,
+	ImproveInstructionsDialog,
 	InstructionsExpandedModal,
 	PublishModal,
 	UnlinkWorkflowModal,
 	UnpublishModal,
 } from "@/components/agents/builder";
-import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
+import { FieldHelp } from "@/components/custom/FieldHelp";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AVAILABLE_ICONS, ICON_COLORS } from "@/constants/agents";
 import {
 	useAgent,
 	useCheckAgentName,
 	useCreateAgent,
 	useUpdateAgent,
 } from "@/hooks/api/useAgents";
-import { useAutoSave } from "@/hooks/useAutoSave";
-import { useClickOutside } from "@/hooks/useClickOutside";
+import { useAgentCreation } from "@/hooks/useAgentCreation";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useGenerateConversationStarters } from "@/hooks/useGenerateConversationStarters";
+import { useImproveInstructions } from "@/hooks/useImproveInstructions";
+import {
+	diffAgentConfig,
+	validateSkillReferences,
+} from "@/lib/agentConfigDiff";
+import {
+	addToolToInstructions,
+	removeToolFromInstructions,
+} from "@/lib/agentInstructionsTools";
 import { toast } from "@/lib/toast";
-import { cn } from "@/lib/utils";
+import { cn, humanizeToolName } from "@/lib/utils";
+import { agentApi } from "@/services/api";
+import { useAgentCreationStore } from "@/stores/agentCreationStore";
 import type {
 	AgentConfig,
 	BuilderMessage,
@@ -70,173 +72,15 @@ import type {
 	DebugTraceStep,
 } from "@/types/agent";
 
-// Available skills for the Add Skill modal
-// linkedAgent: null = available, string = name of agent using this skill
-const AVAILABLE_SKILLS = [
-	{
-		id: "lookup-birthday",
-		name: "Lookup employee birthday",
-		author: "System",
-		icon: Calendar,
-		starters: ["When is my coworker's birthday?", "Look up a birthday"],
-		linkedAgent: null,
-		skillInstructions:
-			"Look up employee birthdays from the HR directory. Respond with the employee's name and birthday. If not found, suggest checking the spelling.",
-	},
-	{
-		id: "reset-password",
-		name: "Reset password",
-		author: "IT Team",
-		icon: Key,
-		starters: [
-			"I forgot my password",
-			"Reset my password",
-			"I need a new password",
-		],
-		linkedAgent: "HelpDesk Advisor",
-		skillInstructions:
-			"Guide users through password reset. Verify identity via security questions or MFA before initiating reset. Send temporary password via secure channel and require change on next login.",
-	},
-	{
-		id: "check-pto",
-		name: "Check PTO balance",
-		author: "HR Team",
-		icon: Clock,
-		starters: [
-			"How much PTO do I have?",
-			"Check my time off balance",
-			"How many vacation days left?",
-		],
-		linkedAgent: "PTO Balance Checker",
-		skillInstructions:
-			"Query the HR system for the user's PTO balance including vacation, sick, and personal days. Show accrued, used, and remaining totals.",
-	},
-	{
-		id: "verify-i9",
-		name: "Verify I-9 forms",
-		author: "Compliance",
-		icon: ShieldCheck,
-		starters: ["Check my I-9 status", "Is my I-9 complete?"],
-		linkedAgent: "Compliance Checker",
-		skillInstructions:
-			"Check I-9 employment verification form status. Report whether the form is complete, pending, or missing required documents. Flag any approaching deadlines.",
-	},
-	{
-		id: "check-background",
-		name: "Check background status",
-		author: "HR Team",
-		icon: Users,
-		starters: [
-			"What's my background check status?",
-			"Is my background check done?",
-		],
-		linkedAgent: null,
-		skillInstructions:
-			"Query the background check provider for current status. Report whether the check is pending, in progress, or completed, along with any action items needed.",
-	},
-	{
-		id: "unlock-account",
-		name: "Unlock account",
-		author: "IT Team",
-		icon: Lock,
-		starters: ["My account is locked", "Unlock my account", "I can't log in"],
-		linkedAgent: "HelpDesk Advisor",
-		skillInstructions:
-			"Unlock user accounts that have been locked due to failed login attempts. Verify user identity first, then unlock the account in Active Directory. Confirm the account is accessible.",
-	},
-	{
-		id: "submit-expense",
-		name: "Submit expense report",
-		author: "Finance",
-		icon: Briefcase,
-		starters: [
-			"Submit an expense",
-			"I need to file an expense report",
-			"How do I get reimbursed?",
-		],
-		linkedAgent: null,
-		skillInstructions:
-			"Help users submit expense reports. Collect receipt details, amount, category, and business justification. Submit to the finance system and provide a confirmation number.",
-	},
-	{
-		id: "request-access",
-		name: "Request system access",
-		author: "IT Team",
-		icon: Key,
-		starters: [
-			"Request access to a system",
-			"I need access to...",
-			"How do I get permissions?",
-		],
-		linkedAgent: "HelpDesk Advisor",
-		skillInstructions:
-			"Process system access requests. Collect the target system, required access level, and business justification. Route to the appropriate approver and track request status.",
-	},
-	{
-		id: "provision-account",
-		name: "Provision account",
-		author: "IT Team",
-		icon: Users,
-		starters: [
-			"Set up a new account",
-			"Provision a new employee",
-			"Create user account",
-			"New hire onboarding",
-		],
-		linkedAgent: null,
-		skillInstructions:
-			"Provision new user accounts across enterprise systems. Collect employee details (name, department, role, manager). Create accounts in Active Directory, Google Workspace, and assigned SaaS applications based on department role mapping. Configure email, distribution groups, and default permissions. Send welcome credentials via secure channel.",
-	},
-	{
-		id: "customer-engagement",
-		name: "Customer engagement",
-		author: "CX Team",
-		icon: MessageSquare,
-		starters: [
-			"Follow up with a customer",
-			"Send a customer update",
-			"Check customer satisfaction",
-			"Schedule customer touchpoint",
-		],
-		linkedAgent: null,
-		skillInstructions:
-			"Manage customer engagement touchpoints. Look up customer context from CRM (recent interactions, open tickets, satisfaction score). Draft personalized follow-up messages. Schedule check-ins based on customer health score. Escalate at-risk accounts to the customer success manager.",
-	},
-];
-
-// Merge in workflow-published skills from localStorage
-function getPublishedWorkflowSkills() {
-	try {
-		const raw = localStorage.getItem("publishedWorkflowSkills");
-		if (!raw) return [];
-		return JSON.parse(raw).map(
-			(s: {
-				id: string;
-				name: string;
-				description?: string;
-				author?: string;
-				starters?: string[];
-				instructions?: string;
-			}) => ({
-				id: `wf-${s.id}`,
-				name: s.name,
-				author: "Workflow",
-				icon: Workflow,
-				starters: [s.description || `Run ${s.name}`],
-				linkedAgent: null,
-			}),
-		);
-	} catch {
-		return [];
-	}
-}
+const MAX_CONVERSATION_STARTERS = 20;
 
 // Icon picker options
 export default function AgentBuilderPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
-	const agentName = location.state?.agentName || "Untitled Agent";
+	const agentName = location.state?.agentName || t("builder.untitledAgent");
 	const duplicatedConfig = location.state?.duplicatedConfig as
 		| AgentConfig
 		| undefined;
@@ -256,8 +100,8 @@ export default function AgentBuilderPage() {
 		error: loadError,
 	} = useAgent(agentId);
 
-	const isPublished = savedAgent?.status === "published";
-	const isDraft = savedAgent?.status === "draft";
+	const isPublished = savedAgent?.state === "PUBLISHED";
+	const isDraft = savedAgent?.state === "DRAFT";
 
 	// Track live EID (starts undefined for create, set after first save)
 	const [agentEid, setAgentEid] = useState<string | undefined>(agentId);
@@ -284,7 +128,7 @@ export default function AgentBuilderPage() {
 				completionCriteria: "",
 				agentType: null,
 				knowledgeSources: [],
-				workflows: [],
+				tools: [],
 				hasRequiredConnections: false,
 				instructions: "",
 				conversationStarters: [],
@@ -309,8 +153,6 @@ export default function AgentBuilderPage() {
 		}
 	}, [savedAgent, hasLoadedFromApi, isDuplicate, initialConfig]);
 
-	const [isCreatingDraft, setIsCreatingDraft] = useState(false);
-
 	// Debounced name uniqueness check
 	const debouncedName = useDebounce(config.name, 300);
 	const nameToCheck =
@@ -327,6 +169,8 @@ export default function AgentBuilderPage() {
 		instructionsTouched &&
 		config.instructions.trim().length === 0 &&
 		config.description.trim().length === 0;
+	const hasEmptyGuardrails =
+		config.guardrails.length > 0 && config.guardrails.some((g) => !g.trim());
 
 	const [_showConfirmButtons, _setShowConfirmButtons] = useState(false);
 
@@ -364,21 +208,50 @@ export default function AgentBuilderPage() {
 		"answer" | "knowledge" | "workflow" | null
 	>(null);
 
-	// Icon picker state
-	const [showIconPicker, setShowIconPicker] = useState(false);
-	const [iconSearchQuery, setIconSearchQuery] = useState("");
-	const iconPickerRef = useRef<HTMLDivElement>(null);
-	const handleIconPickerClose = useCallback(() => {
-		if (showIconPicker) {
-			setShowIconPicker(false);
-			setIconSearchQuery("");
-		}
-	}, [showIconPicker]);
-	useClickOutside(iconPickerRef, handleIconPickerClose);
-
 	// Publish modal state
 	const [showPublishModal, setShowPublishModal] = useState(false);
 	const [showUnpublishModal, setShowUnpublishModal] = useState(false);
+
+	// Create with AI
+	const agentCreation = useAgentCreation();
+	const isCreationActive = agentCreation.status !== "idle";
+
+	// Improve instructions with AI
+	const improveInstructions = useImproveInstructions();
+	const [showImproveDialog, setShowImproveDialog] = useState(false);
+
+	// Generate conversation starters with AI
+	const generateStarters = useGenerateConversationStarters();
+
+	// Apply generated conversation starters when they arrive
+	useEffect(() => {
+		if (
+			generateStarters.status === "success" &&
+			generateStarters.generatedStarters
+		) {
+			const starters = generateStarters.generatedStarters;
+			setConfig((prev) => {
+				const existing = prev.conversationStarters;
+				const newOnes = starters.filter((s) => !existing.includes(s));
+				const availableSlots = MAX_CONVERSATION_STARTERS - existing.length;
+				const toAdd = newOnes.slice(0, availableSlots);
+				if (toAdd.length === 0) return prev;
+				return {
+					...prev,
+					conversationStarters: [...existing, ...toAdd],
+				};
+			});
+			generateStarters.reset();
+		} else if (generateStarters.status === "error") {
+			toast.error(t("conversationStarters.generateFailed"));
+			generateStarters.reset();
+		}
+	}, [
+		generateStarters.status,
+		generateStarters.generatedStarters,
+		generateStarters.reset,
+		t,
+	]);
 
 	// Track the original published config for diff comparison (only for editing)
 	const publishedConfigRef = useRef<AgentConfig | null>(null);
@@ -386,7 +259,7 @@ export default function AgentBuilderPage() {
 		if (
 			savedAgent &&
 			!publishedConfigRef.current &&
-			savedAgent.status === "published"
+			savedAgent.state === "PUBLISHED"
 		) {
 			publishedConfigRef.current = structuredClone(savedAgent);
 		}
@@ -409,7 +282,6 @@ export default function AgentBuilderPage() {
 	// Instructions expanded modal state
 	const [showInstructionsModal, setShowInstructionsModal] = useState(false);
 
-	// Conversation starters customization toggle
 	// Description visibility toggle
 	const [showDescription, setShowDescription] = useState(false);
 
@@ -418,11 +290,26 @@ export default function AgentBuilderPage() {
 	const [demoStep, setDemoStep] = useState(0);
 
 	const DEMO_STEPS = [
-		{ label: "Create Agent", description: "Fill in agent details" },
-		{ label: "Add Skills", description: "Configure workflows" },
-		{ label: "Add Starters", description: "Set conversation starters" },
-		{ label: "Test Agent", description: "Navigate to test page" },
-		{ label: "Publish", description: "Make agent live" },
+		{
+			label: t("builder.demo.steps.createAgent"),
+			description: t("builder.demo.steps.createAgentDesc"),
+		},
+		{
+			label: t("builder.demo.steps.addSkills"),
+			description: t("builder.demo.steps.addSkillsDesc"),
+		},
+		{
+			label: t("builder.demo.steps.addStarters"),
+			description: t("builder.demo.steps.addStartersDesc"),
+		},
+		{
+			label: t("builder.demo.steps.testAgent"),
+			description: t("builder.demo.steps.testAgentDesc"),
+		},
+		{
+			label: t("builder.demo.steps.publish"),
+			description: t("builder.demo.steps.publishDesc"),
+		},
 	];
 
 	const handleDemoNext = () => {
@@ -443,7 +330,7 @@ export default function AgentBuilderPage() {
 			case 1:
 				setConfig((prev) => ({
 					...prev,
-					workflows: ["Update Store Hours"],
+					tools: ["Update Store Hours"],
 				}));
 				setDemoStep(2);
 				break;
@@ -474,78 +361,6 @@ export default function AgentBuilderPage() {
 				break;
 		}
 	};
-
-	// Knowledge collapsible toggle
-	// Track when skills were just added to show "updated" message
-	const [instructionsUpdatedFromSkills, setInstructionsUpdatedFromSkills] =
-		useState(false);
-	const prevWorkflowsLength = useRef(config.workflows.length);
-
-	// Detect when skills are added and auto-populate instructions
-	useEffect(() => {
-		if (config.workflows.length > prevWorkflowsLength.current) {
-			const allSkillsPool = [
-				...AVAILABLE_SKILLS,
-				...getPublishedWorkflowSkills(),
-			];
-			const skillEntries = config.workflows.map((name) => {
-				const match = allSkillsPool.find((s) => s.name === name);
-				return {
-					name,
-					instructions: match?.skillInstructions || `Handle ${name} requests.`,
-				};
-			});
-
-			const skillNames = skillEntries
-				.map((s) => s.name.toLowerCase())
-				.join(", ");
-			const taskLines = skillEntries
-				.map((s) => `- **${s.name}**: ${s.instructions}`)
-				.join("\n");
-
-			setConfig((prev) => ({
-				...prev,
-				instructions: `## Role\nYou are a specialized assistant that helps users with ${skillNames}.\n\n## Backstory\nYou have expertise in ${skillNames} and understand the importance of accurate, timely resolution for each request. You ensure that all actions are properly validated before execution.\n\n## Goal\nResolve user requests efficiently by leveraging the skills below. Always verify identity before performing sensitive operations.\n\n## Task\nAnalyze context to identify the user's request and match it to the appropriate skill:\n${taskLines}\n\nAlways confirm actions before executing and escalate if outside your skill scope.`,
-			}));
-			setInstructionsUpdatedFromSkills(true);
-			const timer = setTimeout(
-				() => setInstructionsUpdatedFromSkills(false),
-				5000,
-			);
-			return () => clearTimeout(timer);
-		}
-		prevWorkflowsLength.current = config.workflows.length;
-	}, [config.workflows.length, config.workflows]);
-
-	// Only persist name + icon fields to the API
-	const saveableData = useMemo(
-		() => ({
-			name: config.name,
-			iconId: config.iconId,
-			iconColorId: config.iconColorId,
-		}),
-		[config.name, config.iconId, config.iconColorId],
-	);
-
-	// Auto-save with 1.5s debounce
-	const {
-		status: saveStatus,
-		isDirty,
-		error: saveError,
-	} = useAutoSave({
-		data: saveableData,
-		onSave: async (data) => {
-			if (agentEid) {
-				await updateAgent.mutateAsync({ eid: agentEid, data });
-			} else {
-				const created = await createAgent.mutateAsync(data);
-				if (created.id) {
-					setAgentEid(created.id);
-				}
-			}
-		},
-		enabled: (step === "done" && !!agentEid) || isEditing, // Only auto-save when draft exists
-	});
 
 	const [_messages] = useState<BuilderMessage[]>([
 		{
@@ -584,54 +399,102 @@ export default function AgentBuilderPage() {
 		config.description,
 	]);
 
-	// Handle test message submission
-
-	// Handle natural language config updates when in "done" state
-
-	// Handler for type selection confirmation (new flow)
-
-	// Handler for confirming the agent type understanding
-
-	// Handler for continuing after trigger phrases
-
-	// Handler for guardrails input submission
-
-	// Handler for skipping guardrails
-
-	// Handler for adjusting the agent type (goes back to selection)
-
-	// Handler for source/workflow selection confirmation
-
-	// Toggle source selection
-
 	const handleBack = () => {
 		navigate("/agents");
-	};
-
-	const handleCreate = async () => {
-		if (!config.name.trim() || nameTaken) return;
-		setIsCreatingDraft(true);
-		try {
-			const created = await createAgent.mutateAsync({
-				name: config.name,
-				status: "draft",
-			});
-			if (created.id) {
-				navigate(`/agents/${created.id}`, {
-					replace: true,
-					state: { initialConfig: config },
-				});
-			}
-		} catch {
-			toast.error("Failed to create agent");
-		} finally {
-			setIsCreatingDraft(false);
-		}
 	};
 
 	const handlePublish = () => {
 		// Show publish confirmation modal
 		setShowPublishModal(true);
+	};
+
+	// Update Agent — smart save router
+	// ---------------------------------
+	// Diff form state against the server-loaded baseline. Cheap-only changes
+	// (name/description/icon/conversationStarters/guardrails) are PUT directly
+	// via updateAgent. Any change to instructions or skills requires running
+	// AgentRitaDeveloper because those fields drive agent_tasks + tools.
+	const updateDiff = useMemo(() => {
+		if (!savedAgent) return null;
+		return diffAgentConfig(config, savedAgent);
+	}, [config, savedAgent]);
+	const skillValidation = useMemo(() => {
+		if (!savedAgent) return null;
+		return validateSkillReferences(config, savedAgent);
+	}, [config, savedAgent]);
+
+	const cheapSaveDisabled =
+		!updateDiff?.hasChanges ||
+		agentCreation.isCreating ||
+		updateAgent.isPending ||
+		nameTaken ||
+		hasEmptyGuardrails ||
+		!skillValidation?.valid;
+
+	const handleUpdateAgent = async () => {
+		if (!agentEid || !savedAgent || !updateDiff) return;
+
+		// Defense-in-depth: the button is disabled when skillValidation fails,
+		// but re-check at submit time in case the disabled check was bypassed
+		// (keyboard, stale state, etc.).
+		if (skillValidation && !skillValidation.valid) {
+			// Dynamic key: validateSkillReferences returns a translation key string
+			// that's resolved at runtime. i18next's heavy t() overloads can't
+			// narrow a runtime key + params object — escape the type via any.
+			const dynT = t as unknown as (
+				key: string,
+				params?: Record<string, string>,
+			) => string;
+			toast.error(
+				dynT(
+					skillValidation.messageKey ?? "builder.failedToUpdate",
+					skillValidation.messageParams ?? {},
+				),
+			);
+			return;
+		}
+
+		if (!updateDiff.hasChanges) return;
+
+		// Expensive changes → need the meta-agent. Kick it off directly with
+		// the current form values; AgentCreationOverlay streams progress.
+		if (updateDiff.expensiveFields.length > 0) {
+			// Ask the server to regenerate the description when the user didn't
+			// touch it — instructions likely drifted and the stale description
+			// no longer reflects what the agent does.
+			const descriptionUnchanged =
+				!updateDiff.cheapFields.includes("description");
+			agentCreation.create({
+				name: config.name,
+				description: config.description,
+				instructions: config.instructions,
+				iconId: config.iconId,
+				iconColorId: config.iconColorId,
+				conversationStarters: config.conversationStarters,
+				guardrails: config.guardrails.filter((g) => g.trim()),
+				targetAgentEid: agentEid,
+				generateDescription: descriptionUnchanged,
+			});
+			return;
+		}
+
+		// Cheap-only path: direct PUT, no meta-agent, no overlay.
+		try {
+			await updateAgent.mutateAsync({
+				eid: agentEid,
+				data: {
+					name: config.name,
+					description: config.description,
+					iconId: config.iconId,
+					iconColorId: config.iconColorId,
+					conversationStarters: config.conversationStarters,
+					guardrails: config.guardrails.filter((g) => g.trim()),
+				},
+			});
+			toast.success(t("builder.agentUpdated"));
+		} catch {
+			toast.error(t("builder.failedToUpdate"));
+		}
 	};
 
 	// Calculate diff between current config and published config (persisted fields only)
@@ -649,7 +512,7 @@ export default function AgentBuilderPage() {
 		if (config.name !== publishedConfig.name) {
 			changes.push({
 				field: "name",
-				label: "Name",
+				label: t("builder.configChanges.name"),
 				from: publishedConfig.name,
 				to: config.name,
 				type: "changed",
@@ -662,7 +525,7 @@ export default function AgentBuilderPage() {
 		) {
 			changes.push({
 				field: "icon",
-				label: "Icon",
+				label: t("builder.configChanges.icon"),
 				from: "(changed)",
 				to: "(changed)",
 				type: "changed",
@@ -681,7 +544,7 @@ export default function AgentBuilderPage() {
 				name: config.name,
 				iconId: config.iconId,
 				iconColorId: config.iconColorId,
-				status: "published" as const,
+				state: "PUBLISHED" as const,
 			};
 			if (agentEid) {
 				await updateAgent.mutateAsync({ eid: agentEid, data: publishData });
@@ -690,7 +553,7 @@ export default function AgentBuilderPage() {
 				if (created.id) setAgentEid(created.id);
 			}
 		} catch {
-			toast.error("Failed to publish agent");
+			toast.error(t("builder.failedToPublish"));
 			setShowPublishModal(false);
 			return;
 		}
@@ -733,7 +596,7 @@ export default function AgentBuilderPage() {
 					agentType: config.agentType,
 					iconId: config.iconId,
 					iconColorId: config.iconColorId,
-					skills: config.workflows,
+					skills: config.tools,
 				},
 			},
 		});
@@ -743,7 +606,7 @@ export default function AgentBuilderPage() {
 	if (isEditing && isLoadingAgent) {
 		return (
 			<div className="flex items-center justify-center h-screen bg-muted/50">
-				<div className="text-muted-foreground">Loading agent...</div>
+				<div className="text-muted-foreground">{t("builder.loading")}</div>
 			</div>
 		);
 	}
@@ -752,10 +615,10 @@ export default function AgentBuilderPage() {
 		return (
 			<div className="flex flex-col items-center justify-center h-screen gap-4 bg-muted/50">
 				<div className="text-sm text-muted-foreground">
-					Failed to load agent. Please try again.
+					{t("builder.loadError")}
 				</div>
 				<Button variant="outline" onClick={() => navigate("/agents")}>
-					Back to agents
+					{t("builder.backToAgents")}
 				</Button>
 			</div>
 		);
@@ -770,7 +633,7 @@ export default function AgentBuilderPage() {
 						variant="ghost"
 						size="icon"
 						onClick={handleBack}
-						aria-label="Go back to agents"
+						aria-label={t("builder.goBack")}
 					>
 						<ArrowLeft className="size-5" />
 					</Button>
@@ -785,64 +648,58 @@ export default function AgentBuilderPage() {
 						{isPublished ? (
 							<>
 								<Check className="size-3 mr-1" />
-								Published
+								{t("builder.statusPublished")}
 							</>
 						) : isDraft ? (
-							"Draft"
+							t("builder.statusDraft")
 						) : step === "done" ? (
 							<>
 								<Check className="size-3 mr-1" />
-								Ready to publish
+								{t("builder.statusReady")}
 							</>
 						) : (
-							"Draft"
+							t("builder.statusDraft")
 						)}
 					</Badge>
-					{(step === "done" || isEditing) && (
-						<SaveStatusIndicator
-							status={saveStatus}
-							isDirty={isDirty}
-							error={saveError}
-						/>
-					)}
 				</div>
 				<div className="flex items-center gap-2">
-					<Button variant="outline" className="gap-2">
-						<HelpCircle className="size-4" />
-						How agent builder works
-					</Button>
-					<Button
-						variant="outline"
-						className="gap-2"
-						onClick={() =>
-							navigate(agentEid ? `/agents/${agentEid}/test` : "/agents/test", {
-								state: { agentConfig: config },
-							})
-						}
-						disabled={
-							!config.name ||
-							config.name === "my agent" ||
-							(!config.description &&
-								!config.instructions &&
-								!config.conversationStarters.some((s) => s.trim()))
-						}
-					>
-						<Play className="size-4" />
-						Test
-					</Button>
+					{(isEditing || agentEid) && (
+						<Button
+							variant="outline"
+							className="gap-2"
+							onClick={() =>
+								navigate(
+									agentEid ? `/agents/${agentEid}/test` : "/agents/test",
+									{
+										state: { agentConfig: config },
+									},
+								)
+							}
+							disabled={
+								!config.name ||
+								config.name === "my agent" ||
+								(!config.description &&
+									!config.instructions &&
+									!config.conversationStarters.some((s) => s.trim()))
+							}
+						>
+							<Play className="size-4" />
+							{t("builder.test")}
+						</Button>
+					)}
 					{isPublished ? (
 						<>
 							<Button
 								variant="outline"
 								onClick={() => setShowUnpublishModal(true)}
 							>
-								Unpublish
+								{t("builder.unpublish")}
 							</Button>
 							<Button
 								onClick={() => setShowPublishModal(true)}
 								disabled={!hasChanges}
 							>
-								Publish changes
+								{t("builder.publishChanges")}
 								{hasChanges && (
 									<span className="ml-1.5 px-1.5 py-0.5 bg-white/20 rounded text-xs">
 										{configChanges.length}
@@ -850,13 +707,66 @@ export default function AgentBuilderPage() {
 								)}
 							</Button>
 						</>
+					) : isEditing && agentEid ? (
+						<>
+							<Button
+								variant="outline"
+								onClick={handleUpdateAgent}
+								disabled={cheapSaveDisabled}
+								title={
+									skillValidation && !skillValidation.valid
+										? (
+												t as unknown as (
+													key: string,
+													params?: Record<string, string>,
+												) => string
+											)(
+												skillValidation.messageKey ?? "",
+												skillValidation.messageParams ?? {},
+											)
+										: undefined
+								}
+							>
+								{updateAgent.isPending && (
+									<Loader2 className="size-4 animate-spin" />
+								)}
+								{t("builder.updateAgent")}
+							</Button>
+							<Button
+								onClick={handlePublish}
+								disabled={
+									!config.name || (!config.instructions && !config.description)
+								}
+							>
+								{t("builder.publish")}
+							</Button>
+						</>
 					) : !isEditing && !agentEid ? (
 						<Button
-							onClick={handleCreate}
-							disabled={!config.name.trim() || nameTaken || isCreatingDraft}
+							onClick={() => {
+								agentCreation.create({
+									name: config.name,
+									description: config.description,
+									instructions: config.instructions,
+									iconId: config.iconId,
+									iconColorId: config.iconColorId,
+									conversationStarters: config.conversationStarters,
+									guardrails: config.guardrails.filter((g) => g.trim()),
+									generateDescription: !config.description.trim(),
+								});
+							}}
+							disabled={
+								!config.name.trim() ||
+								!config.instructions.trim() ||
+								nameTaken ||
+								hasEmptyGuardrails ||
+								agentCreation.isCreating
+							}
 						>
-							{isCreatingDraft && <Loader2 className="size-4 animate-spin" />}
-							Create agent
+							{agentCreation.isCreating && (
+								<Loader2 className="size-4 animate-spin" />
+							)}
+							{t("builder.createAgent")}
 						</Button>
 					) : (
 						<Button
@@ -865,527 +775,445 @@ export default function AgentBuilderPage() {
 								!config.name || (!config.instructions && !config.description)
 							}
 						>
-							Publish
+							{t("builder.publish")}
 						</Button>
 					)}
 				</div>
 			</header>
 
-			{/* Main content */}
-			<div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
-				{/* Left panel - Configure/Access */}
-				<div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
-					{/* Configure content */}
-					<div className="flex-1 overflow-y-auto p-6">
-						<div className="max-w-2xl mx-auto space-y-8">
-							{/* Name of agent with icon picker */}
-							<div>
-								<Label htmlFor="agent-name" className="text-sm font-medium">
-									Name of agent
-								</Label>
-								<div className="flex items-start gap-4 mt-2">
-									<div className="flex-1">
-										<div className="relative">
-											<Input
-												id="agent-name"
-												value={config.name}
-												onChange={(e) => {
-													setConfig((prev) => ({
-														...prev,
-														name: e.target.value,
-													}));
-													if (!nameTouched) setNameTouched(true);
-												}}
-												onBlur={() => setNameTouched(true)}
-												placeholder="Enter agent name"
-												aria-invalid={nameEmpty || nameTaken}
-												aria-describedby="builder-name-feedback"
-											/>
-											{isCheckingName && config.name.trim() && (
-												<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
-											)}
-										</div>
-										<div
-											id="builder-name-feedback"
-											aria-live="polite"
-											className="min-h-5 mt-1"
-										>
-											{nameEmpty && (
-												<p className="text-sm text-destructive">
-													Agent name is required
-												</p>
-											)}
-											{nameTaken && (
-												<p className="text-sm text-destructive">
-													An agent with this name already exists
-												</p>
-											)}
-											{nameAvailable && !nameEmpty && (
-												<p className="text-sm text-emerald-600 flex items-center gap-1">
-													<Check className="size-3.5" />
-													Name is available
-												</p>
-											)}
-										</div>
-									</div>
-									{/* Icon picker button */}
-									<div
-										ref={iconPickerRef}
-										className="relative flex items-center"
-									>
-										<button
-											onClick={() => setShowIconPicker(!showIconPicker)}
-											className={cn(
-												"size-[38px] rounded-lg flex items-center justify-center transition-colors",
-												ICON_COLORS.find((c) => c.id === config.iconColorId)
-													?.bg || "bg-violet-200",
-											)}
-											aria-label="Change agent icon"
-										>
-											{(() => {
-												const iconData = AVAILABLE_ICONS.find(
-													(i) => i.id === config.iconId,
-												);
-												const colorData = ICON_COLORS.find(
-													(c) => c.id === config.iconColorId,
-												);
-												const IconComponent = (iconData?.icon ||
-													Bot) as React.ElementType;
-												return (
-													<IconComponent
-														className={cn(
-															"size-6",
-															colorData?.text || "text-white",
-														)}
-													/>
-												);
-											})()}
-										</button>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="size-9"
-											onClick={() => setShowIconPicker(!showIconPicker)}
-										>
-											<ChevronDown className="size-4" />
-										</Button>
-
-										{/* Icon Picker Dropdown */}
-										{showIconPicker && (
-											<div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border z-50 p-4">
-												{/* Color selection */}
-												<div className="mb-4">
-													<p className="text-sm font-medium text-muted-foreground mb-2">
-														Color
-													</p>
-													<div className="flex gap-2">
-														{ICON_COLORS.map((color) => (
-															<button
-																key={color.id}
-																onClick={() =>
-																	setConfig((prev) => ({
-																		...prev,
-																		iconColorId: color.id,
-																	}))
-																}
-																className={cn(
-																	"size-10 rounded-full transition-all",
-																	color.bg,
-																	config.iconColorId === color.id
-																		? "ring-2 ring-offset-2 ring-primary"
-																		: "hover:scale-110",
-																)}
-																aria-label={`Select ${color.id} color`}
-															/>
-														))}
-													</div>
-												</div>
-
-												{/* Icon selection */}
-												<div>
-													<p className="text-sm font-medium text-muted-foreground mb-2">
-														Icon
-													</p>
-													<div className="relative mb-3">
-														<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-														<Input
-															placeholder="Find by type, role, or expertise"
-															value={iconSearchQuery}
-															onChange={(e) =>
-																setIconSearchQuery(e.target.value)
-															}
-															className="pl-9"
-														/>
-													</div>
-													<div className="grid grid-cols-6 gap-1 max-h-[240px] overflow-y-auto">
-														{AVAILABLE_ICONS.filter((icon) => {
-															if (!iconSearchQuery) return true;
-															const query = iconSearchQuery.toLowerCase();
-															return (
-																icon.id.includes(query) ||
-																icon.keywords.some((k) => k.includes(query))
-															);
-														}).map((iconData) => {
-															const IconComponent =
-																iconData.icon as React.ElementType;
-															return (
-																<button
-																	key={iconData.id}
-																	onClick={() => {
-																		setConfig((prev) => ({
-																			...prev,
-																			iconId: iconData.id,
-																		}));
-																		setShowIconPicker(false);
-																		setIconSearchQuery("");
-																	}}
-																	className={cn(
-																		"size-10 rounded-lg flex items-center justify-center transition-colors",
-																		config.iconId === iconData.id
-																			? "bg-primary/10 text-primary"
-																			: "hover:bg-muted text-muted-foreground hover:text-foreground",
-																	)}
-																>
-																	<IconComponent className="size-5" />
-																</button>
-															);
-														})}
-													</div>
-												</div>
-											</div>
-										)}
-									</div>
-								</div>
-							</div>
-
-							{/* Description - Collapsible, only visible when editing */}
-							{isEditing &&
-								(!showDescription && !config.description?.trim() ? (
-									<button
-										onClick={() => setShowDescription(true)}
-										className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-									>
-										<Plus className="size-4" />
-										<span>Add description</span>
-									</button>
-								) : (
-									<div>
-										<Label
-											htmlFor="agent-description"
-											className="text-sm font-medium"
-										>
-											Description
+			{/* Main content — replaced by creation overlay when active */}
+			{isCreationActive ? (
+				<AgentCreationOverlay
+					status={agentCreation.status}
+					mode={agentCreation.mode}
+					executionSteps={agentCreation.executionSteps}
+					inputMessage={agentCreation.inputMessage}
+					agentName={agentCreation.agentName}
+					agentId={agentCreation.agentId}
+					error={agentCreation.error}
+					onEditAgent={(id) => {
+						agentCreation.reset();
+						// In update mode we're already on /agents/:id — reset clears the
+						// overlay and the form rehydrates from the freshly-invalidated
+						// detail query (SSEContext handles the invalidation).
+						if (agentCreation.mode === "update" && id === agentEid) {
+							setHasLoadedFromApi(false);
+							return;
+						}
+						navigate(`/agents/${id}`);
+					}}
+					onTestAgent={(id) => {
+						agentCreation.reset();
+						navigate(`/agents/${id}/test`);
+					}}
+					onSendInput={(input) => {
+						if (agentCreation.creationId && agentCreation.executionId) {
+							agentApi.sendCreationInput({
+								creationId: agentCreation.creationId,
+								prevExecutionId: agentCreation.executionId,
+								prompt: input,
+							});
+							const store = useAgentCreationStore.getState();
+							store.resumeCreation();
+						}
+					}}
+					onRetry={() => {
+						agentCreation.reset();
+						agentCreation.create({
+							name: config.name,
+							description: config.description,
+							instructions: config.instructions,
+							iconId: config.iconId,
+							iconColorId: config.iconColorId,
+							conversationStarters: config.conversationStarters,
+							guardrails: config.guardrails.filter((g) => g.trim()),
+							generateDescription: !config.description.trim(),
+						});
+					}}
+					onCancel={() => {
+						agentCreation.reset();
+					}}
+				/>
+			) : (
+				<div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
+					{/* Left panel - Configure/Access */}
+					<div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
+						{/* Configure content */}
+						<div className="flex-1 overflow-y-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-8">
+								{/* Name of agent with icon picker */}
+								<div>
+									<div className="flex items-center gap-1.5">
+										<Label htmlFor="agent-name" className="text-sm font-medium">
+											{t("builder.form.nameLabel")}
 										</Label>
-										<Textarea
-											id="agent-description"
-											value={config.description}
-											onChange={(e) =>
+										<FieldHelp
+											label={t("builder.form.nameLabel")}
+											description={t("builder.help.name.description")}
+											examples={
+												t("builder.help.name.examples", {
+													returnObjects: true,
+												}) as string[]
+											}
+											triggerAriaLabel={t("builder.helpTriggerAria")}
+										/>
+									</div>
+									<div className="flex items-start gap-4 mt-2">
+										<div className="flex-1">
+											<div className="relative">
+												<Input
+													id="agent-name"
+													value={config.name}
+													onChange={(e) => {
+														setConfig((prev) => ({
+															...prev,
+															name: e.target.value,
+														}));
+														if (!nameTouched) setNameTouched(true);
+													}}
+													onBlur={() => setNameTouched(true)}
+													placeholder={t("builder.form.namePlaceholder")}
+													aria-invalid={nameEmpty || nameTaken}
+													aria-describedby="builder-name-feedback"
+												/>
+												{isCheckingName && config.name.trim() && (
+													<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+												)}
+											</div>
+											<div
+												id="builder-name-feedback"
+												aria-live="polite"
+												className="min-h-5 mt-1"
+											>
+												{nameEmpty && (
+													<p className="text-sm text-destructive">
+														{t("builder.form.nameRequired")}
+													</p>
+												)}
+												{nameTaken && (
+													<p className="text-sm text-destructive">
+														{t("builder.form.nameTaken")}
+													</p>
+												)}
+												{nameAvailable && !nameEmpty && (
+													<p className="text-sm text-emerald-600 flex items-center gap-1">
+														<Check className="size-3.5" />
+														{t("builder.form.nameAvailable")}
+													</p>
+												)}
+											</div>
+										</div>
+										{/* Icon picker button */}
+										<AgentIconPicker
+											iconId={config.iconId}
+											iconColorId={config.iconColorId}
+											onIconChange={(iconId) =>
 												setConfig((prev) => ({
 													...prev,
-													description: e.target.value,
+													iconId,
 												}))
 											}
-											placeholder="Answers IT support questions and helps employees troubleshoot common technical issues."
-											className="mt-2 min-h-[60px] resize-none text-muted-foreground"
-											autoFocus={showDescription && !config.description}
-										/>
-									</div>
-								))}
-
-							{/* Skills Section */}
-							<div id="skills-section" className="space-y-2">
-								<div className="flex items-start justify-between">
-									<div>
-										<Label className="text-sm font-medium">Skills</Label>
-										<p className="text-sm text-muted-foreground mt-1">
-											Help users understand what this agent can help them with
-											by adding skills
-										</p>
-									</div>
-									<Button
-										variant="outline"
-										size="sm"
-										className="h-8 gap-1.5"
-										onClick={() => setShowAddSkillModal(true)}
-									>
-										<Plus className="size-4" />
-										Add skill
-									</Button>
-								</div>
-
-								{config.workflows.length === 0 ? (
-									/* Empty state */
-									<button
-										onClick={() => setShowAddSkillModal(true)}
-										className="w-full border border-dashed rounded-lg py-6 px-4 text-center hover:border-muted-foreground/50 transition-colors"
-									>
-										<p className="text-sm font-medium">Add skills</p>
-										<p className="text-sm text-muted-foreground mt-1">
-											Add existing skills to this agent to improve context
-										</p>
-									</button>
-								) : (
-									/* Added skills list - Resolve Actions/Workflows use violet icons */
-									<div className="border rounded-md px-4 py-2">
-										<div className="space-y-1">
-											{config.workflows.map((workflow, index) => {
-												const skillData = AVAILABLE_SKILLS.find(
-													(s) => s.name === workflow,
-												);
-												const SkillIcon = skillData?.icon || Zap;
-												return (
-													<div
-														key={index}
-														className="flex items-center gap-2.5 py-1"
-													>
-														<div className="size-5 rounded flex items-center justify-center flex-shrink-0 bg-violet-200">
-															<SkillIcon className="size-3 text-foreground" />
-														</div>
-														<span className="text-xs flex-1">{workflow}</span>
-														<button
-															onClick={() => {
-																const updated = config.workflows.filter(
-																	(_, i) => i !== index,
-																);
-																setConfig((prev) => ({
-																	...prev,
-																	workflows: updated,
-																}));
-															}}
-															className="p-2 text-muted-foreground hover:text-foreground"
-														>
-															<X className="size-3" />
-														</button>
-													</div>
-												);
-											})}
-										</div>
-									</div>
-								)}
-							</div>
-
-							{/* Instructions Section */}
-							<div className="space-y-2">
-								<div>
-									<Label htmlFor="instructions" className="text-sm font-medium">
-										Instructions
-									</Label>
-									<p className="text-sm text-muted-foreground mt-1">
-										Control your agents behavior by adding instructions.
-									</p>
-								</div>
-
-								{/* Instructions textarea with footer */}
-								<div className="border rounded-lg overflow-hidden">
-									<div className="relative">
-										<Textarea
-											id="instructions"
-											value={config.instructions}
-											onChange={(e) => {
+											onColorChange={(iconColorId) =>
 												setConfig((prev) => ({
 													...prev,
-													instructions: e.target.value,
-												}));
-												if (!instructionsTouched) setInstructionsTouched(true);
-											}}
-											onBlur={() => setInstructionsTouched(true)}
-											placeholder={
-												"## Role\n\n## Backstory\n\n## Goal\n\n## Task"
+													iconColorId,
+												}))
 											}
-											aria-invalid={instructionsError}
-											aria-describedby="instructions-feedback"
-											className="min-h-[80px] resize-y text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
 										/>
-										<button
-											className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
-											aria-label="Expand instructions"
-											onClick={() => setShowInstructionsModal(true)}
-										>
-											<svg
-												width="16"
-												height="16"
-												viewBox="0 0 16 16"
-												fill="none"
-												xmlns="http://www.w3.org/2000/svg"
-											>
-												<path
-													d="M10 2H14V6M6 14H2V10M14 2L9 7M2 14L7 9"
-													stroke="currentColor"
-													strokeWidth="1.5"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												/>
-											</svg>
-										</button>
 									</div>
 								</div>
-								<p className="text-xs text-muted-foreground">
-									Update instructions as needed
-								</p>
 
-								{/* Updated from skills message */}
-								{instructionsUpdatedFromSkills && (
-									<p className="text-xs text-primary mt-1">
-										Updated based on skills
-									</p>
-								)}
-								<div
-									id="instructions-feedback"
-									aria-live="polite"
-									className="min-h-5 mt-1"
-								>
-									{instructionsError && (
-										<p className="text-sm text-destructive">
-											Instructions or description is required to publish
-										</p>
-									)}
-								</div>
-							</div>
-
-							{/* Conversation Starters Section */}
-							<div className="space-y-2">
-								<div>
-									<p className="text-sm font-medium text-foreground">
-										Conversation starters
-									</p>
-									<p className="text-sm text-muted-foreground mt-0.5">
-										Suggested prompts shown to users when starting a
-										conversation
-									</p>
-								</div>
-								{/* Input with inline tags */}
-								<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-									{/* Added starters as solid badges */}
-									{config.conversationStarters.map((starter, index) => (
-										<div
-											key={index}
-											className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
+								{/* Description - Collapsible, only visible when editing */}
+								{isEditing &&
+									(!showDescription && !config.description?.trim() ? (
+										<button
+											onClick={() => setShowDescription(true)}
+											className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
 										>
-											<span>{starter}</span>
-											<button
-												onClick={() => {
-													const updated = config.conversationStarters.filter(
-														(_, i) => i !== index,
-													);
+											<Plus className="size-4" />
+											<span>{t("builder.form.addDescription")}</span>
+										</button>
+									) : (
+										<div>
+											<Label
+												htmlFor="agent-description"
+												className="text-sm font-medium"
+											>
+												{t("builder.form.descriptionLabel")}
+											</Label>
+											<Textarea
+												id="agent-description"
+												value={config.description}
+												onChange={(e) =>
 													setConfig((prev) => ({
 														...prev,
-														conversationStarters: updated,
-													}));
-												}}
-												className="text-muted-foreground hover:text-destructive"
-												aria-label={`Remove ${starter}`}
-											>
-												<X className="size-3" />
-											</button>
+														description: e.target.value,
+													}))
+												}
+												placeholder={t("builder.form.descriptionPlaceholder")}
+												className="mt-2 min-h-[60px] resize-none text-muted-foreground"
+												autoFocus={showDescription && !config.description}
+											/>
 										</div>
 									))}
-									{/* Input for typing new starters */}
-									{config.conversationStarters.length < 6 && (
-										<input
-											type="text"
-											placeholder="Type and press Enter to add..."
-											className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-											onKeyDown={(e) => {
-												const input = e.currentTarget;
-												if (e.key === "Enter" && input.value.trim()) {
-													e.preventDefault();
-													const newStarter = input.value.trim();
-													setConfig((prev) => ({
-														...prev,
-														conversationStarters: [
-															...prev.conversationStarters,
-															newStarter,
-														],
-													}));
-													input.value = "";
-												}
-											}}
-										/>
+
+								{/* Skills Section */}
+								<div id="skills-section" className="space-y-2">
+									<div className="flex items-start justify-between">
+										<div>
+											<div className="flex items-center gap-1.5">
+												<Label className="text-sm font-medium">
+													{t("builder.form.skillsLabel")}
+												</Label>
+												<FieldHelp
+													label={t("builder.form.skillsLabel")}
+													description={t("builder.help.skills.description")}
+													examples={
+														t("builder.help.skills.examples", {
+															returnObjects: true,
+														}) as string[]
+													}
+													triggerAriaLabel={t("builder.helpTriggerAria")}
+												/>
+											</div>
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.skillsDescription")}
+											</p>
+										</div>
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-8 gap-1.5"
+											onClick={() => setShowAddSkillModal(true)}
+										>
+											<Plus className="size-4" />
+											{t("builder.form.addSkill")}
+										</Button>
+									</div>
+
+									{config.tools.length === 0 ? (
+										/* Empty state */
+										<button
+											onClick={() => setShowAddSkillModal(true)}
+											className="w-full border border-dashed rounded-lg py-6 px-4 text-center hover:border-muted-foreground/50 transition-colors"
+										>
+											<p className="text-sm font-medium">
+												{t("builder.form.addSkills")}
+											</p>
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.addSkillsDescription")}
+											</p>
+										</button>
+									) : (
+										/* Added tools list */
+										<div className="border rounded-md px-4 py-2">
+											<div className="space-y-1">
+												{config.tools.map((toolName, index) => {
+													return (
+														<div
+															key={index}
+															className="flex items-center gap-2.5 py-1"
+														>
+															<div className="size-5 rounded flex items-center justify-center flex-shrink-0 bg-muted">
+																<Zap className="size-3 text-muted-foreground" />
+															</div>
+															<span className="text-xs flex-1">
+																{humanizeToolName(toolName)}
+															</span>
+															<button
+																onClick={() => {
+																	setConfig((prev) => ({
+																		...prev,
+																		tools: prev.tools.filter(
+																			(_, i) => i !== index,
+																		),
+																		instructions: removeToolFromInstructions(
+																			prev.instructions ?? "",
+																			toolName,
+																		),
+																	}));
+																}}
+																className="p-2 text-muted-foreground hover:text-foreground"
+															>
+																<X className="size-3" />
+															</button>
+														</div>
+													);
+												})}
+											</div>
+										</div>
 									)}
 								</div>
-							</div>
 
-							{/* Guardrails Section */}
-							<div className="space-y-2">
-								<div>
-									<p className="text-sm font-medium text-foreground">
-										Guardrails
-									</p>
-									<p className="text-xs text-muted-foreground mt-0.5">
-										Topics or requests the agent should NOT handle
-									</p>
-								</div>
-
-								{config.guardrails.length === 0 ? (
-									<button
-										onClick={() => {
-											setConfig((prev) => ({
-												...prev,
-												guardrails: [...prev.guardrails, ""],
-											}));
-										}}
-										className="w-full border border-dashed rounded-lg py-4 px-4 text-center hover:border-muted-foreground/50 transition-colors"
-									>
-										<p className="text-sm text-muted-foreground">
-											Add a guardrail
-										</p>
-									</button>
-								) : (
-									<div className="space-y-2">
-										{config.guardrails.map((guardrail, index) => (
-											<div key={index} className="flex items-center gap-2">
-												<Input
-													value={guardrail}
-													onChange={(e) => {
-														const updated = [...config.guardrails];
-														updated[index] = e.target.value;
-														setConfig((prev) => ({
-															...prev,
-															guardrails: updated,
-														}));
-													}}
-													placeholder="e.g., HR policy questions"
-													className="flex-1"
-												/>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="size-9 text-muted-foreground hover:text-foreground"
-													onClick={() => {
-														const updated = config.guardrails.filter(
-															(_, i) => i !== index,
-														);
-														setConfig((prev) => ({
-															...prev,
-															guardrails: updated,
-														}));
-													}}
+								{/* Instructions Section */}
+								<div className="space-y-2">
+									<div className="flex items-center justify-between">
+										<div>
+											<div className="flex items-center gap-1.5">
+												<Label
+													htmlFor="instructions"
+													className="text-sm font-medium"
 												>
-													<Trash2 className="size-4" />
-												</Button>
+													{t("builder.form.instructionsLabel")}
+												</Label>
+												<FieldHelp
+													label={t("builder.form.instructionsLabel")}
+													description={t(
+														"builder.help.instructions.description",
+													)}
+													examples={
+														t("builder.help.instructions.examples", {
+															returnObjects: true,
+														}) as string[]
+													}
+													triggerAriaLabel={t("builder.helpTriggerAria")}
+												/>
 											</div>
-										))}
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.instructionsDescription")}
+											</p>
+										</div>
 										<Button
 											variant="ghost"
 											size="sm"
-											className="h-8 gap-1.5 text-muted-foreground"
+											className="gap-1.5 h-8"
+											disabled={
+												improveInstructions.status === "improving" ||
+												isCreationActive ||
+												(!config.instructions.trim() &&
+													!config.description.trim())
+											}
 											onClick={() => {
-												setConfig((prev) => ({
-													...prev,
-													guardrails: [...prev.guardrails, ""],
-												}));
+												improveInstructions.improve({
+													name: config.name,
+													description: config.description,
+													instructions: config.instructions,
+													agentType: config.agentType,
+													tools: config.tools,
+													conversationStarters: config.conversationStarters,
+													guardrails: config.guardrails.filter((g) => g.trim()),
+													knowledgeSources: config.knowledgeSources,
+													capabilities: config.capabilities,
+												});
+												setShowImproveDialog(true);
 											}}
 										>
-											<Plus className="size-4" />
-											Add guardrail
+											{improveInstructions.status === "improving" ? (
+												<Loader2 className="size-3.5 animate-spin" />
+											) : (
+												<Sparkles className="size-3.5" />
+											)}
+											{t("builder.form.improve")}
 										</Button>
 									</div>
-								)}
+
+									{/* Instructions textarea with footer */}
+									<div className="border rounded-lg overflow-hidden">
+										<div className="relative">
+											<Textarea
+												id="instructions"
+												value={config.instructions}
+												onChange={(e) => {
+													setConfig((prev) => ({
+														...prev,
+														instructions: e.target.value,
+													}));
+													if (!instructionsTouched)
+														setInstructionsTouched(true);
+												}}
+												onBlur={() => setInstructionsTouched(true)}
+												placeholder={
+													"## Role\n\n## Backstory\n\n## Goal\n\n## Task"
+												}
+												aria-invalid={instructionsError}
+												aria-describedby="instructions-feedback"
+												className="min-h-[80px] resize-y text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+											<button
+												className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
+												aria-label={t("builder.form.expandInstructions")}
+												onClick={() => setShowInstructionsModal(true)}
+											>
+												<svg
+													width="16"
+													height="16"
+													viewBox="0 0 16 16"
+													fill="none"
+													xmlns="http://www.w3.org/2000/svg"
+												>
+													<path
+														d="M10 2H14V6M6 14H2V10M14 2L9 7M2 14L7 9"
+														stroke="currentColor"
+														strokeWidth="1.5"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+													/>
+												</svg>
+											</button>
+										</div>
+									</div>
+									<p className="text-xs text-muted-foreground">
+										{t("builder.form.instructionsHint")}
+									</p>
+
+									<div
+										id="instructions-feedback"
+										aria-live="polite"
+										className="min-h-5 mt-1"
+									>
+										{instructionsError && (
+											<p className="text-sm text-destructive">
+												{t("builder.form.instructionsRequired")}
+											</p>
+										)}
+									</div>
+								</div>
+
+								{/* Conversation Starters Section */}
+								<AgentConversationStarters
+									starters={config.conversationStarters}
+									onChange={(starters) =>
+										setConfig((prev) => ({
+											...prev,
+											conversationStarters: starters,
+										}))
+									}
+									maxStarters={MAX_CONVERSATION_STARTERS}
+									onGenerate={() => {
+										generateStarters.generate({
+											name: config.name,
+											description: config.description,
+											instructions: config.instructions,
+											agentType: config.agentType,
+											tools: config.tools,
+											conversationStarters: config.conversationStarters,
+											guardrails: config.guardrails.filter((g) => g.trim()),
+											knowledgeSources: config.knowledgeSources,
+											capabilities: config.capabilities,
+										});
+									}}
+									isGenerating={generateStarters.status === "generating"}
+									generateDisabled={
+										agentCreation.isCreating ||
+										(!config.instructions.trim() && !config.description.trim())
+									}
+								/>
+
+								{/* Guardrails Section */}
+								<AgentGuardrailsSection
+									guardrails={config.guardrails}
+									onChange={(guardrails) =>
+										setConfig((prev) => ({
+											...prev,
+											guardrails,
+										}))
+									}
+								/>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Change Agent Type Modal */}
 			<ChangeAgentTypeModal
@@ -1393,7 +1221,7 @@ export default function AgentBuilderPage() {
 				onOpenChange={setShowChangeTypeModal}
 				currentType={config.agentType}
 				knowledgeSourcesCount={config.knowledgeSources.length}
-				workflowsCount={config.workflows.length}
+				toolsCount={config.tools.length}
 				isEditing={isEditing}
 				onConfirm={(newType, needsDoubleConfirm) => {
 					if (needsDoubleConfirm) {
@@ -1405,7 +1233,7 @@ export default function AgentBuilderPage() {
 							agentType: newType,
 							knowledgeSources:
 								newType === "workflow" ? [] : prev.knowledgeSources,
-							workflows: newType === "knowledge" ? [] : prev.workflows,
+							tools: newType === "knowledge" ? [] : prev.tools,
 						}));
 					}
 				}}
@@ -1428,7 +1256,7 @@ export default function AgentBuilderPage() {
 						agentType: pendingAgentType,
 						knowledgeSources:
 							pendingAgentType === "workflow" ? [] : prev.knowledgeSources,
-						workflows: pendingAgentType === "knowledge" ? [] : prev.workflows,
+						tools: pendingAgentType === "knowledge" ? [] : prev.tools,
 					}));
 					setShowConfirmTypeChangeModal(false);
 					setPendingAgentType(null);
@@ -1452,11 +1280,11 @@ export default function AgentBuilderPage() {
 						if (agentEid) {
 							await updateAgent.mutateAsync({
 								eid: agentEid,
-								data: { status: "draft" },
+								data: { state: "DRAFT" },
 							});
 						}
 					} catch {
-						toast.error("Failed to unpublish agent");
+						toast.error(t("builder.failedToUnpublish"));
 						setShowUnpublishModal(false);
 						return;
 					}
@@ -1480,6 +1308,47 @@ export default function AgentBuilderPage() {
 				onChange={(value) =>
 					setConfig((prev) => ({ ...prev, instructions: value }))
 				}
+				onImproveClick={() => {
+					improveInstructions.improve({
+						name: config.name,
+						description: config.description,
+						instructions: config.instructions,
+						agentType: config.agentType,
+						tools: config.tools,
+						conversationStarters: config.conversationStarters,
+						guardrails: config.guardrails.filter((g) => g.trim()),
+						knowledgeSources: config.knowledgeSources,
+						capabilities: config.capabilities,
+					});
+					setShowImproveDialog(true);
+				}}
+				isImproving={improveInstructions.status === "improving"}
+			/>
+
+			{/* Improve Instructions Sheet */}
+			<ImproveInstructionsDialog
+				open={showImproveDialog}
+				onOpenChange={(open) => {
+					setShowImproveDialog(open);
+					if (!open) improveInstructions.reset();
+				}}
+				onAcceptInstructions={(improved) => {
+					setConfig((prev) => ({ ...prev, instructions: improved }));
+					if (!instructionsTouched) setInstructionsTouched(true);
+				}}
+				onRetry={() => {
+					improveInstructions.improve({
+						name: config.name,
+						description: config.description,
+						instructions: config.instructions,
+						agentType: config.agentType,
+						tools: config.tools,
+						conversationStarters: config.conversationStarters,
+						guardrails: config.guardrails.filter((g) => g.trim()),
+						knowledgeSources: config.knowledgeSources,
+						capabilities: config.capabilities,
+					});
+				}}
 			/>
 
 			{/* Create New Workflow Modal */}
@@ -1488,24 +1357,21 @@ export default function AgentBuilderPage() {
 				onOpenChange={setShowCreateWorkflowModal}
 			/>
 
-			{/* Add Skill Modal */}
-			<AddSkillModal
+			{/* Add Tools Modal */}
+			<AddToolsModal
 				open={showAddSkillModal}
 				onOpenChange={setShowAddSkillModal}
-				availableSkills={[...AVAILABLE_SKILLS, ...getPublishedWorkflowSkills()]}
-				currentWorkflows={config.workflows}
-				onAdd={(skillNames, newStarters) => {
+				currentTools={config.tools}
+				onAdd={(toolNames) => {
 					setConfig((prev) => {
-						const existingStarters = prev.conversationStarters;
-						const startersToAdd = newStarters.filter(
-							(s) => !existingStarters.includes(s),
-						);
-						const availableSlots = 6 - existingStarters.length;
-						const finalNewStarters = startersToAdd.slice(0, availableSlots);
+						let nextInstructions = prev.instructions ?? "";
+						for (const name of toolNames) {
+							nextInstructions = addToolToInstructions(nextInstructions, name);
+						}
 						return {
 							...prev,
-							workflows: [...prev.workflows, ...skillNames],
-							conversationStarters: [...existingStarters, ...finalNewStarters],
+							tools: [...prev.tools, ...toolNames],
+							instructions: nextInstructions,
 						};
 					});
 				}}
@@ -1523,11 +1389,14 @@ export default function AgentBuilderPage() {
 					if (!workflowToUnlink) return;
 					setConfig((prev) => ({
 						...prev,
-						workflows: [...prev.workflows, workflowToUnlink.name],
+						tools: [...prev.tools, workflowToUnlink.name],
 					}));
 					setShowUnlinkConfirm(false);
 					toast.success(
-						`${workflowToUnlink.name} unlinked from ${workflowToUnlink.linkedAgentName} and added to this agent`,
+						t("builder.unlinkedToast", {
+							skill: workflowToUnlink.name,
+							agent: workflowToUnlink.linkedAgentName,
+						}),
 					);
 					setWorkflowToUnlink(null);
 				}}
@@ -1543,7 +1412,7 @@ export default function AgentBuilderPage() {
 					className="fixed bottom-4 left-4 z-50 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-full shadow-lg hover:bg-violet-700 transition-colors flex items-center gap-1.5"
 				>
 					<Play className="size-3" />
-					Demo
+					{t("builder.demo.trigger")}
 				</button>
 			)}
 
@@ -1552,7 +1421,9 @@ export default function AgentBuilderPage() {
 				<div className="fixed bottom-0 left-0 right-0 z-50 bg-violet-900 text-white px-6 py-3 flex items-center gap-4 shadow-2xl">
 					<div className="flex items-center gap-2">
 						<Play className="size-4" />
-						<span className="text-sm font-semibold">Demo Mode</span>
+						<span className="text-sm font-semibold">
+							{t("builder.demo.title")}
+						</span>
 					</div>
 					<div className="flex-1 flex items-center gap-1">
 						{DEMO_STEPS.map((s, i) => (
@@ -1590,7 +1461,7 @@ export default function AgentBuilderPage() {
 							className="text-white/70 hover:text-white hover:bg-white/10 h-7 text-xs"
 							onClick={handleDemoNext}
 						>
-							Next
+							{t("builder.demo.next")}
 						</Button>
 						<Button
 							size="sm"
@@ -1601,7 +1472,7 @@ export default function AgentBuilderPage() {
 								setDemoStep(0);
 							}}
 						>
-							Exit Demo
+							{t("builder.demo.exit")}
 						</Button>
 					</div>
 				</div>

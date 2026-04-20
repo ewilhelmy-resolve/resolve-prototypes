@@ -253,7 +253,7 @@ export function useSendMessage() {
 			conversationId: string;
 			content: string;
 			tempId: string;
-			metadata?: Record<string, string>;
+			metadata?: Record<string, string | boolean>;
 		}) => {
 			setSending(true);
 

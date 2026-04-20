@@ -5,6 +5,7 @@
  */
 
 import { Squirrel } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
 	AlertDialog,
 	AlertDialogCancel,
@@ -32,6 +33,7 @@ export function PublishModal({
 	config,
 	onConfirm,
 }: PublishModalProps) {
+	const { t } = useTranslation("agents");
 	const iconColor = ICON_COLORS.find((c) => c.id === config.iconColorId);
 	const iconData = AVAILABLE_ICONS.find((i) => i.id === config.iconId);
 	const IconComponent = (iconData?.icon || Squirrel) as React.ElementType;
@@ -41,10 +43,9 @@ export function PublishModal({
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent className="sm:max-w-sm">
 				<AlertDialogHeader>
-					<AlertDialogTitle>Publish agent</AlertDialogTitle>
+					<AlertDialogTitle>{t("publishModal.title")}</AlertDialogTitle>
 					<AlertDialogDescription>
-						Publishing will make this agent active and available to be matched
-						with real users in this environment.
+						{t("publishModal.description")}
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 
@@ -68,15 +69,15 @@ export function PublishModal({
 									{config.description}
 								</p>
 							</div>
-							{config.workflows.length > 0 && (
+							{config.tools.length > 0 && (
 								<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-									<span>Skills</span>
-									<span className="text-right">{config.workflows.length}</span>
+									<span>{t("publishModal.skills")}</span>
+									<span className="text-right">{config.tools.length}</span>
 								</div>
 							)}
 							{config.knowledgeSources.length > 0 && (
 								<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-									<span>Knowledge Sources</span>
+									<span>{t("publishModal.knowledgeSources")}</span>
 									<span className="text-right">
 										{config.knowledgeSources.length}
 									</span>
@@ -84,7 +85,7 @@ export function PublishModal({
 							)}
 							{config.guardrails.length > 0 && (
 								<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-									<span>Guardrails</span>
+									<span>{t("publishModal.guardrails")}</span>
 									<span className="text-right">{config.guardrails.length}</span>
 								</div>
 							)}
@@ -93,8 +94,8 @@ export function PublishModal({
 				</div>
 
 				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
-					<Button onClick={onConfirm}>Publish</Button>
+					<AlertDialogCancel>{t("publishModal.cancel")}</AlertDialogCancel>
+					<Button onClick={onConfirm}>{t("publishModal.publish")}</Button>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>

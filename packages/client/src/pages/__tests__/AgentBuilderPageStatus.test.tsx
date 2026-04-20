@@ -31,6 +31,53 @@ vi.mock("@/hooks/api/useAgents", () => ({
 	useCreateAgent: () => mockCreateAgent,
 	useUpdateAgent: () => mockUpdateAgent,
 	useCheckAgentName: () => ({ data: { available: true } }),
+	useGenerateAgent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+	useImproveInstructionsMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+	useGenerateConversationStartersMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+}));
+
+const mockAgentCreationCreate = vi.fn();
+const mockAgentCreationReset = vi.fn();
+
+vi.mock("@/hooks/useAgentCreation", () => ({
+	useAgentCreation: () => ({
+		create: mockAgentCreationCreate,
+		status: "idle",
+		creationId: null,
+		executionId: null,
+		executionSteps: [],
+		inputMessage: null,
+		agentId: null,
+		agentName: null,
+		error: null,
+		isCreating: false,
+		reset: mockAgentCreationReset,
+	}),
+}));
+
+vi.mock("@/hooks/useImproveInstructions", () => ({
+	useImproveInstructions: () => ({
+		improve: vi.fn(),
+		status: "idle",
+		isImproving: false,
+		reset: vi.fn(),
+	}),
+}));
+
+vi.mock("@/hooks/useGenerateConversationStarters", () => ({
+	useGenerateConversationStarters: () => ({
+		generate: vi.fn(),
+		status: "idle",
+		isGenerating: false,
+		generatedStarters: null,
+		reset: vi.fn(),
+	}),
 }));
 
 vi.mock("@/hooks/useAutoSave", () => ({
@@ -60,17 +107,20 @@ vi.mock("@/lib/toast", () => ({
 
 vi.mock("@/components/agents/builder", () => ({
 	AddSkillModal: () => null,
+	AddToolsModal: () => null,
+	AgentConversationStarters: () => null,
+	AgentCreationOverlay: () => null,
+	AgentGuardrailsSection: () => null,
+	AgentIconPicker: () => null,
 	ChangeAgentTypeModal: () => null,
 	ConfirmTypeChangeModal: () => null,
 	CreateWorkflowModal: () => null,
+	ImproveInstructionsDialog: () => null,
 	InstructionsExpandedModal: () => null,
 	PublishModal: () => null,
 	UnlinkWorkflowModal: () => null,
 	UnpublishModal: () => null,
-}));
-
-vi.mock("@/components/agents/SaveStatusIndicator", () => ({
-	SaveStatusIndicator: () => <span data-testid="save-status" />,
+	UpdateAgentModal: () => null,
 }));
 
 import { useAgent } from "@/hooks/api/useAgents";
@@ -89,10 +139,10 @@ const draftAgent: AgentConfig = {
 	iconId: "bot",
 	iconColorId: "slate",
 	agentType: "answer",
-	status: "draft",
+	state: "DRAFT",
 	conversationStarters: [],
 	knowledgeSources: [],
-	workflows: [],
+	tools: [],
 	guardrails: [],
 	capabilities: {
 		webSearch: true,
@@ -104,7 +154,7 @@ const draftAgent: AgentConfig = {
 const publishedAgent: AgentConfig = {
 	...draftAgent,
 	id: "agent-pub-1",
-	status: "published",
+	state: "PUBLISHED",
 };
 
 function createWrapper(initialPath: string) {
@@ -140,11 +190,13 @@ describe("AgentBuilderPage - Status Badge", () => {
 		renderPage("/agents/agent-draft-1");
 
 		await waitFor(() => {
-			const badges = screen.getAllByText("Draft");
+			const badges = screen.getAllByText("builder.statusDraft");
 			expect(badges.length).toBeGreaterThanOrEqual(1);
 		});
 
-		expect(screen.queryByText("Published")).not.toBeInTheDocument();
+		expect(
+			screen.queryByText("builder.statusPublished"),
+		).not.toBeInTheDocument();
 	});
 
 	it("shows 'Published' badge with checkmark when editing a published agent", async () => {
@@ -157,7 +209,7 @@ describe("AgentBuilderPage - Status Badge", () => {
 		renderPage("/agents/agent-pub-1");
 
 		await waitFor(() => {
-			expect(screen.getByText("Published")).toBeInTheDocument();
+			expect(screen.getByText("builder.statusPublished")).toBeInTheDocument();
 		});
 	});
 
@@ -171,7 +223,7 @@ describe("AgentBuilderPage - Status Badge", () => {
 		renderPage("/agents/create");
 
 		await waitFor(() => {
-			const badges = screen.getAllByText("Draft");
+			const badges = screen.getAllByText("builder.statusDraft");
 			expect(badges.length).toBeGreaterThanOrEqual(1);
 		});
 	});
@@ -197,10 +249,10 @@ describe("AgentBuilderPage - Action Buttons", () => {
 		});
 
 		expect(
-			screen.getByRole("button", { name: /^Publish$/i }),
+			screen.getByRole("button", { name: /^builder\.publish$/i }),
 		).toBeInTheDocument();
 		expect(
-			screen.queryByRole("button", { name: /Unpublish/i }),
+			screen.queryByRole("button", { name: /builder\.unpublish/i }),
 		).not.toBeInTheDocument();
 	});
 
@@ -218,10 +270,10 @@ describe("AgentBuilderPage - Action Buttons", () => {
 		});
 
 		expect(
-			screen.getByRole("button", { name: /Unpublish/i }),
+			screen.getByRole("button", { name: /builder\.unpublish/i }),
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole("button", { name: /Publish changes/i }),
+			screen.getByRole("button", { name: /builder\.publishChanges/i }),
 		).toBeInTheDocument();
 	});
 });
@@ -244,7 +296,7 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		// Wait for render to settle
 		await waitFor(() => {
 			expect(
-				screen.getByRole("button", { name: /Create agent/i }),
+				screen.getByRole("button", { name: /builder\.createAgent/i }),
 			).toBeInTheDocument();
 		});
 
@@ -262,17 +314,17 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 
 		await waitFor(() => {
 			expect(
-				screen.getByRole("button", { name: /Create agent/i }),
+				screen.getByRole("button", { name: /builder\.createAgent/i }),
 			).toBeInTheDocument();
 		});
 
 		// Should not show Publish in create mode
 		expect(
-			screen.queryByRole("button", { name: /^Publish$/i }),
+			screen.queryByRole("button", { name: /^builder\.publish$/i }),
 		).not.toBeInTheDocument();
 	});
 
-	it("calls createAgent and navigates on click", async () => {
+	it("calls agentCreation.create (AI flow) on click, NOT the old createAgent", async () => {
 		const user = userEvent.setup();
 
 		mockedUseAgent.mockReturnValue({
@@ -283,24 +335,33 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 
 		renderPage("/agents/create");
 
-		const createBtn = await screen.findByRole("button", {
-			name: /Create agent/i,
+		// Fill required fields: name + instructions
+		const nameInput = await screen.findByPlaceholderText(
+			/builder\.form\.namePlaceholder/i,
+		);
+		await user.clear(nameInput);
+		await user.type(nameInput, "Test Agent");
+
+		const instructionsArea = document.getElementById(
+			"instructions",
+		) as HTMLTextAreaElement;
+		await user.type(instructionsArea, "Be helpful");
+
+		const createBtn = screen.getByRole("button", {
+			name: /builder\.createAgent/i,
 		});
 		await user.click(createBtn);
 
 		await waitFor(() => {
-			expect(mockCreateAgent.mutateAsync).toHaveBeenCalledWith(
+			expect(mockAgentCreationCreate).toHaveBeenCalledWith(
 				expect.objectContaining({
-					name: "Untitled Agent",
-					status: "draft",
+					name: expect.any(String),
 				}),
 			);
 		});
 
-		expect(mockNavigate).toHaveBeenCalledWith("/agents/new-draft-1", {
-			replace: true,
-			state: expect.objectContaining({ initialConfig: expect.any(Object) }),
-		});
+		// Must NOT call the old direct LLM Service metadata endpoint
+		expect(mockCreateAgent.mutateAsync).not.toHaveBeenCalled();
 	});
 
 	it("does NOT show 'Create agent' button when editing existing agent", async () => {
@@ -317,8 +378,48 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		});
 
 		expect(
-			screen.queryByRole("button", { name: /Create agent/i }),
+			screen.queryByRole("button", { name: /builder\.createAgent/i }),
 		).not.toBeInTheDocument();
 		expect(mockCreateAgent.mutateAsync).not.toHaveBeenCalled();
+	});
+
+	it("disables 'Create agent' when name is empty (default state)", async () => {
+		mockedUseAgent.mockReturnValue({
+			data: undefined,
+			isLoading: false,
+			error: null,
+		} as ReturnType<typeof useAgent>);
+
+		renderPage("/agents/create");
+
+		const createBtn = await screen.findByRole("button", {
+			name: /builder\.createAgent/i,
+		});
+		expect(createBtn).toBeDisabled();
+	});
+
+	it("disables 'Create agent' when name is filled but instructions are empty", async () => {
+		const user = userEvent.setup();
+
+		mockedUseAgent.mockReturnValue({
+			data: undefined,
+			isLoading: false,
+			error: null,
+		} as ReturnType<typeof useAgent>);
+
+		renderPage("/agents/create");
+
+		// Fill in the name
+		const nameInput = await screen.findByPlaceholderText(
+			/builder\.form\.namePlaceholder/i,
+		);
+		await user.clear(nameInput);
+		await user.type(nameInput, "My Test Agent");
+
+		const createBtn = screen.getByRole("button", {
+			name: /builder\.createAgent/i,
+		});
+		// Should still be disabled because instructions are empty
+		expect(createBtn).toBeDisabled();
 	});
 });
