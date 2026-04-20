@@ -58,9 +58,13 @@ describe("GET /api/files - Sorting", () => {
 		);
 
 		mockClient.query
+			.mockResolvedValueOnce({ rows: [] }) // reconciler UPDATE
 			.mockResolvedValueOnce({ rows: documents }) // SELECT query
 			.mockResolvedValueOnce({ rows: [{ total }] }); // COUNT query
 	};
+
+	// SELECT is query #1 now (reconciler UPDATE is #0)
+	const SELECT_CALL_INDEX = 1;
 
 	describe("stable sort with tiebreaker", () => {
 		it("should include bm.id as tiebreaker in ORDER BY clause", async () => {
@@ -71,7 +75,7 @@ describe("GET /api/files - Sorting", () => {
 				.query({ sort_by: "status", sort_order: "desc" })
 				.expect(200);
 
-			const selectQuery = mockClient.query.mock.calls[0][0];
+			const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 			// Should have tiebreaker: ORDER BY LOWER(bm.status) DESC, bm.id ASC
 			expect(selectQuery).toMatch(
 				/ORDER BY\s+LOWER\(bm\.status\)\s+DESC\s*,\s*bm\.id/i,
@@ -90,7 +94,7 @@ describe("GET /api/files - Sorting", () => {
 					.query({ sort_by: field, sort_order: "asc" })
 					.expect(200);
 
-				const selectQuery = mockClient.query.mock.calls[0][0];
+				const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 				expect(selectQuery).toMatch(/,\s*bm\.id/i);
 			}
 		});
@@ -105,7 +109,7 @@ describe("GET /api/files - Sorting", () => {
 				.query({ sort_by: "filename", sort_order: "asc" })
 				.expect(200);
 
-			const selectQuery = mockClient.query.mock.calls[0][0];
+			const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 			// Must use LOWER(bm.filename) so "article_2" sorts near "AltoonaMinutes"
 			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.filename\)\s+ASC/i);
 		});
@@ -118,7 +122,7 @@ describe("GET /api/files - Sorting", () => {
 				.query({ sort_by: "source", sort_order: "asc" })
 				.expect(200);
 
-			const selectQuery = mockClient.query.mock.calls[0][0];
+			const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.source\)\s+ASC/i);
 		});
 
@@ -130,7 +134,7 @@ describe("GET /api/files - Sorting", () => {
 				.query({ sort_by: "type", sort_order: "asc" })
 				.expect(200);
 
-			const selectQuery = mockClient.query.mock.calls[0][0];
+			const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.mime_type\)\s+ASC/i);
 		});
 
@@ -142,7 +146,7 @@ describe("GET /api/files - Sorting", () => {
 				.query({ sort_by: "status", sort_order: "asc" })
 				.expect(200);
 
-			const selectQuery = mockClient.query.mock.calls[0][0];
+			const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 			expect(selectQuery).toMatch(/ORDER BY\s+LOWER\(bm\.status\)\s+ASC/i);
 		});
 
@@ -154,7 +158,7 @@ describe("GET /api/files - Sorting", () => {
 				.query({ sort_by: "size", sort_order: "asc" })
 				.expect(200);
 
-			const selectQuery = mockClient.query.mock.calls[0][0];
+			const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 			expect(selectQuery).toMatch(/ORDER BY\s+bm\.file_size\s+ASC/i);
 			expect(selectQuery).not.toMatch(/LOWER\(bm\.file_size\)/i);
 		});
@@ -169,7 +173,7 @@ describe("GET /api/files - Sorting", () => {
 				.query({ sort_by: "updated_at", sort_order: "desc" })
 				.expect(200);
 
-			const selectQuery = mockClient.query.mock.calls[0][0];
+			const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 			// Should NOT fallback to created_at in ORDER BY
 			expect(selectQuery).not.toMatch(/ORDER BY\s+bm\.created_at/i);
 		});
@@ -182,7 +186,7 @@ describe("GET /api/files - Sorting", () => {
 				.query({ sort_by: "updated_at", sort_order: "desc" })
 				.expect(200);
 
-			const selectQuery = mockClient.query.mock.calls[0][0];
+			const selectQuery = mockClient.query.mock.calls[SELECT_CALL_INDEX][0];
 			expect(selectQuery).toMatch(/ORDER BY\s+bm\.updated_at\s+DESC/i);
 		});
 	});
