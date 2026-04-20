@@ -23,6 +23,7 @@ export function useAgents(filters?: {
 	name?: string;
 	state?: AgentState;
 	search?: string;
+	owner?: "me" | "others";
 }) {
 	return useQuery({
 		queryKey: agentKeys.list(filters ?? {}),
@@ -35,6 +36,7 @@ export function useInfiniteAgents(filters?: {
 	name?: string;
 	state?: AgentState;
 	search?: string;
+	owner?: "me" | "others";
 }) {
 	return useInfiniteQuery({
 		queryKey: [...agentKeys.lists(), "infinite", filters ?? {}] as const,

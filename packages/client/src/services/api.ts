@@ -193,6 +193,8 @@ export const agentApi = {
 		name?: string;
 		active?: string;
 		search?: string;
+		state?: import("@/types/agent").AgentState;
+		owner?: "me" | "others";
 		limit?: number;
 		offset?: number;
 	}) => {
@@ -200,6 +202,8 @@ export const agentApi = {
 		if (params?.name) searchParams.set("name", params.name);
 		if (params?.active) searchParams.set("active", params.active);
 		if (params?.search) searchParams.set("search", params.search);
+		if (params?.state) searchParams.set("state", params.state);
+		if (params?.owner) searchParams.set("owner", params.owner);
 		if (params?.limit != null) searchParams.set("limit", String(params.limit));
 		if (params?.offset != null)
 			searchParams.set("offset", String(params.offset));

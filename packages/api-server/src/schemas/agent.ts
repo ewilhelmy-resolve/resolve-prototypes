@@ -38,6 +38,10 @@ export const AgentListQuerySchema = z
 				description:
 					"Filter by lifecycle state (forwards to `state__exact` on the LLM Service).",
 			}),
+		owner: z.enum(["me", "others"]).optional().openapi({
+			description:
+				"Filter by agent creator. 'me' returns only agents created by the caller; 'others' returns agents created by anyone else in the tenant. Forwards to `sys_created_by__exact` (or negated `^sys_created_by__exact`) on the LLM Service.",
+		}),
 		limit: z.coerce
 			.number()
 			.int()
@@ -127,8 +131,29 @@ export const AgentCreateBodySchema = z
 	})
 	.openapi("AgentCreateBody");
 
-export const AgentUpdateBodySchema =
-	AgentCreateBodySchema.partial().openapi("AgentUpdateBody");
+// Update body is NOT `AgentCreateBodySchema.partial()`: .partial() preserves
+// .default(...), so a missing `state` would be resurrected as "DRAFT" and
+// silently regress PUBLISHED agents. Defined independently with every field
+// .optional() and no defaults — whatever the client omits stays untouched on
+// the LLM Service row.
+export const AgentUpdateBodySchema = z
+	.object({
+		name: z.string().min(1).max(AGENT_NAME_MAX).optional(),
+		description: z.string().max(AGENT_DESCRIPTION_MAX).optional(),
+		state: z.enum(["DRAFT", "PUBLISHED", "RETIRED", "TESTING"]).optional(),
+		iconId: z.string().optional(),
+		iconColorId: z.string().optional(),
+		adminType: z.string().optional(),
+		conversationStarters: z
+			.array(z.string().max(AGENT_CONVERSATION_STARTER_MAX))
+			.max(AGENT_STARTERS_COUNT_MAX)
+			.optional(),
+		guardrails: z
+			.array(z.string().max(AGENT_GUARDRAIL_MAX))
+			.max(AGENT_GUARDRAILS_COUNT_MAX)
+			.optional(),
+	})
+	.openapi("AgentUpdateBody");
 
 export const AgentDetailResponseSchema = z
 	.object({

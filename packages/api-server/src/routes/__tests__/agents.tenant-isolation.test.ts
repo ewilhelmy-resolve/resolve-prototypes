@@ -194,6 +194,105 @@ describe("Agent tenant isolation", () => {
 		});
 	});
 
+	// ── Suite A2: GET /api/agents — admin_type scoping ─────────────
+	// Builder list must exclude platform/system-owned agents (admin_type="system").
+
+	describe('GET /api/agents - admin_type="user" scoping', () => {
+		it('includes admin_type__exact="user" when no search param', async () => {
+			mockFilterAgents.mockResolvedValue([]);
+
+			await request(app).get("/api/agents").expect(200);
+
+			const query = mockFilterAgents.mock.calls[0][0];
+			expect(query).toContain('admin_type__exact="user"');
+		});
+
+		it('includes admin_type__exact="user" combined with state', async () => {
+			mockFilterAgents.mockResolvedValue([]);
+
+			await request(app).get("/api/agents?state=DRAFT").expect(200);
+
+			const query = mockFilterAgents.mock.calls[0][0];
+			expect(query).toContain('admin_type__exact="user"');
+			expect(query).toContain('state__exact="DRAFT"');
+			expect(query).toContain('tenant__exact="test-org-id"');
+		});
+
+		it('distributes admin_type__exact="user" across every OR branch when search is present', async () => {
+			mockFilterAgents.mockResolvedValue([]);
+
+			await request(app).get("/api/agents?search=bot").expect(200);
+
+			const query = mockFilterAgents.mock.calls[0][0] as string;
+			// Django-style filter has no parens — AND binds tighter than OR, so
+			// admin_type must appear on both sides of the `|` to scope each branch.
+			const branches = query.split("|");
+			expect(branches.length).toBeGreaterThanOrEqual(2);
+			for (const branch of branches) {
+				expect(branch).toContain('admin_type__exact="user"');
+			}
+		});
+	});
+
+	// ── Suite A3: GET /api/agents — owner filter (server-side) ─────
+
+	describe("GET /api/agents - owner filter", () => {
+		it('owner=me emits sys_created_by__exact="<caller email>"', async () => {
+			mockFilterAgents.mockResolvedValue([]);
+
+			await request(app).get("/api/agents?owner=me").expect(200);
+
+			const query = mockFilterAgents.mock.calls[0][0] as string;
+			expect(query).toContain('sys_created_by__exact="test@example.com"');
+			expect(query).not.toContain("^sys_created_by");
+		});
+
+		it('owner=others emits negated ^sys_created_by__exact="<caller email>"', async () => {
+			mockFilterAgents.mockResolvedValue([]);
+
+			await request(app).get("/api/agents?owner=others").expect(200);
+
+			const query = mockFilterAgents.mock.calls[0][0] as string;
+			expect(query).toContain('^sys_created_by__exact="test@example.com"');
+		});
+
+		it("no owner param → no sys_created_by clause", async () => {
+			mockFilterAgents.mockResolvedValue([]);
+
+			await request(app).get("/api/agents").expect(200);
+
+			const query = mockFilterAgents.mock.calls[0][0] as string;
+			expect(query).not.toContain("sys_created_by");
+		});
+
+		it("distributes owner filter across every OR branch when search is present", async () => {
+			mockFilterAgents.mockResolvedValue([]);
+
+			await request(app).get("/api/agents?search=bot&owner=me").expect(200);
+
+			const query = mockFilterAgents.mock.calls[0][0] as string;
+			const branches = query.split("|");
+			expect(branches.length).toBeGreaterThanOrEqual(2);
+			for (const branch of branches) {
+				expect(branch).toContain('sys_created_by__exact="test@example.com"');
+			}
+		});
+
+		it("ignores invalid owner value and does not add sys_created_by clause", async () => {
+			// Zod enum rejects anything other than 'me'/'others'; route currently
+			// 500s on validation error, so filterAgents must not be called with
+			// a half-built query.
+			mockFilterAgents.mockResolvedValue([]);
+
+			await request(app).get("/api/agents?owner=bogus");
+
+			if (mockFilterAgents.mock.calls.length > 0) {
+				const query = mockFilterAgents.mock.calls[0][0] as string;
+				expect(query).not.toContain("sys_created_by");
+			}
+		});
+	});
+
 	// ── Suite B: GET /api/agents/check-name — tenant scoping ──────
 
 	describe("GET /api/agents/check-name - tenant scoping", () => {
@@ -331,6 +430,47 @@ describe("Agent tenant isolation", () => {
 				guardrails: [],
 				sys_updated_by: "test@example.com",
 			});
+		});
+
+		it("does not leak defaulted fields when the client omits them (prevents PUBLISHED → DRAFT regression)", async () => {
+			// The client sends an icon-only PUT and expects the agent's lifecycle
+			// state, admin_type, and other create-time defaults to remain
+			// untouched. AgentUpdateBodySchema must NOT resurrect .default(...)
+			// values from AgentCreateBodySchema — they would silently flip a
+			// PUBLISHED agent back to DRAFT.
+			mockAssertAgentOrg.mockResolvedValue(
+				makeAgent({ state: "PUBLISHED", admin_type: "user" }),
+			);
+			mockUpdateAgent.mockResolvedValue(
+				makeAgent({ name: "Anime Agent", state: "PUBLISHED" }),
+			);
+
+			await request(app)
+				.put("/api/agents/eid-001")
+				.send({
+					name: "Anime Agent",
+					iconId: "rocket",
+					iconColorId: "rose",
+				})
+				.expect(200);
+
+			const [, putPayload] = mockUpdateAgent.mock.calls[0];
+			expect(putPayload).not.toHaveProperty("state");
+			expect(putPayload).not.toHaveProperty("admin_type");
+		});
+
+		it("forwards explicit state/adminType when the client does send them", async () => {
+			mockAssertAgentOrg.mockResolvedValue(makeAgent());
+			mockUpdateAgent.mockResolvedValue(makeAgent({ state: "PUBLISHED" }));
+
+			await request(app)
+				.put("/api/agents/eid-001")
+				.send({ name: "Anime Agent", state: "PUBLISHED", adminType: "system" })
+				.expect(200);
+
+			const [, putPayload] = mockUpdateAgent.mock.calls[0];
+			expect(putPayload.state).toBe("PUBLISHED");
+			expect(putPayload.admin_type).toBe("system");
 		});
 	});
 

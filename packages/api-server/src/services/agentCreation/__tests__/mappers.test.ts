@@ -346,17 +346,17 @@ describe("agentConfigToApiData", () => {
 		expect(result.configs).toBeUndefined();
 	});
 
-	it("defaults admin_type to 'user' when not provided", () => {
-		const result = agentConfigToApiData({ name: "My Agent" });
-		expect(result.admin_type).toBe("user");
-	});
-
 	it("passes through admin_type when provided", () => {
 		const result = agentConfigToApiData({
 			name: "Meta",
 			adminType: "system",
 		});
 		expect(result.admin_type).toBe("system");
+	});
+
+	it("omits admin_type when caller did not provide adminType (PUT must not overwrite existing admin_type)", () => {
+		const result = agentConfigToApiData({ name: "My Agent" });
+		expect(result).not.toHaveProperty("admin_type");
 	});
 
 	it("should pass through other fields", () => {

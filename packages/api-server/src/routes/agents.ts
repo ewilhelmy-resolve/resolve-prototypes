@@ -364,25 +364,34 @@ function formatDate(isoDate: string | null): string {
 router.get("/", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
-		const { search, state, limit, offset } = AgentListQuerySchema.parse(
+		const { search, state, owner, limit, offset } = AgentListQuerySchema.parse(
 			req.query,
 		);
 
-		// Always scope to caller's organization.
+		// Always scope to caller's organization, and to builder-created
+		// (`admin_type="user"`) agents so platform/system-owned agents don't
+		// leak into the builder list.
 		// The filter syntax has no parentheses — AND binds tighter than OR,
 		// so we distribute AND conditions across each OR term:
 		//   (A|B)&C  →  A&C|B&C
 		const orgId = authReq.user.activeOrganizationId;
-		const tenantFilter = `tenant__exact="${orgId}"`;
+		const callerEmail = authReq.user.email.replace(/"/g, '\\"');
+		const scopeParts = [`tenant__exact="${orgId}"`, `admin_type__exact="user"`];
+		if (owner === "me") {
+			scopeParts.push(`sys_created_by__exact="${callerEmail}"`);
+		} else if (owner === "others") {
+			scopeParts.push(`^sys_created_by__exact="${callerEmail}"`);
+		}
+		const scopeFilter = scopeParts.join("&");
 		const stateFilter = state ? `&state__exact="${state}"` : "";
 
 		let query: string;
 		if (search) {
 			const escaped = search.replace(/"/g, '\\"');
-			// Distribute tenant (and state) across each OR branch
-			query = `name__icontains="${escaped}"&${tenantFilter}${stateFilter}|description__icontains="${escaped}"&${tenantFilter}${stateFilter}`;
+			// Distribute scope (and state) across each OR branch
+			query = `name__icontains="${escaped}"&${scopeFilter}${stateFilter}|description__icontains="${escaped}"&${scopeFilter}${stateFilter}`;
 		} else {
-			query = `${tenantFilter}${stateFilter}`;
+			query = `${scopeFilter}${stateFilter}`;
 		}
 
 		const agents = await agenticService.filterAgents(query, {
@@ -1153,9 +1162,7 @@ router.post("/", async (req, res) => {
 		// Every newly created agent must ship with the default LLM execution
 		// config — the LLM Service rejects agents missing `configs.llm_parameters`
 		// at execution time with `ValueError: Missing llm_parameters`.
-		if (apiData.configs === undefined) {
-			apiData.configs = { ...DEFAULT_AGENT_CONFIGS };
-		}
+		apiData.configs ??= { ...DEFAULT_AGENT_CONFIGS };
 
 		logger.info(
 			{ name: body.name, userId: authReq.user?.id },
