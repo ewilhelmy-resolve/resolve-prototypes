@@ -13,7 +13,7 @@ import type { AgentEventMessage } from "../types/agent-events.js";
  * - `agent_creation_completed`: Agent created successfully
  * - `agent_creation_failed`: Agent creation failed
  *
- * @see docs/features/agents/agent-creation-workflow-integration.md section 4
+ * @see docs/features/agents/agent-developer-workflow-integration.md section 4
  */
 export class AgentEventsConsumer {
 	private readonly queueName: string;

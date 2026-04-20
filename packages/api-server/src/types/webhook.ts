@@ -147,9 +147,14 @@ export interface CreateKnowledgeWebhookPayload extends BaseWebhookPayload {
 
 /**
  * Create Agent Webhook Payload
- * Triggered when user clicks "Create with AI" in the agent builder (workflow mode)
+ * Triggered when the user runs AgentRitaDeveloper from the agent builder
+ * (workflow mode) — either to create a new agent or to update an existing
+ * one. The `target_agent_eid` field discriminates the two modes:
+ *   - absent  → create a new agent
+ *   - present → update the referenced agent (merge-patch semantics owned by
+ *               the meta-agent).
  *
- * @see docs/features/agents/agent-creation-workflow-integration.md section 1
+ * @see docs/features/agents/agent-developer-workflow-integration.md section 1
  */
 export interface CreateAgentWebhookPayload extends BaseWebhookPayload {
 	source: "rita-chat";
@@ -158,13 +163,15 @@ export interface CreateAgentWebhookPayload extends BaseWebhookPayload {
 	prompt: string;
 	icon_id: string;
 	icon_color_id: string;
+	admin_type?: string;
 	conversation_starters?: string[];
 	guardrails?: string[];
+	target_agent_eid?: string;
 }
 
 /**
  * Agent Creation Input Webhook Payload
- * Triggered when user responds to an input request from the agent-builder agent
+ * Triggered when user responds to an input request from AgentRitaDeveloper
  */
 export interface AgentCreationInputWebhookPayload extends BaseWebhookPayload {
 	source: "rita-chat";

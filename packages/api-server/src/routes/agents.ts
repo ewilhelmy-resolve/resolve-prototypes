@@ -26,6 +26,7 @@ import { getAgentCreationStrategy } from "../services/agentCreation/index.js";
 import {
 	agentConfigToApiData,
 	apiDataToAgentConfig,
+	DEFAULT_AGENT_CONFIGS,
 } from "../services/agentCreation/mappers.js";
 import { getMetaAgentStrategy } from "../services/metaAgentExecution/index.js";
 import {
@@ -363,7 +364,7 @@ function formatDate(isoDate: string | null): string {
 router.get("/", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
-		const { search, active, limit, offset } = AgentListQuerySchema.parse(
+		const { search, state, limit, offset } = AgentListQuerySchema.parse(
 			req.query,
 		);
 
@@ -373,15 +374,15 @@ router.get("/", async (req, res) => {
 		//   (A|B)&C  →  A&C|B&C
 		const orgId = authReq.user.activeOrganizationId;
 		const tenantFilter = `tenant__exact="${orgId}"`;
-		const activeFilter = active !== undefined ? `&active__exact=${active}` : "";
+		const stateFilter = state ? `&state__exact="${state}"` : "";
 
 		let query: string;
 		if (search) {
 			const escaped = search.replace(/"/g, '\\"');
-			// Distribute tenant (and active) across each OR branch
-			query = `name__icontains="${escaped}"&${tenantFilter}${activeFilter}|description__icontains="${escaped}"&${tenantFilter}${activeFilter}`;
+			// Distribute tenant (and state) across each OR branch
+			query = `name__icontains="${escaped}"&${tenantFilter}${stateFilter}|description__icontains="${escaped}"&${tenantFilter}${stateFilter}`;
 		} else {
-			query = `${tenantFilter}${activeFilter}`;
+			query = `${tenantFilter}${stateFilter}`;
 		}
 
 		const agents = await agenticService.filterAgents(query, {
@@ -406,17 +407,28 @@ router.get("/", async (req, res) => {
 			tasksByAgent.set(task.agent_metadata_id, existing);
 		}
 
-		// Map to AgentTableRow
-		const rows = agents.map((agent) => ({
-			id: agent.eid || String(agent.id),
-			name: agent.name || "",
-			description: agent.description || "",
-			status: (agent.active ? "published" : "draft") as "published" | "draft",
-			skills: agent.eid ? [...new Set(tasksByAgent.get(agent.eid) || [])] : [],
-			updatedBy: agent.sys_updated_by || null,
-			owner: agent.sys_created_by || null,
-			lastUpdated: formatDate(agent.sys_date_updated),
-		}));
+		const rows = agents.map((agent) => {
+			const rawState = agent.state;
+			const state =
+				rawState === "DRAFT" ||
+				rawState === "PUBLISHED" ||
+				rawState === "RETIRED" ||
+				rawState === "TESTING"
+					? rawState
+					: "DRAFT";
+			return {
+				id: agent.eid || String(agent.id),
+				name: agent.name || "",
+				description: agent.description || "",
+				state,
+				skills: agent.eid
+					? [...new Set(tasksByAgent.get(agent.eid) || [])]
+					: [],
+				updatedBy: agent.sys_updated_by || null,
+				owner: agent.sys_created_by || null,
+				lastUpdated: formatDate(agent.sys_date_updated),
+			};
+		});
 
 		res.json({
 			agents: rows,
@@ -553,16 +565,158 @@ router.post("/generate", async (req, res) => {
 	const authReq = req as AuthenticatedRequest;
 	try {
 		const body = AgentGenerateBodySchema.parse(req.body);
+		const orgId = authReq.user.activeOrganizationId;
+
+		// Name+tenant uniqueness gate (CREATE mode only).
+		// Agent names are unique per-tenant, not globally. The debounced
+		// client-side check is a UX hint; enforce the invariant server-side
+		// here to close races and to guarantee the meta-agent never runs
+		// against a name already taken in this tenant.
+		if (!body.targetAgentEid) {
+			const escaped = body.name.replace(/"/g, '\\"');
+			const matches = await agenticService.filterAgents(
+				`name__exact="${escaped}"&tenant__exact="${orgId}"`,
+				{ limit: 1 },
+			);
+			if (matches.length > 0) {
+				return res.status(409).json({
+					error: "An agent with this name already exists in your organization",
+					code: "NAME_TAKEN",
+				});
+			}
+		}
+
+		// Symmetric direct-write: RITA owns ALL deterministic/"cheap" fields
+		// (name, description, icons, starters, guardrails, admin_type, audit,
+		// tenant). The meta-agent owns only the "expensive" step — turning the
+		// instructions prose into structured sub-tasks. This applies to both
+		// flows:
+		//   CREATE (no body.targetAgentEid): POST /agents/metadata writes the
+		//     shell with cheap fields, meta-agent runs in UPDATE-shell mode.
+		//   UPDATE (body.targetAgentEid present): PUT /agents/metadata/eid/{id}
+		//     applies any cheap changes first, meta-agent runs in UPDATE mode.
+		// Consequence: the meta-agent never needs to patch metadata fields, so
+		// they can't be dropped/normalized by the LLM. Rollback of the shell on
+		// meta-agent failure is handled inside DirectApiStrategy via
+		// shellAlreadyCreated.
+		const isShellCreate = !body.targetAgentEid;
+
+		// RITA auto-generates the description when the user left it blank
+		// (CREATE) or didn't edit it (UPDATE). Reuses the existing
+		// `prompt_improve_agent_instructions` ruleset — it returns both
+		// instructions and description; we discard the instructions half and
+		// keep only the description. Best-effort: if the call fails we fall
+		// back to whatever description the client sent so the whole flow
+		// isn't blocked on a prompt failure.
+		let effectiveDescription = body.description;
+		if (body.generateDescription && body.instructions?.trim()) {
+			try {
+				const completion = await agenticService.executePromptCompletion({
+					promptName: "prompt_improve_agent_instructions",
+					promptParameters: {
+						utterance: body.instructions,
+						additional_information: JSON.stringify({
+							name: body.name,
+							description: body.description,
+						}),
+						transcript: "[]",
+					},
+				});
+				const content = extractCompletionText(completion);
+				const parsed = parseInstructionsImproverContent(content);
+				if (parsed.description) {
+					effectiveDescription = parsed.description;
+					logger.info(
+						{ targetEid: body.targetAgentEid, orgId },
+						"Auto-generated description from instructions",
+					);
+				}
+			} catch (err) {
+				logger.warn(
+					{ err, targetEid: body.targetAgentEid, orgId },
+					"Failed to auto-generate description; falling back to submitted value",
+				);
+			}
+		}
+
+		// Shared "cheap fields" payload. Used for POST (shell create) and PUT
+		// (pre-meta-agent re-apply on update). Tenant, state, active, and audit
+		// fields are only set on create; updates don't re-send tenant (the LLM
+		// Service's PUT returns 500 when body includes tenant).
+		const cheapFields: Record<string, unknown> = {
+			name: body.name,
+			description: effectiveDescription || undefined,
+			admin_type: body.adminType ?? "user",
+			conversation_starters: body.conversationStarters ?? [],
+			guardrails: body.guardrails ?? [],
+			ui_configs: {
+				icon: body.iconId,
+				icon_color: body.iconColorId,
+			},
+		};
+
+		let targetEid = body.targetAgentEid;
+		if (isShellCreate) {
+			const shell = await agenticService.createAgent({
+				...cheapFields,
+				tenant: orgId,
+				state: "DRAFT",
+				active: true,
+				configs: { ...DEFAULT_AGENT_CONFIGS },
+				sys_created_by: authReq.user.email,
+				sys_updated_by: authReq.user.email,
+			});
+			if (!shell.eid) {
+				logger.error(
+					{ orgId },
+					"Shell-first CREATE: POST /agents/metadata returned no eid",
+				);
+				return res.status(502).json({
+					error: "LLM Service returned an agent without an eid",
+					code: "LLM_SERVICE_ERROR",
+				});
+			}
+			targetEid = shell.eid;
+			logger.info(
+				{ eid: targetEid, orgId },
+				"Shell-first CREATE: wrote agent shell before meta-agent handoff",
+			);
+		} else if (targetEid) {
+			// UPDATE: re-apply cheap fields directly so the meta-agent sees a
+			// correct snapshot and never needs to touch them. Best-effort — if
+			// the PUT fails we still invoke the meta-agent (instructions change
+			// is the primary intent) and surface the PUT error in logs.
+			try {
+				await agenticService.updateAgent(targetEid, {
+					...cheapFields,
+					sys_updated_by: authReq.user.email,
+				});
+				logger.info(
+					{ eid: targetEid, orgId },
+					"UPDATE: applied cheap fields directly before meta-agent handoff",
+				);
+			} catch (err) {
+				logger.warn(
+					{ eid: targetEid, err },
+					"UPDATE: failed to re-apply cheap fields; proceeding to meta-agent",
+				);
+			}
+		}
+
 		const strategy = getAgentCreationStrategy();
 
 		const result = await strategy.createAgent({
 			name: body.name,
-			description: body.description,
+			description: effectiveDescription,
 			instructions: body.instructions,
 			iconId: body.iconId,
 			iconColorId: body.iconColorId,
+			adminType: body.adminType,
 			conversationStarters: body.conversationStarters,
 			guardrails: body.guardrails,
+			targetAgentEid: targetEid,
+			updatePrompt: body.updatePrompt,
+			shellAlreadyCreated: isShellCreate,
 			userId: authReq.user.id,
 			userEmail: authReq.user.email,
 			organizationId: authReq.user.activeOrganizationId,
@@ -602,6 +756,7 @@ router.post("/creation-input", async (req, res) => {
 			creationId: body.creationId,
 			prevExecutionId: body.prevExecutionId,
 			prompt: body.prompt,
+			targetAgentEid: body.targetAgentEid,
 			userId: authReq.user.id,
 			userEmail: authReq.user.email,
 			organizationId: authReq.user.activeOrganizationId,
@@ -729,7 +884,7 @@ router.post("/improve-instructions", async (req, res) => {
 				code: "LLM_SERVICE_ERROR",
 			});
 		}
-		logger.error({ error }, "Error improving instructions");
+		logger.error({ err: error }, "Error improving instructions");
 		res.status(500).json({
 			error: "Failed to improve instructions",
 			code: "INTERNAL_ERROR",
@@ -938,19 +1093,17 @@ router.get("/:eid", async (req, res) => {
 			authReq.user.activeOrganizationId,
 		);
 
-		// Fetch tasks for skills enrichment
-		let skills: string[] = [];
+		// Fetch tasks so their goal/backstory/task/expected_output/tools can be
+		// surfaced in the edit form instead of being dropped during load.
+		let tasks: Awaited<ReturnType<typeof agenticService.listTasks>> = [];
 		try {
-			const tasks = await agenticService.listTasks(eid);
-			skills = [
-				...new Set(tasks.flatMap((t) => t.tools || []).filter(Boolean)),
-			];
+			tasks = await agenticService.listTasks(eid);
 		} catch {
 			logger.warn({ eid }, "Failed to fetch tasks for agent detail");
 		}
 
 		res.json(
-			apiDataToAgentConfig(agent as unknown as Record<string, unknown>, skills),
+			apiDataToAgentConfig(agent as unknown as Record<string, unknown>, tasks),
 		);
 	} catch (error: any) {
 		if (error?.response?.status === 404) {
@@ -997,6 +1150,13 @@ router.post("/", async (req, res) => {
 			apiData.tenant = authReq.user.activeOrganizationId;
 		}
 
+		// Every newly created agent must ship with the default LLM execution
+		// config — the LLM Service rejects agents missing `configs.llm_parameters`
+		// at execution time with `ValueError: Missing llm_parameters`.
+		if (apiData.configs === undefined) {
+			apiData.configs = { ...DEFAULT_AGENT_CONFIGS };
+		}
+
 		logger.info(
 			{ name: body.name, userId: authReq.user?.id },
 			"Creating agent",
@@ -1004,20 +1164,14 @@ router.post("/", async (req, res) => {
 
 		const created = await agenticService.createAgent(apiData);
 
-		// LLM Service may not respect active:false on create — force update if needed
-		const requestedActive = apiData.active;
-		let finalAgent = created;
-		if (requestedActive === false && (created as any).active === true) {
-			finalAgent = await agenticService.updateAgent((created as any).eid, {
-				active: false,
-				sys_updated_by: authReq.user?.email,
-			});
-		}
-
+		// Draft status is now driven by the LLM Service's `state` column
+		// (defaulting to "DRAFT" on create), not the legacy `active` boolean.
+		// No post-create patch is needed here — the payload already carries
+		// `state` when the caller asked for a non-default value.
 		res
 			.status(201)
 			.json(
-				apiDataToAgentConfig(finalAgent as unknown as Record<string, unknown>),
+				apiDataToAgentConfig(created as unknown as Record<string, unknown>),
 			);
 	} catch (error: any) {
 		if (error?.response) {
@@ -1055,25 +1209,21 @@ router.put("/:eid", async (req, res) => {
 			body as unknown as Record<string, unknown>,
 		);
 
-		// Set sys_updated_by and tenant
+		// Tenant must NOT be sent on PUT — the LLM Service returns 500 when the
+		// body includes it. Only sys_updated_by is re-stamped here.
 		if (authReq.user?.email) {
 			apiData.sys_updated_by = authReq.user.email;
-		}
-		if (authReq.user?.activeOrganizationId) {
-			apiData.tenant = authReq.user.activeOrganizationId;
 		}
 
 		logger.info({ eid, userId: authReq.user?.id }, "Updating agent");
 
 		const updated = await agenticService.updateAgent(eid, apiData);
 
-		// Fetch tasks for skills enrichment
-		let skills: string[] = [];
+		// Fetch tasks so their goal/backstory/task/expected_output/tools can be
+		// surfaced in the edit form instead of being dropped during load.
+		let tasks: Awaited<ReturnType<typeof agenticService.listTasks>> = [];
 		try {
-			const tasks = await agenticService.listTasks(eid);
-			skills = [
-				...new Set(tasks.flatMap((t) => t.tools || []).filter(Boolean)),
-			];
+			tasks = await agenticService.listTasks(eid);
 		} catch {
 			logger.warn({ eid }, "Failed to fetch tasks for agent update response");
 		}
@@ -1081,7 +1231,7 @@ router.put("/:eid", async (req, res) => {
 		res.json(
 			apiDataToAgentConfig(
 				updated as unknown as Record<string, unknown>,
-				skills,
+				tasks,
 			),
 		);
 	} catch (error: any) {

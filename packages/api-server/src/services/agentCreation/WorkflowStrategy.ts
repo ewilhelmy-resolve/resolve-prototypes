@@ -14,12 +14,12 @@ import type {
  * Workflow Strategy (placeholder)
  *
  * Delegates agent creation to the external platform via webhook.
- * The platform invokes the agent-builder AI agent, which creates
+ * The platform invokes AgentRitaDeveloper, which creates or updates
  * the agent in the LLM Service. Progress is reported via RabbitMQ → SSE.
  *
  * Used when AGENT_CREATION_MODE=workflow.
  *
- * @see docs/features/agents/agent-creation-workflow-integration.md
+ * @see docs/features/agents/agent-developer-workflow-integration.md
  */
 export class WorkflowStrategy implements AgentCreationStrategy {
 	constructor(private readonly webhookService: WebhookService) {}
@@ -45,8 +45,12 @@ export class WorkflowStrategy implements AgentCreationStrategy {
 				prompt,
 				icon_id: params.iconId,
 				icon_color_id: params.iconColorId,
+				admin_type: params.adminType ?? "user",
 				conversation_starters: params.conversationStarters || [],
 				guardrails: params.guardrails || [],
+				...(params.targetAgentEid && {
+					target_agent_eid: params.targetAgentEid,
+				}),
 			},
 		});
 

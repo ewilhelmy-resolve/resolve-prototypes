@@ -4,6 +4,7 @@ import type {
 	AgentExecutionMessage,
 	AgenticService,
 } from "../AgenticService.js";
+import { parseRawJsonResponse } from "../metaAgentExecution/parsers.js";
 import type { SSEService } from "../sse.js";
 import { buildAgentPrompt } from "./buildPrompt.js";
 import type {
@@ -14,7 +15,7 @@ import type {
 	AsyncCreationResult,
 } from "./types.js";
 
-const AGENT_BUILDER_NAME = "AgentToCreateAgentRita";
+const AGENT_DEVELOPER_NAME = "AgentRitaDeveloper";
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 100; // ~5 minutes
 
@@ -27,15 +28,30 @@ interface ActiveCreation {
 	tenantId: string;
 	requestedName: string;
 	transcript: string[];
-	conversationStarters?: string[];
-	guardrails?: string[];
+	/**
+	 * Target agent EID. Always set — the meta-agent runs in UPDATE mode
+	 * against a real agent row (either one RITA just created as a shell, or
+	 * one the user is editing).
+	 */
+	targetAgentEid: string;
+	/**
+	 * True when RITA created the agent shell directly via POST /agents/metadata
+	 * right before handing off to the meta-agent. Distinguishes shell-first
+	 * CREATE from user-initiated UPDATE so we only roll back shells we
+	 * actually created. User-edited agents must never be deleted on failure.
+	 */
+	shellAlreadyCreated: boolean;
 }
 
 /**
  * Direct API Strategy
  *
- * Invokes the agent-builder agent (AgentToCreateAgentRita) via the LLM Service
- * agentic API, polls for execution progress, and sends SSE events to the client.
+ * Invokes the AgentRitaDeveloper meta-agent via the LLM Service agentic API
+ * in UPDATE mode (always — the meta-agent never creates agents itself). The
+ * caller is expected to have already written the agent shell via
+ * POST /agents/metadata for CREATE, or to pass through an existing agent's
+ * EID for user-initiated UPDATE. Polls for execution progress and sends SSE
+ * events to the client.
  *
  * Used when AGENT_CREATION_MODE=direct (default).
  */
@@ -49,16 +65,33 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 
 	async createAgent(params: AgentGenerateParams): Promise<AsyncCreationResult> {
 		const creationId = crypto.randomUUID();
+		// targetAgentEid is always set by the route — shell-first CREATE writes
+		// a shell first, user-initiated UPDATE passes one through directly.
+		if (!params.targetAgentEid) {
+			throw new Error(
+				"targetAgentEid is required: meta-agent runs in UPDATE mode only",
+			);
+		}
 		const prompt = buildAgentPrompt(params);
+		const shellAlreadyCreated = params.shellAlreadyCreated ?? false;
 
 		logger.info(
-			{ creationId, name: params.name, userId: params.userId },
-			"Creating agent via direct agentic API",
+			{
+				creationId,
+				name: params.name,
+				userId: params.userId,
+				targetAgentEid: params.targetAgentEid,
+				shellAlreadyCreated,
+			},
+			"Invoking AgentRitaDeveloper via direct agentic API",
 		);
 
 		const { executionId, conversationId } =
-			await this.agenticService.executeAgent(AGENT_BUILDER_NAME, {
+			await this.agenticService.executeAgent(AGENT_DEVELOPER_NAME, {
 				utterance: prompt,
+				targetAgentEid: params.targetAgentEid,
+				tenant: params.organizationId,
+				userEmail: params.userEmail,
 			});
 
 		this.activeCreations.set(creationId, {
@@ -70,9 +103,27 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 			tenantId: params.organizationId,
 			requestedName: params.name,
 			transcript: [prompt],
-			conversationStarters: params.conversationStarters,
-			guardrails: params.guardrails,
+			targetAgentEid: params.targetAgentEid,
+			shellAlreadyCreated,
 		});
+
+		// Shell-first: surface the early-confirmation "Saved" step before the
+		// meta-agent's slower Analyzing/Building phases show up. Gives the user
+		// immediate feedback that RITA already persisted their form values — so
+		// if the meta-agent phase takes a while or fails, they know the cheap
+		// fields (name, description, icons, starters, guardrails) are safe.
+		if (shellAlreadyCreated) {
+			this.sseService.sendToUser(params.userId, params.organizationId, {
+				type: "agent_creation_progress",
+				data: {
+					creation_id: creationId,
+					step_type: "shell_created",
+					step_label: "Saved",
+					step_detail: "Agent saved; generating instructions...",
+					timestamp: new Date().toISOString(),
+				},
+			});
+		}
 
 		// Fire-and-forget background polling
 		this.pollInBackground(creationId).catch((err) => {
@@ -110,11 +161,17 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 		);
 
 		const { executionId } = await this.agenticService.executeAgent(
-			AGENT_BUILDER_NAME,
+			AGENT_DEVELOPER_NAME,
 			{
 				utterance: params.prompt,
 				transcript,
 				prevExecutionId: params.prevExecutionId,
+				// Preserve the mode across multi-turn clarifications.
+				targetAgentEid: creation.targetAgentEid,
+				// Preserve tenant across multi-turn clarifications so the resumed
+				// run scopes tool calls against the same tenant.
+				tenant: creation.tenantId,
+				userEmail: creation.userEmail,
 			},
 		);
 
@@ -226,7 +283,7 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 						msg.event_type === "execution_error" ||
 						msg.event_type === "execution_failed"
 					) {
-						this.handleExecutionError(creationId, creation, msg);
+						await this.handleExecutionError(creationId, creation, msg);
 						return;
 					}
 				}
@@ -278,16 +335,15 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 				finalResponse.success &&
 				(!finalResponse.need_inputs || finalResponse.need_inputs.length === 0)
 			) {
-				// Success — extract created agent info
-				const agentEid = finalResponse.agent_metadata?.eid || "";
+				// The meta-agent patches an existing agent (shell or user's agent)
+				// and may not echo back `agent_metadata.eid` — fall back to the
+				// eid we already know.
+				const agentEid =
+					finalResponse.agent_metadata?.eid || creation.targetAgentEid;
 				const returnedName = finalResponse.agent_metadata?.name || "New Agent";
-				// Enforce name preservation — agent-builder may normalize (e.g. snake_case).
-				// The user-provided name is canonical; report it in SSE and push it back
-				// to the LLM Service below.
+				// The user-provided name is canonical (already persisted in the
+				// shell). Report it in SSE regardless of what the meta-agent echoes.
 				const agentName = creation.requestedName || returnedName;
-				const nameWasNormalized =
-					!!finalResponse.agent_metadata?.name &&
-					returnedName !== creation.requestedName;
 
 				logger.info(
 					{
@@ -295,60 +351,10 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 						agentEid,
 						agentName,
 						returnedName,
-						returnedActive: finalResponse.agent_metadata?.active,
+						shellAlreadyCreated: creation.shellAlreadyCreated,
 					},
-					"Agent created successfully via agentic API",
+					"Agent updated successfully via agentic API",
 				);
-
-				// TODO: Uncomment when LLM API supports icon fields directly
-				// if (agentEid) {
-				//   await this.agenticService.updateAgent(agentEid, {
-				//     configs: { ui: { icon: params.iconId, icon_color: params.iconColorId } },
-				//   });
-				// }
-
-				if (agentEid) {
-					try {
-						// Always enforce draft status. The agent-builder's text response
-						// is NOT authoritative about persisted state — the LLM Service
-						// backend tends to create with active:true regardless of what
-						// the meta-agent intended (see routes/agents.ts:896). Setting
-						// active:false here is idempotent (no-op if already draft) and
-						// guarantees new agents are unpublished until the user opts in.
-						const updatePayload: Record<string, unknown> = {
-							tenant: creation.tenantId,
-							active: false,
-							sys_updated_by: creation.userEmail,
-						};
-						if (creation.conversationStarters?.length) {
-							updatePayload.conversation_starters =
-								creation.conversationStarters;
-						}
-						if (creation.guardrails?.length) {
-							updatePayload.guardrails = creation.guardrails;
-						}
-						// Restore the user-provided name if agent-builder normalized it
-						// (e.g. "Support Triage" → "support_triage"). LLMs are
-						// non-deterministic, so this is a belt-and-suspenders safety net.
-						if (nameWasNormalized) {
-							updatePayload.name = creation.requestedName;
-							logger.info(
-								{
-									agentEid,
-									requested: creation.requestedName,
-									returned: returnedName,
-								},
-								"Restoring original agent name (was normalized by agent-builder)",
-							);
-						}
-						await this.agenticService.updateAgent(agentEid, updatePayload);
-					} catch (err) {
-						logger.warn(
-							{ agentEid, error: err },
-							"Failed to update agent metadata (tenant/active/starters/guardrails/name)",
-						);
-					}
-				}
 
 				this.sseService.sendToUser(creation.userId, creation.tenantId, {
 					type: "agent_creation_completed",
@@ -356,6 +362,9 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 						creation_id: creationId,
 						agent_id: agentEid,
 						agent_name: agentName,
+						// From the UX perspective, a shell-first flow is a "create"
+						// (user clicked Create); a pass-through is an "update".
+						mode: creation.shellAlreadyCreated ? "create" : "update",
 						timestamp: new Date().toISOString(),
 					},
 				});
@@ -385,11 +394,17 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 				return;
 			} else {
 				// Failure
-				const errorMsg =
+				const baseErrorMsg =
 					finalResponse.error_message ||
 					(finalResponse.failures?.length
 						? finalResponse.failures.join("; ")
 						: "Agent creation failed");
+
+				const errorMsg = await this.rollbackShellIfNeeded(
+					creationId,
+					creation,
+					baseErrorMsg,
+				);
 
 				this.sseService.sendToUser(creation.userId, creation.tenantId, {
 					type: "agent_creation_failed",
@@ -401,15 +416,34 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 				});
 			}
 		} catch (err) {
+			// Log the raw content so we can diagnose parse failures — pino's
+			// `err` key triggers the Error serializer (name/message/stack),
+			// whereas `error` would serialize to `{}`.
+			const rawField = msg.content?.raw;
 			logger.error(
-				{ creationId, error: err },
+				{
+					creationId,
+					err,
+					rawType: typeof rawField,
+					rawPreview:
+						typeof rawField === "string"
+							? rawField.slice(0, 2000)
+							: JSON.stringify(rawField)?.slice(0, 2000),
+				},
 				"Failed to parse execution_complete response",
 			);
+
+			const errorMsg = await this.rollbackShellIfNeeded(
+				creationId,
+				creation,
+				"Failed to process agent creation result",
+			);
+
 			this.sseService.sendToUser(creation.userId, creation.tenantId, {
 				type: "agent_creation_failed",
 				data: {
 					creation_id: creationId,
-					error: "Failed to process agent creation result",
+					error: errorMsg,
 					timestamp: new Date().toISOString(),
 				},
 			});
@@ -419,20 +453,51 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 	}
 
 	/**
+	 * Delete the agent shell RITA created just before the meta-agent handoff
+	 * when the meta-agent fails. Only runs when `shellAlreadyCreated` is true
+	 * — user-initiated UPDATEs must never be deleted on failure. Best-effort:
+	 * if the DELETE itself fails, we tag the user-facing error so they know
+	 * a draft may linger in their agent list.
+	 */
+	private async rollbackShellIfNeeded(
+		creationId: string,
+		creation: ActiveCreation,
+		baseErrorMsg: string,
+	): Promise<string> {
+		if (!creation.shellAlreadyCreated) {
+			return baseErrorMsg;
+		}
+		try {
+			await this.agenticService.deleteAgent(creation.targetAgentEid);
+			logger.info(
+				{ creationId, eid: creation.targetAgentEid },
+				"Rolled back orphan shell after meta-agent failure",
+			);
+			return baseErrorMsg;
+		} catch (err) {
+			logger.error(
+				{ creationId, eid: creation.targetAgentEid, error: err },
+				"Failed to roll back orphan shell — draft may linger",
+			);
+			return `${baseErrorMsg} (a draft may appear in your agent list — delete it manually and retry)`;
+		}
+	}
+
+	/**
 	 * Handle LLM-side execution failure events (execution_error / execution_failed).
 	 * Surfaces the LLM's own error message to the user instead of letting the
 	 * poll loop silently run out its 5-minute budget.
 	 */
-	private handleExecutionError(
+	private async handleExecutionError(
 		creationId: string,
 		creation: ActiveCreation,
 		msg: AgentExecutionMessage,
-	): void {
+	): Promise<void> {
 		const errorType = (msg.content?.error_type as string) || "ExecutionError";
 		const fullMessage = (msg.content?.error_message as string) || "";
 		// LLM often sends a Python traceback — keep only the first line for the UI.
 		const firstLine = fullMessage.split("\n")[0]?.trim() || "";
-		const userFacing = firstLine
+		const baseErrorMsg = firstLine
 			? `${errorType}: ${firstLine}`
 			: `Agent builder reported ${errorType}`;
 
@@ -445,6 +510,12 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 				errorMessage: fullMessage,
 			},
 			"Agent creation failed — LLM reported execution error",
+		);
+
+		const userFacing = await this.rollbackShellIfNeeded(
+			creationId,
+			creation,
+			baseErrorMsg,
 		);
 
 		this.sseService.sendToUser(creation.userId, creation.tenantId, {
@@ -512,13 +583,14 @@ export class DirectApiStrategy implements AgentCreationStrategy {
 	}
 
 	private parseRawResponse(msg: AgentExecutionMessage): Record<string, any> {
-		const raw = (msg.content?.raw as string) || "";
-		// Strip markdown code fences if present
-		const cleaned = raw
-			.replace(/^```json\s*/i, "")
-			.replace(/```\s*$/, "")
-			.trim();
-		return JSON.parse(cleaned);
+		const rawField = msg.content?.raw;
+		// Defensive: the LLM Service normally returns a string here, but if it
+		// ever emits an already-parsed object we should just return it.
+		if (rawField && typeof rawField === "object") {
+			return rawField as Record<string, any>;
+		}
+		const raw = typeof rawField === "string" ? rawField : "";
+		return parseRawJsonResponse(raw);
 	}
 
 	private sleep(ms: number): Promise<void> {

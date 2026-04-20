@@ -4,7 +4,7 @@
  * Messages published to the `agent.events` queue by the external platform
  * during the AI-powered agent creation workflow.
  *
- * @see docs/features/agents/agent-creation-workflow-integration.md section 4
+ * @see docs/features/agents/agent-developer-workflow-integration.md section 4
  */
 
 export interface AgentCreationProgressMessage {
@@ -43,6 +43,11 @@ export interface AgentCreationCompletedMessage {
 	status: "success";
 	agent_id: string;
 	agent_name: string;
+	/**
+	 * Discriminates create vs update flows. Absent = "create" for backward
+	 * compat with existing workflow-mode publishers.
+	 */
+	mode?: "create" | "update";
 }
 
 export interface AgentCreationFailedMessage {
