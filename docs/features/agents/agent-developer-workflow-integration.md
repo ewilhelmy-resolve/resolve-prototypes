@@ -21,7 +21,9 @@
 Every agent create/update in `workflow` mode is driven by **two separate Platform workflows** that RITA fires in sequence. RITA owns the orchestration; the Platform owns each half end-to-end.
 
 1. **WF1 — `upsert_agent_metadata` (synchronous, cheap).**
-   RITA POSTs a webhook to Platform WF1 with the deterministic metadata (`name`, `description`, `ui_configs.{icon, icon_color}`, `conversation_starters`, `guardrails`, `admin_type`, `tenant`, `sys_created_by`/`sys_updated_by`, plus optional `target_agent_eid`). The Platform workflow calls `POST /agents/metadata` (if no `target_agent_eid`) or `PUT /agents/metadata/eid/{eid}` (if present) on the LLM Service and **returns the agent `eid` in the HTTP response**. No LLM reasoning, no queue — just a write. RITA blocks on this response because the `eid` is required to fire WF2.
+   RITA POSTs a webhook to Platform WF1 with the deterministic builder-form metadata (`name`, `description`, `ui_configs.{icon, icon_color}`, `conversation_starters`, `guardrails`, `admin_type`, audit fields, plus `tenant` + `state: "DRAFT"` on CREATE only, plus optional `target_agent_eid`). The Platform workflow calls `POST /agents/metadata` (if no `target_agent_eid`) or `PUT /agents/metadata/eid/{eid}` (if present) on the LLM Service and **returns the agent `eid` in the HTTP response**. No LLM reasoning, no queue — just a write. RITA blocks on this response because the `eid` is required to fire WF2.
+
+   > "Cheap" here means **builder-form-managed** — fields the user edits directly in the agent builder UI. Other non-LLM fields (`state` transitions DRAFT→PUBLISHED→RETIRED, tenant membership, `active` flag) are also deterministic but flow through separate endpoints and are out of scope for this workflow.
 
 2. **WF2 — `run_agent_developer` (asynchronous, expensive).**
    RITA POSTs a second webhook to Platform WF2 with `target_agent_eid` (from WF1's response) plus the compiled prompt (instructions + optional change request), `tenant`, and `user_email`. WF2 invokes `AgentRitaDeveloper` via `POST /services/agentic`, polls the execution, and publishes progress/terminal events on RabbitMQ `agent.events`. The meta-agent's **only** job is to call `ai_create_new_agent_task` / `ai_update_agent_task` for sub-tasks scoped to `target_agent_eid`; it is explicitly instructed to NOT patch `agent_metadata`.
@@ -576,7 +578,12 @@ PUT /agents/metadata/eid/{target_agent_eid}
   "conversation_starters": "<...>",
   "guardrails": "<...>",
   "sys_updated_by": "<webhook.user_email>"
-  // NOTE: do NOT send tenant / state / active / sys_created_by on PUT
+  // NOTE: do NOT send tenant / state / active / sys_created_by on PUT.
+  // These are non-LLM fields but NOT builder-form-managed:
+  //   - tenant: immutable after CREATE
+  //   - state: transitions (DRAFT → PUBLISHED → RETIRED) use a separate endpoint
+  //   - active: not user-toggled
+  //   - sys_created_by: write-once at CREATE time
 }
 ```
 
