@@ -123,6 +123,7 @@
 		"stateDraft": "Draft",
 		"stateRetired": "Retired",
 		"stateTesting": "Testing",
+		"updatedByMe": "Me",
 		"actions": {
 			"ariaLabel": "Agent actions",
 			"edit": "Edit",

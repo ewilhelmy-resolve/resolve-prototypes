@@ -37,6 +37,11 @@ interface AgentsTableProps {
 	onAgentClick?: (agent: AgentTableRow) => void;
 	onEdit?: (agent: AgentTableRow) => void;
 	onDelete?: (agent: AgentTableRow) => void;
+	/**
+	 * When provided, rows whose `updatedBy` matches this email render "Me"
+	 * instead of the email in the Updated by column.
+	 */
+	currentUserEmail?: string;
 }
 
 type SortField = "state" | "updatedBy" | "lastUpdated";
@@ -74,6 +79,7 @@ export function AgentsTable({
 	onAgentClick,
 	onEdit,
 	onDelete,
+	currentUserEmail,
 }: AgentsTableProps) {
 	const { t } = useTranslation("agents");
 	const [sortField, setSortField] = useState<SortField | null>(null);
@@ -195,7 +201,11 @@ export function AgentsTable({
 							</TableCell>
 							<TableCell>
 								<span className="text-sm text-muted-foreground truncate">
-									{agent.updatedBy || "--"}
+									{agent.updatedBy
+										? currentUserEmail && agent.updatedBy === currentUserEmail
+											? t("table.updatedByMe")
+											: agent.updatedBy
+										: "--"}
 								</span>
 							</TableCell>
 							<TableCell className="text-right text-sm">

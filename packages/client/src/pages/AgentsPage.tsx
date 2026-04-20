@@ -28,7 +28,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/toast";
 import type { AgentState, AgentTableRow } from "@/types/agent";
 
-type FilterState = "all" | AgentState;
+// UI only supports the two lifecycle states agents live in during normal
+// builder use. TESTING/RETIRED exist in the domain model but aren't surfaced
+// in the filter dropdown.
+type FilterState = "all" | "DRAFT" | "PUBLISHED";
 type FilterOwner = "all" | "me" | "others";
 
 interface PublishedAgentState {
@@ -46,6 +49,7 @@ export default function AgentsPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { getUserEmail } = useAuth();
+	const currentUserEmail = getUserEmail() ?? undefined;
 	const [searchQuery, setSearchQuery] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -66,12 +70,16 @@ export default function AgentsPage() {
 	const agentsFilters: {
 		state?: AgentState;
 		search?: string;
+		owner?: "me" | "others";
 	} = {};
 	if (stateFilter !== "all") {
 		agentsFilters.state = stateFilter;
 	}
 	if (debouncedSearch) {
 		agentsFilters.search = debouncedSearch;
+	}
+	if (ownerFilter !== "all") {
+		agentsFilters.owner = ownerFilter;
 	}
 	const {
 		data: agentsData,
@@ -113,20 +121,6 @@ export default function AgentsPage() {
 			window.history.replaceState({}, document.title);
 		}
 	}, [location.state, t]);
-
-	// TODO: owner filter is client-side — pages may appear empty while hasMore=true.
-	// Move to server-side filter when LLM Service supports owner param.
-	const currentEmail = getUserEmail();
-	const filteredAgents = agents.filter((agent) => {
-		// Owner filter (client-side — LLM Service doesn't support owner param)
-		if (ownerFilter === "me" && agent.owner !== currentEmail) {
-			return false;
-		}
-		if (ownerFilter === "others" && agent.owner === currentEmail) {
-			return false;
-		}
-		return true;
-	});
 
 	const handleAgentClick = (agent: AgentTableRow) => {
 		navigate(`/agents/${agent.id}`);
@@ -270,11 +264,7 @@ export default function AgentsPage() {
 														? t("list.filters.all")
 														: stateFilter === "DRAFT"
 															? t("list.filters.draft")
-															: stateFilter === "PUBLISHED"
-																? t("list.filters.published")
-																: stateFilter === "RETIRED"
-																	? t("list.filters.retired")
-																	: t("list.filters.testing"),
+															: t("list.filters.published"),
 											})}
 											<ChevronDown className="size-4" />
 										</Button>
@@ -297,18 +287,6 @@ export default function AgentsPage() {
 											onCheckedChange={() => setStateFilter("DRAFT")}
 										>
 											{t("list.filters.draft")}
-										</DropdownMenuCheckboxItem>
-										<DropdownMenuCheckboxItem
-											checked={stateFilter === "TESTING"}
-											onCheckedChange={() => setStateFilter("TESTING")}
-										>
-											{t("list.filters.testing")}
-										</DropdownMenuCheckboxItem>
-										<DropdownMenuCheckboxItem
-											checked={stateFilter === "RETIRED"}
-											onCheckedChange={() => setStateFilter("RETIRED")}
-										>
-											{t("list.filters.retired")}
 										</DropdownMenuCheckboxItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
@@ -341,10 +319,11 @@ export default function AgentsPage() {
 								onLoadMore={() => fetchNextPage()}
 							>
 								<AgentsTable
-									agents={filteredAgents}
+									agents={agents}
 									onAgentClick={handleAgentClick}
 									onEdit={(agent) => navigate(`/agents/${agent.id}`)}
 									onDelete={handleDeleteClick}
+									currentUserEmail={currentUserEmail}
 								/>
 							</InfiniteScrollContainer>
 						)}

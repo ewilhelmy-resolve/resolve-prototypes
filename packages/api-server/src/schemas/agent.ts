@@ -38,6 +38,10 @@ export const AgentListQuerySchema = z
 				description:
 					"Filter by lifecycle state (forwards to `state__exact` on the LLM Service).",
 			}),
+		owner: z.enum(["me", "others"]).optional().openapi({
+			description:
+				"Filter by agent creator. 'me' returns only agents created by the caller; 'others' returns agents created by anyone else in the tenant. Forwards to `sys_created_by__exact` (or negated `^sys_created_by__exact`) on the LLM Service.",
+		}),
 		limit: z.coerce
 			.number()
 			.int()
