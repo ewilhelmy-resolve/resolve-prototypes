@@ -64,9 +64,11 @@ export function parseInstructionsImproverContent(
 	const instructionsMatch = effective.match(
 		/---INSTRUCTIONS---\s*([\s\S]*?)\s*---END_INSTRUCTIONS---/,
 	);
-	const descriptionMatch = effective.match(
-		/---DESCRIPTION---\s*([\s\S]*?)\s*---END_DESCRIPTION---/,
-	);
+	// LLM occasionally omits the closing ---END_DESCRIPTION--- when the
+	// description is the final section; fall back to end-of-string.
+	const descriptionMatch =
+		effective.match(/---DESCRIPTION---\s*([\s\S]*?)\s*---END_DESCRIPTION---/) ??
+		effective.match(/---DESCRIPTION---\s*([\s\S]+?)\s*$/);
 
 	if (!instructionsMatch) {
 		throw new Error("Missing ---INSTRUCTIONS--- delimiters in response");

@@ -12,7 +12,7 @@
 
 export type AgentType = "answer" | "knowledge" | "workflow";
 
-export type AgentStatus = "draft" | "published" | "disabled";
+export type AgentState = "DRAFT" | "PUBLISHED" | "RETIRED" | "TESTING";
 
 // --- Agent configuration ---
 
@@ -41,7 +41,8 @@ export interface AgentConfig {
 	iconId: string;
 	iconColorId: string;
 	agentType: AgentType | null;
-	status?: AgentStatus;
+	adminType?: string;
+	state?: AgentState;
 	conversationStarters: string[];
 	knowledgeSources: string[];
 	tools: string[];
@@ -65,7 +66,7 @@ export interface AgentChatConfig {
 	iconId: string;
 	iconColorId: string;
 	agentType: AgentType | null;
-	status: AgentStatus;
+	state: AgentState;
 	conversationStarters: string[];
 	knowledgeSources: AgentKnowledgeSource[];
 	skills: string[];
@@ -78,7 +79,7 @@ export interface AgentTableRow {
 	id: string;
 	name: string;
 	description: string;
-	status: AgentStatus;
+	state: AgentState;
 	skills?: string[];
 	updatedBy: string | null;
 	owner: string | null;

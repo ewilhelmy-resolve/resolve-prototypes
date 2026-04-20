@@ -1,6 +1,28 @@
 # LLM Service Data Models
 
-Exact schemas from the OpenAPI specification.
+Exact schemas from the OpenAPI specification. Every entity exposes `reference_id` + `tenant` at the top of the payload (skipped in the interfaces below when already shown) and the standard `sys_date_created / sys_date_updated / sys_created_by / sys_updated_by` audit quartet.
+
+## Contents
+
+**Persisted entities**
+- [AgentMetadataApiData](#agentmetadataapidata) — agent definition; lifecycle fields (`state`, `conversation_starters`, `guardrails`, `admin_type`)
+- [AgentTaskApiData](#agenttaskapidata) — sub-tasks with `tools` and `configs`
+- [ToolApiData](#toolapidata) — tools + `state`/`admin_type` lifecycle
+- [ToolGroupApiData](#toolgroupapidata), [ToolGroupAssociationApiData](#toolgroupassociationapidata) — tool grouping
+- [AgentMessageApiData](#agentmessageapidata), [AgentStateApiData](#agentstateapidata), [AgentConversationApiData](#agentconversationapidata) — execution-time records
+
+**Request / response wrappers**
+- [AgenticRequest](#agenticrequest-invoke), [ServiceResponse](#serviceresponse)
+- [DeleteResponse](#deleteresponse), [BulkDeleteResponse](#bulkdeleteresponse)
+- [DuplicateAgentRequest](#duplicateagentrequest) / [Response](#duplicateagentresponse), [DuplicateToolRequest](#duplicatetoolrequest)
+- [PrepareAgentDefinitionsRequest](#prepareagentdefinitionsrequest), [CleanupAgentMessagesRequest](#cleanupagentmessagesrequest), [CleanupResponse](#cleanupresponse)
+- [RetrieveDataFromDatasourceRequest](#retrievedatafromdatasourcerequest) / [Response](#retrievedatafromdatasourceresponse)
+- [RequestStopAgentRequest](#requeststopagentrequest)
+- [ExecutePythonScriptRequest](#executepythonscriptrequest) / [Response](#executepythonscriptresponse)
+- [ToolInvokeRequest](#toolinvokerequest) / [Response](#toolinvokeresponse)
+- [SelectAgentRequest](#selectagentrequest) / [Response](#selectagentresponse)
+
+**Meta-agent types** → see [`meta-agent-patterns.md`](./meta-agent-patterns.md)
 
 ---
 
@@ -8,19 +30,25 @@ Exact schemas from the OpenAPI specification.
 
 ```typescript
 interface AgentMetadataApiData {
+  reference_id: string | null;           // optional correlation id echoed back
+  tenant: string | null;
   id: number | null;
   eid: string | null;                    // UUID
   name: string | null;
   description: string | null;
   default_parameters: Record<string, any> | null;
-  configs: Record<string, any> | null;   // includes llm_parameters
-  active: boolean | null;
+  configs: Record<string, any> | null;   // REQUIRED at exec time: { llm_parameters: { model }, verbose }
+  active: boolean | null;                // LEGACY. `state` is source of truth for lifecycle.
   markdown_text: string | null;          // full markdown agent definition
   tags: Record<string, any> | null;
   parameters: Record<string, any> | null; // detected {%placeholder} params from sub-tasks
-  tenant: string | null;
+  state: string | null;                  // "DRAFT" | "PUBLISHED" | "RETIRED" | "TESTING" — lifecycle
+  conversation_starters: any[] | null;   // array of suggested opening prompts shown in UI
+  guardrails: any[] | null;              // array of guardrail rules applied at execution
+  ui_configs: Record<string, any> | null; // UI state — { icon, icon_color }
+  admin_type: string | null;             // "user" (builder-created) | "system" (platform-owned)
   prompt_name: string | null;
-  llm_parameters: Record<string, any> | null;
+  llm_parameters: Record<string, any> | null; // REQUIRED at execution time; e.g. { model: "claude-opus-4-5-20251101" }
   sys_date_created: string | null;       // ISO datetime
   sys_date_updated: string | null;
   sys_created_by: string | null;         // typically IP address
@@ -28,10 +56,17 @@ interface AgentMetadataApiData {
 }
 ```
 
+**Lifecycle notes:**
+- `state` is the source of truth for draft/published/retired/testing. `active` is kept for backward compat and is typically `true` for new agents.
+- New agents default to `state: "DRAFT"` and `admin_type: "user"` when created from the builder.
+- `conversation_starters` and `guardrails` are returned as arrays on the record — the Rita client defaults to `[]` when absent.
+
 ## AgentTaskApiData
 
 ```typescript
 interface AgentTaskApiData {
+  reference_id: string | null;
+  tenant: string | null;
   id: number | null;
   eid: string | null;                    // UUID
   name: string | null;
@@ -47,7 +82,7 @@ interface AgentTaskApiData {
   configs: Record<string, any> | null;   // e.g. { exit_if_need_inputs: true, exit_if_terminate: true }
   order: number | null;
   active: boolean | null;
-  tenant: string | null;
+  admin_type: string | null;             // "user" | "system" — inherited from parent agent
   sys_date_created: string | null;
   sys_date_updated: string | null;
   sys_created_by: string | null;
@@ -77,7 +112,47 @@ interface ToolApiData {
   active: boolean | null;
   mcp_exposed: boolean | null;
   type: string | null;                   // URL, PYTHON, WORKFLOW, LLM
+  state: string | null;                  // "DRAFT" | "PUBLISHED" | "RETIRED" | "TESTING"
   thinking_label: string | null;
+  admin_type: string | null;             // "user" | "system"
+  sys_date_created: string | null;
+  sys_date_updated: string | null;
+  sys_created_by: string | null;
+  sys_updated_by: string | null;
+}
+```
+
+## ToolGroupApiData
+
+```typescript
+interface ToolGroupApiData {
+  reference_id: string | null;
+  tenant: string | null;
+  id: number | null;
+  eid: string | null;
+  name: string | null;
+  description: string | null;
+  active: boolean | null;
+  admin_type: string | null;
+  sys_date_created: string | null;
+  sys_date_updated: string | null;
+  sys_created_by: string | null;
+  sys_updated_by: string | null;
+}
+```
+
+## ToolGroupAssociationApiData
+
+```typescript
+interface ToolGroupAssociationApiData {
+  reference_id: string | null;
+  tenant: string | null;
+  id: number | null;
+  eid: string | null;
+  tool: string | null;                   // tool name
+  group: string | null;                  // group name
+  active: boolean | null;
+  admin_type: string | null;
   sys_date_created: string | null;
   sys_date_updated: string | null;
   sys_created_by: string | null;
@@ -89,13 +164,14 @@ interface ToolApiData {
 
 ```typescript
 interface AgentMessageApiData {
+  reference_id: string | null;
+  tenant: string | null;
   id: number | null;
   eid: string | null;                    // UUID
   execution_id: string | null;
   role: string | null;                   // "system", "user", "assistant"
   event_type: string | null;             // "execution_complete", etc.
   content: Record<string, any> | null;   // { conversation_id, status, raw }
-  tenant: string | null;
   sys_date_created: string | null;
   sys_date_updated: string | null;
   sys_created_by: string | null;
@@ -107,6 +183,8 @@ interface AgentMessageApiData {
 
 ```typescript
 interface AgentStateApiData {
+  reference_id: string | null;
+  tenant: string | null;
   id: number | null;
   eid: string | null;
   execution_id: string | null;
@@ -119,7 +197,6 @@ interface AgentStateApiData {
   data_start: Record<string, any> | null;
   data_end: Record<string, any> | null;
   custom_data: Record<string, any> | null;
-  tenant: string | null;
   sys_date_created: string | null;
   sys_date_updated: string | null;
   sys_created_by: string | null;
@@ -131,6 +208,8 @@ interface AgentStateApiData {
 
 ```typescript
 interface AgentConversationApiData {
+  reference_id: string | null;
+  tenant: string | null;
   id: number | null;
   eid: string | null;
   execution_id: string | null;
@@ -138,7 +217,6 @@ interface AgentConversationApiData {
   agent_metadata_id: string | null;
   data: Record<string, any> | null;
   stop_requested: boolean | null;
-  tenant: string | null;
   sys_date_created: string | null;
   sys_date_updated: string | null;
   sys_created_by: string | null;
@@ -151,11 +229,27 @@ interface AgentConversationApiData {
 ### AgenticRequest (invoke)
 ```typescript
 interface AgenticRequest {
-  query: Record<string, any>;  // required
+  query: {
+    agent_metadata_parameters?: {
+      agent_metadata_id?: string;       // EID of the agent
+      agent_name?: string;              // alternative to agent_metadata_id
+      prev_execution_id?: string;       // continue an existing execution
+      parameters?: Record<string, any>; // { utterance, transcript, additional_information, ... }
+      configs?: Record<string, any>;    // per-invocation config overrides
+      callback?: Record<string, any>;   // callback descriptor (optional)
+      matching_text?: string;           // used by agent selection paths
+    };
+    agents?: any[];                     // inline agent defs (advanced)
+    tasks?: any[];                      // inline task defs (advanced)
+    tools?: any[];                      // inline tool defs (advanced)
+  };
   tenant?: string;
 }
-// query example:
-// { agent_metadata_parameters: { agent_name: "HelloAgent", parameters: { utterance: "Hi!" } } }
+```
+
+Minimal example:
+```json
+{ "query": { "agent_metadata_parameters": { "agent_name": "HelloAgent", "parameters": { "utterance": "Hi!" } } } }
 ```
 
 ### ServiceResponse
@@ -336,94 +430,4 @@ interface SelectAgentResponse {
 
 ## Meta-Agent Types
 
-Types used by the meta-agent execution system. See `references/meta-agent-patterns.md` for full patterns.
-
-### MetaAgentExecuteParams (Rita server)
-```typescript
-interface MetaAgentExecuteParams {
-  agentName: string;              // e.g. "AgentInstructionsImprover"
-  utterance: string;              // maps to {%utterance}
-  additionalInformation?: string; // JSON string → {%additional_information}
-  transcript?: string;            // JSON string → {%transcript}
-  userId: string;
-  userEmail: string;
-  organizationId: string;
-}
-```
-
-### MetaAgentExecuteResult (Rita server)
-```typescript
-interface MetaAgentExecuteResult {
-  executionRequestId: string;     // correlation ID for SSE events
-}
-```
-
-### ImprovedInstructions (parser output)
-```typescript
-interface ImprovedInstructions {
-  instructions: string;
-  description: string;
-}
-```
-
-### ImproveInstructionsBody (Rita Zod schema)
-```typescript
-interface ImproveInstructionsBody {
-  instructions: string;           // min 1 char, maps to utterance
-  agentConfig: {
-    name?: string;
-    role?: string;
-    description?: string;
-    agentType?: "answer" | "knowledge" | "workflow" | null;
-    guardrails?: string[];
-    conversationStarters?: string[];
-    workflows?: string[];
-    knowledgeSources?: string[];
-    capabilities?: { webSearch?: boolean; imageGeneration?: boolean };
-    responsibilities?: string;
-    completionCriteria?: string;
-  };
-}
-```
-
-### CancelMetaAgentBody (Rita Zod schema)
-```typescript
-interface CancelMetaAgentBody {
-  executionRequestId: string;     // UUID
-}
-```
-
-### SSE Event Payloads (meta-agent)
-```typescript
-interface MetaAgentProgressEvent {
-  type: "meta_agent_progress";
-  data: {
-    execution_request_id: string;
-    agent_name: string;
-    step_label: string;
-    step_detail: string;
-    timestamp: string;
-  };
-}
-
-interface MetaAgentCompletedEvent {
-  type: "meta_agent_completed";
-  data: {
-    execution_request_id: string;
-    agent_name: string;
-    content: string;              // raw output, format depends on agent
-    success: boolean;
-    timestamp: string;
-  };
-}
-
-interface MetaAgentFailedEvent {
-  type: "meta_agent_failed";
-  data: {
-    execution_request_id: string;
-    agent_name: string;
-    error: string;
-    timestamp: string;
-  };
-}
-```
+Meta-agent request, result, parser, and SSE event payload shapes live with their flow documentation in [`meta-agent-patterns.md`](./meta-agent-patterns.md) to keep the definition next to the usage. Types defined there: `MetaAgentExecuteParams`, `MetaAgentExecuteResult`, `ImprovedInstructions`, `ImproveInstructionsBody`, `CancelMetaAgentBody`, `MetaAgentProgressEvent`, `MetaAgentCompletedEvent`, `MetaAgentFailedEvent`.

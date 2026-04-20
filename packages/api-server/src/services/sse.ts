@@ -226,6 +226,11 @@ export interface AgentCreationCompletedEvent {
 		creation_id: string;
 		agent_id: string;
 		agent_name: string;
+		/**
+		 * Discriminates create vs update flows so the client can branch copy
+		 * and navigation without introducing a new event type.
+		 */
+		mode?: "create" | "update";
 		timestamp: string;
 	};
 }

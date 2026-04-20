@@ -245,6 +245,22 @@ export const agentApi = {
 		iconColorId?: string;
 		conversationStarters?: string[];
 		guardrails?: string[];
+		/**
+		 * When present, the server routes this through AgentRitaDeveloper in
+		 * UPDATE mode against the referenced agent instead of creating a new one.
+		 */
+		targetAgentEid?: string;
+		/**
+		 * Optional free-form change request (e.g. "tighten guardrails; drop the
+		 * HR triage task"). Ignored in create mode.
+		 */
+		updatePrompt?: string;
+		/**
+		 * When true, the server auto-generates the description from the
+		 * submitted instructions. Set on CREATE when the user left description
+		 * blank, or on UPDATE when the user didn't edit the description.
+		 */
+		generateDescription?: boolean;
 	}) =>
 		apiRequest<{ mode: "async"; creationId: string }>("/api/agents/generate", {
 			method: "POST",
@@ -255,6 +271,11 @@ export const agentApi = {
 		creationId: string;
 		prevExecutionId: string;
 		prompt: string;
+		/**
+		 * Carried from the original generate call so the server stays in UPDATE
+		 * mode across multi-turn clarifications.
+		 */
+		targetAgentEid?: string;
 	}) =>
 		apiRequest<{ success: boolean }>("/api/agents/creation-input", {
 			method: "POST",

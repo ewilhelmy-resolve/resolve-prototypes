@@ -70,6 +70,25 @@ Some instructions
 		);
 	});
 
+	it("tolerates missing ---END_DESCRIPTION--- closing delimiter", () => {
+		// The LLM sometimes omits the trailing ---END_DESCRIPTION--- when the
+		// description is the final section. Everything after ---DESCRIPTION---
+		// should be captured up to end-of-string.
+		const content = `---INSTRUCTIONS---
+## Role
+You are a helpful assistant.
+---END_INSTRUCTIONS---
+
+---DESCRIPTION---
+A helpful assistant that answers questions.`;
+
+		const result = parseInstructionsImproverContent(content);
+		expect(result.instructions).toBe("## Role\nYou are a helpful assistant.");
+		expect(result.description).toBe(
+			"A helpful assistant that answers questions.",
+		);
+	});
+
 	it("handles multiline markdown with code blocks in instructions", () => {
 		const content = `---INSTRUCTIONS---
 ## Role

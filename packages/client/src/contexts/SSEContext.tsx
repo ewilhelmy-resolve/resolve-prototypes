@@ -593,8 +593,18 @@ export const SSEProvider: React.FC<SSEProviderProps> = ({
 					store.receiveResult({
 						agentId: event.data.agent_id,
 						agentName: event.data.agent_name,
+						mode: event.data.mode,
 					});
-					queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
+					// Create mode produces a new agent → invalidate the list so the
+					// new row shows up. Update mode edits in place → refresh the
+					// detail cache but leave the list alone (nothing new to show).
+					if (event.data.mode === "update") {
+						queryClient.invalidateQueries({
+							queryKey: agentKeys.detail(event.data.agent_id),
+						});
+					} else {
+						queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
+					}
 				}
 			} else if (event.type === "agent_creation_failed") {
 				const store = useAgentCreationStore.getState();

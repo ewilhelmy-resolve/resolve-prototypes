@@ -1,6 +1,6 @@
 # Async Agent Execution Patterns
 
-Agent execution is asynchronous. The caller invokes, then polls for results.
+Agent execution is asynchronous. The caller invokes, then polls for results. Body/response field shapes for `/services/agentic`, `/agents/messages`, `/agents/states`, and `/agents/conversations` live in [`data-models.md`](./data-models.md).
 
 ## Execution Flow
 

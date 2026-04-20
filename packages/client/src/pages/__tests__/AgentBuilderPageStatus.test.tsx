@@ -120,6 +120,7 @@ vi.mock("@/components/agents/builder", () => ({
 	PublishModal: () => null,
 	UnlinkWorkflowModal: () => null,
 	UnpublishModal: () => null,
+	UpdateAgentModal: () => null,
 }));
 
 import { useAgent } from "@/hooks/api/useAgents";
@@ -138,7 +139,7 @@ const draftAgent: AgentConfig = {
 	iconId: "bot",
 	iconColorId: "slate",
 	agentType: "answer",
-	status: "draft",
+	state: "DRAFT",
 	conversationStarters: [],
 	knowledgeSources: [],
 	tools: [],
@@ -153,7 +154,7 @@ const draftAgent: AgentConfig = {
 const publishedAgent: AgentConfig = {
 	...draftAgent,
 	id: "agent-pub-1",
-	status: "published",
+	state: "PUBLISHED",
 };
 
 function createWrapper(initialPath: string) {

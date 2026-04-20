@@ -6,7 +6,7 @@ Meta-agents are agents that generate or update other agents' configurations. Ins
 
 This document is the catalog of all meta-agent prompt definitions, their input/output contracts, and examples.
 
-> See also: [Agent Creation Workflow Integration](agent-creation-workflow-integration.md) for the full create-with-AI flow.
+> See also: [Agent Developer Workflow Integration](agent-developer-workflow-integration.md) for the full create + update flow driven by AgentRitaDeveloper.
 
 ---
 
@@ -394,6 +394,86 @@ none
   "error_message": null
 }
 ```
+
+---
+
+### 3. AgentRitaDeveloper
+
+**Role:** Build and maintain RITA agents end-to-end — metadata, sub-tasks, tool wiring, guardrails, and conversation starters — from a natural-language specification. Runs in one of two modes discriminated by the `{%target_agent_eid}` runtime parameter.
+
+**Use Case:** The user clicks **Create agent** (create mode) or **Update agent** (update mode) in the RITA builder. RITA compiles the form state into an utterance and calls `POST /services/agentic` with `agent_name: "AgentRitaDeveloper"`. See [Agent Developer Workflow Integration](agent-developer-workflow-integration.md) for the full webhook/SSE contract.
+
+**Mode resolution:**
+
+| Signal | Behavior |
+|---|---|
+| `target_agent_eid` absent/empty | CREATE mode — emits `POST /agents/metadata` + one `POST /agents/tasks` per sub-task. |
+| `target_agent_eid` set to a UUID | UPDATE mode — emits `GET` reads first, then `PUT /agents/metadata/eid/{eid}` (merge-patch) and `PUT/POST/DELETE /agents/tasks/...` as needed. |
+
+**Input Format:**
+
+The `{%utterance}` param is a compiled prompt produced by [`buildAgentPrompt()`](../../../packages/api-server/src/services/agentCreation/buildPrompt.ts). In UPDATE mode it is prefixed with `Mode: UPDATE existing agent (target_agent_eid=<eid>).` and may include a trailing `User change request:` section with free-form text the user typed in the Update Agent modal.
+
+When RITA loads an existing agent for editing, the utterance's `Instructions:` section carries RITA's **composed-instructions format** — the agent's `markdown_text` followed by one block per existing task:
+
+```
+## Task: <name>
+**Role:** <role>
+**Goal:** <goal>
+**Backstory:** <backstory>
+**Task:** <task body>
+**Expected Output:** <expected_output>
+**Tools:** <tool1>, <tool2>, ...
+```
+
+The meta-agent parses these blocks by the `## Task: <name>` header: matching names → UpdateAgentTask candidates, unknown names → CreateAgentTask candidates.
+
+**Output Format:**
+
+Strict JSON envelope that RITA's `DirectApiStrategy.parseRawResponse()` consumes directly:
+
+```json
+{
+  "success": true,
+  "agent_metadata": {
+    "eid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "name": "IT Help Desk Agent",
+    "active": false
+  },
+  "need_inputs": [],
+  "failures": [],
+  "error_message": ""
+}
+```
+
+In UPDATE mode, `agent_metadata.eid` MUST equal the input `target_agent_eid`. Never emit prose outside this JSON object.
+
+**Mandatory Rules:**
+
+1. **NAME PRESERVATION** — use the agent name verbatim. No snake_case / lowercase / punctuation stripping. Applies on create and on rename-during-update.
+2. **DRAFT STATUS ON CREATE** — new agents land in the LLM Service's default `state: "DRAFT"`. Pass `active: true` (the default) and do not set `state` at create time unless the user explicitly asked to publish. The legacy `active: false` convention is obsolete. In UPDATE mode, never flip `state` unless the user explicitly asked to publish/retire.
+3. **SCOPE DISCIPLINE (UPDATE only)** — PUT only the fields the user asked to change. Fields not mentioned stay at their current values.
+4. **RUNTIME PARAMETERS** — every task created or updated must reference `{%utterance}` so the resulting agent can read user input at runtime.
+5. **METADATA FIELD SHAPES** — on CREATE and whenever the relevant input changes on UPDATE:
+   - `admin_type`: `"user"` for builder-created agents; only `"system"` when the caller explicitly says so.
+   - `ui_configs`: put icons here as `{ "icon": <iconId>, "icon_color": <iconColorId> }`. Do NOT write to `configs.ui` (legacy, read-only fallback).
+   - `configs`: must contain nested `llm_parameters` + `verbose` — e.g. `{ "llm_parameters": { "model": "claude-opus-4-5-20251101" }, "verbose": false }`. The LLM Service reads `configs.llm_parameters` at execution time and rejects agents missing it with `ValueError: Missing llm_parameters`.
+
+**Full Prompt Definition:**
+
+Single source of truth: [`NEW_MARKDOWN_TEXT` in `scripts/bootstrap-agent-rita-developer.ts`](../../../packages/api-server/scripts/bootstrap-agent-rita-developer.ts). The bootstrap script PUTs this `markdown_text` onto the LLM Service when run; re-running is idempotent.
+
+The script also upserts the meta-agent's two sub-tasks:
+- **`requirements`** — parses the utterance into a structured plan (mode, target_agent_eid, metadata, tasks, change_request, need_inputs).
+- **`records`** (depends on `requirements`) — executes the plan via tool calls against `/agents/metadata`, `/agents/tasks`, and `/tools/`.
+
+And ensures the tool inventory exists: `GetAgentMetadataByEid`, `GetAgentTasksByMetadataId`, `CreateAgentMetadata`, `UpdateAgentMetadata`, `CreateAgentTask`, `UpdateAgentTask`, `DeleteAgentTask`, `CreateTool`, `UpdateTool`.
+
+**Few-shot Examples** (encoded in the markdown_text for the LLM; summarized here):
+
+1. **Create** — no `target_agent_eid`, full new-agent spec. Output lists the new eid under `agent_metadata.eid`.
+2. **Update metadata + guardrails only** — `target_agent_eid` set; user change request: "tighten guardrails; rewrite description". Expected: `PUT /agents/metadata/eid/{eid}` with ONLY `{description, guardrails}`. Output reflects the target eid with `name` and `state` unchanged.
+3. **Update with new task + task rename** — one `## Task: triage_tickets` block renames the existing `triage`, one new `## Task: escalate_critical` block. Expected: `PUT /agents/tasks/eid/{triage.eid}` + `POST /agents/tasks` for the new one. Other tasks untouched.
 
 ---
 

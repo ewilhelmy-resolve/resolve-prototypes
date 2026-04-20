@@ -5,7 +5,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { agentApi } from "@/services/api.ts";
-import type { AgentConfig } from "@/types/agent";
+import type { AgentConfig, AgentState } from "@/types/agent";
 
 const AGENTS_PAGE_SIZE = 20;
 
@@ -21,7 +21,7 @@ export const agentKeys = {
 
 export function useAgents(filters?: {
 	name?: string;
-	active?: string;
+	state?: AgentState;
 	search?: string;
 }) {
 	return useQuery({
@@ -33,7 +33,7 @@ export function useAgents(filters?: {
 
 export function useInfiniteAgents(filters?: {
 	name?: string;
-	active?: string;
+	state?: AgentState;
 	search?: string;
 }) {
 	return useInfiniteQuery({
@@ -121,6 +121,9 @@ export function useGenerateAgent() {
 			iconColorId?: string;
 			conversationStarters?: string[];
 			guardrails?: string[];
+			targetAgentEid?: string;
+			updatePrompt?: string;
+			generateDescription?: boolean;
 		}) => agentApi.generate(data),
 	});
 }
@@ -131,6 +134,7 @@ export function useAgentCreationInput() {
 			creationId: string;
 			prevExecutionId: string;
 			prompt: string;
+			targetAgentEid?: string;
 		}) => agentApi.sendCreationInput(data),
 	});
 }

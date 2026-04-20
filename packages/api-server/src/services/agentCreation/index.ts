@@ -11,7 +11,7 @@ let strategyInstance: AgentCreationStrategy | null = null;
  * Get the active agent creation strategy.
  *
  * Strategy selected by AGENT_CREATION_MODE env var:
- * - "direct" (default): Invokes agent-builder via LLM Service agentic API
+ * - "direct" (default): Invokes AgentRitaDeveloper via LLM Service agentic API
  * - "workflow": Delegates to external platform via webhook + RabbitMQ + SSE
  */
 export function getAgentCreationStrategy(): AgentCreationStrategy {
