@@ -4,10 +4,30 @@ import { z } from "../docs/openapi.js";
 // Agent Schemas (for LLM Service proxy)
 // ============================================================================
 
+// Request-size caps for user-typed fields. Chosen to accommodate realistic
+// agent definitions while rejecting pathologically large payloads before they
+// hit the LLM Service (where an oversized prompt can blow context budgets or
+// trigger billing spikes).
+const AGENT_NAME_MAX = 120;
+const AGENT_DESCRIPTION_MAX = 2000;
+const AGENT_INSTRUCTIONS_MAX = 50_000;
+const AGENT_UPDATE_PROMPT_MAX = 2000;
+const AGENT_USER_PROMPT_MAX = 10_000;
+const AGENT_TRANSCRIPT_MAX = 200_000;
+const AGENT_CONVERSATION_STARTER_MAX = 200;
+const AGENT_GUARDRAIL_MAX = 500;
+const AGENT_STARTERS_COUNT_MAX = 20;
+const AGENT_GUARDRAILS_COUNT_MAX = 50;
+const AGENT_SEARCH_MAX = 200;
+
 export const AgentListQuerySchema = z
 	.object({
-		name: z.string().optional().openapi({ description: "Filter by name" }),
-		search: z.string().optional().openapi({
+		name: z
+			.string()
+			.max(AGENT_NAME_MAX)
+			.optional()
+			.openapi({ description: "Filter by name" }),
+		search: z.string().max(AGENT_SEARCH_MAX).optional().openapi({
 			description:
 				"Search agents by name or description (server-side OR filter)",
 		}),
@@ -79,8 +99,12 @@ const AgentCapabilitiesSchema = z
 
 export const AgentCreateBodySchema = z
 	.object({
-		name: z.string().min(1).openapi({ description: "Agent name (required)" }),
-		description: z.string().optional(),
+		name: z
+			.string()
+			.min(1)
+			.max(AGENT_NAME_MAX)
+			.openapi({ description: "Agent name (required)" }),
+		description: z.string().max(AGENT_DESCRIPTION_MAX).optional(),
 		state: z
 			.enum(["DRAFT", "PUBLISHED", "RETIRED", "TESTING"])
 			.optional()
@@ -92,8 +116,14 @@ export const AgentCreateBodySchema = z
 			description:
 				"Agent admin_type. Builder-created user agents default to 'user'.",
 		}),
-		conversationStarters: z.array(z.string()).optional(),
-		guardrails: z.array(z.string()).optional(),
+		conversationStarters: z
+			.array(z.string().max(AGENT_CONVERSATION_STARTER_MAX))
+			.max(AGENT_STARTERS_COUNT_MAX)
+			.optional(),
+		guardrails: z
+			.array(z.string().max(AGENT_GUARDRAIL_MAX))
+			.max(AGENT_GUARDRAILS_COUNT_MAX)
+			.optional(),
 	})
 	.openapi("AgentCreateBody");
 
@@ -135,6 +165,7 @@ export const AgentCheckNameQuerySchema = z
 		name: z
 			.string()
 			.min(1)
+			.max(AGENT_NAME_MAX)
 			.openapi({ description: "Agent name to check availability" }),
 	})
 	.openapi("AgentCheckNameQuery");
@@ -158,19 +189,31 @@ export const AgentDeleteResponseSchema = z
 
 export const AgentGenerateBodySchema = z
 	.object({
-		name: z.string().min(1).openapi({ description: "Agent name (required)" }),
-		description: z.string().optional().default(""),
-		instructions: z.string().optional().default(""),
+		name: z
+			.string()
+			.min(1)
+			.max(AGENT_NAME_MAX)
+			.openapi({ description: "Agent name (required)" }),
+		description: z.string().max(AGENT_DESCRIPTION_MAX).optional().default(""),
+		instructions: z.string().max(AGENT_INSTRUCTIONS_MAX).optional().default(""),
 		iconId: z.string().optional().default("bot"),
 		iconColorId: z.string().optional().default("slate"),
 		adminType: z.string().optional().default("user"),
-		conversationStarters: z.array(z.string()).optional().default([]),
-		guardrails: z.array(z.string()).optional().default([]),
+		conversationStarters: z
+			.array(z.string().max(AGENT_CONVERSATION_STARTER_MAX))
+			.max(AGENT_STARTERS_COUNT_MAX)
+			.optional()
+			.default([]),
+		guardrails: z
+			.array(z.string().max(AGENT_GUARDRAIL_MAX))
+			.max(AGENT_GUARDRAILS_COUNT_MAX)
+			.optional()
+			.default([]),
 		targetAgentEid: z.string().uuid().optional().openapi({
 			description:
 				"When present, the meta-agent updates the referenced agent instead of creating a new one.",
 		}),
-		updatePrompt: z.string().optional().openapi({
+		updatePrompt: z.string().max(AGENT_UPDATE_PROMPT_MAX).optional().openapi({
 			description:
 				"Free-form change request appended to the prompt in update mode. Ignored when `targetAgentEid` is absent.",
 		}),
@@ -193,6 +236,7 @@ export const AgentCreationInputBodySchema = z
 		prompt: z
 			.string()
 			.min(1)
+			.max(AGENT_USER_PROMPT_MAX)
 			.openapi({ description: "User's response to agent's question" }),
 		targetAgentEid: z.string().uuid().optional().openapi({
 			description:
@@ -239,7 +283,7 @@ const AgentConfigForImprovementSchema = z
 
 export const ImproveInstructionsBodySchema = z
 	.object({
-		instructions: z.string().min(1).openapi({
+		instructions: z.string().min(1).max(AGENT_INSTRUCTIONS_MAX).openapi({
 			description: "Current agent instructions to improve (maps to utterance)",
 		}),
 		agentConfig: AgentConfigForImprovementSchema.openapi({
@@ -280,8 +324,9 @@ export const AgentExecuteBodySchema = z
 		message: z
 			.string()
 			.min(1)
+			.max(AGENT_USER_PROMPT_MAX)
 			.openapi({ description: "User message to send to the agent" }),
-		transcript: z.string().optional().openapi({
+		transcript: z.string().max(AGENT_TRANSCRIPT_MAX).optional().openapi({
 			description:
 				"Conversation history as JSON array of {role, content} objects",
 		}),
