@@ -431,6 +431,47 @@ describe("Agent tenant isolation", () => {
 				sys_updated_by: "test@example.com",
 			});
 		});
+
+		it("does not leak defaulted fields when the client omits them (prevents PUBLISHED → DRAFT regression)", async () => {
+			// The client sends an icon-only PUT and expects the agent's lifecycle
+			// state, admin_type, and other create-time defaults to remain
+			// untouched. AgentUpdateBodySchema must NOT resurrect .default(...)
+			// values from AgentCreateBodySchema — they would silently flip a
+			// PUBLISHED agent back to DRAFT.
+			mockAssertAgentOrg.mockResolvedValue(
+				makeAgent({ state: "PUBLISHED", admin_type: "user" }),
+			);
+			mockUpdateAgent.mockResolvedValue(
+				makeAgent({ name: "Anime Agent", state: "PUBLISHED" }),
+			);
+
+			await request(app)
+				.put("/api/agents/eid-001")
+				.send({
+					name: "Anime Agent",
+					iconId: "rocket",
+					iconColorId: "rose",
+				})
+				.expect(200);
+
+			const [, putPayload] = mockUpdateAgent.mock.calls[0];
+			expect(putPayload).not.toHaveProperty("state");
+			expect(putPayload).not.toHaveProperty("admin_type");
+		});
+
+		it("forwards explicit state/adminType when the client does send them", async () => {
+			mockAssertAgentOrg.mockResolvedValue(makeAgent());
+			mockUpdateAgent.mockResolvedValue(makeAgent({ state: "PUBLISHED" }));
+
+			await request(app)
+				.put("/api/agents/eid-001")
+				.send({ name: "Anime Agent", state: "PUBLISHED", adminType: "system" })
+				.expect(200);
+
+			const [, putPayload] = mockUpdateAgent.mock.calls[0];
+			expect(putPayload.state).toBe("PUBLISHED");
+			expect(putPayload.admin_type).toBe("system");
+		});
 	});
 
 	// ── Suite F: POST /api/agents/:eid/execute — ownership gate ────

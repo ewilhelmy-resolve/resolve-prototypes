@@ -59,41 +59,52 @@ function validateAgentMetadataShape(agent: Record<string, unknown>): void {
  * reads `configs.llm_parameters` at execution time and rejects agents
  * missing it with `ValueError: Missing llm_parameters` — so every newly
  * created agent must ship with these defaults.
+ *
+ * Deep-frozen so accidental mutation of the nested `llm_parameters` object
+ * at a call site doesn't corrupt the source of truth.
  */
-export const DEFAULT_AGENT_CONFIGS = {
-	llm_parameters: { model: "claude-opus-4-5-20251101" },
+export const DEFAULT_AGENT_CONFIGS = Object.freeze({
+	llm_parameters: Object.freeze({ model: "claude-opus-4-5-20251101" }),
 	verbose: false,
-} as const;
+}) as {
+	readonly llm_parameters: { readonly model: string };
+	readonly verbose: boolean;
+};
+
+/**
+ * Frontend (camelCase) → LLM Service (snake_case) key renames. Made explicit
+ * so future additions are obvious instead of requiring readers to know which
+ * fields happen to match snake_case verbatim.
+ */
+const FRONTEND_TO_API_RENAMES: Record<string, string> = {
+	conversationStarters: "conversation_starters",
+};
 
 /**
  * Map frontend AgentConfig body to LLM Service AgentMetadataApiData.
  * Icon fields are stored under the top-level `ui_configs` JSON column.
- * Translates camelCase frontend keys (`conversationStarters`) to the
- * snake_case LLM Service columns (`conversation_starters`).
+ *
+ * Only fields the caller actually provided are written out — this mapper is
+ * shared by CREATE (where defaults come from the route/schema) and UPDATE
+ * (where omitted fields must stay untouched on the LLM Service row).
  */
 export function agentConfigToApiData(
 	body: Record<string, unknown>,
 ): Record<string, unknown> {
-	const {
-		name,
-		state,
-		iconId,
-		iconColorId,
-		adminType,
-		conversationStarters,
-		...rest
-	} = body;
+	const { name, state, iconId, iconColorId, adminType, ...rest } = body;
 
-	const apiData: Record<string, unknown> = { ...rest };
+	const apiData: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(rest)) {
+		const renamed = FRONTEND_TO_API_RENAMES[key] ?? key;
+		apiData[renamed] = value;
+	}
+
 	if (name !== undefined) apiData.name = name;
 	if (typeof state === "string" && VALID_STATES.has(state)) {
 		apiData.state = state;
 	}
-	apiData.admin_type =
-		typeof adminType === "string" && adminType ? adminType : "user";
-
-	if (conversationStarters !== undefined) {
-		apiData.conversation_starters = conversationStarters;
+	if (typeof adminType === "string" && adminType) {
+		apiData.admin_type = adminType;
 	}
 
 	const uiConfigs: Record<string, unknown> = {};

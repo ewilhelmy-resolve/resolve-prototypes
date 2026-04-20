@@ -1162,9 +1162,7 @@ router.post("/", async (req, res) => {
 		// Every newly created agent must ship with the default LLM execution
 		// config — the LLM Service rejects agents missing `configs.llm_parameters`
 		// at execution time with `ValueError: Missing llm_parameters`.
-		if (apiData.configs === undefined) {
-			apiData.configs = { ...DEFAULT_AGENT_CONFIGS };
-		}
+		apiData.configs ??= { ...DEFAULT_AGENT_CONFIGS };
 
 		logger.info(
 			{ name: body.name, userId: authReq.user?.id },
