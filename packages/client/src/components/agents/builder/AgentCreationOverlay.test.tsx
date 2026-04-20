@@ -78,4 +78,50 @@ describe("AgentCreationOverlay — progress steps", () => {
 		// Loader2 animates with animate-spin — size-8 is the initial-wait variant.
 		expect(container.querySelector(".animate-spin.size-8")).toBeInTheDocument();
 	});
+
+	it("renders the shell-first 'Saved' step before meta-agent phases", () => {
+		const steps: ExecutionStep[] = [
+			step("Saved", "Agent saved; generating instructions..."),
+			step("Analyzing", "Analyzing your requirements..."),
+		];
+
+		render(<AgentCreationOverlay {...baseProps} executionSteps={steps} />);
+
+		expect(screen.getByText(/Saved/)).toBeInTheDocument();
+		expect(screen.getByText(/Analyzing/)).toBeInTheDocument();
+	});
+});
+
+describe("AgentCreationOverlay — error state", () => {
+	it("shows update-specific error title when mode is update", () => {
+		render(
+			<AgentCreationOverlay
+				{...baseProps}
+				status="error"
+				mode="update"
+				executionSteps={[]}
+				error="Failed to update agent metadata: remote server returned HTTP 500 Internal Server Error"
+			/>,
+		);
+
+		expect(screen.getByText("createWithAI.updateError")).toBeInTheDocument();
+		expect(screen.queryByText("createWithAI.error")).not.toBeInTheDocument();
+	});
+
+	it("shows create error title when mode is create", () => {
+		render(
+			<AgentCreationOverlay
+				{...baseProps}
+				status="error"
+				mode="create"
+				executionSteps={[]}
+				error="Something went wrong"
+			/>,
+		);
+
+		expect(screen.getByText("createWithAI.error")).toBeInTheDocument();
+		expect(
+			screen.queryByText("createWithAI.updateError"),
+		).not.toBeInTheDocument();
+	});
 });

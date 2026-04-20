@@ -92,7 +92,6 @@ describe("POST /api/agents - draft creation", () => {
 	beforeEach(() => {
 		app = express();
 		app.use(express.json());
-		// Simulate the authenticateUser middleware applied at mount in index.ts
 		app.use(
 			"/api/agents",
 			(req: any, _res: any, next: any) => {
@@ -109,50 +108,44 @@ describe("POST /api/agents - draft creation", () => {
 		vi.clearAllMocks();
 	});
 
-	it("returns status 'draft' even when LLM Service returns active:true", async () => {
-		// LLM Service ignores active:false and returns active:true
+	it("forwards state verbatim and returns the LLM Service's persisted state", async () => {
 		mockCreateAgent.mockResolvedValue({
 			eid: "agent-123",
 			name: "Store Hours Manager",
 			description: "",
 			markdown_text: "",
 			active: true,
-			configs: {},
-		});
-
-		mockUpdateAgent.mockResolvedValue({
-			eid: "agent-123",
-			name: "Store Hours Manager",
-			description: "",
-			markdown_text: "",
-			active: false,
+			state: "DRAFT",
 			configs: {},
 		});
 
 		const res = await request(app)
 			.post("/api/agents")
-			.send({ name: "Store Hours Manager", status: "draft" })
+			.send({ name: "Store Hours Manager", state: "DRAFT" })
 			.expect(201);
 
-		expect(res.body.status).toBe("draft");
+		expect(res.body.state).toBe("DRAFT");
+		expect(mockCreateAgent).toHaveBeenCalledWith(
+			expect.objectContaining({ state: "DRAFT" }),
+		);
 	});
 
-	it("does not call updateAgent when LLM Service respects active:false", async () => {
+	it("never follows the create with a corrective updateAgent", async () => {
 		mockCreateAgent.mockResolvedValue({
 			eid: "agent-456",
 			name: "Test Agent",
 			description: "",
 			markdown_text: "",
-			active: false,
+			active: true,
+			state: "DRAFT",
 			configs: {},
 		});
 
-		const res = await request(app)
+		await request(app)
 			.post("/api/agents")
-			.send({ name: "Test Agent", status: "draft" })
+			.send({ name: "Test Agent", state: "DRAFT" })
 			.expect(201);
 
-		expect(res.body.status).toBe("draft");
 		expect(mockUpdateAgent).not.toHaveBeenCalled();
 	});
 
@@ -162,7 +155,8 @@ describe("POST /api/agents - draft creation", () => {
 			name: "My Agent",
 			description: "",
 			markdown_text: "",
-			active: false,
+			active: true,
+			state: "DRAFT",
 			sys_created_by: "test@example.com",
 			sys_updated_by: "test@example.com",
 			configs: {},
@@ -170,10 +164,9 @@ describe("POST /api/agents - draft creation", () => {
 
 		await request(app)
 			.post("/api/agents")
-			.send({ name: "My Agent", status: "draft" })
+			.send({ name: "My Agent", state: "DRAFT" })
 			.expect(201);
 
-		// Both fields should be set to the authenticated user's email
 		expect(mockCreateAgent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				sys_created_by: "test@example.com",
@@ -182,38 +175,36 @@ describe("POST /api/agents - draft creation", () => {
 		);
 	});
 
-	it("sends sys_updated_by in corrective update when LLM Service returns active:true", async () => {
+	it("rejects unknown state values at the request boundary (never calls the LLM Service)", async () => {
+		await request(app)
+			.post("/api/agents")
+			.send({ name: "Bad State", state: "weird" });
+
+		expect(mockCreateAgent).not.toHaveBeenCalled();
+	});
+
+	it("ships the default LLM execution config so agents are executable out of the box", async () => {
 		mockCreateAgent.mockResolvedValue({
-			eid: "agent-101",
-			name: "Draft Agent",
+			eid: "agent-cfg",
+			name: "My Agent",
 			description: "",
 			markdown_text: "",
 			active: true,
-			sys_created_by: "test@example.com",
-			configs: {},
-		});
-
-		mockUpdateAgent.mockResolvedValue({
-			eid: "agent-101",
-			name: "Draft Agent",
-			description: "",
-			markdown_text: "",
-			active: false,
-			sys_created_by: "test@example.com",
-			sys_updated_by: "test@example.com",
+			state: "DRAFT",
 			configs: {},
 		});
 
 		await request(app)
 			.post("/api/agents")
-			.send({ name: "Draft Agent", status: "draft" })
+			.send({ name: "My Agent" })
 			.expect(201);
 
-		// Corrective update should include sys_updated_by
-		expect(mockUpdateAgent).toHaveBeenCalledWith(
-			"agent-101",
+		expect(mockCreateAgent).toHaveBeenCalledWith(
 			expect.objectContaining({
-				sys_updated_by: "test@example.com",
+				configs: {
+					llm_parameters: { model: "claude-opus-4-5-20251101" },
+					verbose: false,
+				},
 			}),
 		);
 	});

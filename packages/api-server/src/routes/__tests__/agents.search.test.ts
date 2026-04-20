@@ -163,15 +163,17 @@ describe("GET /api/agents - search", () => {
 		expect(query).toContain("|");
 	});
 
-	it("combines search with active filter", async () => {
+	it("combines search with state filter", async () => {
 		mockFilterAgents.mockResolvedValue([]);
 
-		await request(app).get("/api/agents?search=bot&active=true").expect(200);
+		await request(app)
+			.get("/api/agents?search=bot&state=PUBLISHED")
+			.expect(200);
 
 		const query = mockFilterAgents.mock.calls[0][0];
 		expect(query).toContain('name__icontains="bot"');
 		expect(query).toContain('description__icontains="bot"');
-		expect(query).toContain("active__exact=true");
+		expect(query).toContain('state__exact="PUBLISHED"');
 		expect(query).toContain("&");
 	});
 
