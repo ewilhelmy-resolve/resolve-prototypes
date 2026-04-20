@@ -11,6 +11,7 @@ import { BookOpen, ChevronDown, Loader2, Plus, X, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+import { AgentsEmptyState } from "@/components/agents/AgentsEmptyState";
 import { AgentsTable } from "@/components/agents/AgentsTable";
 import { DeleteAgentModal } from "@/components/agents/DeleteAgentModal";
 import { InfiniteScrollContainer } from "@/components/custom/infinite-scroll-container";
@@ -319,6 +320,10 @@ export default function AgentsPage() {
 									? agentsError.message
 									: t("list.error")}
 							</div>
+						) : agents.length === 0 ? (
+							<AgentsEmptyState
+								onCreateAgent={() => navigate("/agents/create")}
+							/>
 						) : (
 							<InfiniteScrollContainer
 								hasMore={hasNextPage ?? false}

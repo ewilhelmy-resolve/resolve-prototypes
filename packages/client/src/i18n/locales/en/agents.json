@@ -101,6 +101,11 @@
 		},
 		"loading": "Loading",
 		"error": "Failed to load agents. Please try again.",
+		"empty": {
+			"heading": "No agents yet",
+			"description": "Create an agent to get started",
+			"createAgent": "Create agent"
+		},
 		"toasts": {
 			"published": "{{name}} published",
 			"publishedDescription": "Agent is now live and available to users.",
