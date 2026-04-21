@@ -1,7 +1,7 @@
 import { pool, withOrgContext } from "../config/database.js";
 import { logger } from "../config/logger.js";
 import { getDevMockPayload, getValkeyClient } from "../config/valkey.js";
-import { getSessionService } from "./sessionService.js";
+import { getSessionService, SessionService } from "./sessionService.js";
 import {
 	type CreateSessionData,
 	getSessionStore,
@@ -666,7 +666,7 @@ export class IframeService {
 					`INSERT INTO conversations (organization_id, user_id, title, source)
            VALUES ($1, $2, $3, 'jarvis')
            RETURNING id`,
-					[ritaOrgId, ritaUserId, "Iframe Chat"],
+					[ritaOrgId, ritaUserId, "Jarvis Chat"],
 				);
 				return conversationResult.rows[0];
 			},
@@ -888,7 +888,11 @@ export class IframeService {
 		};
 
 		const session = await this.sessionStore.createSession(sessionData);
-		const cookie = this.sessionService.generateSessionCookie(session.sessionId);
+		const cookie = this.sessionService.generateSessionCookie(
+			session.sessionId,
+			undefined,
+			SessionService.IFRAME_COOKIE_NAME,
+		);
 
 		// Store conversationId and valkeySessionKey in session
 		await this.sessionStore.updateSession(session.sessionId, {

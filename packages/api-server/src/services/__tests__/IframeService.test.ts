@@ -35,6 +35,10 @@ vi.mock("../sessionStore.js", () => ({
 }));
 
 vi.mock("../sessionService.js", () => ({
+	SessionService: {
+		COOKIE_NAME: "rita_session",
+		IFRAME_COOKIE_NAME: "rita_iframe_session",
+	},
 	getSessionService: vi.fn(() => ({
 		generateSessionCookie: vi
 			.fn()
