@@ -66,13 +66,13 @@ export function AgentIconPicker({
 
 			{/* Icon Picker Dropdown */}
 			{showIconPicker && (
-				<div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border z-50 p-4">
+				<div className="absolute top-full right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border z-50 p-4">
 					{/* Color selection */}
 					<div className="mb-4">
 						<p className="text-sm font-medium text-muted-foreground mb-2">
 							{t("builder.iconPicker.colorLabel")}
 						</p>
-						<div className="flex gap-2">
+						<div className="grid grid-cols-7 gap-1 justify-items-center">
 							{ICON_COLORS.map((color) => (
 								<button
 									key={color.id}
@@ -106,7 +106,7 @@ export function AgentIconPicker({
 								className="pl-9"
 							/>
 						</div>
-						<div className="grid grid-cols-6 gap-1 max-h-[240px] overflow-y-auto">
+						<div className="grid grid-cols-7 gap-1 max-h-[320px] overflow-y-auto">
 							{AVAILABLE_ICONS.filter((icon) => {
 								if (!iconSearchQuery) return true;
 								const query = iconSearchQuery.toLowerCase();
