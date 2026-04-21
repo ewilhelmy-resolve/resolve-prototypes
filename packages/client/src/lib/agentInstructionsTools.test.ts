@@ -168,6 +168,13 @@ describe("removeToolFromInstructions — bold-label inline format", () => {
 			"**Tools**: send_email",
 		);
 	});
+
+	it("does not match a bare **Tools** label without a colon", () => {
+		const existing = "**Tools** ai_search_tavily";
+		expect(removeToolFromInstructions(existing, "ai_search_tavily")).toBe(
+			existing,
+		);
+	});
 });
 
 describe("syncAddedToolsInInstructions", () => {

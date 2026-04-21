@@ -9,7 +9,8 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AVAILABLE_ICONS, ICON_COLORS } from "@/constants/agents";
+import { AVAILABLE_ICONS } from "@/constants/agentIcons";
+import { ICON_COLORS } from "@/constants/agents";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { cn } from "@/lib/utils";
 

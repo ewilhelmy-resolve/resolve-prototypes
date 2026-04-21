@@ -69,7 +69,7 @@ export function addToolToInstructions(
  * don't linger in the textarea. Lines without an inline value are left
  * for the heading pass below.
  */
-const INLINE_TOOLS_LABEL_REGEX = /^(\s*\*\*Tools(?::\*\*|\*\*:?))\s*(.*)$/;
+const INLINE_TOOLS_LABEL_REGEX = /^(\s*\*\*Tools(?::\*\*|\*\*:))\s*(.*)$/;
 
 function removeToolFromInlineToolsLines(
 	instructions: string,
