@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	isInstructionsSubmitBlocked,
 	MIN_INSTRUCTIONS_LENGTH,
 	validateBuilder,
 } from "../agentBuilderValidation";
@@ -156,5 +157,39 @@ describe("AgentBuilder validation", () => {
 		it("exposes MIN_INSTRUCTIONS_LENGTH as 20", () => {
 			expect(MIN_INSTRUCTIONS_LENGTH).toBe(20);
 		});
+	});
+});
+
+describe("isInstructionsSubmitBlocked", () => {
+	it("blocks when both instructions and description are empty", () => {
+		expect(isInstructionsSubmitBlocked("", "")).toBe(true);
+	});
+
+	it("does not block when instructions are empty but description has content", () => {
+		expect(
+			isInstructionsSubmitBlocked("", "A description with enough guidance."),
+		).toBe(false);
+	});
+
+	it("blocks when instructions are below the minimum length", () => {
+		expect(
+			isInstructionsSubmitBlocked("a".repeat(MIN_INSTRUCTIONS_LENGTH - 1), ""),
+		).toBe(true);
+	});
+
+	it("blocks below-min instructions even when description is filled", () => {
+		expect(
+			isInstructionsSubmitBlocked("short", "A long enough description."),
+		).toBe(true);
+	});
+
+	it("does not block at exactly the minimum length", () => {
+		expect(
+			isInstructionsSubmitBlocked("a".repeat(MIN_INSTRUCTIONS_LENGTH), ""),
+		).toBe(false);
+	});
+
+	it("treats whitespace-only instructions as empty", () => {
+		expect(isInstructionsSubmitBlocked("                    ", "")).toBe(true);
 	});
 });

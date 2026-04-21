@@ -16,6 +16,20 @@ export interface BuilderValidationErrors {
 	instructions: InstructionsErrorCode;
 }
 
+/**
+ * Whether instructions currently block Create/Publish/Save, ignoring touch
+ * state. Description can stand in when instructions are empty, but any
+ * non-empty instructions must meet the minimum length.
+ */
+export function isInstructionsSubmitBlocked(
+	instructions: string,
+	description: string,
+): boolean {
+	const trimmed = instructions.trim();
+	if (trimmed.length === 0) return description.trim().length === 0;
+	return trimmed.length < MIN_INSTRUCTIONS_LENGTH;
+}
+
 export function validateBuilder(
 	state: BuilderValidationState,
 ): BuilderValidationErrors {

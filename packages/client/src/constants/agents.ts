@@ -141,167 +141,6 @@ import {
 } from "lucide-react";
 
 /**
- * Maps icon string IDs to Lucide React components.
- * Used by AgentChatPage, AgentTestPage, AgentTemplateModal, and builder.
- */
-export const AGENT_ICON_MAP: Record<string, React.ElementType> = {
-	squirrel: Squirrel,
-	bot: Bot,
-	headphones: Headphones,
-	"shield-check": ShieldCheck,
-	key: Key,
-	"book-open": BookOpen,
-	"trending-up": TrendingUp,
-	"clipboard-list": ClipboardList,
-	"line-chart": LineChart,
-	briefcase: Briefcase,
-	users: Users,
-	landmark: Landmark,
-	truck: Truck,
-	award: Award,
-	settings: Settings,
-	"alert-circle": AlertCircle,
-	rocket: Rocket,
-	"graduation-cap": GraduationCap,
-	heart: Heart,
-	zap: Zap,
-	globe: Globe,
-	lock: Lock,
-	mail: Mail,
-	phone: Phone,
-	star: Star,
-	target: Target,
-	"thumbs-up": ThumbsUp,
-	wrench: Wrench,
-	calendar: Calendar,
-	coffee: Coffee,
-	database: Database,
-	folder: Folder,
-	home: Home,
-	layers: Layers,
-	map: MapIcon,
-	package: Package,
-	"shopping-cart": ShoppingCart,
-	"message-square": MessageSquare,
-	// Template-specific icons
-	monitor: Monitor,
-	"book-open-text": BookOpenText,
-	keyboard: Keyboard,
-	album: Album,
-	"help-circle": HelpCircle,
-	"file-text": FileText,
-	// Extended AI/assistant icons
-	sparkles: Sparkles,
-	brain: Brain,
-	cpu: Cpu,
-	code: Code,
-	"code-2": Code2,
-	terminal: Terminal,
-	"git-branch": GitBranch,
-	server: Server,
-	cloud: Cloud,
-	network: Network,
-	// Communication
-	"message-circle": MessageCircle,
-	send: Send,
-	inbox: Inbox,
-	megaphone: Megaphone,
-	"at-sign": AtSign,
-	// Knowledge
-	book: Book,
-	"notebook-text": NotebookText,
-	newspaper: Newspaper,
-	// Support
-	"life-buoy": LifeBuoy,
-	info: Info,
-	// Security
-	"shield-alert": ShieldAlert,
-	"key-round": KeyRound,
-	fingerprint: Fingerprint,
-	// People
-	"user-check": UserCheck,
-	"user-cog": UserCog,
-	"user-plus": UserPlus,
-	crown: Crown,
-	handshake: Handshake,
-	// Business
-	building: Building,
-	"building-2": Building2,
-	factory: Factory,
-	store: Store,
-	// Finance
-	"credit-card": CreditCard,
-	wallet: Wallet,
-	receipt: Receipt,
-	"dollar-sign": DollarSign,
-	coins: Coins,
-	// Tasks
-	"clipboard-check": ClipboardCheck,
-	"check-square": CheckSquare,
-	"list-todo": ListTodo,
-	"list-checks": ListChecks,
-	"check-circle": CheckCircle,
-	"calendar-check": CalendarCheck,
-	clock: Clock,
-	timer: Timer,
-	// Data
-	"bar-chart-3": BarChart3,
-	"pie-chart": PieChart,
-	activity: Activity,
-	gauge: Gauge,
-	// Tools
-	cog: Cog,
-	sliders: Sliders,
-	// Content
-	"folder-open": FolderOpen,
-	archive: Archive,
-	image: ImageIcon,
-	camera: Camera,
-	video: Video,
-	file: File,
-	// Creative
-	palette: Palette,
-	brush: Brush,
-	"pen-tool": PenTool,
-	pencil: Pencil,
-	feather: Feather,
-	// Notifications
-	bell: Bell,
-	"bell-ring": BellRing,
-	flag: Flag,
-	medal: Medal,
-	trophy: Trophy,
-	bookmark: Bookmark,
-	// Navigation
-	"map-pin": MapPin,
-	compass: Compass,
-	navigation: Navigation,
-	// Transport
-	plane: Plane,
-	car: Car,
-	// Devices
-	laptop: Laptop,
-	smartphone: Smartphone,
-	wifi: Wifi,
-	link: Link,
-	// Health
-	"heart-pulse": HeartPulse,
-	stethoscope: Stethoscope,
-	// Energy
-	flame: Flame,
-	lightbulb: Lightbulb,
-	battery: Battery,
-	plug: Plug,
-	// Commerce
-	"shopping-bag": ShoppingBag,
-	// Organization
-	tag: Tag,
-	tags: Tags,
-	hash: Hash,
-	filter: Filter,
-};
-
-/**
  * Color mappings for agent icon backgrounds.
  * Used by AgentChatPage, AgentTestPage, and builder.
  */
@@ -748,6 +587,18 @@ export const AVAILABLE_ICONS = [
 	},
 	{ id: "squirrel", icon: Squirrel, keywords: ["animal", "mascot", "fun"] },
 ];
+
+/**
+ * Maps icon string IDs to Lucide React components.
+ * Derived from AVAILABLE_ICONS (picker options) plus a few template-only
+ * icons referenced by agentMocks but not exposed in the picker.
+ */
+export const AGENT_ICON_MAP: Record<string, React.ElementType> = {
+	...Object.fromEntries(AVAILABLE_ICONS.map(({ id, icon }) => [id, icon])),
+	album: Album,
+	"book-open-text": BookOpenText,
+	keyboard: Keyboard,
+};
 
 /**
  * Avatar background colors for the agents table.

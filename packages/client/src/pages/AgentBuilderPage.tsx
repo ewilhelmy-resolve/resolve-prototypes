@@ -64,6 +64,7 @@ import {
 import { toast } from "@/lib/toast";
 import { cn, humanizeToolName } from "@/lib/utils";
 import {
+	isInstructionsSubmitBlocked,
 	MIN_INSTRUCTIONS_LENGTH,
 	validateBuilder,
 } from "@/pages/agentBuilderValidation";
@@ -179,11 +180,10 @@ export default function AgentBuilderPage() {
 	const instructionsErrorCode = builderErrors.instructions;
 	const instructionsError = instructionsErrorCode !== null;
 	// Blocks Create/Publish/Save regardless of touch state — derived from raw fields.
-	const instructionsBlocksSubmit = (() => {
-		const trimmed = config.instructions.trim();
-		if (trimmed.length === 0) return config.description.trim().length === 0;
-		return trimmed.length < MIN_INSTRUCTIONS_LENGTH;
-	})();
+	const instructionsBlocksSubmit = isInstructionsSubmitBlocked(
+		config.instructions,
+		config.description,
+	);
 	const hasEmptyGuardrails =
 		config.guardrails.length > 0 && config.guardrails.some((g) => !g.trim());
 
