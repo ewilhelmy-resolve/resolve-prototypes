@@ -191,6 +191,7 @@
 			"instructionsHint": "Actualiza las instrucciones según sea necesario",
 			"updatedFromSkills": "Actualizado según las habilidades",
 			"instructionsRequired": "Se requieren instrucciones o descripción para publicar",
+			"instructionsTooShort": "Las instrucciones son demasiado cortas. Proporciona al menos {{min}} caracteres de orientación.",
 			"expandInstructions": "Expandir instrucciones",
 			"conversationStartersLabel": "Inicios de conversación",
 			"conversationStartersDescription": "Sugerencias de mensajes que se muestran a los usuarios al iniciar una conversación",
