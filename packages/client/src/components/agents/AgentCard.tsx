@@ -67,7 +67,7 @@ export function AgentCard({
 		>
 			<div className="flex items-center justify-between w-full mb-1.5">
 				<div className={cn("p-2 rounded-md", iconBgColor)}>
-					<Icon className="size-5 text-foreground" />
+					<Icon className="size-5 text-foreground" aria-hidden="true" />
 				</div>
 				<Badge variant={stateInfo.variant}>{stateLabel}</Badge>
 			</div>

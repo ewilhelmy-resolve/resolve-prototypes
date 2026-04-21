@@ -126,21 +126,35 @@ export function ImproveInstructionsDialog({
 						</div>
 
 						{progressSteps.length === 0 && (
-							<Loader2 className="size-8 animate-spin text-primary" />
+							<output aria-live="polite" aria-busy="true">
+								<Loader2
+									className="size-8 animate-spin text-primary"
+									aria-hidden="true"
+								/>
+								<span className="sr-only">
+									{t("improveInstructions.improving")}
+								</span>
+							</output>
 						)}
 
 						{progressSteps.length > 0 && (
-							<div className="w-full max-w-md bg-muted/30 rounded-lg p-4">
+							<output
+								aria-live="polite"
+								className="block w-full max-w-md bg-muted/30 rounded-lg p-4"
+							>
 								<ReasoningSteps content={reasoningContent} isStreaming={true} />
-							</div>
+							</output>
 						)}
 					</div>
 				)}
 
 				{/* Error state */}
 				{status === "error" && (
-					<div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-6 px-6">
-						<XCircle className="size-14 text-destructive" />
+					<div
+						role="alert"
+						className="flex-1 min-h-0 flex flex-col items-center justify-center gap-6 px-6"
+					>
+						<XCircle className="size-14 text-destructive" aria-hidden="true" />
 						<div className="flex flex-col items-center gap-2 text-center">
 							<h2 className="text-lg font-semibold">
 								{t("improveInstructions.failed")}

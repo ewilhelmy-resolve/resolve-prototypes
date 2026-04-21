@@ -57,7 +57,7 @@ export function AgentTestPanel({
 							className="h-7 text-xs gap-1.5"
 							onClick={onTest}
 						>
-							<ExternalLink className="size-3" />
+							<ExternalLink className="size-3" aria-hidden="true" />
 							{t("testPanel.test")}
 						</Button>
 					)}
@@ -66,9 +66,9 @@ export function AgentTestPanel({
 						size="icon"
 						className="size-7"
 						onClick={onClose}
-						title={t("testPanel.close")}
+						aria-label={t("testPanel.close")}
 					>
-						<X className="size-4" />
+						<X className="size-4" aria-hidden="true" />
 					</Button>
 				</div>
 			</div>
