@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	addToolToInstructions,
 	removeToolFromInstructions,
+	syncAddedToolsInInstructions,
+	syncRemovedToolInInstructions,
 } from "./agentInstructionsTools";
 
 describe("addToolToInstructions", () => {
@@ -97,6 +99,79 @@ describe("removeToolFromInstructions", () => {
 	it("is a no-op when the tool isn't in the section", () => {
 		const existing = "## Tools\n- Check Inventory";
 		expect(removeToolFromInstructions(existing, "Update Store Hours")).toBe(
+			existing,
+		);
+	});
+});
+
+describe("syncAddedToolsInInstructions", () => {
+	it("leaves empty instructions untouched when a tool is added", () => {
+		expect(syncAddedToolsInInstructions("", ["Check Inventory"])).toBe("");
+	});
+
+	it("leaves empty instructions untouched regardless of how many tools are added", () => {
+		expect(
+			syncAddedToolsInInstructions("", [
+				"Check Inventory",
+				"Update Store Hours",
+			]),
+		).toBe("");
+	});
+
+	it("returns empty string when both instructions and added tools are empty", () => {
+		expect(syncAddedToolsInInstructions("", [])).toBe("");
+	});
+
+	it("appends the Tools section below user-written instructions", () => {
+		const existing = "You are a helpful assistant.";
+		expect(syncAddedToolsInInstructions(existing, ["Check Inventory"])).toBe(
+			"You are a helpful assistant.\n\n## Tools\n- Check Inventory",
+		);
+	});
+
+	it("appends a new bullet to an existing Tools section", () => {
+		const existing = "## Tools\n- Check Inventory";
+		expect(syncAddedToolsInInstructions(existing, ["Update Store Hours"])).toBe(
+			"## Tools\n- Check Inventory\n- Update Store Hours",
+		);
+	});
+
+	it("appends multiple bullets in order to user-written instructions", () => {
+		const existing = "You are helpful.";
+		expect(
+			syncAddedToolsInInstructions(existing, [
+				"Check Inventory",
+				"Update Store Hours",
+			]),
+		).toBe(
+			"You are helpful.\n\n## Tools\n- Check Inventory\n- Update Store Hours",
+		);
+	});
+});
+
+describe("syncRemovedToolInInstructions", () => {
+	it("leaves empty instructions untouched", () => {
+		expect(syncRemovedToolInInstructions("", "Check Inventory")).toBe("");
+	});
+
+	it("strips the bullet from a non-empty instructions body", () => {
+		const existing =
+			"You are helpful.\n\n## Tools\n- Check Inventory\n- Update Store Hours";
+		expect(syncRemovedToolInInstructions(existing, "Check Inventory")).toBe(
+			"You are helpful.\n\n## Tools\n- Update Store Hours",
+		);
+	});
+
+	it("drops the Tools section when the last bullet is removed", () => {
+		const existing = "You are helpful.\n\n## Tools\n- Check Inventory";
+		expect(syncRemovedToolInInstructions(existing, "Check Inventory")).toBe(
+			"You are helpful.",
+		);
+	});
+
+	it("is a no-op when the tool bullet isn't present in non-empty instructions", () => {
+		const existing = "You are helpful.";
+		expect(syncRemovedToolInInstructions(existing, "Check Inventory")).toBe(
 			existing,
 		);
 	});

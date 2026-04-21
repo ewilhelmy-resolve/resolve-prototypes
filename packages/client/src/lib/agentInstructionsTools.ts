@@ -103,3 +103,32 @@ export function removeToolFromInstructions(
 	}
 	return next.join("\n");
 }
+
+/**
+ * Guard for the creation-form UX: only append the `## Tools` section when the
+ * user has already written something in `instructions`. Leaving an empty field
+ * untouched avoids auto-generated content appearing on a fresh create form.
+ */
+export function syncAddedToolsInInstructions(
+	currentInstructions: string,
+	addedToolNames: string[],
+): string {
+	if (currentInstructions === "") return currentInstructions;
+	let next = currentInstructions;
+	for (const name of addedToolNames) {
+		next = addToolToInstructions(next, name);
+	}
+	return next;
+}
+
+/**
+ * Symmetric guard for removal: strip the bullet from an already-populated
+ * instructions field. Empty instructions stay empty.
+ */
+export function syncRemovedToolInInstructions(
+	currentInstructions: string,
+	removedToolName: string,
+): string {
+	if (currentInstructions === "") return currentInstructions;
+	return removeToolFromInstructions(currentInstructions, removedToolName);
+}

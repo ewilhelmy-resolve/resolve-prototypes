@@ -57,7 +57,10 @@ import {
 	diffAgentConfig,
 	validateSkillReferences,
 } from "@/lib/agentConfigDiff";
-import { syncAddedToolsInInstructions } from "@/lib/agentInstructionsTools";
+import {
+	syncAddedToolsInInstructions,
+	syncRemovedToolInInstructions,
+} from "@/lib/agentInstructionsTools";
 import { toast } from "@/lib/toast";
 import { cn, humanizeToolName } from "@/lib/utils";
 import {
@@ -1035,6 +1038,10 @@ export default function AgentBuilderPage() {
 																		...prev,
 																		tools: prev.tools.filter(
 																			(_, i) => i !== index,
+																		),
+																		instructions: syncRemovedToolInInstructions(
+																			prev.instructions ?? "",
+																			toolName,
 																		),
 																	}));
 																}}
