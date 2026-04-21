@@ -1,4 +1,3 @@
-export { AddSkillModal } from "./AddSkillModal";
 export { AddToolsModal } from "./AddToolsModal";
 export { AgentConversationStarters } from "./AgentConversationStarters";
 export { AgentCreationOverlay } from "./AgentCreationOverlay";

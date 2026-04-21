@@ -340,21 +340,6 @@
 		"knowledgeSource_other": "{{count}} knowledge sources",
 		"openTestExperience": "Open Test Experience"
 	},
-	"addSkillModal": {
-		"close": "Close",
-		"title": "Add skills",
-		"description": "Help users understand what this agent can help them with by adding skills",
-		"searchPlaceholder": "Search skills...",
-		"tabAvailable": "Available",
-		"tabAll": "All",
-		"added": "Added",
-		"duplicateInActions": "Duplicate in Actions",
-		"usedIn": "used in {{agent}}",
-		"noResults": "No skills found matching \"{{query}}\"",
-		"cancel": "Cancel",
-		"add": "Add",
-		"addCount": "Add ({{count}})"
-	},
 	"addToolsModal": {
 		"close": "Close",
 		"title": "Add tools",

@@ -293,7 +293,7 @@ export default function AgentBuilderPage() {
 	const [showCreateWorkflowModal, setShowCreateWorkflowModal] = useState(false);
 
 	// Add skill modal state
-	const [showAddSkillModal, setShowAddSkillModal] = useState(false);
+	const [showAddToolsModal, setShowAddToolsModal] = useState(false);
 	// Instructions expanded modal state
 	const [showInstructionsModal, setShowInstructionsModal] = useState(false);
 
@@ -996,7 +996,7 @@ export default function AgentBuilderPage() {
 											variant="outline"
 											size="sm"
 											className="h-8 gap-1.5"
-											onClick={() => setShowAddSkillModal(true)}
+											onClick={() => setShowAddToolsModal(true)}
 										>
 											<Plus className="size-4" />
 											{t("builder.form.addSkill")}
@@ -1006,7 +1006,7 @@ export default function AgentBuilderPage() {
 									{config.tools.length === 0 ? (
 										/* Empty state */
 										<button
-											onClick={() => setShowAddSkillModal(true)}
+											onClick={() => setShowAddToolsModal(true)}
 											className="w-full border border-dashed rounded-lg py-6 px-4 text-center hover:border-muted-foreground/50 transition-colors"
 										>
 											<p className="text-sm font-medium">
@@ -1379,8 +1379,8 @@ export default function AgentBuilderPage() {
 
 			{/* Add Tools Modal */}
 			<AddToolsModal
-				open={showAddSkillModal}
-				onOpenChange={setShowAddSkillModal}
+				open={showAddToolsModal}
+				onOpenChange={setShowAddToolsModal}
 				currentTools={config.tools}
 				onAdd={(toolNames) => {
 					setConfig((prev) => ({

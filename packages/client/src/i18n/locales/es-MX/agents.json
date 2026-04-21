@@ -310,21 +310,6 @@
 		"knowledgeSource_other": "{{count}} fuentes de conocimiento",
 		"openTestExperience": "Abrir experiencia de prueba"
 	},
-	"addSkillModal": {
-		"close": "Cerrar",
-		"title": "Agregar habilidades",
-		"description": "Ayuda a los usuarios a comprender con qué puede ayudarles este agente agregando habilidades",
-		"searchPlaceholder": "Buscar habilidades...",
-		"tabAvailable": "Disponibles",
-		"tabAll": "Todas",
-		"added": "Agregada",
-		"duplicateInActions": "Duplicar en Actions",
-		"usedIn": "usada en {{agent}}",
-		"noResults": "No se encontraron habilidades para \"{{query}}\"",
-		"cancel": "Cancelar",
-		"add": "Agregar",
-		"addCount": "Agregar ({{count}})"
-	},
 	"addToolsModal": {
 		"close": "Cerrar",
 		"title": "Agregar herramientas",
