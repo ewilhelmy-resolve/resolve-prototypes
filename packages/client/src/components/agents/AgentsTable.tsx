@@ -69,9 +69,18 @@ function SortableHeader({
 			onClick={() => onSort(field)}
 		>
 			{children}
-			<ArrowUpDown className="size-4" />
+			<ArrowUpDown className="size-4" aria-hidden="true" />
 		</Button>
 	);
+}
+
+function ariaSortFor(
+	field: SortField,
+	sortField: SortField | null,
+	sortDirection: SortDirection,
+): "ascending" | "descending" | "none" {
+	if (sortField !== field) return "none";
+	return sortDirection === "asc" ? "ascending" : "descending";
 }
 
 export function AgentsTable({
@@ -125,17 +134,26 @@ export function AgentsTable({
 						<TableHead className="w-[200px]">
 							{t("table.columns.skills")}
 						</TableHead>
-						<TableHead className="w-[127px]">
+						<TableHead
+							className="w-[127px]"
+							aria-sort={ariaSortFor("state", sortField, sortDirection)}
+						>
 							<SortableHeader field="state" onSort={handleSort}>
 								{t("table.columns.state")}
 							</SortableHeader>
 						</TableHead>
-						<TableHead className="w-[136px]">
+						<TableHead
+							className="w-[136px]"
+							aria-sort={ariaSortFor("updatedBy", sortField, sortDirection)}
+						>
 							<SortableHeader field="updatedBy" onSort={handleSort}>
 								{t("table.columns.updatedBy")}
 							</SortableHeader>
 						</TableHead>
-						<TableHead className="w-[162px]">
+						<TableHead
+							className="w-[162px]"
+							aria-sort={ariaSortFor("lastUpdated", sortField, sortDirection)}
+						>
 							<SortableHeader
 								field="lastUpdated"
 								align="right"
@@ -151,8 +169,16 @@ export function AgentsTable({
 					{sortedAgents.map((agent) => (
 						<TableRow
 							key={agent.id}
-							className="h-[84px] cursor-pointer"
+							className="h-[84px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+							tabIndex={onAgentClick ? 0 : undefined}
 							onClick={() => onAgentClick?.(agent)}
+							onKeyDown={(e) => {
+								if (!onAgentClick) return;
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									onAgentClick(agent);
+								}
+							}}
 						>
 							<TableCell className="pl-4 max-w-[300px]">
 								<div className="flex flex-col min-w-0">

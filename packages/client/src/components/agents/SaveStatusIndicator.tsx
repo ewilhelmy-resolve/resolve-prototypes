@@ -60,13 +60,15 @@ export function SaveStatusIndicator({
 
 	return (
 		<output
+			aria-live={status === "error" ? "assertive" : "polite"}
+			aria-atomic="true"
 			className={cn(
 				"flex items-center gap-1.5 text-xs font-medium transition-colors",
 				statusClassName,
 				className,
 			)}
 		>
-			{icon}
+			<span aria-hidden="true">{icon}</span>
 			<span>{text}</span>
 		</output>
 	);

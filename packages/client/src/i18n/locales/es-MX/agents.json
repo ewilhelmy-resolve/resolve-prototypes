@@ -21,6 +21,9 @@
 		"cancel": "Cancelar",
 		"awaitingInput": "Se necesita informacion adicional",
 		"inputPlaceholder": "Escribe tu respuesta...",
+		"inputAriaLabel": "Tu respuesta al agente",
+		"creatingStatus": "Creando tu agente",
+		"updatingStatus": "Actualizando tu agente",
 		"send": "Enviar"
 	},
 	"updateAgentModal": {
@@ -49,6 +52,7 @@
 		"typeToConfirm": "Escribe <bold>\"delete\"</bold> para confirmar",
 		"confirmPlaceholder": "delete",
 		"confirmLabel": "Escribe delete para confirmar",
+		"confirmMismatch": "Escribe \"delete\" exactamente para habilitar el botón de eliminar.",
 		"cancel": "Cancelar",
 		"deleteAgent": "Eliminar agente",
 		"deleteDraft": "Eliminar borrador"
@@ -74,7 +78,8 @@
 			"draft": "Borrador",
 			"retired": "Retirado",
 			"testing": "En prueba",
-			"searchPlaceholder": "Buscar agentes..."
+			"searchPlaceholder": "Buscar agentes...",
+			"searchAriaLabel": "Buscar agentes"
 		},
 		"loading": "Cargando",
 		"error": "No se pudieron cargar los agentes. Inténtalo de nuevo.",
@@ -201,7 +206,10 @@
 			"addGuardrail": "Agregar una restricción",
 			"guardrailPlaceholder": "ej., Preguntas sobre políticas de RR.HH.",
 			"addGuardrailButton": "Agregar restricción",
+			"guardrailInputAriaLabel": "Restricción {{index}}",
+			"removeGuardrail": "Eliminar restricción {{index}}",
 			"removeStarter": "Eliminar {{starter}}",
+			"removeTool": "Eliminar herramienta {{tool}}",
 			"improve": "Mejorar",
 			"generate": "Generar"
 		},
@@ -302,21 +310,6 @@
 		"knowledgeSource_other": "{{count}} fuentes de conocimiento",
 		"openTestExperience": "Abrir experiencia de prueba"
 	},
-	"addSkillModal": {
-		"close": "Cerrar",
-		"title": "Agregar habilidades",
-		"description": "Ayuda a los usuarios a comprender con qué puede ayudarles este agente agregando habilidades",
-		"searchPlaceholder": "Buscar habilidades...",
-		"tabAvailable": "Disponibles",
-		"tabAll": "Todas",
-		"added": "Agregada",
-		"duplicateInActions": "Duplicar en Actions",
-		"usedIn": "usada en {{agent}}",
-		"noResults": "No se encontraron habilidades para \"{{query}}\"",
-		"cancel": "Cancelar",
-		"add": "Agregar",
-		"addCount": "Agregar ({{count}})"
-	},
 	"addToolsModal": {
 		"close": "Cerrar",
 		"title": "Agregar herramientas",
@@ -350,13 +343,14 @@
 		"warning": "Advertencia",
 		"warningMessage": "Cambiar el tipo de agente de <strong>{{agentName}}</strong> modificará cómo funciona este agente. Los usuarios que interactúen con este agente pueden experimentar un comportamiento diferente.",
 		"goBack": "Volver",
-		"confirmChange": "Confirmar cambio"
+		"confirmChange": "Sí, cambiar tipo de agente"
 	},
 	"createWorkflowModal": {
 		"title": "Nuevo flujo de trabajo",
 		"close": "Cerrar",
 		"describeWorkflow": "Describe tu flujo de trabajo",
 		"placeholder": "Cada vez que reciba un correo electrónico, revisa el contenido y...",
+		"send": "Enviar descripción del flujo de trabajo",
 		"comingSoon": "Creación de flujos de trabajo con IA disponible en v3",
 		"startFromScratch": "Empezar desde cero",
 		"startFromScratchComingSoon": "Empezar desde cero disponible en v3",

@@ -106,7 +106,6 @@ vi.mock("@/lib/toast", () => ({
 }));
 
 vi.mock("@/components/agents/builder", () => ({
-	AddSkillModal: () => null,
 	AddToolsModal: () => null,
 	AgentConversationStarters: () => null,
 	AgentCreationOverlay: () => null,

@@ -67,6 +67,9 @@ export function AgentGuardrailsSection({
 									!guardrail.trim() && "border-destructive",
 								)}
 								aria-invalid={!guardrail.trim()}
+								aria-label={t("builder.form.guardrailInputAriaLabel", {
+									index: index + 1,
+								})}
 							/>
 							<Button
 								variant="ghost"
@@ -76,8 +79,11 @@ export function AgentGuardrailsSection({
 									const updated = guardrails.filter((_, i) => i !== index);
 									onChange(updated);
 								}}
+								aria-label={t("builder.form.removeGuardrail", {
+									index: index + 1,
+								})}
 							>
-								<Trash2 className="size-4" />
+								<Trash2 className="size-4" aria-hidden="true" />
 							</Button>
 						</div>
 					))}
@@ -87,11 +93,11 @@ export function AgentGuardrailsSection({
 						className="h-8 gap-1.5 text-muted-foreground"
 						onClick={() => onChange([...guardrails, ""])}
 					>
-						<Plus className="size-4" />
+						<Plus className="size-4" aria-hidden="true" />
 						{t("builder.form.addGuardrailButton")}
 					</Button>
 					{hasEmptyGuardrails && (
-						<p className="text-sm text-destructive">
+						<p role="alert" className="text-sm text-destructive">
 							{t("guardrails.emptyError")}
 						</p>
 					)}

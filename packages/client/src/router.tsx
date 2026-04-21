@@ -8,7 +8,6 @@ import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import { RootLayout } from "./components/layouts/RootLayout";
 import { useFeatureFlag } from "./hooks/useFeatureFlags";
 import AgentBuilderPageV2 from "./pages/AgentBuilderPage";
-import AgentChatPage from "./pages/AgentChatPage";
 import AgentsPage from "./pages/AgentsPage";
 import AgentTestPage from "./pages/AgentTestPage";
 import ChatV1Page from "./pages/ChatV1Page";
@@ -112,16 +111,6 @@ const router = createBrowserRouter([
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
 				<AgentsFeatureGate>
 					<AgentBuilderPageV2 />
-				</AgentsFeatureGate>
-			</RoleProtectedRoute>
-		),
-	},
-	{
-		path: "/agents/:id/chat",
-		element: (
-			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
-				<AgentsFeatureGate>
-					<AgentChatPage />
 				</AgentsFeatureGate>
 			</RoleProtectedRoute>
 		),

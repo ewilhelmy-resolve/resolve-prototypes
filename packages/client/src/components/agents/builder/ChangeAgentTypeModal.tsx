@@ -49,12 +49,18 @@ export function ChangeAgentTypeModal({
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
 			<DialogContent className="sm:max-w-md" showCloseButton>
-				<h2 className="text-lg font-medium">{t("changeTypeModal.title")}</h2>
+				<h2 id="change-agent-type-title" className="text-lg font-medium">
+					{t("changeTypeModal.title")}
+				</h2>
 				<p className="text-sm text-muted-foreground">
 					{t("changeTypeModal.description")}
 				</p>
 
-				<div className="space-y-2">
+				<div
+					role="radiogroup"
+					aria-labelledby="change-agent-type-title"
+					className="space-y-2"
+				>
 					{(["answer", "knowledge", "workflow"] as const).map((type) => {
 						const typeInfo = AGENT_TYPE_INFO[type];
 						const TypeIcon = TYPE_ICONS[type];
@@ -96,7 +102,10 @@ export function ChangeAgentTypeModal({
 
 				{/* Impact warning */}
 				{pendingType && pendingType !== currentType && (
-					<div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+					<output
+						aria-live="polite"
+						className="block bg-amber-50 border border-amber-200 rounded-lg p-3"
+					>
 						<p className="text-sm font-medium text-amber-800 mb-2">
 							{t("changeTypeModal.whatWillChange")}
 						</p>
@@ -125,7 +134,7 @@ export function ChangeAgentTypeModal({
 							)}
 							<li>&bull; {t("changeTypeModal.behaviorChange")}</li>
 						</ul>
-					</div>
+					</output>
 				)}
 
 				<div className="flex justify-end gap-2 pt-2">

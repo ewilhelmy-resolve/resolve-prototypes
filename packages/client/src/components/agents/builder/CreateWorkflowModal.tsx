@@ -109,13 +109,14 @@ export function CreateWorkflowModal({
 							/>
 							<button
 								type="button"
+								aria-label={t("createWorkflowModal.send")}
 								className="absolute right-3 bottom-3 size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-50"
 								disabled={!description.trim()}
 								onClick={() => {
 									toast.info(t("createWorkflowModal.comingSoon"));
 								}}
 							>
-								<Send className="size-4" />
+								<Send className="size-4" aria-hidden="true" />
 							</button>
 						</div>
 						<button

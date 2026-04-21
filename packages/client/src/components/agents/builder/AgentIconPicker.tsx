@@ -14,6 +14,31 @@ import { ICON_COLORS } from "@/constants/agents";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { cn } from "@/lib/utils";
 
+const GRID_COLS = 7;
+
+function gridKeyMove(
+	key: string,
+	current: number,
+	total: number,
+): number | null {
+	switch (key) {
+		case "ArrowRight":
+			return Math.min(current + 1, total - 1);
+		case "ArrowLeft":
+			return Math.max(current - 1, 0);
+		case "ArrowDown":
+			return Math.min(current + GRID_COLS, total - 1);
+		case "ArrowUp":
+			return Math.max(current - GRID_COLS, 0);
+		case "Home":
+			return 0;
+		case "End":
+			return total - 1;
+		default:
+			return null;
+	}
+}
+
 function formatIconName(id: string): string {
 	return id
 		.split("-")
@@ -37,7 +62,11 @@ export function AgentIconPicker({
 	const { t } = useTranslation("agents");
 	const [showIconPicker, setShowIconPicker] = useState(false);
 	const [iconSearchQuery, setIconSearchQuery] = useState("");
+	const [openTooltipId, setOpenTooltipId] = useState<string | null>(null);
 	const iconPickerRef = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const colorButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+	const iconButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
 
 	const handleIconPickerClose = useCallback(() => {
 		if (showIconPicker) {
@@ -48,10 +77,54 @@ export function AgentIconPicker({
 
 	useClickOutside(iconPickerRef, handleIconPickerClose);
 
+	const handleDialogKeyDown = useCallback(
+		(e: React.KeyboardEvent<HTMLDivElement>) => {
+			if (e.key !== "Escape") return;
+			e.preventDefault();
+			setShowIconPicker(false);
+			setIconSearchQuery("");
+			triggerRef.current?.focus();
+		},
+		[],
+	);
+
+	const makeGridKeyHandler =
+		(
+			refs: React.MutableRefObject<Array<HTMLButtonElement | null>>,
+			total: number,
+		) =>
+		(currentIndex: number) =>
+		(e: React.KeyboardEvent<HTMLButtonElement>) => {
+			const next = gridKeyMove(e.key, currentIndex, total);
+			if (next === null || next === currentIndex) return;
+			e.preventDefault();
+			refs.current[next]?.focus();
+		};
+
+	const filteredIcons = AVAILABLE_ICONS.filter((icon) => {
+		if (!iconSearchQuery) return true;
+		const query = iconSearchQuery.toLowerCase();
+		return (
+			icon.id.includes(query) || icon.keywords.some((k) => k.includes(query))
+		);
+	});
+
+	const colorKeyHandler = makeGridKeyHandler(
+		colorButtonsRef,
+		ICON_COLORS.length,
+	);
+	const iconKeyHandler = makeGridKeyHandler(
+		iconButtonsRef,
+		filteredIcons.length,
+	);
+
 	return (
 		<div ref={iconPickerRef} className="relative flex items-center">
 			<button
+				ref={triggerRef}
 				onClick={() => setShowIconPicker(!showIconPicker)}
+				aria-haspopup="dialog"
+				aria-expanded={showIconPicker}
 				className={cn(
 					"size-[38px] rounded-lg flex items-center justify-center transition-colors",
 					ICON_COLORS.find((c) => c.id === iconColorId)?.bg || "bg-violet-200",
@@ -80,77 +153,133 @@ export function AgentIconPicker({
 
 			{/* Icon Picker Dropdown */}
 			{showIconPicker && (
-				<div className="absolute top-full right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border z-50 p-4">
+				<div
+					role="dialog"
+					aria-label={t("builder.iconPicker.changeIcon")}
+					onKeyDown={handleDialogKeyDown}
+					className="absolute top-full right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border z-50 p-4"
+				>
 					{/* Color selection */}
 					<div className="mb-4">
-						<p className="text-sm font-medium text-muted-foreground mb-2">
+						<p
+							id="icon-picker-color-label"
+							className="text-sm font-medium text-muted-foreground mb-2"
+						>
 							{t("builder.iconPicker.colorLabel")}
 						</p>
-						<div className="grid grid-cols-7 gap-1 justify-items-center">
-							{ICON_COLORS.map((color) => (
-								<button
-									key={color.id}
-									onClick={() => onColorChange(color.id)}
-									className={cn(
-										"size-10 rounded-full transition-all",
-										color.bg,
-										iconColorId === color.id
-											? "ring-2 ring-offset-2 ring-primary"
-											: "hover:scale-110",
-									)}
-									aria-label={t("builder.iconPicker.selectColor", {
-										color: color.id,
-									})}
-								/>
-							))}
+						<div
+							role="radiogroup"
+							aria-labelledby="icon-picker-color-label"
+							className="grid grid-cols-7 gap-1 justify-items-center"
+						>
+							{ICON_COLORS.map((color, index) => {
+								const isSelected = iconColorId === color.id;
+								const isFirst = index === 0;
+								const isFocusable =
+									isSelected ||
+									(!ICON_COLORS.some((c) => c.id === iconColorId) && isFirst);
+								return (
+									// biome-ignore lint/a11y/useSemanticElements: custom radio-group pattern (colored circle buttons)
+									<button
+										key={color.id}
+										ref={(el) => {
+											colorButtonsRef.current[index] = el;
+										}}
+										type="button"
+										role="radio"
+										aria-checked={isSelected}
+										tabIndex={isFocusable ? 0 : -1}
+										onClick={() => onColorChange(color.id)}
+										onKeyDown={colorKeyHandler(index)}
+										className={cn(
+											"size-10 rounded-full transition-all",
+											color.bg,
+											isSelected
+												? "ring-2 ring-offset-2 ring-primary"
+												: "hover:scale-110",
+										)}
+										aria-label={t("builder.iconPicker.selectColor", {
+											color: color.id,
+										})}
+									/>
+								);
+							})}
 						</div>
 					</div>
 
 					{/* Icon selection */}
 					<div>
-						<p className="text-sm font-medium text-muted-foreground mb-2">
+						<p
+							id="icon-picker-icon-label"
+							className="text-sm font-medium text-muted-foreground mb-2"
+						>
 							{t("builder.iconPicker.iconLabel")}
 						</p>
 						<div className="relative mb-3">
-							<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+							<Search
+								className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+								aria-hidden="true"
+							/>
 							<Input
 								placeholder={t("builder.iconPicker.searchPlaceholder")}
+								aria-label={t("builder.iconPicker.searchPlaceholder")}
 								value={iconSearchQuery}
 								onChange={(e) => setIconSearchQuery(e.target.value)}
 								className="pl-9"
 							/>
 						</div>
 						<TooltipProvider delayDuration={200}>
-							<div className="grid grid-cols-7 gap-1 max-h-[320px] overflow-y-auto">
-								{AVAILABLE_ICONS.filter((icon) => {
-									if (!iconSearchQuery) return true;
-									const query = iconSearchQuery.toLowerCase();
-									return (
-										icon.id.includes(query) ||
-										icon.keywords.some((k) => k.includes(query))
-									);
-								}).map((iconData) => {
+							<div
+								role="radiogroup"
+								aria-labelledby="icon-picker-icon-label"
+								className="grid grid-cols-7 gap-1 max-h-[320px] overflow-y-auto"
+								onScroll={() => setOpenTooltipId(null)}
+							>
+								{filteredIcons.map((iconData, index) => {
 									const IconComponent = iconData.icon as React.ElementType;
 									const iconName = formatIconName(iconData.id);
+									const isSelected = iconId === iconData.id;
+									const isFocusable =
+										isSelected ||
+										(!filteredIcons.some((i) => i.id === iconId) &&
+											index === 0);
 									return (
-										<Tooltip key={iconData.id}>
+										<Tooltip
+											key={iconData.id}
+											open={openTooltipId === iconData.id}
+											onOpenChange={(open) =>
+												setOpenTooltipId(open ? iconData.id : null)
+											}
+										>
 											<TooltipTrigger asChild>
+												{/* biome-ignore lint/a11y/useSemanticElements: custom radio-group pattern (icon buttons) */}
 												<button
+													ref={(el) => {
+														iconButtonsRef.current[index] = el;
+													}}
 													type="button"
+													role="radio"
+													aria-checked={isSelected}
+													tabIndex={isFocusable ? 0 : -1}
 													onClick={() => {
 														onIconChange(iconData.id);
 														setShowIconPicker(false);
 														setIconSearchQuery("");
+														triggerRef.current?.focus();
 													}}
+													onKeyDown={iconKeyHandler(index)}
 													aria-label={iconName}
 													className={cn(
 														"size-10 rounded-lg flex items-center justify-center transition-colors",
-														iconId === iconData.id
+														isSelected
 															? "bg-primary/10 text-primary"
 															: "hover:bg-muted text-muted-foreground hover:text-foreground",
 													)}
 												>
-													<IconComponent className="size-5" />
+													<IconComponent
+														className="size-5"
+														aria-hidden="true"
+													/>
 												</button>
 											</TooltipTrigger>
 											<TooltipContent

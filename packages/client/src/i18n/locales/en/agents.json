@@ -21,6 +21,9 @@
 		"cancel": "Cancel",
 		"awaitingInput": "Additional information needed",
 		"inputPlaceholder": "Type your response...",
+		"inputAriaLabel": "Your response to the agent",
+		"creatingStatus": "Creating your agent",
+		"updatingStatus": "Updating your agent",
 		"send": "Send"
 	},
 	"updateAgentModal": {
@@ -49,6 +52,7 @@
 		"regenerate": "Regenerate",
 		"generate": "Generate conversation starters",
 		"inputPlaceholder": "Type and press Enter or comma to add...",
+		"inputAriaLabel": "Add conversation starter",
 		"generateFailed": "Failed to generate conversation starters"
 	},
 	"guardrails": {
@@ -72,6 +76,7 @@
 		"typeToConfirm": "Type <bold>\"delete\"</bold> to confirm",
 		"confirmPlaceholder": "delete",
 		"confirmLabel": "Type delete to confirm",
+		"confirmMismatch": "Please type \"delete\" exactly to enable the delete button.",
 		"cancel": "Cancel",
 		"deleteAgent": "Delete agent",
 		"deleteDraft": "Delete draft"
@@ -97,7 +102,8 @@
 			"draft": "Draft",
 			"retired": "Retired",
 			"testing": "Testing",
-			"searchPlaceholder": "Search agents..."
+			"searchPlaceholder": "Search agents...",
+			"searchAriaLabel": "Search agents"
 		},
 		"loading": "Loading",
 		"error": "Failed to load agents. Please try again.",
@@ -230,7 +236,10 @@
 			"addGuardrail": "Add a guardrail",
 			"guardrailPlaceholder": "e.g., HR policy questions",
 			"addGuardrailButton": "Add guardrail",
+			"guardrailInputAriaLabel": "Guardrail {{index}}",
+			"removeGuardrail": "Remove guardrail {{index}}",
 			"removeStarter": "Remove {{starter}}",
+			"removeTool": "Remove tool {{tool}}",
 			"improve": "Improve",
 			"generate": "Generate"
 		},
@@ -331,21 +340,6 @@
 		"knowledgeSource_other": "{{count}} knowledge sources",
 		"openTestExperience": "Open Test Experience"
 	},
-	"addSkillModal": {
-		"close": "Close",
-		"title": "Add skills",
-		"description": "Help users understand what this agent can help them with by adding skills",
-		"searchPlaceholder": "Search skills...",
-		"tabAvailable": "Available",
-		"tabAll": "All",
-		"added": "Added",
-		"duplicateInActions": "Duplicate in Actions",
-		"usedIn": "used in {{agent}}",
-		"noResults": "No skills found matching \"{{query}}\"",
-		"cancel": "Cancel",
-		"add": "Add",
-		"addCount": "Add ({{count}})"
-	},
 	"addToolsModal": {
 		"close": "Close",
 		"title": "Add tools",
@@ -379,13 +373,14 @@
 		"warning": "Warning",
 		"warningMessage": "Changing the agent type for <strong>{{agentName}}</strong> will modify how this agent works. Users who interact with this agent may experience different behavior.",
 		"goBack": "Go Back",
-		"confirmChange": "Confirm Change"
+		"confirmChange": "Yes, change agent type"
 	},
 	"createWorkflowModal": {
 		"title": "New workflow",
 		"close": "Close",
 		"describeWorkflow": "Describe your workflow",
 		"placeholder": "Every time I receive an email, review the content and...",
+		"send": "Send workflow description",
 		"comingSoon": "Workflow creation with AI coming in v3",
 		"startFromScratch": "Start from scratch",
 		"startFromScratchComingSoon": "Start from scratch coming in v3",

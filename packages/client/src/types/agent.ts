@@ -4,7 +4,6 @@
  * Single source of truth for all agent-related types used across:
  * - AgentBuilderPage (creation wizard)
  * - AgentTestPage (test & iterate)
- * - AgentChatPage (view/use mode)
  * - Agent components (cards, tables, modals, panels)
  */
 
@@ -20,12 +19,6 @@ export interface AgentCapabilities {
 	webSearch: boolean;
 	imageGeneration: boolean;
 	useAllWorkspaceContent: boolean;
-}
-
-export interface AgentKnowledgeSource {
-	id: string;
-	name: string;
-	type: "document" | "connection";
 }
 
 /**
@@ -56,23 +49,6 @@ export interface AgentConfig {
 }
 
 /**
- * Agent config for the chat/view page where knowledge sources are objects.
- */
-export interface AgentChatConfig {
-	id: string;
-	name: string;
-	description: string;
-	instructions: string;
-	iconId: string;
-	iconColorId: string;
-	agentType: AgentType | null;
-	state: AgentState;
-	conversationStarters: string[];
-	knowledgeSources: AgentKnowledgeSource[];
-	skills: string[];
-}
-
-/**
  * Agent row for the agents table/list.
  */
 export interface AgentTableRow {
@@ -87,12 +63,6 @@ export interface AgentTableRow {
 }
 
 // --- Message types ---
-
-export interface ChatMessage {
-	id: string;
-	role: "user" | "assistant";
-	content: string;
-}
 
 export interface TestMessage {
 	id: string;
