@@ -43,6 +43,7 @@ export function DeleteAgentModal({
 
 	const isPublished = agentState === "PUBLISHED";
 	const canDelete = isPublished ? confirmText.toLowerCase() === "delete" : true;
+	const hasMismatch = isPublished && confirmText.length > 0 && !canDelete;
 
 	const handleDelete = () => {
 		if (!canDelete) return;
@@ -114,7 +115,10 @@ export function DeleteAgentModal({
 
 						{/* Active dependencies warning */}
 						{hasActiveDependencies && (
-							<div className="bg-yellow-50 border border-yellow-300 rounded-md px-4 py-3">
+							<div
+								role="alert"
+								className="bg-yellow-50 border border-yellow-300 rounded-md px-4 py-3"
+							>
 								<div className="flex items-center gap-1.5 mb-1">
 									<AlertTriangle className="size-4 text-yellow-600 shrink-0" />
 									<p className="text-sm font-semibold text-yellow-700">
@@ -141,7 +145,10 @@ export function DeleteAgentModal({
 
 						{/* Type to confirm */}
 						<div className="flex flex-col gap-2">
-							<p className="text-sm text-foreground">
+							<p
+								id="delete-confirm-instructions"
+								className="text-sm text-foreground"
+							>
 								{t("deleteModal.typeToConfirm", {
 									interpolation: { escapeValue: false },
 								})
@@ -163,7 +170,21 @@ export function DeleteAgentModal({
 								className="h-9 text-sm"
 								autoComplete="off"
 								aria-label={t("deleteModal.confirmLabel")}
+								aria-describedby={
+									hasMismatch
+										? "delete-confirm-instructions delete-confirm-error"
+										: "delete-confirm-instructions"
+								}
+								aria-invalid={hasMismatch || undefined}
 							/>
+							<p
+								id="delete-confirm-error"
+								role="alert"
+								aria-live="polite"
+								className="text-sm text-destructive min-h-[1.25rem]"
+							>
+								{hasMismatch ? t("deleteModal.confirmMismatch") : ""}
+							</p>
 						</div>
 					</>
 				)}

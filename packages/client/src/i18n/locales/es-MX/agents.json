@@ -49,6 +49,7 @@
 		"typeToConfirm": "Escribe <bold>\"delete\"</bold> para confirmar",
 		"confirmPlaceholder": "delete",
 		"confirmLabel": "Escribe delete para confirmar",
+		"confirmMismatch": "Escribe \"delete\" exactamente para habilitar el botón de eliminar.",
 		"cancel": "Cancelar",
 		"deleteAgent": "Eliminar agente",
 		"deleteDraft": "Eliminar borrador"
@@ -350,7 +351,7 @@
 		"warning": "Advertencia",
 		"warningMessage": "Cambiar el tipo de agente de <strong>{{agentName}}</strong> modificará cómo funciona este agente. Los usuarios que interactúen con este agente pueden experimentar un comportamiento diferente.",
 		"goBack": "Volver",
-		"confirmChange": "Confirmar cambio"
+		"confirmChange": "Sí, cambiar tipo de agente"
 	},
 	"createWorkflowModal": {
 		"title": "Nuevo flujo de trabajo",

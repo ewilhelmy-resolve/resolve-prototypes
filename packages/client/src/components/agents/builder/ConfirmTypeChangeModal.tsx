@@ -99,7 +99,10 @@ export function ConfirmTypeChangeModal({
 					</div>
 				</div>
 
-				<div className="bg-red-50 border border-red-200 rounded-lg p-3">
+				<div
+					role="alert"
+					className="bg-red-50 border border-red-200 rounded-lg p-3"
+				>
 					<p className="text-sm font-medium text-red-800 mb-1">
 						{t("confirmTypeChangeModal.warning")}
 					</p>

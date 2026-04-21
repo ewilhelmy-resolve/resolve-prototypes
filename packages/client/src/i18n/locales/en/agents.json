@@ -72,6 +72,7 @@
 		"typeToConfirm": "Type <bold>\"delete\"</bold> to confirm",
 		"confirmPlaceholder": "delete",
 		"confirmLabel": "Type delete to confirm",
+		"confirmMismatch": "Please type \"delete\" exactly to enable the delete button.",
 		"cancel": "Cancel",
 		"deleteAgent": "Delete agent",
 		"deleteDraft": "Delete draft"
@@ -379,7 +380,7 @@
 		"warning": "Warning",
 		"warningMessage": "Changing the agent type for <strong>{{agentName}}</strong> will modify how this agent works. Users who interact with this agent may experience different behavior.",
 		"goBack": "Go Back",
-		"confirmChange": "Confirm Change"
+		"confirmChange": "Yes, change agent type"
 	},
 	"createWorkflowModal": {
 		"title": "New workflow",
