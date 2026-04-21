@@ -142,7 +142,7 @@ import {
 
 /**
  * Color mappings for agent icon backgrounds.
- * Used by AgentChatPage, AgentTestPage, and builder.
+ * Used by AgentTestPage and builder.
  */
 export const AGENT_COLOR_MAP: Record<string, { bg: string; text: string }> = {
 	slate: { bg: "bg-slate-800", text: "text-white" },

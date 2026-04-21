@@ -2,15 +2,10 @@
  * Consolidated mock agent data
  *
  * Single source for all mock agents, templates, knowledge sources, workflows, and skills.
- * Used across AgentsPage, AgentBuilderPage, AgentTestPage, AgentChatPage, and AgentTemplateModal.
+ * Used across AgentsPage, AgentBuilderPage, AgentTestPage, and AgentTemplateModal.
  */
 
-import type {
-	AgentChatConfig,
-	AgentConfig,
-	AgentTableRow,
-	AgentTemplate,
-} from "@/types/agent";
+import type { AgentConfig, AgentTableRow, AgentTemplate } from "@/types/agent";
 
 // --- Mock agents for the builder (AgentConfig shape) ---
 
@@ -107,113 +102,6 @@ export const MOCK_BUILDER_AGENTS: Record<string, AgentConfig> = {
 			imageGeneration: false,
 			useAllWorkspaceContent: false,
 		},
-	},
-};
-
-// --- Mock agents for the chat page (AgentChatConfig shape) ---
-
-export const MOCK_CHAT_AGENTS: Record<string, AgentChatConfig> = {
-	"1": {
-		id: "1",
-		name: "HelpDesk Advisor",
-		description: "Answers IT support questions",
-		instructions:
-			"Help users with IT-related questions. Be patient and thorough.",
-		iconId: "headphones",
-		iconColorId: "blue",
-		agentType: "answer",
-		state: "PUBLISHED",
-		conversationStarters: [
-			"I need to reset my password",
-			"My VPN isn't connecting",
-			"How do I request software?",
-		],
-		knowledgeSources: [
-			{ id: "1", name: "IT Knowledge Base", type: "document" },
-			{ id: "2", name: "Software Catalog", type: "document" },
-			{ id: "3", name: "VPN Setup Guide", type: "document" },
-		],
-		skills: ["Reset password", "Unlock account", "Request system access"],
-	},
-	"2": {
-		id: "2",
-		name: "Onboarding Compliance Checker",
-		description: "Answers from compliance docs",
-		instructions:
-			"Only answer from approved compliance documents. Be accurate.",
-		iconId: "shield-check",
-		iconColorId: "emerald",
-		agentType: "knowledge",
-		state: "PUBLISHED",
-		conversationStarters: [
-			"Is my I-9 complete?",
-			"What background checks are required?",
-			"Where do I submit tax forms?",
-		],
-		knowledgeSources: [
-			{ id: "4", name: "Compliance Handbook", type: "document" },
-			{ id: "5", name: "HR Policies", type: "document" },
-		],
-		skills: ["Verify I-9 forms", "Check background status", "Review tax docs"],
-	},
-	"3": {
-		id: "3",
-		name: "Password Reset Bot",
-		description: "Automates password resets",
-		instructions: "Guide users through password reset workflow.",
-		iconId: "key",
-		iconColorId: "purple",
-		agentType: "workflow",
-		state: "DRAFT",
-		conversationStarters: [
-			"I forgot my password",
-			"Reset my AD password",
-			"I'm locked out",
-		],
-		knowledgeSources: [],
-		skills: ["Password Reset"],
-	},
-	"4": {
-		id: "4",
-		name: "PTO Balance Checker",
-		description: "Checks employee time off balances",
-		instructions:
-			"Help employees check their PTO balances and request time off. Be helpful and accurate with dates.",
-		iconId: "calendar",
-		iconColorId: "indigo",
-		agentType: "answer",
-		state: "PUBLISHED",
-		conversationStarters: [
-			"How much PTO do I have?",
-			"I want to request time off",
-			"What are the PTO policies?",
-		],
-		knowledgeSources: [
-			{ id: "6", name: "HR Time Off Policies", type: "document" },
-			{ id: "7", name: "Holiday Calendar 2025", type: "document" },
-		],
-		skills: ["Check PTO balance", "Request time off"],
-	},
-	"5": {
-		id: "5",
-		name: "Employee Directory Bot",
-		description: "Looks up employee information",
-		instructions:
-			"Help users find employee contact information and organizational details. Respect privacy guidelines.",
-		iconId: "users",
-		iconColorId: "emerald",
-		agentType: "knowledge",
-		state: "PUBLISHED",
-		conversationStarters: [
-			"Find John Smith's email",
-			"Who is the head of Engineering?",
-			"What's Sarah's phone number?",
-		],
-		knowledgeSources: [
-			{ id: "8", name: "Employee Directory", type: "connection" },
-			{ id: "9", name: "Org Chart", type: "document" },
-		],
-		skills: ["Lookup employee", "Find department", "Get contact info"],
 	},
 };
 
