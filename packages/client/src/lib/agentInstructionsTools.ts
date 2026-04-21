@@ -61,14 +61,58 @@ export function addToolToInstructions(
 	return next.join("\n");
 }
 
+/**
+ * Lines like `**Tools:** a, b, c` or `**Tools**: a, b` are emitted by the
+ * server's task-block serializer and commonly show up in LLM-generated
+ * instructions. Strip `toolName` from any such comma-list. Drop the whole
+ * line when the last item is removed so stale empty `**Tools:**` labels
+ * don't linger in the textarea. Lines without an inline value are left
+ * for the heading pass below.
+ */
+const INLINE_TOOLS_LABEL_REGEX = /^(\s*\*\*Tools(?::\*\*|\*\*:?))\s*(.*)$/;
+
+function removeToolFromInlineToolsLines(
+	instructions: string,
+	toolName: string,
+): string {
+	const out: string[] = [];
+	for (const line of instructions.split("\n")) {
+		const match = line.match(INLINE_TOOLS_LABEL_REGEX);
+		if (!match) {
+			out.push(line);
+			continue;
+		}
+		const label = match[1] ?? "";
+		const rest = (match[2] ?? "").trim();
+		if (rest.length === 0) {
+			out.push(line);
+			continue;
+		}
+		const items = rest
+			.split(",")
+			.map((s) => s.trim())
+			.filter(Boolean);
+		if (!items.includes(toolName)) {
+			out.push(line);
+			continue;
+		}
+		const remaining = items.filter((t) => t !== toolName);
+		if (remaining.length === 0) continue;
+		out.push(`${label} ${remaining.join(", ")}`);
+	}
+	return out.join("\n");
+}
+
 export function removeToolFromInstructions(
 	instructions: string,
 	toolName: string,
 ): string {
+	if (toolName.length === 0) return instructions;
+	const afterInline = removeToolFromInlineToolsLines(instructions, toolName);
 	const bullet = buildBullet(toolName);
-	const lines = instructions.split("\n");
+	const lines = afterInline.split("\n");
 	const section = findToolsSection(lines);
-	if (!section) return instructions;
+	if (!section) return afterInline;
 
 	const next = [...lines];
 	let removed = false;

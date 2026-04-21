@@ -104,6 +104,72 @@ describe("removeToolFromInstructions", () => {
 	});
 });
 
+describe("removeToolFromInstructions — bold-label inline format", () => {
+	it("drops the entire line when the last inline tool is removed", () => {
+		const existing = "**Tools:** ai_search_tavily";
+		expect(removeToolFromInstructions(existing, "ai_search_tavily")).toBe("");
+	});
+
+	it("removes one item from an inline comma-separated list", () => {
+		const existing =
+			"**Tools:** check_inventory, update_hours, ai_search_tavily";
+		expect(removeToolFromInstructions(existing, "update_hours")).toBe(
+			"**Tools:** check_inventory, ai_search_tavily",
+		);
+	});
+
+	it("preserves surrounding task-block lines when stripping inline tool", () => {
+		const existing = [
+			"## Task: Helper",
+			"**Expected Output:** answer",
+			"",
+			"**Tools:** ai_search_tavily, send_email",
+		].join("\n");
+		expect(removeToolFromInstructions(existing, "ai_search_tavily")).toBe(
+			[
+				"## Task: Helper",
+				"**Expected Output:** answer",
+				"",
+				"**Tools:** send_email",
+			].join("\n"),
+		);
+	});
+
+	it("removes the tool from every **Tools:** line across multiple task blocks, dropping lines that become empty", () => {
+		const existing = [
+			"## Task: One",
+			"**Tools:** ai_search_tavily, other",
+			"",
+			"---",
+			"",
+			"## Task: Two",
+			"**Tools:** ai_search_tavily",
+		].join("\n");
+		expect(removeToolFromInstructions(existing, "ai_search_tavily")).toBe(
+			["## Task: One", "**Tools:** other", "", "---", "", "## Task: Two"].join(
+				"\n",
+			),
+		);
+	});
+
+	it("matches on whole tool name only (no substring match)", () => {
+		const existing = "**Tools:** tavily_pro";
+		expect(removeToolFromInstructions(existing, "tavily")).toBe(existing);
+	});
+
+	it("is a no-op when the inline list does not contain the tool", () => {
+		const existing = "**Tools:** check_inventory";
+		expect(removeToolFromInstructions(existing, "other_tool")).toBe(existing);
+	});
+
+	it("accepts the `**Tools**:` variant (colon outside the bold)", () => {
+		const existing = "**Tools**: ai_search_tavily, send_email";
+		expect(removeToolFromInstructions(existing, "ai_search_tavily")).toBe(
+			"**Tools**: send_email",
+		);
+	});
+});
+
 describe("syncAddedToolsInInstructions", () => {
 	it("leaves empty instructions untouched when a tool is added", () => {
 		expect(syncAddedToolsInInstructions("", ["Check Inventory"])).toBe("");
