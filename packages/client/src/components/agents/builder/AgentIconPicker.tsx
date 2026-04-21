@@ -1,5 +1,5 @@
 import { Bot, ChevronDown, Search } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,19 +77,16 @@ export function AgentIconPicker({
 
 	useClickOutside(iconPickerRef, handleIconPickerClose);
 
-	useEffect(() => {
-		if (!showIconPicker) return;
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				e.preventDefault();
-				setShowIconPicker(false);
-				setIconSearchQuery("");
-				triggerRef.current?.focus();
-			}
-		};
-		document.addEventListener("keydown", handleKeyDown);
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [showIconPicker]);
+	const handleDialogKeyDown = useCallback(
+		(e: React.KeyboardEvent<HTMLDivElement>) => {
+			if (e.key !== "Escape") return;
+			e.preventDefault();
+			setShowIconPicker(false);
+			setIconSearchQuery("");
+			triggerRef.current?.focus();
+		},
+		[],
+	);
 
 	const makeGridKeyHandler =
 		(
@@ -159,6 +156,7 @@ export function AgentIconPicker({
 				<div
 					role="dialog"
 					aria-label={t("builder.iconPicker.changeIcon")}
+					onKeyDown={handleDialogKeyDown}
 					className="absolute top-full right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border z-50 p-4"
 				>
 					{/* Color selection */}

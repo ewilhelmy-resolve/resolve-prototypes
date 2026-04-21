@@ -179,7 +179,6 @@ export function DeleteAgentModal({
 							/>
 							<p
 								id="delete-confirm-error"
-								role="alert"
 								aria-live="polite"
 								className="text-sm text-destructive min-h-[1.25rem]"
 							>
