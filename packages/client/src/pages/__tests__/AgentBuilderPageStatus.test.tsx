@@ -345,7 +345,7 @@ describe("AgentBuilderPage - Create Agent Button", () => {
 		const instructionsArea = document.getElementById(
 			"instructions",
 		) as HTMLTextAreaElement;
-		await user.type(instructionsArea, "Be helpful");
+		await user.type(instructionsArea, "Be a helpful IT support agent.");
 
 		const createBtn = screen.getByRole("button", {
 			name: /builder\.createAgent/i,

@@ -57,12 +57,13 @@ import {
 	diffAgentConfig,
 	validateSkillReferences,
 } from "@/lib/agentConfigDiff";
-import {
-	addToolToInstructions,
-	removeToolFromInstructions,
-} from "@/lib/agentInstructionsTools";
+import { syncAddedToolsInInstructions } from "@/lib/agentInstructionsTools";
 import { toast } from "@/lib/toast";
 import { cn, humanizeToolName } from "@/lib/utils";
+import {
+	MIN_INSTRUCTIONS_LENGTH,
+	validateBuilder,
+} from "@/pages/agentBuilderValidation";
 import { agentApi } from "@/services/api";
 import { useAgentCreationStore } from "@/stores/agentCreationStore";
 import type {
@@ -163,12 +164,23 @@ export default function AgentBuilderPage() {
 	const nameAvailable =
 		nameCheck?.available === true && debouncedName === config.name.trim();
 	const [nameTouched, setNameTouched] = useState(false);
-	const nameEmpty = nameTouched && config.name.trim().length === 0;
 	const [instructionsTouched, setInstructionsTouched] = useState(false);
-	const instructionsError =
-		instructionsTouched &&
-		config.instructions.trim().length === 0 &&
-		config.description.trim().length === 0;
+	const builderErrors = validateBuilder({
+		nameTouched,
+		name: config.name,
+		instructionsTouched,
+		instructions: config.instructions,
+		description: config.description,
+	});
+	const nameEmpty = builderErrors.name === "required";
+	const instructionsErrorCode = builderErrors.instructions;
+	const instructionsError = instructionsErrorCode !== null;
+	// Blocks Create/Publish/Save regardless of touch state — derived from raw fields.
+	const instructionsBlocksSubmit = (() => {
+		const trimmed = config.instructions.trim();
+		if (trimmed.length === 0) return config.description.trim().length === 0;
+		return trimmed.length < MIN_INSTRUCTIONS_LENGTH;
+	})();
 	const hasEmptyGuardrails =
 		config.guardrails.length > 0 && config.guardrails.some((g) => !g.trim());
 
@@ -429,7 +441,8 @@ export default function AgentBuilderPage() {
 		updateAgent.isPending ||
 		nameTaken ||
 		hasEmptyGuardrails ||
-		!skillValidation?.valid;
+		!skillValidation?.valid ||
+		instructionsBlocksSubmit;
 
 	const handleUpdateAgent = async () => {
 		if (!agentEid || !savedAgent || !updateDiff) return;
@@ -734,9 +747,7 @@ export default function AgentBuilderPage() {
 							</Button>
 							<Button
 								onClick={handlePublish}
-								disabled={
-									!config.name || (!config.instructions && !config.description)
-								}
+								disabled={!config.name || instructionsBlocksSubmit}
 							>
 								{t("builder.publish")}
 							</Button>
@@ -757,7 +768,7 @@ export default function AgentBuilderPage() {
 							}}
 							disabled={
 								!config.name.trim() ||
-								!config.instructions.trim() ||
+								instructionsBlocksSubmit ||
 								nameTaken ||
 								hasEmptyGuardrails ||
 								agentCreation.isCreating
@@ -771,9 +782,7 @@ export default function AgentBuilderPage() {
 					) : (
 						<Button
 							onClick={handlePublish}
-							disabled={
-								!config.name || (!config.instructions && !config.description)
-							}
+							disabled={!config.name || instructionsBlocksSubmit}
 						>
 							{t("builder.publish")}
 						</Button>
@@ -1027,10 +1036,6 @@ export default function AgentBuilderPage() {
 																		tools: prev.tools.filter(
 																			(_, i) => i !== index,
 																		),
-																		instructions: removeToolFromInstructions(
-																			prev.instructions ?? "",
-																			toolName,
-																		),
 																	}));
 																}}
 																className="p-2 text-muted-foreground hover:text-foreground"
@@ -1118,8 +1123,6 @@ export default function AgentBuilderPage() {
 														...prev,
 														instructions: e.target.value,
 													}));
-													if (!instructionsTouched)
-														setInstructionsTouched(true);
 												}}
 												onBlur={() => setInstructionsTouched(true)}
 												placeholder={
@@ -1161,9 +1164,16 @@ export default function AgentBuilderPage() {
 										aria-live="polite"
 										className="min-h-5 mt-1"
 									>
-										{instructionsError && (
+										{instructionsErrorCode === "required" && (
 											<p className="text-sm text-destructive">
 												{t("builder.form.instructionsRequired")}
+											</p>
+										)}
+										{instructionsErrorCode === "tooShort" && (
+											<p className="text-sm text-destructive">
+												{t("builder.form.instructionsTooShort", {
+													min: MIN_INSTRUCTIONS_LENGTH,
+												})}
 											</p>
 										)}
 									</div>
@@ -1363,17 +1373,14 @@ export default function AgentBuilderPage() {
 				onOpenChange={setShowAddSkillModal}
 				currentTools={config.tools}
 				onAdd={(toolNames) => {
-					setConfig((prev) => {
-						let nextInstructions = prev.instructions ?? "";
-						for (const name of toolNames) {
-							nextInstructions = addToolToInstructions(nextInstructions, name);
-						}
-						return {
-							...prev,
-							tools: [...prev.tools, ...toolNames],
-							instructions: nextInstructions,
-						};
-					});
+					setConfig((prev) => ({
+						...prev,
+						tools: [...prev.tools, ...toolNames],
+						instructions: syncAddedToolsInInstructions(
+							prev.instructions ?? "",
+							toolNames,
+						),
+					}));
 				}}
 			/>
 
