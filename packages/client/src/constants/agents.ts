@@ -5,104 +5,8 @@
  * used across agent pages and components.
  */
 
-import {
-	Album,
-	AlertCircle,
-	Award,
-	BookOpen,
-	BookOpenText,
-	Bot,
-	Briefcase,
-	Calendar,
-	ClipboardList,
-	Coffee,
-	Database,
-	FileText,
-	Folder,
-	Globe,
-	GraduationCap,
-	Headphones,
-	Heart,
-	HelpCircle,
-	Home,
-	Key,
-	Keyboard,
-	Landmark,
-	Layers,
-	LineChart,
-	Lock,
-	Mail,
-	Map as MapIcon,
-	MessageSquare,
-	Monitor,
-	Package,
-	Phone,
-	Rocket,
-	Settings,
-	ShieldCheck,
-	ShoppingCart,
-	Squirrel,
-	Star,
-	Target,
-	ThumbsUp,
-	TrendingUp,
-	Truck,
-	Users,
-	Wrench,
-	Zap,
-} from "lucide-react";
-
-/**
- * Maps icon string IDs to Lucide React components.
- * Used by AgentChatPage, AgentTestPage, AgentTemplateModal, and builder.
- */
-export const AGENT_ICON_MAP: Record<string, React.ElementType> = {
-	squirrel: Squirrel,
-	bot: Bot,
-	headphones: Headphones,
-	"shield-check": ShieldCheck,
-	key: Key,
-	"book-open": BookOpen,
-	"trending-up": TrendingUp,
-	"clipboard-list": ClipboardList,
-	"line-chart": LineChart,
-	briefcase: Briefcase,
-	users: Users,
-	landmark: Landmark,
-	truck: Truck,
-	award: Award,
-	settings: Settings,
-	"alert-circle": AlertCircle,
-	rocket: Rocket,
-	"graduation-cap": GraduationCap,
-	heart: Heart,
-	zap: Zap,
-	globe: Globe,
-	lock: Lock,
-	mail: Mail,
-	phone: Phone,
-	star: Star,
-	target: Target,
-	"thumbs-up": ThumbsUp,
-	wrench: Wrench,
-	calendar: Calendar,
-	coffee: Coffee,
-	database: Database,
-	folder: Folder,
-	home: Home,
-	layers: Layers,
-	map: MapIcon,
-	package: Package,
-	"shopping-cart": ShoppingCart,
-	"message-square": MessageSquare,
-	// Template-specific icons
-	monitor: Monitor,
-	"book-open-text": BookOpenText,
-	keyboard: Keyboard,
-	album: Album,
-	"help-circle": HelpCircle,
-	"file-text": FileText,
-};
+import { Album, BookOpenText, Keyboard } from "lucide-react";
+import { AVAILABLE_ICONS } from "./agentIcons";
 
 /**
  * Color mappings for agent icon backgrounds.
@@ -157,100 +61,16 @@ export const ICON_COLORS = [
 ];
 
 /**
- * Available icons for the icon picker in the builder.
- * Each entry has an id, component, and search keywords.
+ * Maps icon string IDs to Lucide React components.
+ * Derived from AVAILABLE_ICONS (picker options) plus a few template-only
+ * icons referenced by agentMocks but not exposed in the picker.
  */
-export const AVAILABLE_ICONS = [
-	{ id: "bot", icon: Bot, keywords: ["ai", "assistant", "robot"] },
-	{
-		id: "message-square",
-		icon: MessageSquare,
-		keywords: ["chat", "conversation"],
-	},
-	{
-		id: "headphones",
-		icon: Headphones,
-		keywords: ["support", "help", "audio"],
-	},
-	{
-		id: "graduation-cap",
-		icon: GraduationCap,
-		keywords: ["education", "learning", "training"],
-	},
-	{
-		id: "shield-check",
-		icon: ShieldCheck,
-		keywords: ["security", "compliance", "protection"],
-	},
-	{
-		id: "clipboard-list",
-		icon: ClipboardList,
-		keywords: ["tasks", "checklist", "todo"],
-	},
-	{ id: "users", icon: Users, keywords: ["team", "people", "hr"] },
-	{ id: "briefcase", icon: Briefcase, keywords: ["work", "business", "job"] },
-	{
-		id: "book-open",
-		icon: BookOpen,
-		keywords: ["knowledge", "documentation", "reading"],
-	},
-	{ id: "zap", icon: Zap, keywords: ["automation", "fast", "power"] },
-	{ id: "target", icon: Target, keywords: ["goals", "focus", "aim"] },
-	{ id: "globe", icon: Globe, keywords: ["web", "international", "world"] },
-	{ id: "lock", icon: Lock, keywords: ["security", "password", "private"] },
-	{ id: "mail", icon: Mail, keywords: ["email", "message", "communication"] },
-	{ id: "phone", icon: Phone, keywords: ["call", "contact", "support"] },
-	{ id: "calendar", icon: Calendar, keywords: ["schedule", "date", "time"] },
-	{ id: "database", icon: Database, keywords: ["data", "storage", "info"] },
-	{ id: "folder", icon: Folder, keywords: ["files", "documents", "organize"] },
-	{
-		id: "settings",
-		icon: Settings,
-		keywords: ["config", "preferences", "options"],
-	},
-	{ id: "wrench", icon: Wrench, keywords: ["tools", "fix", "repair"] },
-	{ id: "heart", icon: Heart, keywords: ["health", "wellness", "care"] },
-	{ id: "star", icon: Star, keywords: ["favorite", "rating", "important"] },
-	{
-		id: "award",
-		icon: Award,
-		keywords: ["achievement", "recognition", "badge"],
-	},
-	{ id: "rocket", icon: Rocket, keywords: ["launch", "startup", "fast"] },
-	{ id: "coffee", icon: Coffee, keywords: ["break", "cafe", "drink"] },
-	{ id: "home", icon: Home, keywords: ["house", "main", "dashboard"] },
-	{ id: "key", icon: Key, keywords: ["access", "password", "unlock"] },
-	{ id: "layers", icon: Layers, keywords: ["stack", "design", "levels"] },
-	{
-		id: "map",
-		icon: MapIcon,
-		keywords: ["location", "navigation", "directions"],
-	},
-	{ id: "package", icon: Package, keywords: ["shipping", "delivery", "box"] },
-	{
-		id: "shopping-cart",
-		icon: ShoppingCart,
-		keywords: ["ecommerce", "buy", "cart"],
-	},
-	{ id: "thumbs-up", icon: ThumbsUp, keywords: ["like", "approve", "good"] },
-	{
-		id: "trending-up",
-		icon: TrendingUp,
-		keywords: ["growth", "analytics", "increase"],
-	},
-	{
-		id: "line-chart",
-		icon: LineChart,
-		keywords: ["analytics", "data", "metrics"],
-	},
-	{
-		id: "landmark",
-		icon: Landmark,
-		keywords: ["bank", "finance", "government"],
-	},
-	{ id: "truck", icon: Truck, keywords: ["delivery", "shipping", "logistics"] },
-	{ id: "squirrel", icon: Squirrel, keywords: ["animal", "nature", "cute"] },
-];
+export const AGENT_ICON_MAP: Record<string, React.ElementType> = {
+	...Object.fromEntries(AVAILABLE_ICONS.map(({ id, icon }) => [id, icon])),
+	album: Album,
+	"book-open-text": BookOpenText,
+	keyboard: Keyboard,
+};
 
 /**
  * Avatar background colors for the agents table.

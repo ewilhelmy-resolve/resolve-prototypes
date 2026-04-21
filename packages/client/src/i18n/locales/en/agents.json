@@ -220,6 +220,7 @@
 			"instructionsHint": "Update instructions as needed",
 			"updatedFromSkills": "Updated based on skills",
 			"instructionsRequired": "Instructions or description is required to publish",
+			"instructionsTooShort": "Instructions are too short. Please provide at least {{min}} characters of guidance.",
 			"expandInstructions": "Expand instructions",
 			"conversationStartersLabel": "Conversation starters",
 			"conversationStartersDescription": "Suggested prompts shown to users when starting a conversation",
