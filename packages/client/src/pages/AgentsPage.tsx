@@ -182,7 +182,7 @@ export default function AgentsPage() {
 							className="absolute top-0 right-0 p-2 rounded-md hover:bg-muted transition-colors"
 							aria-label={t("list.banner.dismiss")}
 						>
-							<X className="size-4" />
+							<X className="size-4" aria-hidden="true" />
 						</button>
 
 						<div className="flex gap-6 items-start">
@@ -302,7 +302,9 @@ export default function AgentsPage() {
 
 							{/* Search */}
 							<Input
+								type="search"
 								placeholder={t("list.filters.searchPlaceholder")}
+								aria-label={t("list.filters.searchAriaLabel")}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className="max-w-[384px]"
@@ -311,9 +313,17 @@ export default function AgentsPage() {
 
 						{/* Agents table */}
 						{isLoading ? (
-							<div className="flex items-center justify-center py-12">
-								<Loader2 className="size-6 animate-spin text-muted-foreground" />
-							</div>
+							<output
+								aria-live="polite"
+								aria-busy="true"
+								className="flex items-center justify-center py-12"
+							>
+								<Loader2
+									className="size-6 animate-spin text-muted-foreground"
+									aria-hidden="true"
+								/>
+								<span className="sr-only">{t("list.loading")}</span>
+							</output>
 						) : agentsError ? (
 							<div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
 								{agentsError instanceof Error

@@ -1045,9 +1045,12 @@ export default function AgentBuilderPage() {
 																		),
 																	}));
 																}}
+																aria-label={t("builder.form.removeTool", {
+																	tool: humanizeToolName(toolName),
+																})}
 																className="p-2 text-muted-foreground hover:text-foreground"
 															>
-																<X className="size-3" />
+																<X className="size-3" aria-hidden="true" />
 															</button>
 														</div>
 													);

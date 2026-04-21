@@ -21,6 +21,9 @@
 		"cancel": "Cancelar",
 		"awaitingInput": "Se necesita informacion adicional",
 		"inputPlaceholder": "Escribe tu respuesta...",
+		"inputAriaLabel": "Tu respuesta al agente",
+		"creatingStatus": "Creando tu agente",
+		"updatingStatus": "Actualizando tu agente",
 		"send": "Enviar"
 	},
 	"updateAgentModal": {
@@ -75,7 +78,8 @@
 			"draft": "Borrador",
 			"retired": "Retirado",
 			"testing": "En prueba",
-			"searchPlaceholder": "Buscar agentes..."
+			"searchPlaceholder": "Buscar agentes...",
+			"searchAriaLabel": "Buscar agentes"
 		},
 		"loading": "Cargando",
 		"error": "No se pudieron cargar los agentes. Inténtalo de nuevo.",
@@ -202,7 +206,10 @@
 			"addGuardrail": "Agregar una restricción",
 			"guardrailPlaceholder": "ej., Preguntas sobre políticas de RR.HH.",
 			"addGuardrailButton": "Agregar restricción",
+			"guardrailInputAriaLabel": "Restricción {{index}}",
+			"removeGuardrail": "Eliminar restricción {{index}}",
 			"removeStarter": "Eliminar {{starter}}",
+			"removeTool": "Eliminar herramienta {{tool}}",
 			"improve": "Mejorar",
 			"generate": "Generar"
 		},
@@ -358,6 +365,7 @@
 		"close": "Cerrar",
 		"describeWorkflow": "Describe tu flujo de trabajo",
 		"placeholder": "Cada vez que reciba un correo electrónico, revisa el contenido y...",
+		"send": "Enviar descripción del flujo de trabajo",
 		"comingSoon": "Creación de flujos de trabajo con IA disponible en v3",
 		"startFromScratch": "Empezar desde cero",
 		"startFromScratchComingSoon": "Empezar desde cero disponible en v3",

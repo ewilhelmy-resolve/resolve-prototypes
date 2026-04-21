@@ -104,7 +104,21 @@ export function AgentCreationOverlay({
 						</div>
 
 						{executionSteps.length === 0 && (
-							<Loader2 className="size-8 animate-spin text-primary" />
+							<output
+								aria-live="polite"
+								aria-busy="true"
+								className="flex flex-col items-center gap-2"
+							>
+								<Loader2
+									className="size-8 animate-spin text-primary"
+									aria-hidden="true"
+								/>
+								<span className="sr-only">
+									{mode === "update"
+										? t("createWithAI.updatingStatus")
+										: t("createWithAI.creatingStatus")}
+								</span>
+							</output>
 						)}
 
 						{executionSteps.length > 0 && (
@@ -138,6 +152,7 @@ export function AgentCreationOverlay({
 								value={userInput}
 								onChange={(e) => setUserInput(e.target.value)}
 								placeholder={t("createWithAI.inputPlaceholder")}
+								aria-label={t("createWithAI.inputAriaLabel")}
 								rows={3}
 								onKeyDown={(e) => {
 									if (e.key === "Enter" && !e.shiftKey) {

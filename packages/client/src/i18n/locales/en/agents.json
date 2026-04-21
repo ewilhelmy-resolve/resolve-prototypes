@@ -21,6 +21,9 @@
 		"cancel": "Cancel",
 		"awaitingInput": "Additional information needed",
 		"inputPlaceholder": "Type your response...",
+		"inputAriaLabel": "Your response to the agent",
+		"creatingStatus": "Creating your agent",
+		"updatingStatus": "Updating your agent",
 		"send": "Send"
 	},
 	"updateAgentModal": {
@@ -49,6 +52,7 @@
 		"regenerate": "Regenerate",
 		"generate": "Generate conversation starters",
 		"inputPlaceholder": "Type and press Enter or comma to add...",
+		"inputAriaLabel": "Add conversation starter",
 		"generateFailed": "Failed to generate conversation starters"
 	},
 	"guardrails": {
@@ -98,7 +102,8 @@
 			"draft": "Draft",
 			"retired": "Retired",
 			"testing": "Testing",
-			"searchPlaceholder": "Search agents..."
+			"searchPlaceholder": "Search agents...",
+			"searchAriaLabel": "Search agents"
 		},
 		"loading": "Loading",
 		"error": "Failed to load agents. Please try again.",
@@ -231,7 +236,10 @@
 			"addGuardrail": "Add a guardrail",
 			"guardrailPlaceholder": "e.g., HR policy questions",
 			"addGuardrailButton": "Add guardrail",
+			"guardrailInputAriaLabel": "Guardrail {{index}}",
+			"removeGuardrail": "Remove guardrail {{index}}",
 			"removeStarter": "Remove {{starter}}",
+			"removeTool": "Remove tool {{tool}}",
 			"improve": "Improve",
 			"generate": "Generate"
 		},
@@ -387,6 +395,7 @@
 		"close": "Close",
 		"describeWorkflow": "Describe your workflow",
 		"placeholder": "Every time I receive an email, review the content and...",
+		"send": "Send workflow description",
 		"comingSoon": "Workflow creation with AI coming in v3",
 		"startFromScratch": "Start from scratch",
 		"startFromScratchComingSoon": "Start from scratch coming in v3",

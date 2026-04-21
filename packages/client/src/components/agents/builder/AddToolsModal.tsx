@@ -140,6 +140,7 @@ export function AddToolsModal({
 											) : (
 												<Switch
 													checked={isSelected}
+													aria-label={humanizeToolName(tool.name)}
 													onCheckedChange={(checked) => {
 														setSelectedTools((prev) =>
 															checked

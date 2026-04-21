@@ -190,7 +190,7 @@ export function AddSkillModal({
 											{t("addSkillModal.added")}
 										</span>
 									) : isLinkedToOther ? (
-										<div className="text-right">
+										<output className="block text-right">
 											<p className="text-xs text-primary">
 												{t("addSkillModal.duplicateInActions")}
 											</p>
@@ -199,10 +199,11 @@ export function AddSkillModal({
 													agent: skill.linkedAgent,
 												})}
 											</p>
-										</div>
+										</output>
 									) : (
 										<Switch
 											checked={isSelected}
+											aria-label={skill.name}
 											onCheckedChange={(checked) => {
 												setSelectedSkills((prev) =>
 													checked

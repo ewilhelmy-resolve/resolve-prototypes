@@ -102,6 +102,7 @@ export function AgentConversationStarters({
 						<input
 							type="text"
 							placeholder={t("conversationStarters.inputPlaceholder")}
+							aria-label={t("conversationStarters.inputAriaLabel")}
 							className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
 							onKeyDown={(e) => {
 								const input = e.currentTarget;
