@@ -65,6 +65,7 @@ import {
 	SidebarTrigger,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { PresenterPanel } from "@/components/tickets/v4/PresenterPanel";
 import InviteUsersButton from "@/components/users/InviteUsersButton";
 import WelcomeDialog from "@/components/WelcomeDialog";
 import { SOURCE_METADATA } from "@/constants/connectionSources";
@@ -678,6 +679,7 @@ export default function RitaLayout(props: RitaLayoutProps) {
 	return (
 		<SidebarProvider className="w-screen">
 			<RitaLayoutContent {...props} />
+			<PresenterPanel />
 		</SidebarProvider>
 	);
 }

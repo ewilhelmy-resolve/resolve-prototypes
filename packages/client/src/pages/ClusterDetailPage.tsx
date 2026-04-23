@@ -13,6 +13,7 @@ import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar"
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { CreateKnowledgeArticleSheet } from "@/components/tickets/CreateKnowledgeArticleSheet";
 import { AgentDryRunSheet } from "@/components/tickets/v4/AgentDryRunSheet";
+import { AgentRunHistory } from "@/components/tickets/v4/AgentRunHistory";
 import { ClusterAgentCard } from "@/components/tickets/v4/ClusterAgentCard";
 import { EnableAutoPopulateSheet } from "@/components/tickets/EnableAutoPopulateSheet";
 import { EnableAutoRespondModal } from "@/components/tickets/EnableAutoRespondModal";
@@ -30,7 +31,11 @@ import {
 import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
 import { getMockAgentById } from "@/data/mock-v4-agents";
-import { useClusterAgentStore } from "@/stores/clusterAgentStore";
+import {
+	type AgentRun,
+	useClusterAgentStore,
+} from "@/stores/clusterAgentStore";
+import { usePresenterStore } from "@/stores/presenterStore";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
 /** Fire confetti animation for success/enriched banners (stops after 2 sec) */
@@ -86,6 +91,21 @@ export default function ClusterDetailPage() {
 		externalId?: string;
 		title: string;
 	} | null>(null);
+	const [replayRun, setReplayRun] = useState<AgentRun | null>(null);
+
+	// Presenter mode: observe scripted "open this ticket" directive
+	const scriptedTicket = usePresenterStore((s) => s.scriptedOpenTicket);
+	const clearScriptedTicket = usePresenterStore(
+		(s) => s.clearScriptedOpenTicket,
+	);
+	useEffect(() => {
+		if (!phaseV4 || !attachedAgent || !scriptedTicket) return;
+		setDryRunTicket({
+			id: scriptedTicket.ticketId,
+			externalId: scriptedTicket.externalId,
+			title: scriptedTicket.title,
+		});
+	}, [phaseV4, attachedAgent, scriptedTicket]);
 	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 	const bannerRef = useRef<HTMLDivElement>(null);
 	const [autoRespondOpen, setAutoRespondOpen] = useState(false);
@@ -302,9 +322,6 @@ export default function ClusterDetailPage() {
 							)}
 						</StatGroup>
 
-						{/* v4: Cluster-scoped agent */}
-						{phaseV4 && id && <ClusterAgentCard clusterId={id} />}
-
 						{/* Table Section */}
 						<ClusterDetailTable
 							key={id}
@@ -334,24 +351,35 @@ export default function ClusterDetailPage() {
 							kbStatus={cluster.kb_status}
 						/>
 						<div className="flex flex-col gap-4 p-4">
-							<AutomationReadinessMeter
-								reviewed={8}
-								total={12}
-								hasKnowledge={cluster.kb_status === "FOUND" || knowledgeAdded}
-								trustedPercentage={(cluster.kb_status === "FOUND" || knowledgeAdded) ? 85 : 0}
-								isAutomationEnabled={autoRespondEnabled}
-								onEnableAutoRespond={() => setAutoRespondOpen(true)}
-								onAddKnowledge={() => setCreateKnowledgeOpen(true)}
-								onReviewKnowledge={() => navigate("/settings/connections/knowledge")}
-							/>
+							{phaseV4 && id && <ClusterAgentCard clusterId={id} />}
+							{phaseV4 && id && attachedAgent && (
+								<AgentRunHistory
+									clusterId={id}
+									onOpenRun={(run) => setReplayRun(run)}
+								/>
+							)}
+							{!phaseV4 && (
+								<AutomationReadinessMeter
+									reviewed={8}
+									total={12}
+									hasKnowledge={cluster.kb_status === "FOUND" || knowledgeAdded}
+									trustedPercentage={(cluster.kb_status === "FOUND" || knowledgeAdded) ? 85 : 0}
+									isAutomationEnabled={autoRespondEnabled}
+									onEnableAutoRespond={() => setAutoRespondOpen(true)}
+									onAddKnowledge={() => setCreateKnowledgeOpen(true)}
+									onReviewKnowledge={() => navigate("/settings/connections/knowledge")}
+								/>
+							)}
 							{(autoRespondEnabled || autoPopulateEnabled) && (
 								<AutomationMetricsCard
 									automated={autoRespondEnabled ? Math.floor(cluster.open_count * 0.12) : 0}
 								/>
 							)}
-							<AutoPilotRecommendations
-								onEnableClick={handleRecommendationEnable}
-							/>
+							{!phaseV4 && (
+								<AutoPilotRecommendations
+									onEnableClick={handleRecommendationEnable}
+								/>
+							)}
 						</div>
 					</div>
 				)}
@@ -365,6 +393,26 @@ export default function ClusterDetailPage() {
 					agent={attachedAgent}
 					ticket={dryRunTicket}
 					clusterId={id}
+				/>
+			)}
+
+			{/* v4: Replay a logged run in read-only */}
+			{phaseV4 && id && (
+				<AgentDryRunSheet
+					open={!!replayRun}
+					onOpenChange={(o) => !o && setReplayRun(null)}
+					agent={replayRun ? getMockAgentById(replayRun.agentId) : null}
+					ticket={
+						replayRun
+							? {
+									id: replayRun.ticketId,
+									externalId: replayRun.ticketExternalId,
+									title: replayRun.ticketExternalId ?? replayRun.ticketId,
+								}
+							: null
+					}
+					clusterId={id}
+					readOnlyRun={replayRun}
 				/>
 			)}
 

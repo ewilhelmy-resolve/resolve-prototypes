@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+export interface AgentRunFeedback {
+	/** Skill IDs the user flagged as wrong or unhelpful */
+	failedSkills: string[];
+	/** Freeform note from the user */
+	note: string;
+}
+
 export interface AgentRun {
 	id: string;
 	clusterId: string;
@@ -14,6 +21,8 @@ export interface AgentRun {
 	rating: "good" | "bad" | null;
 	/** Skill-level simulation output for display in run history */
 	skillOutputs: { skillId: string; summary: string }[];
+	/** Structured feedback captured when user rates bad */
+	feedback?: AgentRunFeedback;
 }
 
 interface ClusterAgentState {
@@ -28,7 +37,16 @@ interface ClusterAgentState {
 	detachAgent: (clusterId: string) => void;
 	setAutomation: (clusterId: string, enabled: boolean) => void;
 	appendRun: (clusterId: string, run: AgentRun) => void;
-	rateRun: (clusterId: string, runId: string, rating: "good" | "bad") => void;
+	rateRun: (
+		clusterId: string,
+		runId: string,
+		rating: "good" | "bad" | null,
+	) => void;
+	setRunFeedback: (
+		clusterId: string,
+		runId: string,
+		feedback: AgentRunFeedback,
+	) => void;
 }
 
 export const useClusterAgentStore = create<ClusterAgentState>()(
@@ -65,6 +83,15 @@ export const useClusterAgentStore = create<ClusterAgentState>()(
 							...state.runs,
 							[clusterId]: (state.runs[clusterId] ?? []).map((r) =>
 								r.id === runId ? { ...r, rating } : r,
+							),
+						},
+					})),
+				setRunFeedback: (clusterId, runId, feedback) =>
+					set((state) => ({
+						runs: {
+							...state.runs,
+							[clusterId]: (state.runs[clusterId] ?? []).map((r) =>
+								r.id === runId ? { ...r, feedback } : r,
 							),
 						},
 					})),

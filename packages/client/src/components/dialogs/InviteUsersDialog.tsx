@@ -12,7 +12,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { StatusAlert } from "@/components/custom/status-alert";
 import { Textarea } from "@/components/ui/textarea";
 import { useSendInvitations } from "@/hooks/api/useInvitations";
 import { toast } from "@/lib/toast";

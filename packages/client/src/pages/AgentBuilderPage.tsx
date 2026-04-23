@@ -12,6 +12,7 @@ import confetti from "canvas-confetti";
 import {
 	ArrowLeft,
 	Check,
+	ChevronDown,
 	Loader2,
 	Play,
 	Plus,
@@ -61,6 +62,13 @@ import {
 	syncAddedToolsInInstructions,
 	syncRemovedToolInInstructions,
 } from "@/lib/agentInstructionsTools";
+import { getDemoScenario } from "@/data/demo-agents";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "@/lib/toast";
 import { cn, humanizeToolName } from "@/lib/utils";
 import {
@@ -85,6 +93,9 @@ export default function AgentBuilderPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
+	const demoScenario = getDemoScenario(
+		new URLSearchParams(location.search).get("scenario"),
+	);
 	const agentName = location.state?.agentName || t("builder.untitledAgent");
 	const duplicatedConfig = location.state?.duplicatedConfig as
 		| AgentConfig
@@ -120,11 +131,14 @@ export default function AgentBuilderPage() {
 	const [showTestModal, _setShowTestModal] = useState(false);
 	const [_inputValue, _setInputValue] = useState("");
 	const [step, setStep] = useState<ConversationStep>(
-		isEditing || isDuplicate ? "done" : "start",
+		isEditing || isDuplicate || demoScenario ? "done" : "start",
 	);
 	const [_isTyping, _setIsTyping] = useState(false);
 	const [config, setConfig] = useState<AgentConfig>(
-		duplicatedConfig ||
+		// Scenario wins over everything — sales expects a fresh, consistent
+		// pre-fill regardless of prior duplicated/initial state or persisted drafts.
+		demoScenario?.config ||
+			duplicatedConfig ||
 			initialConfig || {
 				name: agentName,
 				description: "",
@@ -151,12 +165,18 @@ export default function AgentBuilderPage() {
 	// Seed config from API data when editing (once loaded)
 	const [hasLoadedFromApi, setHasLoadedFromApi] = useState(false);
 	useEffect(() => {
-		if (savedAgent && !hasLoadedFromApi && !isDuplicate && !initialConfig) {
+		if (
+			savedAgent &&
+			!hasLoadedFromApi &&
+			!isDuplicate &&
+			!initialConfig &&
+			!demoScenario
+		) {
 			setConfig(savedAgent);
 			setStep("done");
 			setHasLoadedFromApi(true);
 		}
-	}, [savedAgent, hasLoadedFromApi, isDuplicate, initialConfig]);
+	}, [savedAgent, hasLoadedFromApi, isDuplicate, initialConfig, demoScenario]);
 
 	// Debounced name uniqueness check
 	const debouncedName = useDebounce(config.name, 300);
@@ -303,6 +323,9 @@ export default function AgentBuilderPage() {
 	// Demo mode state
 	const [demoMode, setDemoMode] = useState(false);
 	const [demoStep, setDemoStep] = useState(0);
+	const [demoScenarioKey, setDemoScenarioKey] = useState<"pto" | "laptop">(
+		"pto",
+	);
 
 	const DEMO_STEPS = [
 		{
@@ -327,17 +350,90 @@ export default function AgentBuilderPage() {
 		},
 	];
 
+	// Per-scenario values that drive each demo step. Sales picks a scenario from
+	// the trigger button; the handler below pulls from this map.
+	const DEMO_SCENARIOS: Record<
+		"pto" | "laptop",
+		{
+			label: string;
+			createAgent: Partial<AgentConfig>;
+			skills: string[];
+			starters: string[];
+			instructions: string;
+		}
+	> = {
+		pto: {
+			label: "PTO Assistant",
+			createAgent: {
+				name: "PTO Assistant",
+				description:
+					"Helps internal employees check their PTO balance and submit PTO requests.",
+				agentType: "workflow" as const,
+				role: "HR Assistant",
+				iconId: "bot",
+				iconColorId: "blue",
+			},
+			skills: [
+				"Check Existing PTO",
+				"Request PTO",
+				"Block Outlook Calendar for PTO",
+			],
+			starters: [
+				"How many PTO days do I have left?",
+				"I'd like to request time off next month.",
+				"Can you block my calendar for vacation?",
+			],
+			instructions: [
+				"You are a friendly HR assistant who helps internal employees with PTO.",
+				"",
+				"1. Greet them and ask whether they want to check their balance or request PTO.",
+				"2. If checking balance, use the Check Existing PTO skill and summarize the result.",
+				"3. If requesting PTO, use the Request PTO skill to collect start date, end date, and reason, then submit it.",
+				"4. After submission, offer to block their Outlook calendar with the Block Outlook Calendar for PTO skill.",
+				"",
+				"Always confirm key details before submitting.",
+			].join("\n"),
+		},
+		laptop: {
+			label: "Laptop Loan Assistant",
+			createAgent: {
+				name: "Laptop Loan Assistant",
+				description:
+					"Helps internal employees request a temporary loaner laptop from IT.",
+				agentType: "workflow" as const,
+				role: "IT Agent",
+				iconId: "bot",
+				iconColorId: "indigo",
+			},
+			skills: ["Submit temporary Laptop request in ITSM"],
+			starters: [
+				"I need a loaner laptop for a trip next week.",
+				"My laptop is being repaired — can I borrow one?",
+				"How do I request a temporary laptop?",
+			],
+			instructions: [
+				"You are a friendly IT agent who helps internal employees request temporary laptop loans.",
+				"",
+				"Follow these steps in order:",
+				"1. Ask the employee which date they first need the laptop.",
+				"2. Ask which date they will return the laptop.",
+				"3. Ask them to choose a laptop from: Dell Latitude 7450, Dell XPS 13, Dell Precision 5680, Lenovo ThinkPad X1 Carbon, Lenovo ThinkPad T14.",
+				"4. Ask how to deliver it — mailed home or hand-delivered to their desk.",
+				"5. Confirm the details, call Submit temporary Laptop request in ITSM, and share a generated request number (REQ-LAPTOP-######).",
+				"",
+				"Do not proceed to the next step until the previous one is answered.",
+			].join("\n"),
+		},
+	};
+
 	const handleDemoNext = () => {
+		const scenario = DEMO_SCENARIOS[demoScenarioKey];
 		switch (demoStep) {
 			case 0:
 				setConfig((prev) => ({
 					...prev,
-					name: "Store Hours Manager",
-					description: "Updates store operating hours after manager approval",
-					agentType: "workflow" as const,
-					role: "Store Operations Manager",
-					iconId: "bot",
-					iconColorId: "emerald",
+					...scenario.createAgent,
+					instructions: scenario.instructions,
 				}));
 				setStep("done");
 				setDemoStep(1);
@@ -345,18 +441,14 @@ export default function AgentBuilderPage() {
 			case 1:
 				setConfig((prev) => ({
 					...prev,
-					tools: ["Update Store Hours"],
+					tools: scenario.skills,
 				}));
 				setDemoStep(2);
 				break;
 			case 2:
 				setConfig((prev) => ({
 					...prev,
-					conversationStarters: [
-						"Update store hours for location 42",
-						"Change weekend hours",
-						"Set holiday schedule",
-					],
+					conversationStarters: scenario.starters,
 				}));
 				setDemoStep(3);
 				break;
@@ -1418,19 +1510,36 @@ export default function AgentBuilderPage() {
 					setWorkflowToUnlink(null);
 				}}
 			/>
-			{/* Demo mode trigger button */}
+			{/* Demo mode trigger — scenario picker */}
 			{!demoMode && (
-				<button
-					type="button"
-					onClick={() => {
-						setDemoMode(true);
-						setDemoStep(0);
-					}}
-					className="fixed bottom-4 left-4 z-50 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-full shadow-lg hover:bg-violet-700 transition-colors flex items-center gap-1.5"
-				>
-					<Play className="size-3" />
-					{t("builder.demo.trigger")}
-				</button>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							className="fixed bottom-4 left-4 z-50 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-full shadow-lg hover:bg-violet-700 transition-colors flex items-center gap-1.5"
+						>
+							<Play className="size-3" />
+							{t("builder.demo.trigger")}
+							<ChevronDown className="size-3" />
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start" side="top" className="w-56">
+						{(Object.keys(DEMO_SCENARIOS) as Array<"pto" | "laptop">).map(
+							(key) => (
+								<DropdownMenuItem
+									key={key}
+									onClick={() => {
+										setDemoScenarioKey(key);
+										setDemoMode(true);
+										setDemoStep(0);
+									}}
+								>
+									{DEMO_SCENARIOS[key].label}
+								</DropdownMenuItem>
+							),
+						)}
+					</DropdownMenuContent>
+				</DropdownMenu>
 			)}
 
 			{/* Demo stepper bar */}
@@ -1440,6 +1549,9 @@ export default function AgentBuilderPage() {
 						<Play className="size-4" />
 						<span className="text-sm font-semibold">
 							{t("builder.demo.title")}
+						</span>
+						<span className="text-xs text-white/70">
+							· {DEMO_SCENARIOS[demoScenarioKey].label}
 						</span>
 					</div>
 					<div className="flex-1 flex items-center gap-1">
