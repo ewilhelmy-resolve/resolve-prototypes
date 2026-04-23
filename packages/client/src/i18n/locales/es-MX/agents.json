@@ -312,12 +312,12 @@
 	},
 	"addToolsModal": {
 		"close": "Cerrar",
-		"title": "Agregar herramientas",
-		"description": "Selecciona las herramientas que este agente puede usar para resolver solicitudes",
-		"searchPlaceholder": "Buscar herramientas...",
+		"title": "Agregar habilidades",
+		"description": "Selecciona las habilidades que este agente puede usar para resolver solicitudes",
+		"searchPlaceholder": "Buscar habilidades...",
 		"added": "Agregada",
-		"noResults": "No se encontraron herramientas para \"{{query}}\"",
-		"empty": "No hay herramientas disponibles",
+		"noResults": "No se encontraron habilidades para \"{{query}}\"",
+		"empty": "No hay habilidades disponibles",
 		"cancel": "Cancelar",
 		"add": "Agregar",
 		"addCount": "Agregar ({{count}})"
