@@ -19,8 +19,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { StatusAlert } from "@/components/ui/status-alert";
+import { Spinner } from "@/components/custom/spinner";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useInfiniteClusters } from "@/hooks/useClusters";
