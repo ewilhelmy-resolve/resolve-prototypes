@@ -4,8 +4,14 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { agentApi } from "@/services/api.ts";
-import type { AgentConfig, AgentState } from "@/types/agent";
+import {
+	demoDelay,
+	fakeConversationStarters,
+	fakeImproveInstructions,
+	MOCK_AGENT_CONFIGS,
+	MOCK_AGENTS_LIST,
+} from "@/data/mock-agents-demo";
+import type { AgentConfig, AgentState, AgentTableRow } from "@/types/agent";
 
 const AGENTS_PAGE_SIZE = 20;
 
@@ -19,6 +25,33 @@ export const agentKeys = {
 	detail: (id: string) => [...agentKeys.details(), id] as const,
 };
 
+// -----------------------------------------------------------------------------
+// Demo branch: every hook below returns static/mock data instead of calling the
+// real backend. Keeps the prototype branch self-contained so the builder demos
+// (PTO + Laptop Loan) don't depend on the LLM / agentic service being up.
+// Restore the original implementation from git history when the backend is
+// stable and this branch is ready to rejoin main.
+// -----------------------------------------------------------------------------
+
+function filterAgents(
+	list: AgentTableRow[],
+	filters?: {
+		name?: string;
+		state?: AgentState;
+		search?: string;
+		owner?: "me" | "others";
+	},
+): AgentTableRow[] {
+	if (!filters) return list;
+	return list.filter((a) => {
+		if (filters.state && a.state !== filters.state) return false;
+		const needle = (filters.search || filters.name || "").toLowerCase();
+		if (needle && !a.name.toLowerCase().includes(needle)) return false;
+		// owner filter is a no-op in demo mode (everything is "me")
+		return true;
+	});
+}
+
 export function useAgents(filters?: {
 	name?: string;
 	state?: AgentState;
@@ -27,8 +60,16 @@ export function useAgents(filters?: {
 }) {
 	return useQuery({
 		queryKey: agentKeys.list(filters ?? {}),
-		queryFn: () => agentApi.list(filters),
-		staleTime: 1000 * 60 * 2, // 2 minutes
+		queryFn: async () => {
+			const filtered = filterAgents(MOCK_AGENTS_LIST, filters);
+			return demoDelay({
+				agents: filtered,
+				limit: AGENTS_PAGE_SIZE,
+				offset: 0,
+				hasMore: false,
+			});
+		},
+		staleTime: 1000 * 60 * 2,
 	});
 }
 
@@ -40,18 +81,16 @@ export function useInfiniteAgents(filters?: {
 }) {
 	return useInfiniteQuery({
 		queryKey: [...agentKeys.lists(), "infinite", filters ?? {}] as const,
-		queryFn: async ({ pageParam }) => {
-			const response = await agentApi.list({
-				...filters,
+		queryFn: async () => {
+			const filtered = filterAgents(MOCK_AGENTS_LIST, filters);
+			return demoDelay({
+				agents: filtered,
 				limit: AGENTS_PAGE_SIZE,
-				offset: pageParam,
+				offset: 0,
+				hasMore: false,
 			});
-			return response;
 		},
-		getNextPageParam: (lastPage) => {
-			if (!lastPage.hasMore) return undefined;
-			return lastPage.offset + lastPage.limit;
-		},
+		getNextPageParam: () => undefined,
 		initialPageParam: 0,
 		staleTime: 1000 * 60 * 2,
 	});
@@ -60,7 +99,13 @@ export function useInfiniteAgents(filters?: {
 export function useAgent(eid: string | undefined) {
 	return useQuery({
 		queryKey: agentKeys.detail(eid ?? ""),
-		queryFn: () => agentApi.get(eid as string),
+		queryFn: async () => {
+			const config = eid ? MOCK_AGENT_CONFIGS[eid] : undefined;
+			if (!config) {
+				throw new Error(`Demo agent ${eid} not found`);
+			}
+			return demoDelay(config);
+		},
 		enabled: !!eid,
 		staleTime: 1000 * 60 * 2,
 	});
@@ -69,7 +114,10 @@ export function useAgent(eid: string | undefined) {
 export function useCheckAgentName(name: string) {
 	return useQuery({
 		queryKey: [...agentKeys.all, "check-name", name],
-		queryFn: () => agentApi.checkName(name),
+		queryFn: async () => {
+			// Always say the name is available in demo mode.
+			return demoDelay({ available: true });
+		},
 		enabled: name.trim().length > 0,
 		staleTime: 1000 * 30,
 	});
@@ -78,7 +126,34 @@ export function useCheckAgentName(name: string) {
 export function useCreateAgent() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: (data: Partial<AgentConfig>) => agentApi.create(data),
+		mutationFn: async (data: Partial<AgentConfig>) => {
+			const id = `demo-${Date.now()}`;
+			const created: AgentConfig = {
+				name: data.name ?? "Untitled Agent",
+				description: data.description ?? "",
+				instructions: data.instructions ?? "",
+				role: data.role ?? "",
+				iconId: data.iconId ?? "bot",
+				iconColorId: data.iconColorId ?? "slate",
+				agentType: data.agentType ?? null,
+				conversationStarters: data.conversationStarters ?? [],
+				knowledgeSources: data.knowledgeSources ?? [],
+				tools: data.tools ?? [],
+				skills: data.skills,
+				guardrails: data.guardrails ?? [],
+				responsibilities: data.responsibilities,
+				completionCriteria: data.completionCriteria,
+				hasRequiredConnections: data.hasRequiredConnections ?? false,
+				capabilities: data.capabilities ?? {
+					webSearch: true,
+					imageGeneration: false,
+					useAllWorkspaceContent: false,
+				},
+				id,
+				state: "DRAFT",
+			};
+			return demoDelay(created);
+		},
 		onSuccess: (newAgent) => {
 			if (newAgent.id) {
 				queryClient.setQueryData(agentKeys.detail(newAgent.id), newAgent);
@@ -91,8 +166,21 @@ export function useCreateAgent() {
 export function useUpdateAgent() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: ({ eid, data }: { eid: string; data: Partial<AgentConfig> }) =>
-			agentApi.update(eid, data),
+		mutationFn: async ({
+			eid,
+			data,
+		}: {
+			eid: string;
+			data: Partial<AgentConfig>;
+		}) => {
+			const existing = MOCK_AGENT_CONFIGS[eid] ?? {};
+			const merged: AgentConfig = {
+				...(existing as AgentConfig),
+				...data,
+				id: eid,
+			};
+			return demoDelay(merged);
+		},
 		onSuccess: (updatedAgent, { eid }) => {
 			queryClient.setQueryData(agentKeys.detail(eid), updatedAgent);
 			queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
@@ -102,10 +190,9 @@ export function useUpdateAgent() {
 
 export function useDeleteAgent() {
 	const queryClient = useQueryClient();
-
 	return useMutation({
-		mutationFn: async (eid: string) => {
-			return agentApi.delete(eid);
+		mutationFn: async (_eid: string) => {
+			return demoDelay({ success: true, message: "Deleted (demo)" });
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
@@ -115,7 +202,7 @@ export function useDeleteAgent() {
 
 export function useGenerateAgent() {
 	return useMutation({
-		mutationFn: (data: {
+		mutationFn: async (_data: {
 			name: string;
 			description?: string;
 			instructions?: string;
@@ -126,30 +213,39 @@ export function useGenerateAgent() {
 			targetAgentEid?: string;
 			updatePrompt?: string;
 			generateDescription?: boolean;
-		}) => agentApi.generate(data),
+		}) => {
+			return demoDelay({
+				mode: "async" as const,
+				creationId: `demo-creation-${Date.now()}`,
+			});
+		},
 	});
 }
 
 export function useAgentCreationInput() {
 	return useMutation({
-		mutationFn: (data: {
+		mutationFn: async (_data: {
 			creationId: string;
 			prevExecutionId: string;
 			prompt: string;
 			targetAgentEid?: string;
-		}) => agentApi.sendCreationInput(data),
+		}) => {
+			return demoDelay({ success: true });
+		},
 	});
 }
 
 export function useCancelAgentCreation() {
 	return useMutation({
-		mutationFn: (data: { creationId: string }) => agentApi.cancelCreation(data),
+		mutationFn: async (_data: { creationId: string }) => {
+			return demoDelay({ success: true });
+		},
 	});
 }
 
 export function useImproveInstructionsMutation() {
 	return useMutation({
-		mutationFn: (data: {
+		mutationFn: async (data: {
 			instructions: string;
 			agentConfig: {
 				name?: string;
@@ -164,13 +260,15 @@ export function useImproveInstructionsMutation() {
 				responsibilities?: string;
 				completionCriteria?: string;
 			};
-		}) => agentApi.improveInstructions(data),
+		}) => {
+			return demoDelay(fakeImproveInstructions(data.instructions));
+		},
 	});
 }
 
 export function useGenerateConversationStartersMutation() {
 	return useMutation({
-		mutationFn: (data: {
+		mutationFn: async (data: {
 			agentConfig: {
 				name?: string;
 				role?: string;
@@ -185,20 +283,22 @@ export function useGenerateConversationStartersMutation() {
 				responsibilities?: string;
 				completionCriteria?: string;
 			};
-		}) => agentApi.generateConversationStarters(data),
+		}) => {
+			return demoDelay({
+				starters: fakeConversationStarters(data.agentConfig.name ?? ""),
+			});
+		},
 	});
 }
 
 export function useExecuteAgent() {
 	return useMutation({
-		mutationFn: ({
-			eid,
-			message,
-			transcript,
-		}: {
+		mutationFn: async (_args: {
 			eid: string;
 			message: string;
 			transcript?: string;
-		}) => agentApi.execute(eid, { message, transcript }),
+		}) => {
+			return demoDelay({ executionRequestId: `demo-exec-${Date.now()}` });
+		},
 	});
 }
