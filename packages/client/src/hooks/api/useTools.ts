@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { MOCK_TOOLS, demoDelay } from "@/data/mock-agents-demo";
+import { demoDelay, MOCK_TOOLS } from "@/data/mock-agents-demo";
 
 const TOOLS_PAGE_SIZE = 100;
 

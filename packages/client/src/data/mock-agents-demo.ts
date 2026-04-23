@@ -4,8 +4,8 @@
  * in src/hooks/api/useAgents.ts and useTools.ts.
  */
 
-import type { AgentConfig, AgentTableRow } from "@/types/agent";
 import type { ToolItem } from "@/services/api";
+import type { AgentConfig, AgentTableRow } from "@/types/agent";
 import { DEMO_AGENT_SCENARIOS } from "./demo-agents";
 
 export const MOCK_TOOLS: ToolItem[] = [
