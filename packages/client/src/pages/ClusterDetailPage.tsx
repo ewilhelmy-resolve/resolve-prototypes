@@ -12,6 +12,8 @@ import { AutoPilotRecommendations } from "@/components/tickets/AutoPilotRecommen
 import { ClusterDetailSidebar } from "@/components/tickets/ClusterDetailSidebar";
 import { ClusterDetailTable } from "@/components/tickets/ClusterDetailTable";
 import { CreateKnowledgeArticleSheet } from "@/components/tickets/CreateKnowledgeArticleSheet";
+import { AgentDryRunSheet } from "@/components/tickets/v4/AgentDryRunSheet";
+import { ClusterAgentCard } from "@/components/tickets/v4/ClusterAgentCard";
 import { EnableAutoPopulateSheet } from "@/components/tickets/EnableAutoPopulateSheet";
 import { EnableAutoRespondModal } from "@/components/tickets/EnableAutoRespondModal";
 import ReviewAIResponseSheet, { type ReviewTicket } from "@/components/tickets/ReviewAIResponseSheet";
@@ -27,6 +29,8 @@ import {
 } from "@/hooks/useClusters";
 import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
+import { getMockAgentById } from "@/data/mock-v4-agents";
+import { useClusterAgentStore } from "@/stores/clusterAgentStore";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
 /** Fire confetti animation for success/enriched banners (stops after 2 sec) */
@@ -71,7 +75,17 @@ export default function ClusterDetailPage() {
 	const navigate = useNavigate();
 	const phaseV2 = usePhaseGate("tickets", "v2");
 	const phaseV3 = usePhaseGate("tickets", "v3");
+	const phaseV4 = usePhaseGate("tickets", "v4");
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
+	const attachedAgentId = useClusterAgentStore((s) =>
+		id ? s.bindings[id] ?? null : null,
+	);
+	const attachedAgent = getMockAgentById(attachedAgentId);
+	const [dryRunTicket, setDryRunTicket] = useState<{
+		id: string;
+		externalId?: string;
+		title: string;
+	} | null>(null);
 	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 	const bannerRef = useRef<HTMLDivElement>(null);
 	const [autoRespondOpen, setAutoRespondOpen] = useState(false);
@@ -288,6 +302,9 @@ export default function ClusterDetailPage() {
 							)}
 						</StatGroup>
 
+						{/* v4: Cluster-scoped agent */}
+						{phaseV4 && id && <ClusterAgentCard clusterId={id} />}
+
 						{/* Table Section */}
 						<ClusterDetailTable
 							key={id}
@@ -298,6 +315,11 @@ export default function ClusterDetailPage() {
 							selectedIds={selectedTicketIds}
 							onSelectionChange={setSelectedTicketIds}
 							onBulkReview={() => { setReviewIndex(0); setReviewSheetOpen(true); }}
+							onRunAgent={
+								phaseV4 && attachedAgent
+									? (ticket) => setDryRunTicket(ticket)
+									: undefined
+							}
 						/>
 					</div>
 				</div>
@@ -334,6 +356,17 @@ export default function ClusterDetailPage() {
 					</div>
 				)}
 			</div>
+
+			{/* v4: Dry-run sheet */}
+			{phaseV4 && id && (
+				<AgentDryRunSheet
+					open={!!dryRunTicket}
+					onOpenChange={(o) => !o && setDryRunTicket(null)}
+					agent={attachedAgent}
+					ticket={dryRunTicket}
+					clusterId={id}
+				/>
+			)}
 
 			{/* Autopilot Modals (v3) */}
 			{phaseV3 && (

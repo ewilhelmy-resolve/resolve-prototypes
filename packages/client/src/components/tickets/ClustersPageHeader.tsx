@@ -119,6 +119,7 @@ export function ClustersPageHeader({
 							<SelectItem value="v1">v1</SelectItem>
 							<SelectItem value="v2">v2</SelectItem>
 							<SelectItem value="v3">v3</SelectItem>
+							<SelectItem value="v4">v4</SelectItem>
 						</SelectContent>
 					</Select>
 					<DropdownMenu>

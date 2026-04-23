@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-export type Phase = "v1" | "v2" | "v3";
+export type Phase = "v1" | "v2" | "v3" | "v4";
 
 export type FeatureEpic = "tickets" | "agents";
 

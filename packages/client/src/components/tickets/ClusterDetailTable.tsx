@@ -1,4 +1,4 @@
-import { ChevronDown, Loader2, Search } from "lucide-react";
+import { ChevronDown, FlaskConical, Loader2, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -44,6 +44,12 @@ interface ClusterDetailTableProps {
 	onSelectionChange?: (ids: Set<string>) => void;
 	/** Callback when "Review AI Responses" bulk action clicked */
 	onBulkReview?: () => void;
+	/** v4: show a "Run agent" action per row when an agent is attached to the cluster */
+	onRunAgent?: (ticket: {
+		id: string;
+		externalId?: string;
+		title: string;
+	}) => void;
 }
 
 // Extract source from source_metadata (Freshservice stores source as a number)
@@ -72,6 +78,7 @@ export function ClusterDetailTable({
 	selectedIds,
 	onSelectionChange,
 	onBulkReview,
+	onRunAgent,
 }: ClusterDetailTableProps) {
 	const { t } = useTranslation("tickets");
 	const [activeTab, setActiveTab] = useState<"open" | "all">("open");
@@ -361,12 +368,20 @@ export function ClusterDetailTable({
 									{renderSortIcon(sortField, "created_at", sortDir)}
 								</Button>
 							</TableHead>
+							{onRunAgent && (
+								<TableHead className="w-[90px] text-right">Agent</TableHead>
+							)}
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{tickets.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={enableSelect ? 8 : 7} className="h-24 text-center">
+								<TableCell
+									colSpan={
+										(enableSelect ? 8 : 7) + (onRunAgent ? 1 : 0)
+									}
+									className="h-24 text-center"
+								>
 									{t("table.noTickets")}
 								</TableCell>
 							</TableRow>
@@ -410,6 +425,25 @@ export function ClusterDetailTable({
 									<TableCell className="text-right text-sm">
 										{formatDate(row.created_at)}
 									</TableCell>
+									{onRunAgent && (
+										<TableCell className="text-right">
+											<Button
+												variant="outline"
+												size="sm"
+												className="h-7 gap-1 text-xs"
+												onClick={() =>
+													onRunAgent({
+														id: row.id,
+														externalId: row.external_id,
+														title: row.subject,
+													})
+												}
+											>
+												<FlaskConical className="size-3" />
+												Run
+											</Button>
+										</TableCell>
+									)}
 								</TableRow>
 							))
 						)}
