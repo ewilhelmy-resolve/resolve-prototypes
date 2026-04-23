@@ -231,6 +231,8 @@ export default function AgentTestPage() {
 	const [showPublishDialog, setShowPublishDialog] = useState(false);
 	const [expandedSources, setExpandedSources] = useState<string | null>(null);
 	const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
+	// Laptop Loan demo: tracks which of the 5 scripted turns we're on.
+	const [laptopDemoStep, setLaptopDemoStep] = useState(0);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -239,18 +241,65 @@ export default function AgentTestPage() {
 	const [demoMode, setDemoMode] = useState(false);
 	const [demoStep, setDemoStep] = useState(0);
 
-	const DEMO_STEPS = [
-		{ label: "Send Prompt", description: "User asks a question" },
-		{ label: "Rate Poor", description: "Thumbs down the response" },
-		{ label: "Give Feedback", description: "Tell agent what's wrong" },
-		{ label: "Rate Good", description: "Approve the retry" },
-		{ label: "Apply Fix", description: "Apply suggestion to instructions" },
-		{ label: "Publish", description: "Make agent live" },
+	const isLaptopLoanDemo = config?.name === "Laptop Loan Assistant";
+
+	const DEMO_STEPS = isLaptopLoanDemo
+		? [
+				{ label: "Start", description: "User asks for a laptop" },
+				{ label: "Start date", description: "Employee provides start date" },
+				{ label: "Return date", description: "Employee provides return date" },
+				{ label: "Pick laptop", description: "Employee picks a model" },
+				{ label: "Delivery", description: "Employee picks delivery method" },
+				{ label: "Publish", description: "Make agent live" },
+			]
+		: [
+				{ label: "Send Prompt", description: "User asks a question" },
+				{ label: "Rate Poor", description: "Thumbs down the response" },
+				{ label: "Give Feedback", description: "Tell agent what's wrong" },
+				{ label: "Rate Good", description: "Approve the retry" },
+				{ label: "Apply Fix", description: "Apply suggestion to instructions" },
+				{ label: "Publish", description: "Make agent live" },
+			];
+
+	const LAPTOP_DEMO_USER_ANSWERS = [
+		"I need a loaner laptop for a trip next week.",
+		"October 15",
+		"October 22",
+		"Dell XPS 13",
+		"Mail it to my home address",
 	];
 
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 	const handleDemoNext = async () => {
+		// Laptop Loan scenario: each Next press sends a scripted user answer
+		// and gets the next agent question. Final step opens publish.
+		if (isLaptopLoanDemo) {
+			if (demoStep < LAPTOP_DEMO_USER_ANSWERS.length) {
+				const userAnswer = LAPTOP_DEMO_USER_ANSWERS[demoStep];
+				addMessage({ type: "user", content: userAnswer });
+				setIsLoading(true);
+				setPhase("processing");
+				await wait(600);
+				const scripted = getLaptopLoanScriptedResponse(demoStep, userAnswer);
+				addMessage({
+					type: "agent",
+					content: scripted.response,
+					sourcesUsed: scripted.sources,
+				});
+				setLaptopDemoStep((s) => Math.min(s + 1, 5));
+				setIsLoading(false);
+				setPhase("idle");
+				setDemoStep(demoStep + 1);
+				return;
+			}
+			// Final step — publish
+			setShowPublishDialog(true);
+			setDemoStep(0);
+			setDemoMode(false);
+			return;
+		}
+
 		switch (demoStep) {
 			case 0: {
 				// Send a test prompt
@@ -361,6 +410,22 @@ export default function AgentTestPage() {
 
 		setIsLoading(true);
 		setPhase("processing");
+
+		// Laptop Loan demo: scripted multi-turn. Skip the rating loop entirely
+		// so sales can keep typing and watch the agent walk the 5-step flow.
+		if (config?.name === "Laptop Loan Assistant") {
+			await new Promise((r) => setTimeout(r, 500));
+			const scripted = getLaptopLoanScriptedResponse(laptopDemoStep, prompt);
+			addMessage({
+				type: "agent",
+				content: scripted.response,
+				sourcesUsed: scripted.sources,
+			});
+			setLaptopDemoStep((s) => Math.min(s + 1, 5));
+			setIsLoading(false);
+			setPhase("idle");
+			return;
+		}
 
 		// TODO: Replace mock with real backend call:
 		// await agentChat.sendMessage(prompt);
@@ -476,6 +541,22 @@ export default function AgentTestPage() {
 		setIsLoading(true);
 		setPhase("processing");
 
+		// Laptop Loan demo: treat feedback as a conversational continuation and
+		// return the next scripted step instead of the generic responder.
+		if (config?.name === "Laptop Loan Assistant") {
+			await new Promise((r) => setTimeout(r, 500));
+			const scripted = getLaptopLoanScriptedResponse(laptopDemoStep, feedback);
+			addMessage({
+				type: "agent",
+				content: scripted.response,
+				sourcesUsed: scripted.sources,
+			});
+			setLaptopDemoStep((s) => Math.min(s + 1, 5));
+			setIsLoading(false);
+			setPhase("idle");
+			return;
+		}
+
 		// TODO: Replace mock with real backend call:
 		// await agentChat.sendMessage(feedback);
 		// The backend should receive feedbackHistory context so the agent
@@ -506,6 +587,7 @@ export default function AgentTestPage() {
 		setCurrentPrompt("");
 		setFeedbackHistory([]);
 		setInput("");
+		setLaptopDemoStep(0);
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -1120,6 +1202,65 @@ export default function AgentTestPage() {
 // Wire: POST /api/agents/:id/execute { prompt, conversationId, feedbackHistory }
 // Response arrives via SSE new_message events (same flow as /chat and /iframe/chat).
 // The SSE → conversationStore → groupMessages → ChatMessage[] pipeline is reusable.
+/**
+ * Scripted multi-turn responses for the Laptop Loan Assistant sales demo.
+ * Matches the 5-step flow defined in AgentBuilderPage's DEMO_SCENARIOS:
+ *   0 → ask when they need the laptop
+ *   1 → ask when they'll return it
+ *   2 → ask which laptop
+ *   3 → ask delivery method
+ *   4 → confirm + request number
+ *   5+ → friendly wrap-up
+ */
+function getLaptopLoanScriptedResponse(
+	step: number,
+	_input: string,
+): {
+	response: string;
+	sources: { type: "knowledge" | "workflow"; name: string }[];
+} {
+	switch (step) {
+		case 0:
+			return {
+				response:
+					"Happy to help you get a loaner laptop. **What date do you first need the laptop?**",
+				sources: [],
+			};
+		case 1:
+			return {
+				response: "Got it. **What date will you return it?**",
+				sources: [],
+			};
+		case 2:
+			return {
+				response:
+					"Thanks. **Which laptop would you like?** Here are the options:\n\n• Dell Latitude 7450\n• Dell XPS 13\n• Dell Precision 5680\n• Lenovo ThinkPad X1 Carbon\n• Lenovo ThinkPad T14",
+				sources: [],
+			};
+		case 3:
+			return {
+				response:
+					"Great choice. **How should we deliver it?**\n\n• Mail it to your home address\n• Hand-deliver to your desk at work",
+				sources: [],
+			};
+		case 4: {
+			const reqNum = `REQ-LAPTOP-${String(Math.floor(100000 + Math.random() * 900000))}`;
+			return {
+				response: `All set! I've submitted your loaner laptop request.\n\n**Confirmation number:** ${reqNum}\n\nYou'll get an email once it's processed. Anything else?`,
+				sources: [
+					{ type: "workflow", name: "Submit temporary Laptop request in ITSM" },
+				],
+			};
+		}
+		default:
+			return {
+				response:
+					"Your request is already in — if you need another one, just let me know and I'll start a new request.",
+				sources: [],
+			};
+	}
+}
+
 function generateResponse(
 	input: string,
 	config: AgentConfig,
