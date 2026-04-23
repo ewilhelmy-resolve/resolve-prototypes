@@ -4,7 +4,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { CrashPage } from "@/components/CrashPage";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/custom/sonner";
 import { useProfile } from "@/hooks/api/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { usePendo } from "@/hooks/usePendo";

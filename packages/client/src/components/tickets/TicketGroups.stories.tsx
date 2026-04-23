@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ChevronDown, Search } from "lucide-react";
 import { Link, MemoryRouter } from "react-router-dom";
+import { Spinner } from "@/components/custom/spinner";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -11,8 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Spinner } from "@/components/ui/spinner";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { TicketGroupSkeleton } from "./TicketGroupSkeleton";
 import { TicketGroupStat } from "./TicketGroupStat";
 
@@ -52,6 +52,8 @@ const mockClusters = [
 		subcluster_name: "VPN Issues",
 		kb_status: "FOUND" as const,
 		ticket_count: 156,
+		costImpact: 4680,
+		mttr: 18,
 	},
 	{
 		id: "2",
@@ -59,6 +61,7 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "GAP" as const,
 		ticket_count: 89,
+		costImpact: 2670,
 	},
 	{
 		id: "3",
@@ -66,6 +69,8 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "PENDING" as const,
 		ticket_count: 234,
+		costImpact: 7020,
+		mttr: 22,
 	},
 	{
 		id: "4",
@@ -73,6 +78,7 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "FOUND" as const,
 		ticket_count: 67,
+		costImpact: 2010,
 	},
 	{
 		id: "5",
@@ -80,6 +86,8 @@ const mockClusters = [
 		subcluster_name: "License Expired",
 		kb_status: "GAP" as const,
 		ticket_count: 45,
+		costImpact: 1350,
+		mttr: 10,
 	},
 	{
 		id: "6",
@@ -87,6 +95,7 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "PENDING" as const,
 		ticket_count: 112,
+		costImpact: 3360,
 	},
 	{
 		id: "7",
@@ -94,6 +103,8 @@ const mockClusters = [
 		subcluster_name: "Battery",
 		kb_status: "FOUND" as const,
 		ticket_count: 78,
+		costImpact: 2340,
+		mttr: 25,
 	},
 	{
 		id: "8",
@@ -101,6 +112,7 @@ const mockClusters = [
 		subcluster_name: "Driver Issues",
 		kb_status: "GAP" as const,
 		ticket_count: 34,
+		costImpact: 1020,
 	},
 	{
 		id: "9",
@@ -108,6 +120,8 @@ const mockClusters = [
 		subcluster_name: null,
 		kb_status: "PENDING" as const,
 		ticket_count: 189,
+		costImpact: 5670,
+		mttr: 15,
 	},
 ];
 
@@ -212,6 +226,8 @@ export const WithClusters: Story = {
 						}
 						count={cluster.ticket_count}
 						knowledgeStatus={cluster.kb_status}
+						costImpact={cluster.costImpact}
+						mttr={cluster.mttr}
 					/>
 				))}
 			</div>
@@ -247,6 +263,8 @@ export const MiddlePage: Story = {
 						}
 						count={cluster.ticket_count}
 						knowledgeStatus={cluster.kb_status}
+						costImpact={cluster.costImpact}
+						mttr={cluster.mttr}
 					/>
 				))}
 			</div>
@@ -305,6 +323,8 @@ export const WithSearch: Story = {
 							title={cluster.name}
 							count={cluster.ticket_count}
 							knowledgeStatus={cluster.kb_status}
+							costImpact={cluster.costImpact}
+							mttr={cluster.mttr}
 						/>
 					))}
 			</div>
@@ -348,9 +368,12 @@ export const NoModelConnected: Story = {
 				<p className="text-muted-foreground">
 					No data source connected. Connect a source to see ticket groups.
 				</p>
-				<Button asChild variant="outline" size="sm">
-					<Link to="/settings/connections/itsm">Connect Source</Link>
-				</Button>
+				<Link
+					to="/settings/connections/itsm"
+					className={buttonVariants({ variant: "outline", size: "sm" })}
+				>
+					Connect Source
+				</Link>
 			</div>
 		</PageWrapper>
 	),
@@ -464,6 +487,8 @@ export const ReImportWithClusters: Story = {
 						}
 						count={cluster.ticket_count}
 						knowledgeStatus={cluster.kb_status}
+						costImpact={cluster.costImpact}
+						mttr={cluster.mttr}
 					/>
 				))}
 			</div>
@@ -493,9 +518,12 @@ export const TrainingFailed: Story = {
 						There was an error processing your tickets. Please check your
 						connection settings.
 					</p>
-					<Button asChild variant="outline" size="sm">
-						<Link to="/settings/connections/itsm">Go to ITSM Connections</Link>
-					</Button>
+					<Link
+						to="/settings/connections/itsm"
+						className={buttonVariants({ variant: "outline", size: "sm" })}
+					>
+						Go to ITSM Connections
+					</Link>
 				</StatusAlert>
 				<div className="flex min-h-[200px] items-center justify-center">
 					<p className="text-muted-foreground">No groups available</p>
@@ -525,9 +553,12 @@ export const TicketsBelowThreshold: Story = {
 						There are 10 tickets in your instance but at least 100 are required
 						to train a model. Add more tickets and sync again.
 					</p>
-					<Button asChild variant="outline" size="sm">
-						<Link to="/settings/connections/itsm">Go to ITSM Connections</Link>
-					</Button>
+					<Link
+						to="/settings/connections/itsm"
+						className={buttonVariants({ variant: "outline", size: "sm" })}
+					>
+						Go to ITSM Connections
+					</Link>
 				</StatusAlert>
 				<div className="flex min-h-[200px] items-center justify-center">
 					<p className="text-muted-foreground">No groups available</p>

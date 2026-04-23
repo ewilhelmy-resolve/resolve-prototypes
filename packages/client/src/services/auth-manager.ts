@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/noNonNullAssertion: keycloak token fields are guaranteed non-null in these branches */
 import type Keycloak from "keycloak-js";
 import type { KeycloakLoginOptions, KeycloakLogoutOptions } from "keycloak-js";
 import mitt, { type Emitter } from "mitt";
@@ -233,6 +234,7 @@ export class AuthManager {
 		const expiryDate = new Date();
 		expiryDate.setDate(expiryDate.getDate() + expiryDays);
 		const secure = window.location.protocol === "https:" ? "; Secure" : "";
+		// biome-ignore lint/suspicious/noDocumentCookie: keycloak session flow requires direct cookie access
 		document.cookie = `${key}=${value}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax${secure}`;
 	}
 

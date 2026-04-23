@@ -11,6 +11,7 @@
 import axios from "axios";
 import { logger } from "../config/logger.js";
 import { getValkeyClient, getValkeyStatus } from "../config/valkey.js";
+import { validateWebhookUrl } from "../utils/validateWebhookUrl.js";
 import type { IframeWebhookConfig } from "./sessionStore.js";
 
 // Valkey key prefix - keys stored as rita:session:{guid}
@@ -141,32 +142,38 @@ export class WorkflowExecutionService {
 			throw new Error("Missing required webhook credentials");
 		}
 
-		// Build webhook URL from config (remove trailing slash if present)
-		const baseUrl = config.actionsApiBaseUrl.replace(/\/$/, "");
-		const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${config.tenantId}`;
-		debug.webhookUrl = webhookUrl;
-
-		// Build HTTP Basic auth header (clientId:clientKey base64 encoded)
-		const authHeader = `Basic ${Buffer.from(`${config.clientId}:${config.clientKey}`).toString("base64")}`;
-
-		// Build workflow trigger payload - spread entire Valkey config
-		const payload = {
-			source: "rita-chat-iframe",
-			action: "workflow_trigger",
-			timestamp: new Date().toISOString(),
-			// Spread entire Valkey config (includes userGuid, tenantId, tokens, etc.)
-			...config,
-		};
-
-		// Store payload in debug (mask tokens)
-		debug.webhookPayloadSent = {
-			...payload,
-			accessToken: payload.accessToken ? "[MASKED]" : undefined,
-			refreshToken: payload.refreshToken ? "[MASKED]" : undefined,
-			clientKey: payload.clientKey ? "[MASKED]" : undefined,
-		};
+		// Declared outside try so the catch block can log it even if SSRF throws
+		let webhookUrl = "";
 
 		try {
+			// Validate actionsApiBaseUrl before use — prevents SSRF via Valkey config
+			const baseUrl = validateWebhookUrl(
+				config.actionsApiBaseUrl.replace(/\/$/, ""),
+				{ skipInDev: true },
+			);
+			webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${config.tenantId}`;
+			debug.webhookUrl = webhookUrl;
+
+			// Build HTTP Basic auth header (clientId:clientKey base64 encoded)
+			const authHeader = `Basic ${Buffer.from(`${config.clientId}:${config.clientKey}`).toString("base64")}`;
+
+			// Build workflow trigger payload - spread entire Valkey config
+			const payload = {
+				source: "rita-chat-iframe",
+				action: "workflow_trigger",
+				timestamp: new Date().toISOString(),
+				// Spread entire Valkey config (includes userGuid, tenantId, tokens, etc.)
+				...config,
+			};
+
+			// Store payload in debug (mask tokens)
+			debug.webhookPayloadSent = {
+				...payload,
+				accessToken: payload.accessToken ? "[MASKED]" : undefined,
+				refreshToken: payload.refreshToken ? "[MASKED]" : undefined,
+				clientKey: payload.clientKey ? "[MASKED]" : undefined,
+			};
+
 			logger.info(
 				{ webhookUrl, tenantId: config.tenantId },
 				"Executing workflow",

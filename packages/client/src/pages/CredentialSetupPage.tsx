@@ -16,6 +16,8 @@ import { ConnectionStatusCard } from "@/components/connection-sources/Connection
 import ConnectionsForm from "@/components/connection-sources/form-elements/ConnectionsForm";
 import FormField from "@/components/connection-sources/form-elements/FormField";
 import FormSection from "@/components/connection-sources/form-elements/FormSection";
+import { Spinner } from "@/components/custom/spinner";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -28,8 +30,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Spinner } from "@/components/ui/spinner";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { type ConnectionSource, STATUS } from "@/constants/connectionSources";
 import {
 	type DelegationStatus,

@@ -1,4 +1,4 @@
-import { ritaToast } from "@/components/ui/rita-toast";
+import { ritaToast } from "@/components/custom/rita-toast";
 
 /**
  * Custom toast utility that wraps ritaToast with a convenient API

@@ -38,7 +38,7 @@ vi.mock("@/hooks/useDataSources", () => ({
 	useCancelSync: vi.fn(() => mockCancelMutation),
 }));
 
-vi.mock("@/components/ui/rita-toast", () => ({
+vi.mock("@/components/custom/rita-toast", () => ({
 	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
@@ -246,7 +246,7 @@ describe("ConfluenceConfiguration", () => {
 	});
 
 	it("should show success toast on successful sync", async () => {
-		const { ritaToast } = await import("@/components/ui/rita-toast");
+		const { ritaToast } = await import("@/components/custom/rita-toast");
 		const source = createMockSource();
 		renderWithProvider(source);
 
@@ -262,7 +262,7 @@ describe("ConfluenceConfiguration", () => {
 	});
 
 	it("should show error toast on failed sync", async () => {
-		const { ritaToast } = await import("@/components/ui/rita-toast");
+		const { ritaToast } = await import("@/components/custom/rita-toast");
 		mockUpdateMutation.mutateAsync.mockRejectedValueOnce(
 			new Error("Sync failed"),
 		);
@@ -282,7 +282,7 @@ describe("ConfluenceConfiguration", () => {
 	});
 
 	it("should show error when backend data is missing", async () => {
-		const { ritaToast } = await import("@/components/ui/rita-toast");
+		const { ritaToast } = await import("@/components/custom/rita-toast");
 		const source = createMockSource({ backendData: undefined });
 		renderWithProvider(source);
 

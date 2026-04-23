@@ -43,6 +43,7 @@ export function getDevMockPayload(sessionKey: string): string | null {
 		clientKey: "dev-key",
 		tokenExpiry: 9999999999,
 		actionsApiBaseUrl: "http://localhost:3001",
+		parentOrigin: "http://localhost:5174",
 		context: activityId
 			? { designer: "activity", activityId, activityName }
 			: undefined,

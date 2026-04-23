@@ -36,13 +36,12 @@ export function DragDropOverlay({
 	};
 
 	return (
-		<div
+		<section
 			className={cn(
 				"fixed inset-0 z-50 flex items-center justify-center",
 				"bg-background/95 backdrop-blur-sm",
 				"animate-in fade-in duration-200",
 			)}
-			role="region"
 			aria-label="File drop zone"
 		>
 			<div
@@ -98,6 +97,6 @@ export function DragDropOverlay({
 					</div>
 				)}
 			</div>
-		</div>
+		</section>
 	);
 }

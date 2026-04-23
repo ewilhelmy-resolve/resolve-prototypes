@@ -437,7 +437,7 @@ describe("UI Form Request E2E", () => {
 
 			// Verify payload uses form_data (NOT data)
 			expect(webhookPayload.source).toBe("rita-chat-iframe");
-			expect(webhookPayload.action).toBe("ui_form_response");
+			expect(webhookPayload.action).toBe("submit_credentials");
 			expect(webhookPayload.request_id).toBe(TEST_REQUEST_ID);
 			expect(webhookPayload.status).toBe("submitted");
 			expect(webhookPayload.form_action).toBe("submit_credentials");

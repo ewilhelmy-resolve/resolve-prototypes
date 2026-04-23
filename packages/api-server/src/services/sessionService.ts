@@ -310,14 +310,26 @@ export class SessionService {
 		return deletedCount;
 	}
 
-	generateSessionCookie(sessionId: string, sessionDurationMs?: number): string {
+	/**
+	 * Cookie names are namespaced to prevent cross-context clobbering (RG-838).
+	 * Rita Go and iframe run on the same domain — without separate cookie names,
+	 * opening an iframe tab overwrites the Rita Go session cookie.
+	 */
+	static readonly COOKIE_NAME = "rita_session";
+	static readonly IFRAME_COOKIE_NAME = "rita_iframe_session";
+
+	generateSessionCookie(
+		sessionId: string,
+		sessionDurationMs?: number,
+		cookieName: string = SessionService.COOKIE_NAME,
+	): string {
 		const isProduction = process.env.NODE_ENV === "production";
 		const domain = process.env.COOKIE_DOMAIN || undefined;
 		const durationMs = sessionDurationMs || DEFAULT_SESSION_DURATION_MS;
 		const maxAgeSeconds = Math.floor(durationMs / 1000);
 
 		const cookieOptions = [
-			`rita_session=${sessionId}`,
+			`${cookieName}=${sessionId}`,
 			`Max-Age=${maxAgeSeconds}`,
 			"Path=/",
 			"HttpOnly",
@@ -328,11 +340,13 @@ export class SessionService {
 		return cookieOptions.join("; ");
 	}
 
-	generateDestroySessionCookie(): string {
+	generateDestroySessionCookie(
+		cookieName: string = SessionService.COOKIE_NAME,
+	): string {
 		const isProduction = process.env.NODE_ENV === "production";
 		const domain = process.env.COOKIE_DOMAIN || undefined;
 		const cookieOptions = [
-			"rita_session=",
+			`${cookieName}=`,
 			"Max-Age=0",
 			"Path=/",
 			"HttpOnly",
@@ -343,9 +357,13 @@ export class SessionService {
 		return cookieOptions.join("; ");
 	}
 
-	parseSessionIdFromCookie(cookieHeader: string | undefined): string | null {
+	parseSessionIdFromCookie(
+		cookieHeader: string | undefined,
+		cookieName: string = SessionService.COOKIE_NAME,
+	): string | null {
 		if (!cookieHeader) return null;
-		const match = cookieHeader.match(/rita_session=([^;]+)/);
+		const regex = new RegExp(`${cookieName}=([^;]+)`);
+		const match = cookieHeader.match(regex);
 		return match ? match[1] : null;
 	}
 

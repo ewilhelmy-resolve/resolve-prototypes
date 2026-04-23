@@ -144,18 +144,13 @@ export function RightPanelCitations({
 							</SheetDescription>
 						</SheetHeader>
 
-						<div
+						<ul
 							className="mt-6 space-y-4 overflow-y-auto pr-2"
 							style={{ maxHeight: "calc(100vh - 180px)" }}
-							role="list"
 							aria-label="Citation sources"
 						>
 							{sources.map((source, index) => (
-								<div
-									key={`${messageId}-${index}`}
-									className="space-y-3"
-									role="listitem"
-								>
+								<li key={`${messageId}-${index}`} className="space-y-3">
 									{source.content ? (
 										// If content exists, show it as the main content
 										<>
@@ -261,9 +256,9 @@ export function RightPanelCitations({
 											</div>
 										</div>
 									)}
-								</div>
+								</li>
 							))}
-						</div>
+						</ul>
 					</SheetContent>
 				</Sheet>
 			</div>

@@ -34,7 +34,7 @@ const meta: Meta = {
 		docs: {
 			description: {
 				component:
-					"Message components used in ChatV1Content showing different variants: simple messages, grouped messages with reasoning, sources, and tasks.",
+					"Message components used in ChatV2MessageRenderer showing different variants: simple messages, grouped messages with reasoning, sources, and tasks.",
 			},
 		},
 	},
@@ -83,6 +83,7 @@ function GroupedMessageExample({
 
 	return (
 		<Message from={message.role} className={isReasoningOnly ? "py-1" : ""}>
+			{/* biome-ignore lint/a11y/useSemanticElements: fieldset breaks flex layout */}
 			<div
 				role="group"
 				className="flex flex-col w-full"

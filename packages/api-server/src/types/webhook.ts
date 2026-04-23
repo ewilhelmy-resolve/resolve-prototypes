@@ -132,6 +132,65 @@ export interface WebhookError extends Error {
 	isRetryable: boolean;
 }
 
+/**
+ * Create Knowledge Webhook Payload
+ * Triggered when user requests AI-generated knowledge article for a cluster
+ */
+export interface CreateKnowledgeWebhookPayload extends BaseWebhookPayload {
+	source: "rita-chat";
+	action: "create_knowledge";
+	cluster_id: string;
+	cluster_name: string;
+	generation_id: string; // Correlation ID — echoed back in RabbitMQ response
+	sources: string[]; // Knowledge sources selected by user (e.g. "historical-tickets", "web-search")
+}
+
+/**
+ * Create Agent Webhook Payload
+ * Triggered when the user runs AgentRitaDeveloper from the agent builder
+ * (workflow mode) — either to create a new agent or to update an existing
+ * one. The `target_agent_eid` field discriminates the two modes:
+ *   - absent  → create a new agent
+ *   - present → update the referenced agent (merge-patch semantics owned by
+ *               the meta-agent).
+ *
+ * @see docs/features/agents/agent-developer-workflow-integration.md section 1
+ */
+export interface CreateAgentWebhookPayload extends BaseWebhookPayload {
+	source: "rita-chat";
+	action: "create_agent";
+	creation_id: string;
+	prompt: string;
+	icon_id: string;
+	icon_color_id: string;
+	admin_type?: string;
+	conversation_starters?: string[];
+	guardrails?: string[];
+	target_agent_eid?: string;
+}
+
+/**
+ * Agent Creation Input Webhook Payload
+ * Triggered when user responds to an input request from AgentRitaDeveloper
+ */
+export interface AgentCreationInputWebhookPayload extends BaseWebhookPayload {
+	source: "rita-chat";
+	action: "agent_creation_input";
+	creation_id: string;
+	prev_execution_id: string;
+	prompt: string;
+}
+
+/**
+ * Cancel Agent Creation Webhook Payload
+ * Triggered when user explicitly cancels agent creation
+ */
+export interface CancelAgentCreationWebhookPayload extends BaseWebhookPayload {
+	source: "rita-chat";
+	action: "cancel_agent_creation";
+	creation_id: string;
+}
+
 // Union type for all webhook payloads
 export type WebhookPayload =
 	| MessageWebhookPayload
@@ -139,4 +198,8 @@ export type WebhookPayload =
 	| DocumentDeletePayload
 	| PasswordResetRequestPayload
 	| PasswordResetCompletePayload
+	| CreateKnowledgeWebhookPayload
+	| CreateAgentWebhookPayload
+	| AgentCreationInputWebhookPayload
+	| CancelAgentCreationWebhookPayload
 	| (BaseWebhookPayload & Record<string, any>);

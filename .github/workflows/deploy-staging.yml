@@ -24,6 +24,10 @@ env:
   DEPLOY_HOST: ${{ vars.STAGING_DEPLOY_HOST || 'ec2-23-21-95-233.compute-1.amazonaws.com' }}
   DEPLOY_USER: ${{ vars.STAGING_DEPLOY_USER || 'ec2-user' }}
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   # Validate all required secrets are configured
   validate-secrets:
@@ -109,6 +113,8 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.ONBOARDING_GITHUB_TOKEN }}
 
       - name: Build API Server
         run: pnpm --filter rita-api-server build
@@ -243,6 +249,9 @@ jobs:
                    VALKEY_URL: ${{ secrets.VALKEY_URL_STAGING }}
                    ROLLBAR_ACCESS_TOKEN: ${{ secrets.ROLLBAR_ACCESS_TOKEN }}
                    ROLLBAR_HASH_SALT: ${{ secrets.ROLLBAR_HASH_SALT }}
+                   LLM_SERVICE_URL: ${{ secrets.STAGING_LLM_SERVICE_URL }}
+                   LLM_SERVICE_API_KEY: ${{ secrets.STAGING_LLM_SERVICE_API_KEY }}
+                   LLM_SERVICE_DB_TENANT: ${{ secrets.STAGING_LLM_SERVICE_DB_TENANT }}
                  healthcheck:
                    test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
                    interval: 30s

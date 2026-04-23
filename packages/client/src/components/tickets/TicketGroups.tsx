@@ -2,6 +2,8 @@ import { BookX, Filter, LayoutGrid, List, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { Spinner } from "@/components/custom/spinner";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +21,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActiveModel } from "@/hooks/useActiveModel";
 import { useInfiniteClusters } from "@/hooks/useClusters";
@@ -119,7 +119,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const debouncedSearch = useDebounce(searchInput, 500);
 
 	// Ticket settings for ROI computation
-	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
 	// Fetch active model to check training state
 	const { data: activeModel, isLoading: isModelLoading } = useActiveModel();
@@ -186,11 +186,11 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 		return rankClustersByRoi(
 			clusters,
 			blendedRatePerHour,
-			timeToTake,
+			avgMinutesPerTicket,
 			activePreset ?? "costImpact",
 			"desc",
 		);
-	}, [clusters, blendedRatePerHour, timeToTake, activePreset]);
+	}, [clusters, blendedRatePerHour, avgMinutesPerTicket, activePreset]);
 
 	// ROI lookup for card view metrics
 	const roiMap = useMemo(() => {

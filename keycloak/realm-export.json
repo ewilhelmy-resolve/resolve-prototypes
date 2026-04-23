@@ -41,12 +41,13 @@
 	],
 	"users": [
 		{
-			"username": "testadmin",
+			"id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+			"username": "testuser",
 			"enabled": true,
 			"emailVerified": true,
-			"email": "admin@resolve.io",
+			"email": "testuser@example.com",
 			"firstName": "Test",
-			"lastName": "Admin",
+			"lastName": "User",
 			"credentials": [
 				{
 					"type": "password",
@@ -56,12 +57,13 @@
 			]
 		},
 		{
-			"username": "testuser",
+			"id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+			"username": "testmember",
 			"enabled": true,
 			"emailVerified": true,
-			"email": "testuser@example.com",
+			"email": "testmember@example.com",
 			"firstName": "Test",
-			"lastName": "User",
+			"lastName": "Member",
 			"credentials": [
 				{
 					"type": "password",

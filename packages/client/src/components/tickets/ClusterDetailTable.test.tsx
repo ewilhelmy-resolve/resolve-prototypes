@@ -1,10 +1,18 @@
 /**
- * ClusterDetailTable.test.tsx - Tests for cluster detail table with
- * cursor-based pagination and source icon handling.
+ * ClusterDetailTable.test.tsx
+ *
+ * Tests covering:
+ * - Pagination (offset-based, URL-synced)
+ * - Tab system (open/all with counts, API param mapping)
+ * - Server-side priority/status filters (params passed to hook)
+ * - Table columns (Priority, Status, Assignment Group)
+ * - Search with debounce
+ * - Non-string source_metadata handling
  */
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -16,7 +24,6 @@ vi.mock("@/hooks/useClusters", () => ({
 	useClusterTickets: (...args: unknown[]) => mockUseClusterTickets(...args),
 }));
 
-// Return value immediately (no debounce delay)
 vi.mock("@/hooks/useDebounce", () => ({
 	useDebounce: <T,>(value: T, _delay?: number): T => value,
 }));
@@ -25,9 +32,13 @@ vi.mock("@/lib/table-utils", () => ({
 	renderSortIcon: () => null,
 }));
 
-vi.mock("@/components/tickets/ReviewAIResponseSheet", () => ({
-	default: () => null,
-}));
+// ---------------------------------------------------------------------------
+// Helper: renders current URL search params for assertions
+// ---------------------------------------------------------------------------
+function LocationDisplay() {
+	const location = useLocation();
+	return <div data-testid="location-search">{location.search}</div>;
+}
 
 // ---------------------------------------------------------------------------
 // Import after mocks
@@ -62,141 +73,489 @@ function makeTickets(count: number, overrides?: Record<string, unknown>) {
 
 const defaultResponse = {
 	data: makeTickets(10),
-	pagination: {
-		total: 50,
-		limit: 20,
-		has_more: true,
-		next_cursor: "cursor-page-2",
-	},
+	pagination: { total: 50, limit: 10, offset: 0, has_more: true },
+};
+
+const page1Response = {
+	data: makeTickets(10),
+	pagination: { total: 50, limit: 10, offset: 10, has_more: true },
+};
+
+const page2Response = {
+	data: makeTickets(10),
+	pagination: { total: 50, limit: 10, offset: 20, has_more: true },
+};
+
+const defaultProps = {
+	clusterId: "cluster-1",
+	totalCount: 50,
+	openCount: 30,
 };
 
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
-describe("ClusterDetailTable pagination", () => {
+describe("ClusterDetailTable", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockUseClusterTickets.mockReturnValue({
 			data: defaultResponse,
 			isLoading: false,
+			isFetching: false,
 			error: null,
 		});
 	});
 
-	// -------------------------------------------------------------------
-	// 1. Next button is enabled when has_more is true
-	// -------------------------------------------------------------------
-	it("pagination Next button is enabled when has_more is true", async () => {
-		render(
-			<TestProviders initialEntries={["/clusters/cluster-1"]}>
-				<ClusterDetailTable clusterId="cluster-1" />
-			</TestProviders>,
-		);
+	// ===================================================================
+	// Pagination
+	// ===================================================================
+	describe("pagination", () => {
+		it("Next button advances page and does not reset to 0", async () => {
+			const user = userEvent.setup();
 
-		const nextButton = screen.getByRole("button", {
-			name: /table\.pagination\.next/i,
+			const { getByTestId } = render(
+				<TestProviders initialEntries={["/clusters/cluster-1?page=0"]}>
+					<ClusterDetailTable {...defaultProps} />
+					<LocationDisplay />
+				</TestProviders>,
+			);
+
+			expect(getByTestId("location-search").textContent).toContain("page=0");
+
+			mockUseClusterTickets.mockReturnValue({
+				data: page1Response,
+				isLoading: false,
+				isFetching: false,
+				error: null,
+			});
+
+			const nextButton = screen.getByRole("button", {
+				name: /table\.pagination\.next/i,
+			});
+			await user.click(nextButton);
+
+			await waitFor(() => {
+				expect(getByTestId("location-search").textContent).toContain("page=1");
+			});
 		});
-		expect(nextButton).not.toBeDisabled();
+
+		it("Previous button goes back to previous page", async () => {
+			const user = userEvent.setup();
+
+			mockUseClusterTickets.mockReturnValue({
+				data: page1Response,
+				isLoading: false,
+				isFetching: false,
+				error: null,
+			});
+
+			const { getByTestId } = render(
+				<TestProviders initialEntries={["/clusters/cluster-1?page=1"]}>
+					<ClusterDetailTable {...defaultProps} />
+					<LocationDisplay />
+				</TestProviders>,
+			);
+
+			await waitFor(() => {
+				expect(getByTestId("location-search").textContent).toContain("page=1");
+			});
+
+			mockUseClusterTickets.mockReturnValue({
+				data: defaultResponse,
+				isLoading: false,
+				isFetching: false,
+				error: null,
+			});
+
+			const prevButton = screen.getByRole("button", {
+				name: /table\.pagination\.previous/i,
+			});
+			await user.click(prevButton);
+
+			await waitFor(() => {
+				expect(getByTestId("location-search").textContent).toContain("page=0");
+			});
+		});
+
+		it("page does not reset when search has not changed", async () => {
+			mockUseClusterTickets.mockReturnValue({
+				data: page2Response,
+				isLoading: false,
+				isFetching: false,
+				error: null,
+			});
+
+			const { getByTestId } = render(
+				<TestProviders initialEntries={["/clusters/cluster-1?page=2"]}>
+					<ClusterDetailTable {...defaultProps} />
+					<LocationDisplay />
+				</TestProviders>,
+			);
+
+			await waitFor(() => {
+				expect(getByTestId("location-search").textContent).toContain("page=2");
+			});
+		});
 	});
 
-	// -------------------------------------------------------------------
-	// 2. First button is disabled when no cursor is set (first page)
-	// -------------------------------------------------------------------
-	it("First button is disabled on initial page load", async () => {
-		render(
-			<TestProviders initialEntries={["/clusters/cluster-1"]}>
-				<ClusterDetailTable clusterId="cluster-1" />
-			</TestProviders>,
-		);
+	// ===================================================================
+	// Tabs
+	// ===================================================================
+	describe("tabs", () => {
+		it("renders Open and All tabs with counts", () => {
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
 
-		const firstButton = screen.getByRole("button", {
-			name: /table\.pagination\.first/i,
+			expect(
+				screen.getByRole("button", { name: /table\.tabs\.open.*\(30\)/i }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /table\.tabs\.all.*\(50\)/i }),
+			).toBeInTheDocument();
 		});
-		expect(firstButton).toBeDisabled();
+
+		it("defaults to Open tab with active styling", () => {
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			const openTab = screen.getByRole("button", {
+				name: /table\.tabs\.open/i,
+			});
+			expect(openTab.className).toContain("border-foreground");
+		});
+
+		it("switching to All tab updates URL param", async () => {
+			const user = userEvent.setup();
+
+			const { getByTestId } = render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+					<LocationDisplay />
+				</TestProviders>,
+			);
+
+			const allTab = screen.getByRole("button", {
+				name: /table\.tabs\.all/i,
+			});
+			await user.click(allTab);
+
+			await waitFor(() => {
+				expect(getByTestId("location-search").textContent).toContain("tab=all");
+			});
+		});
+
+		it("Open tab passes external_status=Open to API", () => {
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1?tab=open"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			expect(mockUseClusterTickets).toHaveBeenCalledWith(
+				"cluster-1",
+				expect.objectContaining({
+					external_status: "Open",
+				}),
+				expect.anything(),
+			);
+		});
+
+		it("All tab passes no external_status to API", () => {
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1?tab=all"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			expect(mockUseClusterTickets).toHaveBeenCalledWith(
+				"cluster-1",
+				expect.objectContaining({
+					external_status: undefined,
+				}),
+				expect.anything(),
+			);
+		});
 	});
 
-	// -------------------------------------------------------------------
-	// 3. Next button is disabled when has_more is false
-	// -------------------------------------------------------------------
-	it("Next button is disabled when has_more is false", async () => {
-		mockUseClusterTickets.mockReturnValue({
-			data: {
-				data: makeTickets(5),
-				pagination: { total: 5, limit: 20, has_more: false },
-			},
-			isLoading: false,
-			error: null,
+	// ===================================================================
+	// Server-side filters
+	// ===================================================================
+	describe("filters", () => {
+		it("renders priority filter when options exist", () => {
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			expect(
+				screen.getByRole("button", { name: /table\.headers\.priority/i }),
+			).toBeInTheDocument();
 		});
 
-		render(
-			<TestProviders initialEntries={["/clusters/cluster-1"]}>
-				<ClusterDetailTable clusterId="cluster-1" />
-			</TestProviders>,
-		);
+		it("passes priority filter to API when selected", async () => {
+			const user = userEvent.setup();
 
-		const nextButton = screen.getByRole("button", {
-			name: /table\.pagination\.next/i,
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			const priorityTrigger = screen.getByRole("button", {
+				name: /table\.headers\.priority/i,
+			});
+			await user.click(priorityTrigger);
+			const mediumOption = await screen.findByRole("menuitem", {
+				name: /Medium/i,
+			});
+			await user.click(mediumOption);
+
+			await waitFor(() => {
+				const lastCall =
+					mockUseClusterTickets.mock.calls[
+						mockUseClusterTickets.mock.calls.length - 1
+					];
+				expect(lastCall[1]).toEqual(
+					expect.objectContaining({ priority: "medium" }),
+				);
+			});
 		});
-		expect(nextButton).toBeDisabled();
+
+		it("status filter only shows on All tab", async () => {
+			const user = userEvent.setup();
+			const mixedTickets = [
+				...makeTickets(1, { external_status: "Open" }),
+				...makeTickets(1, {
+					external_status: "Closed",
+					id: "ticket-closed-0",
+				}),
+			];
+
+			mockUseClusterTickets.mockReturnValue({
+				data: {
+					data: mixedTickets,
+					pagination: { total: 2, limit: 10, offset: 0, has_more: false },
+				},
+				isLoading: false,
+				isFetching: false,
+				error: null,
+			});
+
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			// On Open tab, status filter should not be visible
+			expect(
+				screen.queryByRole("button", { name: /table\.headers\.status/i }),
+			).not.toBeInTheDocument();
+
+			// Switch to All tab
+			const allTab = screen.getByRole("button", {
+				name: /table\.tabs\.all/i,
+			});
+			await user.click(allTab);
+
+			// Status filter should now be visible
+			await waitFor(() => {
+				expect(
+					screen.getByRole("button", { name: /table\.headers\.status/i }),
+				).toBeInTheDocument();
+			});
+		});
+
+		it("resets filters when switching tabs", async () => {
+			const user = userEvent.setup();
+
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			// Apply priority filter
+			const priorityTrigger = screen.getByRole("button", {
+				name: /table\.headers\.priority/i,
+			});
+			await user.click(priorityTrigger);
+			const mediumOption = await screen.findByRole("menuitem", {
+				name: /Medium/i,
+			});
+			await user.click(mediumOption);
+
+			// Switch to All tab
+			const allTab = screen.getByRole("button", {
+				name: /table\.tabs\.all/i,
+			});
+			await user.click(allTab);
+
+			// Priority should be reset (hook called with priority: undefined)
+			await waitFor(() => {
+				const lastCall =
+					mockUseClusterTickets.mock.calls[
+						mockUseClusterTickets.mock.calls.length - 1
+					];
+				expect(lastCall[1]).toEqual(
+					expect.objectContaining({ priority: undefined }),
+				);
+			});
+		});
 	});
 
-	// -------------------------------------------------------------------
-	// 4. Does not crash when source_metadata.source is a number (Freshservice)
-	// -------------------------------------------------------------------
-	it("does not crash when source_metadata.source is a non-string value", async () => {
-		// Freshservice stores source as a number (e.g. 2), not a string
-		const freshserviceTickets = makeTickets(2, {
-			source_metadata: { source: 2, id: 12345 },
+	// ===================================================================
+	// Table columns
+	// ===================================================================
+	describe("columns", () => {
+		it("renders new columns: Priority, Status, Assignment Group", () => {
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			const headers = screen.getAllByRole("columnheader");
+			const headerTexts = headers.map((h) => h.textContent);
+
+			expect(headerTexts).toContain("table.headers.priority");
+			expect(headerTexts).toContain("table.headers.status");
+			expect(headerTexts).toContain("table.headers.assignmentGroup");
 		});
 
-		mockUseClusterTickets.mockReturnValue({
-			data: {
-				data: freshserviceTickets,
-				pagination: { total: 2, limit: 20, has_more: false },
-			},
-			isLoading: false,
-			error: null,
+		it("renders Priority, Status, and Assignment Group cell data", () => {
+			const tickets = makeTickets(1, {
+				priority: "high",
+				external_status: "Open",
+				assigned_to: "Support Team",
+			});
+
+			mockUseClusterTickets.mockReturnValue({
+				data: {
+					data: tickets,
+					pagination: { total: 1, limit: 10, offset: 0, has_more: false },
+				},
+				isLoading: false,
+				isFetching: false,
+				error: null,
+			});
+
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			expect(screen.getByText("High")).toBeInTheDocument();
+			expect(screen.getByText("Open")).toBeInTheDocument();
+			expect(screen.getByText("Support Team")).toBeInTheDocument();
 		});
 
-		render(
-			<TestProviders initialEntries={["/clusters/cluster-1"]}>
-				<ClusterDetailTable clusterId="cluster-1" />
-			</TestProviders>,
-		);
+		it("shows em-dash for missing Priority, Status, and Assignment Group", () => {
+			const tickets = makeTickets(1, {
+				priority: null,
+				external_status: "",
+				assigned_to: null,
+			});
 
-		// Should render ticket subjects without crashing
-		expect(screen.getByText("Ticket subject 0")).toBeInTheDocument();
-		expect(screen.getByText("Ticket subject 1")).toBeInTheDocument();
+			mockUseClusterTickets.mockReturnValue({
+				data: {
+					data: tickets,
+					pagination: { total: 1, limit: 10, offset: 0, has_more: false },
+				},
+				isLoading: false,
+				isFetching: false,
+				error: null,
+			});
+
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1?tab=all"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			const emDashes = screen.getAllByText("\u2014");
+			expect(emDashes.length).toBeGreaterThanOrEqual(3);
+		});
 	});
 
-	// -------------------------------------------------------------------
-	// 5. Clicking Next then First returns to first page
-	// -------------------------------------------------------------------
-	it("clicking Next enables the First button", async () => {
-		const user = userEvent.setup();
+	// ===================================================================
+	// Search
+	// ===================================================================
+	describe("search", () => {
+		it("renders search input with placeholder", () => {
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
 
-		render(
-			<TestProviders initialEntries={["/clusters/cluster-1"]}>
-				<ClusterDetailTable clusterId="cluster-1" />
-			</TestProviders>,
-		);
-
-		const nextButton = screen.getByRole("button", {
-			name: /table\.pagination\.next/i,
-		});
-		const firstButton = screen.getByRole("button", {
-			name: /table\.pagination\.first/i,
+			expect(
+				screen.getByPlaceholderText("table.searchPlaceholder"),
+			).toBeInTheDocument();
 		});
 
-		// First button should be disabled initially
-		expect(firstButton).toBeDisabled();
+		it("search input stays in DOM during refetch", async () => {
+			const user = userEvent.setup();
 
-		// Click Next
-		await user.click(nextButton);
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
 
-		// After clicking Next, First button should be enabled
-		await waitFor(() => {
-			expect(firstButton).not.toBeDisabled();
+			const searchInput = screen.getByPlaceholderText(
+				"table.searchPlaceholder",
+			);
+			await user.type(searchInput, "test query");
+
+			mockUseClusterTickets.mockReturnValue({
+				data: defaultResponse,
+				isLoading: true,
+				isFetching: true,
+				error: null,
+			});
+
+			expect(
+				screen.getByPlaceholderText("table.searchPlaceholder"),
+			).toBeInTheDocument();
+		});
+	});
+
+	// ===================================================================
+	// Edge cases
+	// ===================================================================
+	describe("edge cases", () => {
+		it("does not crash when source_metadata.source is a non-string value", () => {
+			const freshserviceTickets = makeTickets(2, {
+				source_metadata: { source: 2, id: 12345 },
+			});
+
+			mockUseClusterTickets.mockReturnValue({
+				data: {
+					data: freshserviceTickets,
+					pagination: { total: 2, limit: 10, offset: 0, has_more: false },
+				},
+				isLoading: false,
+				isFetching: false,
+				error: null,
+			});
+
+			render(
+				<TestProviders initialEntries={["/clusters/cluster-1"]}>
+					<ClusterDetailTable {...defaultProps} />
+				</TestProviders>,
+			);
+
+			expect(screen.getByText("Ticket subject 0")).toBeInTheDocument();
+			expect(screen.getByText("Ticket subject 1")).toBeInTheDocument();
 		});
 	});
 });

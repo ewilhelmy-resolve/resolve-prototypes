@@ -89,7 +89,7 @@ Use this structure:
 
 <any additional context reviewers need>
 
-Refs <TICKET>
+Refs [<TICKET>](https://resolvesys.atlassian.net/browse/<TICKET>)
 ```
 
 **Do NOT include:**
@@ -107,18 +107,20 @@ Refs <TICKET>
 ### Step 6: Create the PR
 
 ```bash
-gh pr create --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
+gh pr create --title "<TICKET> - <type>(<scope>): <description>" --body "$(cat <<'EOF'
 <description body here>
 
-Refs <TICKET>
+Refs [<TICKET>](https://resolvesys.atlassian.net/browse/<TICKET>)
 EOF
 )"
 ```
 
-**Title format** follows commit conventions:
-- `feat(chat): add message reactions`
-- `fix(session): handle cookie expiry`
-- `refactor(iframe): extract session logic`
+**Title format** — ticket prefix + commit conventions:
+- `CLIEN-89 - feat(chat): add message reactions`
+- `RG-234 - fix(session): handle cookie expiry`
+- `JAR-42 - refactor(iframe): extract session logic`
+
+If no ticket is found, omit the prefix: `<type>(<scope>): <description>`
 
 **No `--draft` flag** — PRs are created ready for review.
 
@@ -139,7 +141,7 @@ duplicates. SSE broadcasts reaction changes to all participants.
 Previously considered inline reactions but threading-style reactions
 below the message better match the existing UI patterns.
 
-Refs CLIEN-89
+Refs [CLIEN-89](https://resolvesys.atlassian.net/browse/CLIEN-89)
 ```
 
 ### Bug Fix PR
@@ -153,7 +155,7 @@ null check and returns proper 404 response.
 
 Found while investigating sidebar rendering errors.
 
-Refs RG-234
+Refs [RG-234](https://resolvesys.atlassian.net/browse/RG-234)
 ```
 
 ### Refactor PR
@@ -167,7 +169,7 @@ endpoints into a shared validator class. No behavior change.
 Prepares for adding new validation rules without duplicating logic
 across endpoints.
 
-Refs RG-150
+Refs [RG-150](https://resolvesys.atlassian.net/browse/RG-150)
 ```
 
 ## Editing Existing PRs
@@ -179,16 +181,16 @@ Use `gh api` to update PRs (more reliable than `gh pr edit`):
 gh api -X PATCH repos/{owner}/{repo}/pulls/PR_NUMBER -f body="$(cat <<'EOF'
 Updated description here
 
-Refs <TICKET>
+Refs [<TICKET>](https://resolvesys.atlassian.net/browse/<TICKET>)
 EOF
 )"
 
 # Update title
-gh api -X PATCH repos/{owner}/{repo}/pulls/PR_NUMBER -f title='feat(chat): updated title'
+gh api -X PATCH repos/{owner}/{repo}/pulls/PR_NUMBER -f title='CLIEN-89 - feat(chat): updated title'
 
 # Update both
 gh api -X PATCH repos/{owner}/{repo}/pulls/PR_NUMBER \
-  -f title='feat(chat): updated title' \
+  -f title='CLIEN-89 - feat(chat): updated title' \
   -f body='Updated description'
 ```
 
@@ -198,4 +200,5 @@ gh api -X PATCH repos/{owner}/{repo}/pulls/PR_NUMBER \
 - **Keep PRs reviewable** — smaller PRs get faster, better reviews
 - **Explain the why** — code shows what; description explains why
 - **No AI attribution** — never mention AI/Claude in PR title or body
-- **Always include ticket ref** — `Refs <TICKET>` at end of body
+- **Always include ticket in title** — `<TICKET> - <type>(<scope>): <description>`
+- **Always include ticket ref** — `Refs [<TICKET>](https://resolvesys.atlassian.net/browse/<TICKET>)` at end of body

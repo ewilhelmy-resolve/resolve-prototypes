@@ -1,9 +1,9 @@
 import type React from "react";
 import { Navigate } from "react-router-dom";
+import { CrashPage } from "@/components/CrashPage";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SSEProvider } from "@/contexts/SSEContext";
 import { useAuthStore } from "@/stores/auth-store.ts";
-
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 
 interface ProtectedRouteProps {
 	children: React.ReactNode;
@@ -12,15 +12,6 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
 	const { authenticated, loading, initialized, error } = useAuthStore();
 	const apiUrl = import.meta.env.VITE_API_URL || "";
-
-	// Demo mode: bypass auth completely
-	if (DEMO_MODE) {
-		return (
-			<SSEProvider apiUrl={apiUrl} enabled={true}>
-				{children}
-			</SSEProvider>
-		);
-	}
 
 	// Wait for initialization to complete
 	if (!initialized || loading) {
@@ -42,11 +33,24 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 		return <Navigate to="/login" replace />;
 	}
 
-	// Wrap authenticated content with SSEProvider
-	// This ensures SSE is available to all protected routes
+	// Wrap authenticated content with SSEProvider and ErrorBoundary
+	// This ensures SSE is available to all protected routes and errors are caught
 	return (
 		<SSEProvider apiUrl={apiUrl} enabled={authenticated && initialized}>
-			{children}
+			<ErrorBoundary
+				fallback={(_error, reset) => (
+					<CrashPage
+						fullScreen={false}
+						title="Something went wrong"
+						description="An unexpected error occurred. Please try again."
+						actionLabel="Go Back"
+						onAction={() => window.history.back()}
+						onRefresh={reset}
+					/>
+				)}
+			>
+				{children}
+			</ErrorBoundary>
 		</SSEProvider>
 	);
 }

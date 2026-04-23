@@ -60,14 +60,20 @@ export async function fetchAllPlatformFlags(
 
 		if (!response.ok) {
 			console.warn(`Batch platform flag fetch failed: ${response.status}`);
-			return flagNames.reduce((acc, name) => ({ ...acc, [name]: false }), {});
+			return flagNames.reduce<Record<string, boolean>>((acc, name) => {
+				acc[name] = false;
+				return acc;
+			}, {});
 		}
 
 		const data = await response.json();
 		return data.flags ?? {};
 	} catch (error) {
 		console.warn("Batch platform flag fetch error:", error);
-		return flagNames.reduce((acc, name) => ({ ...acc, [name]: false }), {});
+		return flagNames.reduce<Record<string, boolean>>((acc, name) => {
+			acc[name] = false;
+			return acc;
+		}, {});
 	}
 }
 

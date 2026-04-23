@@ -17,7 +17,7 @@ import type { WebhookService } from "./WebhookService.js";
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const TOKEN_EXPIRY_DAYS = 1;
-const RATE_LIMIT_PER_ORG_PER_DAY = 10;
+const RATE_LIMIT_PER_ORG_PER_DAY = 50;
 
 /**
  * Mapping of ITSM types to their related knowledge base connection types
@@ -68,7 +68,7 @@ export class CredentialDelegationService {
 			throw new Error("Invalid ITSM system type");
 		}
 
-		// Check rate limit (10 delegations per org per day)
+		// Check rate limit (50 delegations per org per day)
 		const rateLimitCheck = await this.pool.query(
 			`SELECT COUNT(*) as count FROM credential_delegation_tokens
        WHERE organization_id = $1
@@ -81,7 +81,7 @@ export class CredentialDelegationService {
 			RATE_LIMIT_PER_ORG_PER_DAY
 		) {
 			throw new Error(
-				"Rate limit exceeded. Maximum 10 delegations per organization per day.",
+				"Rate limit exceeded. Maximum 50 delegations per organization per day.",
 			);
 		}
 

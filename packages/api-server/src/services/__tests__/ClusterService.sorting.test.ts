@@ -61,7 +61,8 @@ describe("ClusterService.getClusters - Offset Pagination", () => {
 
 	const callGetClusters = async (
 		options: {
-			sort?: "volume" | "automation" | "recent";
+			sort?: "volume" | "automation" | "recent" | "needs_response";
+			sortDir?: "asc" | "desc";
 			limit?: number;
 			offset?: number;
 			search?: string;
@@ -108,6 +109,36 @@ describe("ClusterService.getClusters - Offset Pagination", () => {
 			const sql = getSelectQuery();
 			expect(sql).toMatch(/order by.*ticket_count/i);
 			expect(sql).toMatch(/order by.*"id"/i);
+		});
+	});
+
+	describe("needs_response sort", () => {
+		it("should sort by needs_response_count", async () => {
+			await callGetClusters({ sort: "needs_response" });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/order by.*needs_response_count/i);
+			expect(sql).toMatch(/order by.*"id"/i);
+		});
+	});
+
+	describe("sort_dir parameter", () => {
+		it("should flip primary column to ASC when sortDir=asc", async () => {
+			await callGetClusters({ sort: "volume", sortDir: "asc" });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/ticket_count.*asc/i);
+		});
+
+		it("should keep tiebreaker columns as DESC regardless of sortDir", async () => {
+			await callGetClusters({ sort: "volume", sortDir: "asc" });
+			const sql = getSelectQuery();
+			// Tiebreaker created_at and id should remain desc
+			expect(sql).toMatch(/ticket_count.*asc.*"created_at" desc.*"id" desc/i);
+		});
+
+		it("should default to DESC when sortDir is not provided", async () => {
+			await callGetClusters({ sort: "needs_response" });
+			const sql = getSelectQuery();
+			expect(sql).toMatch(/needs_response_count.*desc/i);
 		});
 	});
 

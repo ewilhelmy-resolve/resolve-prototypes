@@ -2,12 +2,7 @@
 	"name": "rita-chat",
 	"version": "1.0.0",
 	"private": true,
-	"packageManager": "pnpm@9.15.0",
-	"pnpm": {
-		"overrides": {
-			"@types/express-serve-static-core": "^5.0.0"
-		}
-	},
+	"packageManager": "pnpm@10.33.0",
 	"scripts": {
 		"dev": "node scripts/dev.js",
 		"docker:stop": "docker compose down",
@@ -18,6 +13,10 @@
 		"dev:theme": "pnpm --filter keycloak-rita-theme dev",
 		"dev:iframe-app": "pnpm --filter @rita/iframe-app dev",
 		"migrate": "pnpm --filter rita-api-server migrate",
+		"db:reset": "pnpm --filter rita-api-server db:reset",
+		"e2e:check": "pnpm --filter rita-api-server exec tsx ../../scripts/e2e/health-check.ts",
+		"e2e:login": "pnpm --filter rita-api-server exec -- tsx ../../scripts/e2e/login.ts",
+		"e2e:reset-keycloak": "node scripts/e2e/reset-keycloak.mjs",
 		"test:auth": "pnpm --filter rita-api-server test:auth",
 		"test": "pnpm --filter rita-client test:unit:run",
 		"build": "pnpm --filter rita-api-server build && pnpm --filter rita-client build",
@@ -28,7 +27,15 @@
 		"setup": "node scripts/setup.js",
 		"storybook": "pnpm --filter rita-client storybook",
 		"build-storybook": "pnpm --filter rita-client build-storybook",
-		"deploy-storybook": "pnpm --filter rita-client deploy-storybook"
+		"deploy-storybook": "pnpm --filter rita-client deploy-storybook",
+		"spec:extract": "pnpm --filter @rita/spec-engine dev -- extract",
+		"spec:build": "pnpm --filter @rita/spec-engine dev -- build",
+		"spec:check": "pnpm --filter @rita/spec-engine dev -- check all",
+		"spec:heal": "pnpm --filter @rita/spec-engine dev -- heal --fix",
+		"spec:generate": "pnpm --filter @rita/spec-engine dev -- generate",
+		"docs:dev": "pnpm --filter @rita/docs-site start",
+		"docs:build": "pnpm --filter @rita/docs-site build",
+		"docs:deploy": "pnpm --filter @rita/docs-site deploy"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.4",

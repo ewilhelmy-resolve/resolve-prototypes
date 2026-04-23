@@ -1,30 +1,55 @@
 "use client"
 
-import * as CollapsiblePrimitive from "@radix-ui/react-collapsible"
+import * as React from "react"
+import { Collapsible as CollapsiblePrimitive } from "@base-ui/react/collapsible"
+
+import { cn } from "@/lib/utils"
 
 function Collapsible({
+  className,
+  onOpenChange,
   ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.Root>) {
-  return <CollapsiblePrimitive.Root data-slot="collapsible" {...props} />
-}
-
-function CollapsibleTrigger({
-  ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.CollapsibleTrigger>) {
+}: Omit<React.ComponentProps<typeof CollapsiblePrimitive.Root>, "onOpenChange"> & {
+  onOpenChange?: (open: boolean) => void
+}) {
   return (
-    <CollapsiblePrimitive.CollapsibleTrigger
-      data-slot="collapsible-trigger"
+    <CollapsiblePrimitive.Root
+      data-slot="collapsible"
+      className={cn(className)}
+      onOpenChange={onOpenChange ? (open) => onOpenChange(open) : undefined}
       {...props}
     />
   )
 }
 
-function CollapsibleContent({
+function CollapsibleTrigger({
+  asChild,
+  children,
+  className,
   ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.CollapsibleContent>) {
+}: React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Trigger> & {
+  asChild?: boolean
+}) {
   return (
-    <CollapsiblePrimitive.CollapsibleContent
+    <CollapsiblePrimitive.Trigger
+      data-slot="collapsible-trigger"
+      className={cn(className)}
+      {...(asChild && React.isValidElement(children) ? { render: children } : {})}
+      {...props}
+    >
+      {asChild ? undefined : children}
+    </CollapsiblePrimitive.Trigger>
+  )
+}
+
+function CollapsibleContent({
+  className,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Panel>) {
+  return (
+    <CollapsiblePrimitive.Panel
       data-slot="collapsible-content"
+      className={cn(className)}
       {...props}
     />
   )

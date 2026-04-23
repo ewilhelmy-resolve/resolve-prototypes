@@ -11,7 +11,6 @@ export interface FileUploadState {
 	isUploading: boolean;
 	isError: boolean;
 	isSuccess: boolean;
-	// biome-ignore lint/suspicious/noExplicitAny: temporal
 	error: any;
 	handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 	openFileSelector: () => void;

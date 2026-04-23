@@ -4,7 +4,7 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ritaToast } from "@/components/ui/rita-toast";
+import { ritaToast } from "@/components/custom/rita-toast";
 import { AutoSyncToggle } from "./AutoSyncToggle";
 
 // Mock hooks
@@ -28,7 +28,7 @@ vi.mock("@/hooks/useActiveModel", () => ({
 	useActiveModel: vi.fn(() => mockActiveModelQuery),
 }));
 
-vi.mock("@/components/ui/rita-toast", () => ({
+vi.mock("@/components/custom/rita-toast", () => ({
 	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
@@ -57,11 +57,11 @@ describe("AutoSyncToggle", () => {
 			expect(screen.queryByRole("switch")).not.toBeInTheDocument();
 		});
 
-		it("should render when active model exists even if not active", () => {
+		it("should not render when active model is not active", () => {
 			mockActiveModelQuery.data = { active: false };
 			render(<AutoSyncToggle {...defaultProps} />);
 
-			expect(screen.getByRole("switch")).toBeInTheDocument();
+			expect(screen.queryByRole("switch")).not.toBeInTheDocument();
 		});
 
 		it("should render when active model is active", () => {
@@ -119,7 +119,7 @@ describe("AutoSyncToggle", () => {
 
 		it("should update UI optimistically before mutation resolves", async () => {
 			// Use a promise we control to delay mutation resolution
-			let resolveMutation: (() => void) | undefined;
+			let resolveMutation: () => void;
 			mockUpdateMutation.mutateAsync = vi.fn(
 				() =>
 					new Promise<void>((resolve) => {
@@ -138,7 +138,8 @@ describe("AutoSyncToggle", () => {
 			expect(toggle).not.toBeChecked();
 
 			// Resolve the mutation
-			resolveMutation?.();
+			// biome-ignore lint/style/noNonNullAssertion: resolveMutation is assigned in promise callback above
+			resolveMutation!();
 			await waitFor(() => {
 				expect(mockUpdateMutation.mutateAsync).toHaveBeenCalled();
 			});
@@ -178,20 +179,29 @@ describe("AutoSyncToggle", () => {
 		it("should be disabled when disabled prop is true", () => {
 			render(<AutoSyncToggle {...defaultProps} disabled={true} />);
 
-			expect(screen.getByRole("switch")).toBeDisabled();
+			expect(screen.getByRole("switch")).toHaveAttribute(
+				"aria-disabled",
+				"true",
+			);
 		});
 
 		it("should be disabled when mutation is pending", () => {
 			mockUpdateMutation.isPending = true;
 			render(<AutoSyncToggle {...defaultProps} />);
 
-			expect(screen.getByRole("switch")).toBeDisabled();
+			expect(screen.getByRole("switch")).toHaveAttribute(
+				"aria-disabled",
+				"true",
+			);
 		});
 
 		it("should not be disabled by default", () => {
 			render(<AutoSyncToggle {...defaultProps} />);
 
-			expect(screen.getByRole("switch")).not.toBeDisabled();
+			expect(screen.getByRole("switch")).not.toHaveAttribute(
+				"aria-disabled",
+				"true",
+			);
 		});
 	});
 });

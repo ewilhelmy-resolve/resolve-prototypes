@@ -72,11 +72,103 @@ export interface DynamicWorkflowEvent {
 
 // UIFormRequestEvent removed - form requests now come through NewMessageEvent with metadata.type = 'ui_form_request'
 
+// --- Agent Creation Events (placeholder for workflow mode) ---
+
+export interface AgentCreationProgressEvent {
+	type: "agent_creation_progress";
+	data: {
+		creation_id: string;
+		step_type: string;
+		step_label: string;
+		step_detail: string;
+		step_index?: number;
+		total_steps?: number;
+		final_response?: Record<string, unknown>;
+		timestamp: string;
+	};
+}
+
+export interface AgentCreationInputRequiredEvent {
+	type: "agent_creation_input_required";
+	data: {
+		creation_id: string;
+		execution_id: string;
+		message: string;
+		need_inputs: string[];
+		timestamp: string;
+	};
+}
+
+export interface AgentCreationCompletedEvent {
+	type: "agent_creation_completed";
+	data: {
+		creation_id: string;
+		agent_id: string;
+		agent_name: string;
+		/**
+		 * Discriminates create vs update flows. Absent = "create" for backward
+		 * compat with existing server publishers.
+		 */
+		mode?: "create" | "update";
+		timestamp: string;
+	};
+}
+
+export interface AgentCreationFailedEvent {
+	type: "agent_creation_failed";
+	data: {
+		creation_id: string;
+		error: string;
+		timestamp: string;
+	};
+}
+
+// --- Meta-Agent Execution Events (generic for any meta-agent) ---
+
+export interface MetaAgentProgressEvent {
+	type: "meta_agent_progress";
+	data: {
+		execution_request_id: string;
+		agent_name: string;
+		step_label: string;
+		step_detail: string;
+		timestamp: string;
+	};
+}
+
+export interface MetaAgentCompletedEvent {
+	type: "meta_agent_completed";
+	data: {
+		execution_request_id: string;
+		agent_name: string;
+		content: string;
+		success: boolean;
+		timestamp: string;
+	};
+}
+
+export interface MetaAgentFailedEvent {
+	type: "meta_agent_failed";
+	data: {
+		execution_request_id: string;
+		agent_name: string;
+		error: string;
+		timestamp: string;
+	};
+}
+
 export type SSEEvent =
 	| MessageUpdateEvent
 	| NewMessageEvent
 	| DataSourceUpdateEvent
 	| DynamicWorkflowEvent
+	| AgentCreationProgressEvent
+	| AgentCreationInputRequiredEvent
+	| AgentCreationCompletedEvent
+	| AgentCreationFailedEvent
+	| MetaAgentProgressEvent
+	| MetaAgentCompletedEvent
+	| MetaAgentFailedEvent
 	| {
 			type: string;
 			data: any;

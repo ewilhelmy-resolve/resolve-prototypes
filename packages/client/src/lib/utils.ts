@@ -13,3 +13,15 @@ export function cn(...inputs: ClassValue[]) {
 export async function copyToClipboard(text: string): Promise<void> {
 	await navigator.clipboard.writeText(text);
 }
+
+/**
+ * Convert snake_case or kebab-case tool names to Title Case for display.
+ * "get_db_version" → "Get Db Version"
+ * "validate-python-code" → "Validate Python Code"
+ */
+export function humanizeToolName(name: string): string {
+	return name
+		.split(/[_-]/)
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+		.join(" ");
+}

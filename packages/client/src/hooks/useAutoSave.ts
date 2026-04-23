@@ -40,6 +40,7 @@ interface UseAutoSaveReturn {
 	error: string | null;
 }
 
+// TODO(react-19): Consider useTransition for save operations to avoid blocking UI
 export function useAutoSave<T>({
 	data,
 	onSave,

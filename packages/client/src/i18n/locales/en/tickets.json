@@ -414,8 +414,14 @@
 		"blendedRatePerHour": "Blended rate per hour",
 		"costHelper": "Average fully-loaded cost per hour of agent time.",
 		"avgTimePerTicket": "Average time per ticket",
+		"avgMinutesPerTicket": "Average minutes per ticket",
 		"timeToTake": "Time to take",
 		"timeHelper": "Average minutes an agent spends resolving one ticket.",
+		"estMoneySaved": "Est. money saved per ticket",
+		"estTimeSaved": "Est. time saved per ticket",
+		"calculatorFormula": "${{rate}}/hr × {{time}} min = ${{perTicket}} per ticket",
+		"timeFormula": "{{time}} minutes saved per automated ticket",
+		"calculatorNote": "These estimates use the settings above. Adjust to match your org.",
 		"timeUnit": {
 			"minutes": "Minutes"
 		},

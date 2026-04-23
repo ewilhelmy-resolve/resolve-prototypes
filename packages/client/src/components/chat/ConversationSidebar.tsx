@@ -126,6 +126,7 @@ function ConversationItem({
 	};
 
 	return (
+		// biome-ignore lint/a11y/useKeyWithClickEvents: clickable row has button children that handle keyboard independently
 		<div
 			className={cn(
 				"group relative p-3 rounded-lg cursor-pointer transition-all duration-200",
@@ -267,6 +268,7 @@ export function ConversationSidebar() {
 		<>
 			{/* Mobile Overlay */}
 			{isSidebarOpen && (
+				// biome-ignore lint/a11y/useKeyWithClickEvents: clickable row has button children that handle keyboard independently
 				<div
 					className="fixed inset-0 bg-black/50 z-40 lg:hidden"
 					onClick={toggleSidebar}

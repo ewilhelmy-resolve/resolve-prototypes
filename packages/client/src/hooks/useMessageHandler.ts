@@ -14,7 +14,6 @@ import {
 import { useConversationStore } from "@/stores/conversationStore";
 
 export interface MessageHandlerState {
-	// biome-ignore lint/suspicious/noExplicitAny: ok
 	messages: any[];
 	loading: boolean;
 	isSending: boolean;
@@ -25,7 +24,7 @@ export interface MessageHandlerState {
 	// Programmatic message sending (for iframe host communication)
 	sendMessageWithContent: (
 		content: string,
-		metadata?: Record<string, string>,
+		metadata?: Record<string, string | boolean>,
 	) => Promise<void>;
 }
 
@@ -106,7 +105,7 @@ export const useMessageHandler = (
 	// Used by iframe host communication (postMessage API)
 	const sendMessageWithContent = async (
 		content: string,
-		metadata?: Record<string, string>,
+		metadata?: Record<string, string | boolean>,
 	) => {
 		if (!content.trim() || isSending) return;
 

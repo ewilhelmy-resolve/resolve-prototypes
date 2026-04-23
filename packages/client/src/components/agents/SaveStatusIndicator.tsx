@@ -5,6 +5,7 @@
  */
 
 import { Check, Cloud, CloudOff, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { SaveStatus } from "@/hooks/useAutoSave";
 import { cn } from "@/lib/utils";
 
@@ -21,31 +22,35 @@ export function SaveStatusIndicator({
 	error,
 	className,
 }: SaveStatusIndicatorProps) {
+	const { t } = useTranslation("agents");
+
 	const getStatusDisplay = () => {
 		switch (status) {
 			case "saving":
 				return {
 					icon: <Loader2 className="size-3.5 animate-spin" />,
-					text: "Saving...",
+					text: t("saveStatus.saving"),
 					className: "text-muted-foreground",
 				};
 			case "saved":
 				return {
 					icon: <Check className="size-3.5" />,
-					text: "Saved",
+					text: t("saveStatus.saved"),
 					className: "text-emerald-600",
 				};
 			case "error":
 				return {
 					icon: <CloudOff className="size-3.5" />,
-					text: error || "Failed to save",
+					text: error || t("saveStatus.error"),
 					className: "text-destructive",
 				};
 			default:
 				// idle
 				return {
 					icon: <Cloud className="size-3.5" />,
-					text: isDirty ? "Unsaved changes" : "Draft",
+					text: isDirty
+						? t("saveStatus.unsavedChanges")
+						: t("saveStatus.draft"),
 					className: isDirty ? "text-amber-600" : "text-muted-foreground",
 				};
 		}
@@ -54,15 +59,17 @@ export function SaveStatusIndicator({
 	const { icon, text, className: statusClassName } = getStatusDisplay();
 
 	return (
-		<div
+		<output
+			aria-live={status === "error" ? "assertive" : "polite"}
+			aria-atomic="true"
 			className={cn(
 				"flex items-center gap-1.5 text-xs font-medium transition-colors",
 				statusClassName,
 				className,
 			)}
 		>
-			{icon}
+			<span aria-hidden="true">{icon}</span>
 			<span>{text}</span>
-		</div>
+		</output>
 	);
 }

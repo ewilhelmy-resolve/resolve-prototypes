@@ -36,6 +36,7 @@ import { Loader } from "@/components/ai-elements/loader";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ExperienceSwitcher } from "@/components/layouts/ExperienceSwitcher";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
+import { PresenterPanel } from "@/components/tickets/v4/PresenterPanel";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -678,6 +679,7 @@ export default function RitaLayout(props: RitaLayoutProps) {
 	return (
 		<SidebarProvider className="w-screen">
 			<RitaLayoutContent {...props} />
+			<PresenterPanel />
 		</SidebarProvider>
 	);
 }

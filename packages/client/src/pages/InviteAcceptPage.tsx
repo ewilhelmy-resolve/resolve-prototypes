@@ -14,11 +14,11 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { StatusAlert } from "@/components/ui/status-alert";
 import {
 	useAcceptInvitation,
 	useVerifyInvitation,

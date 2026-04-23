@@ -17,6 +17,9 @@ import { EnableAutoRespondModal } from "@/components/tickets/EnableAutoRespondMo
 import ReviewAIResponseSheet, {
 	type ReviewTicket,
 } from "@/components/tickets/ReviewAIResponseSheet";
+import { AgentDryRunSheet } from "@/components/tickets/v4/AgentDryRunSheet";
+import { AgentRunHistory } from "@/components/tickets/v4/AgentRunHistory";
+import { ClusterAgentCard } from "@/components/tickets/v4/ClusterAgentCard";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import {
@@ -24,9 +27,15 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getMockAgentById } from "@/data/mock-v4-agents";
 import { useClusterDetails } from "@/hooks/useClusters";
 import { usePhaseGate } from "@/hooks/usePhaseGate";
 import { getClusterDisplayTitle } from "@/lib/cluster-utils";
+import {
+	type AgentRun,
+	useClusterAgentStore,
+} from "@/stores/clusterAgentStore";
+import { usePresenterStore } from "@/stores/presenterStore";
 import { useTicketSettingsStore } from "@/stores/ticketSettingsStore";
 
 /** Fire confetti animation for success/enriched banners (stops after 2 sec) */
@@ -65,8 +74,30 @@ export default function ClusterDetailPage() {
 	const navigate = useNavigate();
 	const phaseV2 = usePhaseGate("tickets", "v2");
 	const phaseV3 = usePhaseGate("tickets", "v3");
+	const phaseV4 = usePhaseGate("tickets", "v4");
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
-	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
+	const attachedAgentId = useClusterAgentStore((s) =>
+		id ? (s.bindings[id] ?? null) : null,
+	);
+	const attachedAgent = getMockAgentById(attachedAgentId);
+	const [dryRunTicket, setDryRunTicket] = useState<{
+		id: string;
+		externalId?: string;
+		title: string;
+	} | null>(null);
+	const [replayRun, setReplayRun] = useState<AgentRun | null>(null);
+
+	// Presenter mode: observe scripted "open this ticket" directive
+	const scriptedTicket = usePresenterStore((s) => s.scriptedOpenTicket);
+	useEffect(() => {
+		if (!phaseV4 || !attachedAgent || !scriptedTicket) return;
+		setDryRunTicket({
+			id: scriptedTicket.ticketId,
+			externalId: scriptedTicket.externalId,
+			title: scriptedTicket.title,
+		});
+	}, [phaseV4, attachedAgent, scriptedTicket]);
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 	const bannerRef = useRef<HTMLDivElement>(null);
 	const [autoRespondOpen, setAutoRespondOpen] = useState(false);
 	const [autoPopulateOpen, setAutoPopulateOpen] = useState(false);
@@ -267,14 +298,14 @@ export default function ClusterDetailPage() {
 							/>
 							{phaseV2 && (
 								<StatCard
-									value={`$${(blendedRatePerHour * (timeToTake / 60) * cluster.ticket_count).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+									value={`$${(blendedRatePerHour * (avgMinutesPerTicket / 60) * cluster.ticket_count).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
 									label={t("clusterDetail.stats.estMoneySaved")}
 									loading={false}
 								/>
 							)}
 							{phaseV2 && (
 								<StatCard
-									value={`${Math.floor((timeToTake * cluster.ticket_count) / 60)}hr`}
+									value={`${Math.floor((avgMinutesPerTicket * cluster.ticket_count) / 60)}hr`}
 									label={
 										<span className="flex items-center gap-1">
 											{t("clusterDetail.stats.estTimeSaved")}
@@ -286,7 +317,7 @@ export default function ClusterDetailPage() {
 													side="bottom"
 													className="max-w-[220px] text-xs"
 												>
-													{timeToTake} min ×{" "}
+													{avgMinutesPerTicket} min ×{" "}
 													{cluster.ticket_count.toLocaleString()} tickets
 												</TooltipContent>
 											</Tooltip>
@@ -324,6 +355,11 @@ export default function ClusterDetailPage() {
 								setReviewIndex(0);
 								setReviewSheetOpen(true);
 							}}
+							onRunAgent={
+								phaseV4 && attachedAgent
+									? (ticket) => setDryRunTicket(ticket)
+									: undefined
+							}
 						/>
 					</div>
 				</div>
@@ -338,20 +374,29 @@ export default function ClusterDetailPage() {
 							kbStatus={cluster.kb_status}
 						/>
 						<div className="flex flex-col gap-4 p-4">
-							<AutomationReadinessMeter
-								reviewed={8}
-								total={12}
-								hasKnowledge={cluster.kb_status === "FOUND" || knowledgeAdded}
-								trustedPercentage={
-									cluster.kb_status === "FOUND" || knowledgeAdded ? 85 : 0
-								}
-								isAutomationEnabled={autoRespondEnabled}
-								onEnableAutoRespond={() => setAutoRespondOpen(true)}
-								onAddKnowledge={() => setCreateKnowledgeOpen(true)}
-								onReviewKnowledge={() =>
-									navigate("/settings/connections/knowledge")
-								}
-							/>
+							{phaseV4 && id && <ClusterAgentCard clusterId={id} />}
+							{phaseV4 && id && attachedAgent && (
+								<AgentRunHistory
+									clusterId={id}
+									onOpenRun={(run) => setReplayRun(run)}
+								/>
+							)}
+							{!phaseV4 && (
+								<AutomationReadinessMeter
+									reviewed={8}
+									total={12}
+									hasKnowledge={cluster.kb_status === "FOUND" || knowledgeAdded}
+									trustedPercentage={
+										cluster.kb_status === "FOUND" || knowledgeAdded ? 85 : 0
+									}
+									isAutomationEnabled={autoRespondEnabled}
+									onEnableAutoRespond={() => setAutoRespondOpen(true)}
+									onAddKnowledge={() => setCreateKnowledgeOpen(true)}
+									onReviewKnowledge={() =>
+										navigate("/settings/connections/knowledge")
+									}
+								/>
+							)}
 							{(autoRespondEnabled || autoPopulateEnabled) && (
 								<AutomationMetricsCard
 									automated={
@@ -361,13 +406,46 @@ export default function ClusterDetailPage() {
 									}
 								/>
 							)}
-							<AutoPilotRecommendations
-								onEnableClick={handleRecommendationEnable}
-							/>
+							{!phaseV4 && (
+								<AutoPilotRecommendations
+									onEnableClick={handleRecommendationEnable}
+								/>
+							)}
 						</div>
 					</div>
 				)}
 			</div>
+
+			{/* v4: Dry-run sheet */}
+			{phaseV4 && id && (
+				<AgentDryRunSheet
+					open={!!dryRunTicket}
+					onOpenChange={(o) => !o && setDryRunTicket(null)}
+					agent={attachedAgent}
+					ticket={dryRunTicket}
+					clusterId={id}
+				/>
+			)}
+
+			{/* v4: Replay a logged run in read-only */}
+			{phaseV4 && id && (
+				<AgentDryRunSheet
+					open={!!replayRun}
+					onOpenChange={(o) => !o && setReplayRun(null)}
+					agent={replayRun ? getMockAgentById(replayRun.agentId) : null}
+					ticket={
+						replayRun
+							? {
+									id: replayRun.ticketId,
+									externalId: replayRun.ticketExternalId,
+									title: replayRun.ticketExternalId ?? replayRun.ticketId,
+								}
+							: null
+					}
+					clusterId={id}
+					readOnlyRun={replayRun}
+				/>
+			)}
 
 			{/* Autopilot Modals (v3) */}
 			{phaseV3 && (

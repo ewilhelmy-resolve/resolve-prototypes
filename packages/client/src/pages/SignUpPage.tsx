@@ -55,6 +55,7 @@ export function SignUpPage() {
 		if (hasFlag) {
 			// Clear flag to prevent redirect loop
 			localStorage.removeItem(key);
+			// biome-ignore lint/suspicious/noDocumentCookie: keycloak signup flow requires direct cookie access
 			document.cookie = `${key}=; Max-Age=0; path=/; SameSite=Lax`;
 
 			// Redirect to Keycloak sign-in

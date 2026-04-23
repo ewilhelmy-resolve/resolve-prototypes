@@ -1,6 +1,6 @@
 import { Home } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button } from "../components/ui/button";
+import { buttonVariants } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
 
 export function NotFoundPage() {
@@ -22,18 +22,17 @@ export function NotFoundPage() {
 				</div>
 
 				<div className="flex justify-center">
-					<Button
-						asChild
-						className="h-12 px-6 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white"
+					<Link
+						to={authenticated ? "/chat" : "/login"}
+						aria-label="Go to homepage"
+						className={buttonVariants({
+							className:
+								"h-12 px-6 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white",
+						})}
 					>
-						<Link
-							to={authenticated ? "/chat" : "/login"}
-							aria-label="Go to homepage"
-						>
-							<Home className="h-5 w-5 mr-2" />
-							Go Home
-						</Link>
-					</Button>
+						<Home className="h-5 w-5 mr-2" />
+						Go Home
+					</Link>
 				</div>
 			</div>
 		</div>

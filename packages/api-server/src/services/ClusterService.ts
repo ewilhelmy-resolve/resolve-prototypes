@@ -1,3 +1,4 @@
+import crypto, { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { db } from "../config/kysely.js";
 
@@ -5,12 +6,16 @@ function escapeLike(value: string): string {
 	return value.replace(/[\\%_]/g, "\\$&");
 }
 
+/** Statuses considered "closed" across ITSM sources (ServiceNow, Jira, Freshservice, etc.) */
+const CLOSED_STATUSES = ["Closed", "Resolved", "Canceled", "Cancelled"];
+
 import type {
 	ClusterDetails,
 	ClusterListItem,
 	ClusterListQueryOptions,
 	ClusterTicketsQueryOptions,
 	ClusterTotals,
+	GenerateKnowledgeResponse,
 	KBStatus,
 	KbArticle,
 	OffsetPaginationInfo,
@@ -31,8 +36,6 @@ export class ClusterService {
 	): Promise<ClusterDetails | null> {
 		const result = await db
 			.selectFrom("clusters as c")
-			.leftJoin("cluster_kb_links as kb", "kb.cluster_id", "c.id")
-			.leftJoin("tickets as t", "t.cluster_id", "c.id")
 			.select([
 				"c.id",
 				"c.organization_id",
@@ -44,16 +47,22 @@ export class ClusterService {
 				"c.created_at",
 				"c.updated_at",
 			])
-			.select((eb) => [
-				eb.fn.count(sql`DISTINCT kb.id`).as("kb_articles_count"),
-				eb.fn.count(sql`DISTINCT t.id`).as("ticket_count"),
-				sql<number>`COALESCE(COUNT(DISTINCT t.id) FILTER (WHERE t.external_status = 'Open'), 0)`.as(
+			.select([
+				sql<number>`(SELECT COUNT(*) FROM cluster_kb_links WHERE cluster_id = c.id)`.as(
+					"kb_articles_count",
+				),
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id)`.as(
+					"ticket_count",
+				),
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND external_status NOT IN (${sql.join(CLOSED_STATUSES.map((s) => sql.lit(s)))}))`.as(
 					"open_count",
+				),
+				sql<number>`(SELECT COUNT(*) FROM tickets WHERE cluster_id = c.id AND resolution IS NOT NULL)`.as(
+					"historical_ticket_count",
 				),
 			])
 			.where("c.id", "=", clusterId)
 			.where("c.organization_id", "=", organizationId)
-			.groupBy("c.id")
 			.executeTakeFirst();
 
 		if (!result) {
@@ -71,6 +80,7 @@ export class ClusterService {
 			kb_articles_count: Number(result.kb_articles_count),
 			ticket_count: Number(result.ticket_count),
 			open_count: Number(result.open_count),
+			historical_ticket_count: Number(result.historical_ticket_count),
 			created_at: result.created_at as Date,
 			updated_at: result.updated_at as Date,
 		};
@@ -89,6 +99,7 @@ export class ClusterService {
 		totals: ClusterTotals;
 	}> {
 		const sort = options.sort || "recent";
+		const sortDir = options.sortDir || "desc";
 		const period = options.period;
 		const limit = Math.min(options.limit || DEFAULT_LIMIT, MAX_LIMIT);
 		const offset = options.offset || 0;
@@ -175,11 +186,17 @@ export class ClusterService {
 			);
 		}
 
-		// Sorting - always include id as tiebreaker for stable pagination
+		// Sorting - sort_dir applies to primary column only; tiebreakers stay fixed for stable pagination
 		switch (sort) {
 			case "volume":
 				query = query
-					.orderBy(sql`ts.ticket_count`, "desc")
+					.orderBy(sql`ts.ticket_count`, sortDir)
+					.orderBy("c.created_at", "desc")
+					.orderBy("c.id", "desc");
+				break;
+			case "needs_response":
+				query = query
+					.orderBy(sql`ts.needs_response_count`, sortDir)
 					.orderBy("c.created_at", "desc")
 					.orderBy("c.id", "desc");
 				break;
@@ -190,7 +207,7 @@ export class ClusterService {
 					.orderBy("c.id", "desc");
 				break;
 			default:
-				query = query.orderBy("c.created_at", "desc").orderBy("c.id", "desc");
+				query = query.orderBy("c.created_at", sortDir).orderBy("c.id", "desc");
 		}
 
 		const rows = await query.limit(limit).offset(offset).execute();
@@ -330,6 +347,18 @@ export class ClusterService {
 			query = query.where(sql`source_metadata->>'source'`, "=", options.source);
 		}
 
+		// Priority filter
+		if (options.priority) {
+			query = query.where("priority", "=", options.priority);
+		}
+
+		// External status filter — "Open" means "not closed", otherwise exact match
+		if (options.external_status === "Open") {
+			query = query.where("external_status", "not in", CLOSED_STATUSES);
+		} else if (options.external_status) {
+			query = query.where("external_status", "=", options.external_status);
+		}
+
 		// Case-insensitive sorting with stable tiebreaker
 		const sortFieldMap: Record<string, ReturnType<typeof sql>> = {
 			created_at: sql`"created_at"`,
@@ -366,6 +395,17 @@ export class ClusterService {
 						"=",
 						options.source as string,
 					),
+				)
+				.$if(!!options.priority, (qb) =>
+					qb.where("priority", "=", options.priority as string),
+				)
+				.$if(options.external_status === "Open", (qb) =>
+					qb.where("external_status", "not in", CLOSED_STATUSES),
+				)
+				.$if(
+					!!options.external_status && options.external_status !== "Open",
+					(qb) =>
+						qb.where("external_status", "=", options.external_status as string),
 				)
 				.executeTakeFirstOrThrow(),
 		]);
@@ -489,6 +529,182 @@ export class ClusterService {
 			priority: row.priority,
 			created_at: row.created_at as Date,
 			updated_at: row.updated_at as Date,
+		};
+	}
+
+	/**
+	 * Trigger knowledge article generation for a cluster.
+	 * Sends webhook to external platform and returns correlation ID.
+	 */
+	async generateKnowledge(params: {
+		clusterId: string;
+		organizationId: string;
+		userId: string;
+		userEmail: string;
+		sources: string[];
+	}): Promise<GenerateKnowledgeResponse> {
+		const cluster = await this.getClusterDetails(
+			params.clusterId,
+			params.organizationId,
+		);
+
+		if (!cluster) {
+			throw new Error("Cluster not found");
+		}
+
+		const generationId = randomUUID();
+
+		const { WebhookService } = await import("./WebhookService.js");
+		const webhookService = new WebhookService();
+		await webhookService.sendGenericEvent({
+			organizationId: params.organizationId,
+			userId: params.userId,
+			userEmail: params.userEmail,
+			source: "rita-chat",
+			action: "create_knowledge",
+			additionalData: {
+				cluster_id: params.clusterId,
+				cluster_name: cluster.name,
+				generation_id: generationId,
+				sources: params.sources,
+			},
+		});
+
+		return { generation_id: generationId };
+	}
+
+	/**
+	 * Add a knowledge article to a cluster.
+	 * Creates blob + blob_metadata + cluster_kb_links in a single transaction,
+	 * then triggers document_uploaded webhook for RAG indexing.
+	 */
+	async addKbArticle(params: {
+		clusterId: string;
+		organizationId: string;
+		userId: string;
+		userEmail: string;
+		content: string;
+		filename: string;
+	}): Promise<KbArticle> {
+		const exists = await this.clusterExists(
+			params.clusterId,
+			params.organizationId,
+		);
+
+		if (!exists) {
+			throw new Error("Cluster not found");
+		}
+
+		const textBuffer = Buffer.from(params.content, "utf8");
+		const digest = crypto.createHash("sha256").update(textBuffer).digest("hex");
+
+		const { withOrgContext } = await import("../config/database.js");
+		const result = await withOrgContext(
+			params.userId,
+			params.organizationId,
+			async (client) => {
+				await client.query("BEGIN");
+
+				try {
+					// 1. Create or reuse blob (deduplication)
+					let blobId: string;
+					const existingBlob = await client.query(
+						"SELECT blob_id FROM blobs WHERE digest = $1",
+						[digest],
+					);
+
+					if (existingBlob.rows.length > 0) {
+						blobId = existingBlob.rows[0].blob_id;
+					} else {
+						const blobResult = await client.query(
+							"INSERT INTO blobs (data, digest) VALUES ($1, $2) RETURNING blob_id",
+							[textBuffer, digest],
+						);
+						blobId = blobResult.rows[0].blob_id;
+					}
+
+					// 2. Create blob_metadata
+					const metadataResult = await client.query(
+						`INSERT INTO blob_metadata (
+							blob_id, organization_id, user_id, filename, file_size,
+							mime_type, status, source, processed_markdown, metadata
+						) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+						RETURNING id, blob_id, filename, file_size, mime_type, status, created_at, updated_at`,
+						[
+							blobId,
+							params.organizationId,
+							params.userId,
+							params.filename,
+							textBuffer.byteLength,
+							"text/markdown",
+							"processing",
+							"ai-generated",
+							params.content,
+							JSON.stringify({
+								source: "ai-generated",
+								cluster_id: params.clusterId,
+							}),
+						],
+					);
+
+					const metadata = metadataResult.rows[0];
+
+					// 3. Link to cluster
+					await client.query(
+						`INSERT INTO cluster_kb_links (organization_id, cluster_id, blob_metadata_id)
+						VALUES ($1, $2, $3)
+						ON CONFLICT (cluster_id, blob_metadata_id) DO NOTHING`,
+						[params.organizationId, params.clusterId, metadata.id],
+					);
+
+					// 4. Update cluster kb_status to FOUND if currently GAP
+					await client.query(
+						`UPDATE clusters SET kb_status = 'FOUND', updated_at = NOW()
+						WHERE id = $1 AND organization_id = $2 AND kb_status = 'GAP'`,
+						[params.clusterId, params.organizationId],
+					);
+
+					await client.query("COMMIT");
+					return metadata;
+				} catch (error) {
+					await client.query("ROLLBACK");
+					throw error;
+				}
+			},
+		);
+
+		// Send document_uploaded webhook for RAG indexing (non-blocking)
+		try {
+			const { WebhookService } = await import("./WebhookService.js");
+			const webhookService = new WebhookService();
+			const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+			await webhookService.sendDocumentEvent({
+				organizationId: params.organizationId,
+				userId: params.userId,
+				userEmail: params.userEmail,
+				blobMetadataId: result.id,
+				blobId: result.blob_id,
+				documentUrl: `${baseUrl}/api/files/${result.id}/download`,
+				fileType: "text/markdown",
+				fileSize: textBuffer.byteLength,
+				originalFilename: params.filename,
+			});
+		} catch (webhookError) {
+			// Don't fail the request if webhook fails
+			console.error(
+				"[ClusterService] Failed to send document webhook:",
+				webhookError,
+			);
+		}
+
+		return {
+			id: result.id,
+			filename: result.filename,
+			file_size: result.file_size,
+			mime_type: result.mime_type,
+			status: result.status,
+			created_at: result.created_at,
+			updated_at: result.updated_at,
 		};
 	}
 }

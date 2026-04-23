@@ -8,8 +8,6 @@ import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import { RootLayout } from "./components/layouts/RootLayout";
 import { useFeatureFlag } from "./hooks/useFeatureFlags";
 import AgentBuilderPageV2 from "./pages/AgentBuilderPage";
-import AgentBuilderV1Page from "./pages/AgentBuilderV1Page";
-import AgentChatPage from "./pages/AgentChatPage";
 import AgentsPage from "./pages/AgentsPage";
 import AgentTestPage from "./pages/AgentTestPage";
 import ChatV1Page from "./pages/ChatV1Page";
@@ -42,29 +40,16 @@ import KnowledgeSources from "./pages/settings/KnowledgeSources";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TermsOfService from "./pages/TermsOfService";
 import TicketDetailPage from "./pages/TicketDetailPage";
-import TicketsPage from "./pages/TicketsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { VerifyEmailSentPage } from "./pages/VerifyEmailSentPage";
 import WorkflowDesignerPage from "./pages/WorkflowDesignerPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
-import { usePhaseStore } from "./stores/phaseStore";
-
-// Feature-flagged tickets page wrapper
-function TicketsPageWithFlag() {
-	const enableTicketsV2 = useFeatureFlag("ENABLE_TICKETS_V2");
-	return enableTicketsV2 ? <ClustersPage /> : <TicketsPage />;
-}
 
 function AgentsFeatureGate({ children }: { children: React.ReactNode }) {
 	const enableAgents = useFeatureFlag("ENABLE_AGENTS");
 	if (!enableAgents) return <Navigate to="/chat" replace />;
 	return children;
-}
-
-function AgentBuilderByPhase() {
-	const phase = usePhaseStore((state) => state.phases.agents);
-	return phase === "v1" ? <AgentBuilderV1Page /> : <AgentBuilderPageV2 />;
 }
 
 const router = createBrowserRouter([
@@ -187,7 +172,7 @@ const router = createBrowserRouter([
 		path: "/tickets",
 		element: (
 			<RoleProtectedRoute allowedRoles={["owner", "admin"]}>
-				<TicketsPageWithFlag />
+				<ClustersPage />
 			</RoleProtectedRoute>
 		),
 	},
@@ -361,7 +346,7 @@ const router = createBrowserRouter([
 		element: (
 			<ProtectedRoute>
 				<AgentsFeatureGate>
-					<AgentBuilderByPhase />
+					<AgentBuilderPageV2 />
 				</AgentsFeatureGate>
 			</ProtectedRoute>
 		),
@@ -371,17 +356,7 @@ const router = createBrowserRouter([
 		element: (
 			<ProtectedRoute>
 				<AgentsFeatureGate>
-					<AgentBuilderByPhase />
-				</AgentsFeatureGate>
-			</ProtectedRoute>
-		),
-	},
-	{
-		path: "/agents/:id/chat",
-		element: (
-			<ProtectedRoute>
-				<AgentsFeatureGate>
-					<AgentChatPage />
+					<AgentBuilderPageV2 />
 				</AgentsFeatureGate>
 			</ProtectedRoute>
 		),

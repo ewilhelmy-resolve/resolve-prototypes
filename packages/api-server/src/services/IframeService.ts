@@ -1,7 +1,7 @@
 import { pool, withOrgContext } from "../config/database.js";
 import { logger } from "../config/logger.js";
 import { getDevMockPayload, getValkeyClient } from "../config/valkey.js";
-import { getSessionService } from "./sessionService.js";
+import { getSessionService, SessionService } from "./sessionService.js";
 import {
 	type CreateSessionData,
 	getSessionStore,
@@ -123,7 +123,9 @@ export class IframeService {
 					},
 					"Invalid Valkey payload - missing required fields",
 				);
-				debug.error = `Missing required fields: ${debug.missingFields.join(", ")}`;
+				debug.error = `Missing required fields: ${debug.missingFields.join(
+					", ",
+				)}`;
 				return { config: null, debug };
 			}
 
@@ -309,11 +311,12 @@ export class IframeService {
 	async findConversationByActivityId(
 		activityId: number,
 		orgId: string,
+		userId: string,
 	): Promise<string | null> {
 		const result = await pool.query(
 			`SELECT conversation_id FROM activity_contexts
-			 WHERE activity_id = $1 AND organization_id = $2`,
-			[activityId, orgId],
+			 WHERE activity_id = $1 AND organization_id = $2 AND user_id = $3`,
+			[activityId, orgId, userId],
 		);
 		return result.rows[0]?.conversation_id || null;
 	}
@@ -326,12 +329,13 @@ export class IframeService {
 		activityId: number,
 		orgId: string,
 		conversationId: string,
+		userId: string,
 	): Promise<void> {
 		await pool.query(
-			`INSERT INTO activity_contexts (activity_id, organization_id, conversation_id)
-			 VALUES ($1, $2, $3)
-			 ON CONFLICT (activity_id, organization_id) DO UPDATE SET conversation_id = $3`,
-			[activityId, orgId, conversationId],
+			`INSERT INTO activity_contexts (activity_id, organization_id, conversation_id, user_id)
+			 VALUES ($1, $2, $3, $4)
+			 ON CONFLICT (activity_id, organization_id, user_id) DO UPDATE SET conversation_id = $3`,
+			[activityId, orgId, conversationId, userId],
 		);
 		logger.info(
 			{ activityId, orgId, conversationId },
@@ -369,6 +373,22 @@ export class IframeService {
 	}
 
 	/**
+	 * Verify that a conversation belongs to the given user and organization.
+	 * Returns true if the user owns the conversation, false otherwise.
+	 */
+	async verifyConversationOwnership(
+		conversationId: string,
+		organizationId: string,
+		userId: string,
+	): Promise<boolean> {
+		const result = await pool.query(
+			"SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3",
+			[conversationId, organizationId, userId],
+		);
+		return result.rows.length > 0;
+	}
+
+	/**
 	 * Delete a conversation by ID
 	 * Messages cascade delete via FK constraint
 	 */
@@ -382,7 +402,7 @@ export class IframeService {
 	/**
 	 * Send UI action back to platform
 	 * Used by SchemaRenderer when user interacts with dynamic UI components
-	 * TODO: Integrate with WorkflowExecutionService to call Actions API
+	 * Implements typed action handler system with webhook integration
 	 */
 	async sendUIAction(payload: {
 		action: string;
@@ -391,25 +411,64 @@ export class IframeService {
 		conversationId: string;
 		timestamp: string;
 	}): Promise<void> {
-		// For now, log the action. In production, this would:
-		// 1. Look up the webhook config for this conversation
-		// 2. Call the Actions API with the action payload
-		// 3. Handle the response/error
+		// Dynamic import to avoid circular dependency
+		const { getActionHandlerRegistry } = await import(
+			"../handlers/uiActions/ActionHandlerRegistry.js"
+		);
+
+		// Step 1: Lookup message to get organization/user context
+		const client = await pool.connect();
+		let message: any;
+		try {
+			const msgResult = await client.query(
+				`SELECT id, metadata, conversation_id, organization_id, user_id
+				 FROM messages
+				 WHERE id = $1
+				 LIMIT 1`,
+				[payload.messageId],
+			);
+
+			if (msgResult.rows.length === 0) {
+				throw new Error(`Message ${payload.messageId} not found`);
+			}
+
+			message = msgResult.rows[0];
+		} finally {
+			client.release();
+		}
+
+		// Step 2: Get webhook config from session
+		let webhookConfig = null;
+		if (message.conversation_id) {
+			const session = await this.sessionStore.getSessionByConversationId(
+				message.conversation_id,
+			);
+			webhookConfig = session?.iframeWebhookConfig || null;
+		}
+
+		// Step 3: Build handler context
+		const context = {
+			payload,
+			message,
+			webhookConfig,
+		};
+
+		// Step 4: Route to appropriate handler
+		const registry = getActionHandlerRegistry();
+		const result = await registry.handleAction(context);
+
 		logger.info(
 			{
 				action: payload.action,
-				messageId: payload.messageId,
-				conversationId: payload.conversationId,
-				hasData: !!payload.data,
-				dataKeys: payload.data ? Object.keys(payload.data) : [],
+				success: result.success,
+				webhookSent: result.webhookSent,
 			},
-			"UI action received - forwarding to platform",
+			"UI action processed",
 		);
 
-		// TODO: Implement webhook call to Actions API
-		// const session = await this.sessionStore.getSessionByConversationId(payload.conversationId);
-		// const workflowService = getWorkflowExecutionService();
-		// await workflowService.sendUIAction(session.iframeWebhookConfig, payload);
+		if (!result.success) {
+			throw new Error(result.error || "Action handler failed");
+		}
 	}
 
 	/**
@@ -501,11 +560,13 @@ export class IframeService {
 			) {
 				const baseUrl = webhookConfig.actionsApiBaseUrl.replace(/\/$/, "");
 				const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${webhookConfig.tenantId}`;
-				const authHeader = `Basic ${Buffer.from(`${webhookConfig.clientId}:${webhookConfig.clientKey}`).toString("base64")}`;
+				const authHeader = `Basic ${Buffer.from(
+					`${webhookConfig.clientId}:${webhookConfig.clientKey}`,
+				).toString("base64")}`;
 
 				const webhookPayload = {
 					source: "rita-chat-iframe" as const,
-					action: "ui_form_response",
+					action: action || "ui_form_response",
 					tenant_id: webhookConfig.tenantId,
 					user_id: webhookConfig.userGuid,
 					workflow_id: existingMetadata.workflow_id,
@@ -518,24 +579,39 @@ export class IframeService {
 				};
 
 				// Use axios directly for custom URL
-				const axios = (await import("axios")).default;
-				await axios.post(webhookUrl, webhookPayload, {
-					headers: {
-						Authorization: authHeader,
-						"Content-Type": "application/json",
-					},
-					timeout: 10000,
-				});
+				try {
+					const axios = (await import("axios")).default;
+					await axios.post(webhookUrl, webhookPayload, {
+						headers: {
+							Authorization: authHeader,
+							"Content-Type": "application/json",
+						},
+						timeout: 10000,
+					});
 
-				logger.info(
-					{
-						requestId,
-						workflowId: existingMetadata.workflow_id,
-						activityId: existingMetadata.activity_id,
-						webhookUrl,
-					},
-					"UI form response webhook sent to platform",
-				);
+					logger.info(
+						{
+							requestId,
+							workflowId: existingMetadata.workflow_id,
+							activityId: existingMetadata.activity_id,
+							webhookUrl,
+						},
+						"UI form response webhook sent to platform",
+					);
+				} catch (webhookError) {
+					const errMsg =
+						webhookError instanceof Error
+							? webhookError.message
+							: String(webhookError);
+					logger.warn(
+						{
+							requestId,
+							webhookUrl,
+							error: errMsg,
+						},
+						"UI form response webhook failed (non-fatal)",
+					);
+				}
 			} else {
 				logger.warn(
 					{
@@ -560,6 +636,7 @@ export class IframeService {
 		config: IframeWebhookConfig,
 		intentEid?: string,
 		preResolvedOrgId?: string,
+		preResolvedUserId?: string,
 	): Promise<{
 		conversationId: string;
 		ritaOrgId: string;
@@ -570,14 +647,15 @@ export class IframeService {
 			preResolvedOrgId ||
 			(await this.resolveRitaOrg(config.tenantId, config.tenantName)).ritaOrgId;
 
-		// 2. Resolve Rita user from Jarvis GUID
-		const { ritaUserId } = await this.resolveRitaUser(
-			config.userGuid,
-			ritaOrgId,
-		);
+		// 2. Use pre-resolved user or resolve from Jarvis GUID
+		const ritaUserId =
+			preResolvedUserId ||
+			(await this.resolveRitaUser(config.userGuid, ritaOrgId)).ritaUserId;
 
 		// 3. Always ensure org membership (ON CONFLICT DO NOTHING handles idempotency)
-		await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+		if (!preResolvedUserId) {
+			await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+		}
 
 		// 4. Create conversation with Rita IDs (using org context for RLS)
 		const result = await withOrgContext(
@@ -588,7 +666,7 @@ export class IframeService {
 					`INSERT INTO conversations (organization_id, user_id, title, source)
            VALUES ($1, $2, $3, 'jarvis')
            RETURNING id`,
-					[ritaOrgId, ritaUserId, "Iframe Chat"],
+					[ritaOrgId, ritaUserId, "Jarvis Chat"],
 				);
 				return conversationResult.rows[0];
 			},
@@ -624,10 +702,22 @@ export class IframeService {
 			const { config } = await this.fetchValkeyPayloadWithDebug(
 				session.valkeySessionKey,
 			);
-			if (!config?.context) return session;
+			if (!config) return session;
+
+			// Merge all fresh Valkey fields into the session config
+			// Platform may update tokens, chatSessionId, context, etc. mid-session
+			// Filter out undefined values so they don't overwrite existing fields
+			const freshFields: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(config)) {
+				if (value !== undefined && key !== "context") {
+					freshFields[key] = value;
+				}
+			}
 
 			const updatedConfig = {
 				...session.iframeWebhookConfig,
+				...freshFields,
+				// Deep-merge context to preserve existing fields not in the fresh payload
 				context: { ...session.iframeWebhookConfig.context, ...config.context },
 			};
 
@@ -672,8 +762,12 @@ export class IframeService {
 			welcomeText?: string;
 			placeholderText?: string;
 		};
+		/** Host page origin for secure postMessage targetOrigin */
+		parentOrigin?: string;
 		/** Full Valkey payload for dev tools (sensitive fields redacted) */
 		valkeyPayload?: Record<string, unknown>;
+		/** Debug info for diagnosing validation failures (server-side only) */
+		debug?: Record<string, unknown>;
 	}> {
 		// SessionKey (Valkey hashkey) required
 		if (!sessionKey) {
@@ -681,17 +775,23 @@ export class IframeService {
 			return { valid: false, error: "sessionKey required" };
 		}
 
-		// Fetch config from Valkey (dev mode handled in getDevMockPayload)
-		const config = await this.fetchValkeyPayload(sessionKey);
+		// Fetch config from Valkey with debug info (dev mode handled in getDevMockPayload)
+		const { config, debug: valkeyDebug } =
+			await this.fetchValkeyPayloadWithDebug(sessionKey);
 
 		if (!config) {
+			const errorDetail = valkeyDebug?.error || "unknown";
 			logger.warn(
-				{ sessionKey: `${sessionKey.substring(0, 8)}...` },
-				"Invalid or missing Valkey config",
+				{
+					sessionKey: `${sessionKey.substring(0, 8)}...`,
+					valkeyDebug,
+				},
+				"Valkey config unavailable",
 			);
 			return {
 				valid: false,
 				error: "Invalid or missing Valkey configuration",
+				debug: { reason: errorDetail },
 			};
 		}
 
@@ -699,76 +799,68 @@ export class IframeService {
 		let ritaOrgId: string;
 		let ritaUserId: string;
 
-		// Resolve Rita org early (needed for activityId lookup)
+		// Resolve Rita org and user early (needed for activity lookup scoped by user)
 		const { ritaOrgId: resolvedOrgId } = await this.resolveRitaOrg(
 			config.tenantId,
 			config.tenantName,
 		);
 		ritaOrgId = resolvedOrgId;
 
+		const { ritaUserId: resolvedUserId } = await this.resolveRitaUser(
+			config.userGuid,
+			ritaOrgId,
+		);
+		ritaUserId = resolvedUserId;
+		await this.ensureOrgMembership(ritaOrgId, ritaUserId);
+
 		// Extract activityId from context if available
 		const activityId = config.context?.activityId as number | undefined;
 
-		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) activityId lookup, 4) sessionKey lookup, 5) create new
-		let resolvedExistingConversationId =
+		// Use conversation ID from: 1) frontend param, 2) Valkey config, 3) create new
+		// Note: activity_contexts lookup removed (JAR-106) — each activity open creates
+		// a fresh conversation. Closing the activity tab discards conversation state.
+		const resolvedExistingConversationId =
 			existingConversationId || config.conversationId;
 
-		// If no conversation ID provided, check by activityId first (activity-based chat)
-		if (!resolvedExistingConversationId && activityId) {
-			resolvedExistingConversationId =
-				(await this.findConversationByActivityId(activityId, ritaOrgId)) ||
-				undefined;
-			if (resolvedExistingConversationId) {
-				logger.info(
-					{
-						activityId,
-						conversationId: resolvedExistingConversationId,
-					},
-					"Reusing existing conversation for activityId",
-				);
-			}
-		}
-
-		// No activityId = no context to tie conversation to, always create new
-		// (sessionKey is stored for tracking but not used for lookup)
-
 		if (resolvedExistingConversationId) {
-			// Existing conversation - resolve user (org already resolved above)
-			const { ritaUserId: userId } = await this.resolveRitaUser(
-				config.userGuid,
-				ritaOrgId,
-			);
-			ritaUserId = userId;
-
-			// Always ensure membership for existing conversation path
-			await this.ensureOrgMembership(ritaOrgId, ritaUserId);
-
 			// Verify conversation ownership before using it
 			const convCheck = await pool.query(
 				`SELECT id FROM conversations WHERE id = $1 AND organization_id = $2 AND user_id = $3`,
 				[resolvedExistingConversationId, ritaOrgId, ritaUserId],
 			);
 			if (convCheck.rows.length === 0) {
+				const source = existingConversationId
+					? "frontend_param"
+					: "valkey_config";
+
 				logger.warn(
 					{
-						existingConversationId: resolvedExistingConversationId,
+						conversationId: resolvedExistingConversationId,
+						conversationIdSource: source,
 						ritaOrgId,
 						ritaUserId,
 					},
-					"Conversation not found or not owned by user",
+					"Conversation not found in DB — stale reference",
 				);
+
 				return {
 					valid: false,
 					error: "Conversation not found or access denied",
+					debug: {
+						reason: "conversation_not_in_db",
+						conversationId: resolvedExistingConversationId,
+						source,
+					},
 				};
 			}
 			conversationId = resolvedExistingConversationId;
 		} else {
-			// New conversation - pass pre-resolved org to avoid duplicate lookup
+			// New conversation - pass pre-resolved org+user to avoid duplicate lookup
 			const result = await this.createIframeConversation(
 				config,
 				intentEid,
 				ritaOrgId,
+				ritaUserId,
 			);
 			conversationId = result.conversationId;
 			ritaOrgId = result.ritaOrgId;
@@ -780,6 +872,7 @@ export class IframeService {
 					activityId,
 					ritaOrgId,
 					conversationId,
+					ritaUserId,
 				);
 			}
 		}
@@ -795,7 +888,11 @@ export class IframeService {
 		};
 
 		const session = await this.sessionStore.createSession(sessionData);
-		const cookie = this.sessionService.generateSessionCookie(session.sessionId);
+		const cookie = this.sessionService.generateSessionCookie(
+			session.sessionId,
+			undefined,
+			SessionService.IFRAME_COOKIE_NAME,
+		);
 
 		// Store conversationId and valkeySessionKey in session
 		await this.sessionStore.updateSession(session.sessionId, {
@@ -832,6 +929,8 @@ export class IframeService {
 			tenantName: config.tenantName,
 			// Custom UI text from Valkey ui_config (undefined if not provided)
 			uiConfig: config.uiConfig,
+			// Host page origin for secure postMessage targetOrigin
+			parentOrigin: config.parentOrigin,
 			// Full Valkey payload for dev tools (sensitive fields redacted)
 			valkeyPayload: {
 				...config,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * AgentBuilderPage - Chat-based agent creation experience
  *
@@ -11,790 +10,136 @@
 
 import confetti from "canvas-confetti";
 import {
-	AlertCircle,
 	ArrowLeft,
-	Award,
-	BookOpen,
-	Bot,
-	Briefcase,
-	Calendar,
 	Check,
 	ChevronDown,
-	ClipboardList,
-	Clock,
-	Coffee,
-	Database,
-	FileText,
-	Folder,
-	Globe,
-	GraduationCap,
-	Headphones,
-	Heart,
-	HelpCircle,
-	Home,
-	Key,
-	Landmark,
-	Layers,
-	LineChart,
-	Link2,
 	Loader2,
-	Lock,
-	Mail,
-	Map,
-	MessageSquare,
-	Package,
-	Phone,
 	Play,
 	Plus,
-	Rocket,
-	Search,
-	Send,
-	Settings,
-	// Icon picker icons
-	ShieldCheck,
-	ShoppingCart,
 	Sparkles,
-	Squirrel,
-	Star,
-	Target,
-	ThumbsUp,
-	Trash2,
-	TrendingUp,
-	Truck,
-	Users,
-	Workflow,
-	Wrench,
 	X,
 	Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-	useLocation,
-	useNavigate,
-	useParams,
-	useSearchParams,
-} from "react-router-dom";
-import { CanvasBuilder } from "@/components/agents/CanvasBuilder";
-import { FieldHelpPopover } from "@/components/agents/FieldHelpPopover";
-import { SaveStatusIndicator } from "@/components/agents/SaveStatusIndicator";
-import { WizardAgentBuilder } from "@/components/agents/WizardAgentBuilder";
-import { WizardFloatBuilder } from "@/components/agents/WizardFloatBuilder";
+	AddToolsModal,
+	AgentConversationStarters,
+	AgentCreationOverlay,
+	AgentGuardrailsSection,
+	AgentIconPicker,
+	ChangeAgentTypeModal,
+	ConfirmTypeChangeModal,
+	CreateWorkflowModal,
+	ImproveInstructionsDialog,
+	InstructionsExpandedModal,
+	PublishModal,
+	UnlinkWorkflowModal,
+	UnpublishModal,
+} from "@/components/agents/builder";
+import { FieldHelp } from "@/components/custom/FieldHelp";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
-	Dialog,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useAutoSave } from "@/hooks/useAutoSave";
-import { mockImproveInstructions } from "@/lib/mockAgentLlm";
+import { getDemoScenario } from "@/data/demo-agents";
 import {
-	addSkillToInstructions,
-	removeSkillFromInstructions,
-} from "@/lib/skillInstructionSync";
-import { computeSideBySideRows } from "@/lib/textDiff";
+	useAgent,
+	useCheckAgentName,
+	useCreateAgent,
+	useUpdateAgent,
+} from "@/hooks/api/useAgents";
+import { useAgentCreation } from "@/hooks/useAgentCreation";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useGenerateConversationStarters } from "@/hooks/useGenerateConversationStarters";
+import { useImproveInstructions } from "@/hooks/useImproveInstructions";
+import {
+	diffAgentConfig,
+	validateSkillReferences,
+} from "@/lib/agentConfigDiff";
+import {
+	syncAddedToolsInInstructions,
+	syncRemovedToolInInstructions,
+} from "@/lib/agentInstructionsTools";
 import { toast } from "@/lib/toast";
-import { cn } from "@/lib/utils";
+import { cn, humanizeToolName } from "@/lib/utils";
+import {
+	isInstructionsSubmitBlocked,
+	MIN_INSTRUCTIONS_LENGTH,
+	validateBuilder,
+} from "@/pages/agentBuilderValidation";
+import { agentApi } from "@/services/api";
+import { useAgentCreationStore } from "@/stores/agentCreationStore";
+import type {
+	AgentConfig,
+	BuilderMessage,
+	ConversationStep,
+	DebugTraceStep,
+} from "@/types/agent";
 
-interface Message {
-	id: string;
-	role: "assistant" | "user";
-	content: string;
-}
-
-// Debug trace types for test mode
-type DebugStepStatus = "pending" | "running" | "success" | "error";
-
-interface DebugTraceStep {
-	id: string;
-	type: "trigger" | "intent" | "knowledge" | "skill" | "guardrail" | "response";
-	label: string;
-	description: string;
-	status: DebugStepStatus;
-	duration?: number; // milliseconds
-	input?: Record<string, unknown>;
-	output?: Record<string, unknown>;
-	error?: string;
-}
-
-type ConversationStep =
-	| "start"
-	| "intent"
-	| "role"
-	| "responsibilities"
-	| "completion"
-	| "select_type"
-	| "confirm_type"
-	| "trigger_phrases"
-	| "guardrails"
-	| "select_sources"
-	| "confirm"
-	| "knowledge_sources"
-	| "done";
-
-interface AgentCapabilities {
-	webSearch: boolean;
-	imageGeneration: boolean;
-	useAllWorkspaceContent: boolean;
-}
-
-interface AgentConfig {
-	name: string;
-	description: string;
-	role: string;
-	responsibilities: string;
-	completionCriteria: string;
-	agentType: "answer" | "knowledge" | "workflow" | null;
-	knowledgeSources: string[];
-	workflows: string[];
-	hasRequiredConnections: boolean;
-	// Additional configure fields
-	instructions: string;
-	conversationStarters: string[];
-	guardrails: string[]; // Topics/requests the agent should NOT handle
-	// Icon customization
-	iconId: string;
-	iconColorId: string;
-	// Capabilities
-	capabilities: AgentCapabilities;
-}
-
-const AGENT_TYPE_INFO = {
-	answer: {
-		label: "Answer agent",
-		shortLabel: "Answer Agent",
-		shortDesc:
-			"Use your company's knowledge and gives clear, helpful responses.",
-		subDesc: "Perfect for HR, IT, and policy Q&A.",
-		description:
-			"turning pre-retrieved content (from internal or external sources) into clear, conversational answers",
-		iconBg: "bg-purple-100",
-		iconColor: "text-purple-600",
-	},
-	knowledge: {
-		label: "Knowledge agent",
-		shortLabel: "Knowledge Agent",
-		shortDesc: "Documents you choose to give strict, policy-accurate answers",
-		subDesc: "Great for compliance, legal, HR policy, device manuals.",
-		description:
-			"providing answers directly from its pre-configured knowledge without requiring search",
-		iconBg: "bg-emerald-100",
-		iconColor: "text-emerald-600",
-	},
-	workflow: {
-		label: "Workflow agent",
-		shortLabel: "Workflow Agent",
-		shortDesc:
-			"Runs automations and performs tasks based on leveraging Resolve actions.",
-		subDesc: "Great for password resets, access requests, onboarding tasks.",
-		description:
-			"running automations or workflows and explaining the results back to users",
-		iconBg: "bg-slate-100",
-		iconColor: "text-slate-600",
-	},
-};
-
-// Mock available knowledge sources in the org (uploads + connections)
-const AVAILABLE_KNOWLEDGE_SOURCES = [
-	// Uploads
-	{
-		id: "hr-policies",
-		name: "HR Policies",
-		description: "Company HR policies and guidelines",
-		type: "upload",
-		tags: ["hr", "policy", "employee"],
-	},
-	{
-		id: "benefits-guide",
-		name: "Benefits Guide",
-		description: "Health insurance, 401k, and other benefits",
-		type: "upload",
-		tags: ["hr", "benefits", "insurance", "401k"],
-	},
-	{
-		id: "pto-handbook",
-		name: "PTO Handbook",
-		description: "Time off policies and procedures",
-		type: "upload",
-		tags: ["hr", "pto", "vacation", "time off"],
-	},
-	{
-		id: "employee-faq",
-		name: "Employee FAQ",
-		description: "Common questions and answers",
-		type: "upload",
-		tags: ["hr", "faq", "employee"],
-	},
-	{
-		id: "onboarding-docs",
-		name: "Onboarding Documents",
-		description: "New hire information",
-		type: "upload",
-		tags: ["hr", "onboarding", "new hire"],
-	},
-	{
-		id: "it-security-policy",
-		name: "IT Security Policy",
-		description: "Security guidelines and compliance",
-		type: "upload",
-		tags: ["it", "security", "compliance"],
-	},
-	{
-		id: "expense-policy",
-		name: "Expense Policy",
-		description: "Travel and expense reimbursement rules",
-		type: "upload",
-		tags: ["finance", "expense", "travel"],
-	},
-	{
-		id: "code-of-conduct",
-		name: "Code of Conduct",
-		description: "Employee behavior guidelines",
-		type: "upload",
-		tags: ["hr", "compliance", "conduct"],
-	},
-	// Connections
-	{
-		id: "confluence-hr",
-		name: "Confluence - HR Space",
-		description: "HR team Confluence workspace",
-		type: "connection",
-		tags: ["hr", "confluence"],
-	},
-	{
-		id: "sharepoint-policies",
-		name: "SharePoint - Company Policies",
-		description: "Central policy repository",
-		type: "connection",
-		tags: ["policy", "sharepoint"],
-	},
-	{
-		id: "notion-wiki",
-		name: "Notion - Company Wiki",
-		description: "Internal knowledge base",
-		type: "connection",
-		tags: ["wiki", "notion"],
-	},
-	{
-		id: "gdrive-hr",
-		name: "Google Drive - HR Folder",
-		description: "HR shared drive",
-		type: "connection",
-		tags: ["hr", "gdrive"],
-	},
-];
-
-// Mock available workflows in the org (1:1 with agents)
-const AVAILABLE_WORKFLOWS = [
-	{
-		id: "password-reset",
-		name: "Password Reset",
-		description: "Reset user passwords in AD",
-		category: "IT",
-		linkedAgentId: "3",
-		linkedAgentName: "Password Reset Bot",
-		linkedAgentOwnerId: "user-2",
-		linkedAgentOwnerName: "John Smith",
-		linkedAgentOwnerEmail: "john.smith@company.com",
-	},
-	{
-		id: "access-request",
-		name: "Access Request",
-		description: "Request system access",
-		category: "IT",
-		linkedAgentId: null,
-		linkedAgentName: null,
-		linkedAgentOwnerId: null,
-		linkedAgentOwnerName: null,
-		linkedAgentOwnerEmail: null,
-	},
-	{
-		id: "new-hire-setup",
-		name: "New Hire Setup",
-		description: "Provision accounts for new employees",
-		category: "HR",
-		linkedAgentId: null,
-		linkedAgentName: null,
-		linkedAgentOwnerId: null,
-		linkedAgentOwnerName: null,
-		linkedAgentOwnerEmail: null,
-	},
-	{
-		id: "offboarding",
-		name: "Offboarding",
-		description: "Revoke access for departing employees",
-		category: "HR",
-		linkedAgentId: "7",
-		linkedAgentName: "HR Assistant",
-		linkedAgentOwnerId: "user-1",
-		linkedAgentOwnerName: "You",
-		linkedAgentOwnerEmail: null,
-	},
-	{
-		id: "software-install",
-		name: "Software Installation",
-		description: "Request and install approved software",
-		category: "IT",
-		linkedAgentId: null,
-		linkedAgentName: null,
-		linkedAgentOwnerId: null,
-		linkedAgentOwnerName: null,
-		linkedAgentOwnerEmail: null,
-	},
-	{
-		id: "vpn-setup",
-		name: "VPN Setup",
-		description: "Configure VPN access for remote work",
-		category: "IT",
-		linkedAgentId: null,
-		linkedAgentName: null,
-		linkedAgentOwnerId: null,
-		linkedAgentOwnerName: null,
-		linkedAgentOwnerEmail: null,
-	},
-	{
-		id: "expense-submit",
-		name: "Expense Submission",
-		description: "Submit and track expense reports",
-		category: "Finance",
-		linkedAgentId: null,
-		linkedAgentName: null,
-		linkedAgentOwnerId: null,
-		linkedAgentOwnerName: null,
-		linkedAgentOwnerEmail: null,
-	},
-	{
-		id: "pto-request",
-		name: "PTO Request",
-		description: "Submit time off requests",
-		category: "HR",
-		linkedAgentId: null,
-		linkedAgentName: null,
-		linkedAgentOwnerId: null,
-		linkedAgentOwnerName: null,
-		linkedAgentOwnerEmail: null,
-	},
-];
-
-const SUGGESTED_GUARDRAILS = [
-	"Personal financial advice",
-	"Legal advice",
-	"Medical diagnoses",
-	"Salary information",
-	"Confidential employee data",
-	"Off-topic conversation",
-];
-
-// Available skills for the Add Skill modal
-// linkedAgent: null = available, string = name of agent using this skill
-const AVAILABLE_SKILLS = [
-	{
-		id: "lookup-birthday",
-		name: "Lookup employee birthday",
-		author: "System",
-		icon: Calendar,
-		starters: ["When is my coworker's birthday?", "Look up a birthday"],
-		linkedAgent: null,
-		skillInstructions:
-			"Look up employee birthdays from the HR directory. Respond with the employee's name and birthday. If not found, suggest checking the spelling.",
-	},
-	{
-		id: "reset-password",
-		name: "Reset password",
-		author: "IT Team",
-		icon: Key,
-		starters: [
-			"I forgot my password",
-			"Reset my password",
-			"I need a new password",
-		],
-		linkedAgent: "HelpDesk Advisor",
-		skillInstructions:
-			"Guide users through password reset. Verify identity via security questions or MFA before initiating reset. Send temporary password via secure channel and require change on next login.",
-	},
-	{
-		id: "check-pto",
-		name: "Check PTO balance",
-		author: "HR Team",
-		icon: Clock,
-		starters: [
-			"How much PTO do I have?",
-			"Check my time off balance",
-			"How many vacation days left?",
-		],
-		linkedAgent: "PTO Balance Checker",
-		skillInstructions:
-			"Query the HR system for the user's PTO balance including vacation, sick, and personal days. Show accrued, used, and remaining totals.",
-	},
-	{
-		id: "verify-i9",
-		name: "Verify I-9 forms",
-		author: "Compliance",
-		icon: ShieldCheck,
-		starters: ["Check my I-9 status", "Is my I-9 complete?"],
-		linkedAgent: "Compliance Checker",
-		skillInstructions:
-			"Check I-9 employment verification form status. Report whether the form is complete, pending, or missing required documents. Flag any approaching deadlines.",
-	},
-	{
-		id: "check-background",
-		name: "Check background status",
-		author: "HR Team",
-		icon: Users,
-		starters: [
-			"What's my background check status?",
-			"Is my background check done?",
-		],
-		linkedAgent: null,
-		skillInstructions:
-			"Query the background check provider for current status. Report whether the check is pending, in progress, or completed, along with any action items needed.",
-	},
-	{
-		id: "unlock-account",
-		name: "Unlock account",
-		author: "IT Team",
-		icon: Lock,
-		starters: ["My account is locked", "Unlock my account", "I can't log in"],
-		linkedAgent: "HelpDesk Advisor",
-		skillInstructions:
-			"Unlock user accounts that have been locked due to failed login attempts. Verify user identity first, then unlock the account in Active Directory. Confirm the account is accessible.",
-	},
-	{
-		id: "submit-expense",
-		name: "Submit expense report",
-		author: "Finance",
-		icon: Briefcase,
-		starters: [
-			"Submit an expense",
-			"I need to file an expense report",
-			"How do I get reimbursed?",
-		],
-		linkedAgent: null,
-		skillInstructions:
-			"Help users submit expense reports. Collect receipt details, amount, category, and business justification. Submit to the finance system and provide a confirmation number.",
-	},
-	{
-		id: "request-access",
-		name: "Request system access",
-		author: "IT Team",
-		icon: Key,
-		starters: [
-			"Request access to a system",
-			"I need access to...",
-			"How do I get permissions?",
-		],
-		linkedAgent: "HelpDesk Advisor",
-		skillInstructions:
-			"Process system access requests. Collect the target system, required access level, and business justification. Route to the appropriate approver and track request status.",
-	},
-	{
-		id: "provision-account",
-		name: "Provision account",
-		author: "IT Team",
-		icon: Users,
-		starters: [
-			"Set up a new account",
-			"Provision a new employee",
-			"Create user account",
-			"New hire onboarding",
-		],
-		linkedAgent: null,
-		skillInstructions:
-			"Provision new user accounts across enterprise systems. Collect employee details (name, department, role, manager). Create accounts in Active Directory, Google Workspace, and assigned SaaS applications based on department role mapping. Configure email, distribution groups, and default permissions. Send welcome credentials via secure channel.",
-	},
-	{
-		id: "customer-engagement",
-		name: "Customer engagement",
-		author: "CX Team",
-		icon: MessageSquare,
-		starters: [
-			"Follow up with a customer",
-			"Send a customer update",
-			"Check customer satisfaction",
-			"Schedule customer touchpoint",
-		],
-		linkedAgent: null,
-		skillInstructions:
-			"Manage customer engagement touchpoints. Look up customer context from CRM (recent interactions, open tickets, satisfaction score). Draft personalized follow-up messages. Schedule check-ins based on customer health score. Escalate at-risk accounts to the customer success manager.",
-	},
-];
-
-// Merge in workflow-published skills from localStorage
-function getPublishedWorkflowSkills() {
-	try {
-		const raw = localStorage.getItem("publishedWorkflowSkills");
-		if (!raw) return [];
-		return JSON.parse(raw).map((s) => ({
-			id: `wf-${s.id}`,
-			name: s.name,
-			author: "Workflow",
-			icon: Workflow,
-			starters: [s.description || `Run ${s.name}`],
-			linkedAgent: null,
-		}));
-	} catch {
-		return [];
-	}
-}
+const MAX_CONVERSATION_STARTERS = 20;
 
 // Icon picker options
-const ICON_COLORS = [
-	{
-		id: "slate",
-		bg: "bg-slate-800",
-		text: "text-white",
-		preview: "bg-slate-800",
-	},
-	{ id: "blue", bg: "bg-blue-600", text: "text-white", preview: "bg-blue-600" },
-	{
-		id: "emerald",
-		bg: "bg-emerald-600",
-		text: "text-white",
-		preview: "bg-emerald-600",
-	},
-	{
-		id: "violet",
-		bg: "bg-violet-200",
-		text: "text-foreground",
-		preview: "bg-violet-200",
-	},
-	{
-		id: "purple",
-		bg: "bg-purple-600",
-		text: "text-white",
-		preview: "bg-purple-600",
-	},
-	{
-		id: "orange",
-		bg: "bg-orange-500",
-		text: "text-white",
-		preview: "bg-orange-500",
-	},
-	{ id: "rose", bg: "bg-rose-500", text: "text-white", preview: "bg-rose-500" },
-];
-
-const AVAILABLE_ICONS = [
-	{ id: "bot", icon: Bot, keywords: ["ai", "assistant", "robot"] },
-	{
-		id: "message-square",
-		icon: MessageSquare,
-		keywords: ["chat", "conversation"],
-	},
-	{
-		id: "headphones",
-		icon: Headphones,
-		keywords: ["support", "help", "audio"],
-	},
-	{
-		id: "graduation-cap",
-		icon: GraduationCap,
-		keywords: ["education", "learning", "training"],
-	},
-	{
-		id: "shield-check",
-		icon: ShieldCheck,
-		keywords: ["security", "compliance", "protection"],
-	},
-	{
-		id: "clipboard-list",
-		icon: ClipboardList,
-		keywords: ["tasks", "checklist", "todo"],
-	},
-	{ id: "users", icon: Users, keywords: ["team", "people", "hr"] },
-	{ id: "briefcase", icon: Briefcase, keywords: ["work", "business", "job"] },
-	{
-		id: "book-open",
-		icon: BookOpen,
-		keywords: ["knowledge", "documentation", "reading"],
-	},
-	{ id: "zap", icon: Zap, keywords: ["automation", "fast", "power"] },
-	{ id: "target", icon: Target, keywords: ["goals", "focus", "aim"] },
-	{ id: "globe", icon: Globe, keywords: ["web", "international", "world"] },
-	{ id: "lock", icon: Lock, keywords: ["security", "password", "private"] },
-	{ id: "mail", icon: Mail, keywords: ["email", "message", "communication"] },
-	{ id: "phone", icon: Phone, keywords: ["call", "contact", "support"] },
-	{ id: "calendar", icon: Calendar, keywords: ["schedule", "date", "time"] },
-	{ id: "database", icon: Database, keywords: ["data", "storage", "info"] },
-	{ id: "folder", icon: Folder, keywords: ["files", "documents", "organize"] },
-	{
-		id: "settings",
-		icon: Settings,
-		keywords: ["config", "preferences", "options"],
-	},
-	{ id: "wrench", icon: Wrench, keywords: ["tools", "fix", "repair"] },
-	{ id: "heart", icon: Heart, keywords: ["health", "wellness", "care"] },
-	{ id: "star", icon: Star, keywords: ["favorite", "rating", "important"] },
-	{
-		id: "award",
-		icon: Award,
-		keywords: ["achievement", "recognition", "badge"],
-	},
-	{ id: "rocket", icon: Rocket, keywords: ["launch", "startup", "fast"] },
-	{ id: "coffee", icon: Coffee, keywords: ["break", "cafe", "drink"] },
-	{ id: "home", icon: Home, keywords: ["house", "main", "dashboard"] },
-	{ id: "key", icon: Key, keywords: ["access", "password", "unlock"] },
-	{ id: "layers", icon: Layers, keywords: ["stack", "design", "levels"] },
-	{ id: "map", icon: Map, keywords: ["location", "navigation", "directions"] },
-	{ id: "package", icon: Package, keywords: ["shipping", "delivery", "box"] },
-	{
-		id: "shopping-cart",
-		icon: ShoppingCart,
-		keywords: ["ecommerce", "buy", "cart"],
-	},
-	{ id: "thumbs-up", icon: ThumbsUp, keywords: ["like", "approve", "good"] },
-	{
-		id: "trending-up",
-		icon: TrendingUp,
-		keywords: ["growth", "analytics", "increase"],
-	},
-	{
-		id: "line-chart",
-		icon: LineChart,
-		keywords: ["analytics", "data", "metrics"],
-	},
-	{
-		id: "landmark",
-		icon: Landmark,
-		keywords: ["bank", "finance", "government"],
-	},
-	{ id: "truck", icon: Truck, keywords: ["delivery", "shipping", "logistics"] },
-	{ id: "squirrel", icon: Squirrel, keywords: ["animal", "nature", "cute"] },
-];
-
-// Mock saved agents data (for loading existing agents)
-export const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
-	"1": {
-		name: "HelpDesk Advisor",
-		description:
-			"Answers IT support questions and helps employees troubleshoot common technical issues.",
-		role: "A friendly and knowledgeable IT support specialist",
-		responsibilities:
-			"Answering questions about password resets, VPN setup, software installation, and common IT issues. Providing step-by-step troubleshooting guidance.",
-		completionCriteria:
-			"When the user's technical issue is resolved, or when it needs to escalate to the IT team for hands-on support.",
-		agentType: "answer",
-		knowledgeSources: ["IT Security Policy", "Employee FAQ"],
-		workflows: ["Reset password", "Unlock account", "Request system access"],
-		hasRequiredConnections: true,
-		instructions:
-			"## Role\nStore Operations Manager\n\n## Backstory\nYou are an experienced store operations manager responsible for managing and updating store configurations. You have expertise in retail operations and understand the importance of accurate store hour information for customers and employees. You ensure that all store hour updates are properly validated, formatted, and saved to maintain consistency across the system.\n\n## Goal\nTo update the store operating hours for a specific store after authorization has been confirmed.\n\n## Task\nAnalyze context to identify store_id, user_id, new_store_hours, and manager_email. Validate user authorization for the specified store. Check for manager approval — if missing, send notification and wait. Once approved, update the store hours.",
-		conversationStarters: [
-			"I forgot my password",
-			"My account is locked",
-			"I need access to a system",
-		],
-		guardrails: ["payroll questions", "HR policy questions"],
-		iconId: "headphones",
-		iconColorId: "blue",
-		capabilities: {
-			webSearch: true,
-			imageGeneration: false,
-			useAllWorkspaceContent: false,
-		},
-	},
-	"2": {
-		name: "Onboarding Compliance Checker",
-		description:
-			"Answers from compliance docs and ensures new hires complete required training.",
-		role: "A compliance-focused onboarding assistant",
-		responsibilities:
-			"Guiding new employees through required compliance training, answering questions about company policies, and tracking completion status.",
-		completionCriteria:
-			"When the employee confirms understanding of all required compliance items.",
-		agentType: "knowledge",
-		knowledgeSources: [
-			"HR Policies",
-			"Code of Conduct",
-			"IT Security Policy",
-			"Employee FAQ",
-		],
-		workflows: [],
-		hasRequiredConnections: true,
-		instructions:
-			"## Role\nCompliance Onboarding Assistant\n\n## Backstory\nYou are a compliance-focused onboarding assistant that only answers from connected compliance documents. You never make up information — if something isn't in the documents, you say so.\n\n## Goal\nGuide new employees through required compliance training and answer questions about company policies.\n\n## Task\nRespond to compliance questions using only connected knowledge sources. Track which required items the employee has reviewed. Confirm understanding of all required compliance items before marking complete.",
-		conversationStarters: [
-			"What compliance training do I need?",
-			"Tell me about the code of conduct",
-			"What are the security policies?",
-			"How do I report compliance issues?",
-		],
-		guardrails: ["IT troubleshooting", "benefits questions", "payroll"],
-		iconId: "shield-check",
-		iconColorId: "emerald",
-		capabilities: {
-			webSearch: false,
-			imageGeneration: false,
-			useAllWorkspaceContent: false,
-		},
-	},
-	"3": {
-		name: "Password Reset Bot",
-		description: "Automates password resets for employees.",
-		role: "An automated password reset assistant",
-		responsibilities:
-			"Verifying user identity and executing password resets through the AD workflow.",
-		completionCriteria:
-			"When the password reset is complete and the user confirms they can log in.",
-		agentType: "workflow",
-		knowledgeSources: [],
-		workflows: ["Password Reset"],
-		hasRequiredConnections: true,
-		instructions:
-			"## Role\nAutomated Password Reset Assistant\n\n## Backstory\nYou help employees reset their passwords through a secure, verified process. You always verify the user's identity before initiating a reset and explain each step clearly.\n\n## Goal\nVerify user identity and execute password resets through the AD workflow.\n\n## Task\nConfirm user identity via security questions or manager verification. Execute the password reset workflow. Verify the user can log in with new credentials. Escalate if reset fails after 2 attempts.",
-		conversationStarters: [
-			"I need to reset my password",
-			"I'm locked out of my account",
-			"Can you help me change my password?",
-			"My password expired",
-		],
-		guardrails: ["other IT issues", "software installation", "VPN setup"],
-		iconId: "key",
-		iconColorId: "purple",
-		capabilities: {
-			webSearch: false,
-			imageGeneration: false,
-			useAllWorkspaceContent: false,
-		},
-	},
-};
-
 export default function AgentBuilderPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
-	const agentName = location.state?.agentName || "Untitled Agent";
+	const demoScenario = getDemoScenario(
+		new URLSearchParams(location.search).get("scenario"),
+	);
+	const agentName = location.state?.agentName || t("builder.untitledAgent");
 	const duplicatedConfig = location.state?.duplicatedConfig as
+		| AgentConfig
+		| undefined;
+	const initialConfig = location.state?.initialConfig as
 		| AgentConfig
 		| undefined;
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	// Check if we're editing an existing agent
 	const isEditing = !!agentId;
-	const savedAgent = agentId ? MOCK_SAVED_AGENTS[agentId] : null;
 	const isDuplicate = !!duplicatedConfig;
 
+	// Fetch existing agent from API when editing
+	const {
+		data: savedAgent,
+		isLoading: isLoadingAgent,
+		error: loadError,
+	} = useAgent(agentId);
+
+	const isPublished = savedAgent?.state === "PUBLISHED";
+	const isDraft = savedAgent?.state === "DRAFT";
+
+	// Track live EID (starts undefined for create, set after first save)
+	const [agentEid, setAgentEid] = useState<string | undefined>(agentId);
+	const createAgent = useCreateAgent();
+	const updateAgent = useUpdateAgent();
+
 	// Default to configure tab
-	const [activeTab, setActiveTab] = useState<"configure" | "access">(
+	const [_activeTab, _setActiveTab] = useState<"configure" | "access">(
 		"configure",
 	);
-	const [showTestModal, setShowTestModal] = useState(false);
-	const [inputValue, setInputValue] = useState("");
+	const [showTestModal, _setShowTestModal] = useState(false);
+	const [_inputValue, _setInputValue] = useState("");
 	const [step, setStep] = useState<ConversationStep>(
-		isEditing || isDuplicate ? "done" : "start",
+		isEditing || isDuplicate || demoScenario ? "done" : "start",
 	);
-	const [isTyping, setIsTyping] = useState(false);
-	const [_statusMessage, _setStatusMessage] = useState<string | null>(null);
+	const [_isTyping, _setIsTyping] = useState(false);
 	const [config, setConfig] = useState<AgentConfig>(
-		duplicatedConfig ||
-			savedAgent || {
+		// Scenario wins over everything — sales expects a fresh, consistent
+		// pre-fill regardless of prior duplicated/initial state or persisted drafts.
+		demoScenario?.config ||
+			duplicatedConfig ||
+			initialConfig || {
 				name: agentName,
 				description: "",
 				role: "",
@@ -802,7 +147,7 @@ export default function AgentBuilderPage() {
 				completionCriteria: "",
 				agentType: null,
 				knowledgeSources: [],
-				workflows: [],
+				tools: [],
 				hasRequiredConnections: false,
 				instructions: "",
 				conversationStarters: [],
@@ -817,41 +162,77 @@ export default function AgentBuilderPage() {
 			},
 	);
 
-	// Legacy button states (for old flow)
-	const [showConfirmButtons, setShowConfirmButtons] = useState(false);
-	const [_showKnowledgeButtons, _setShowKnowledgeButtons] = useState(false);
-	const [_showWorkflowButtons, _setShowWorkflowButtons] = useState(false);
+	// Seed config from API data when editing (once loaded)
+	const [hasLoadedFromApi, setHasLoadedFromApi] = useState(false);
+	useEffect(() => {
+		if (
+			savedAgent &&
+			!hasLoadedFromApi &&
+			!isDuplicate &&
+			!initialConfig &&
+			!demoScenario
+		) {
+			setConfig(savedAgent);
+			setStep("done");
+			setHasLoadedFromApi(true);
+		}
+	}, [savedAgent, hasLoadedFromApi, isDuplicate, initialConfig, demoScenario]);
+
+	// Debounced name uniqueness check
+	const debouncedName = useDebounce(config.name, 300);
+	const nameToCheck =
+		debouncedName && debouncedName !== savedAgent?.name ? debouncedName : "";
+	const { data: nameCheck, isFetching: isCheckingName } =
+		useCheckAgentName(nameToCheck);
+	const nameTaken = nameCheck?.available === false;
+	const nameAvailable =
+		nameCheck?.available === true && debouncedName === config.name.trim();
+	const [nameTouched, setNameTouched] = useState(false);
+	const [instructionsTouched, setInstructionsTouched] = useState(false);
+	const builderErrors = validateBuilder({
+		nameTouched,
+		name: config.name,
+		instructionsTouched,
+		instructions: config.instructions,
+		description: config.description,
+	});
+	const nameEmpty = builderErrors.name === "required";
+	const instructionsErrorCode = builderErrors.instructions;
+	const instructionsError = instructionsErrorCode !== null;
+	// Blocks Create/Publish/Save regardless of touch state — derived from raw fields.
+	const instructionsBlocksSubmit = isInstructionsSubmitBlocked(
+		config.instructions,
+		config.description,
+	);
+	const hasEmptyGuardrails =
+		config.guardrails.length > 0 && config.guardrails.some((g) => !g.trim());
+
+	const [_showConfirmButtons, _setShowConfirmButtons] = useState(false);
 
 	// Selection UI states (new flow)
-	const [showTypeSelector, setShowTypeSelector] = useState(false);
-	const [showSourceSelector, setShowSourceSelector] = useState(false);
-	const [selectedType, setSelectedType] = useState<
+	const [_showTypeSelector, _setShowTypeSelector] = useState(false);
+	const [_showSourceSelector, _setShowSourceSelector] = useState(false);
+	const [_selectedType, _setSelectedType] = useState<
 		"answer" | "knowledge" | "workflow" | null
 	>(null);
-	const [_suggestedType, _setSuggestedType] = useState<
-		"answer" | "knowledge" | "workflow"
-	>("answer");
-	const [selectedSources, setSelectedSources] = useState<string[]>([]);
-	const [_selectedWorkflows, _setSelectedWorkflows] = useState<string[]>([]);
-	const [_sourceSearchQuery, _setSourceSearchQuery] = useState("");
-	const [_suggestedSourceIds, _setSuggestedSourceIds] = useState<string[]>([]);
-	const [showTypeConfirmation, setShowTypeConfirmation] = useState(false);
-	const [showTriggerPhrases, setShowTriggerPhrases] = useState(false);
-	const [suggestedTriggerPhrases, setSuggestedTriggerPhrases] = useState<
+	const [_selectedSources, _setSelectedSources] = useState<string[]>([]);
+	const [_showTypeConfirmation, _setShowTypeConfirmation] = useState(false);
+	const [_showTriggerPhrases, _setShowTriggerPhrases] = useState(false);
+	const [_suggestedTriggerPhrases, _setSuggestedTriggerPhrases] = useState<
 		string[]
 	>([]);
-	const [showGuardrails, setShowGuardrails] = useState(true);
-	const [guardrailInput, setGuardrailInput] = useState("");
+	const [_showGuardrails, _setShowGuardrails] = useState(true);
+	const [_guardrailInput, _setGuardrailInput] = useState("");
 
 	// Test tab state
-	const [testMessages, setTestMessages] = useState<Message[]>([]);
-	const [testInput, setTestInput] = useState("");
-	const [isTestTyping, setIsTestTyping] = useState(false);
-	const [isTestMode, setIsTestMode] = useState(false);
-	const [debugTrace, setDebugTrace] = useState<DebugTraceStep[]>([]);
-	const [expandedStep, setExpandedStep] = useState<string | null>(null);
-	const [showOnlyErrors, setShowOnlyErrors] = useState(false);
-	const [showDebugPanel, setShowDebugPanel] = useState(false);
+	const [testMessages, setTestMessages] = useState<BuilderMessage[]>([]);
+	const [_testInput, _setTestInput] = useState("");
+	const [_isTestTyping, _setIsTestTyping] = useState(false);
+	const [_isTestMode, _setIsTestMode] = useState(false);
+	const [_debugTrace, _setDebugTrace] = useState<DebugTraceStep[]>([]);
+	const [_expandedStep, _setExpandedStep] = useState<string | null>(null);
+	const [_showOnlyErrors, _setShowOnlyErrors] = useState(false);
+	const [_showDebugPanel, _setShowDebugPanel] = useState(false);
 	const testMessagesEndRef = useRef<HTMLDivElement>(null);
 
 	// Change agent type modal state
@@ -862,17 +243,63 @@ export default function AgentBuilderPage() {
 		"answer" | "knowledge" | "workflow" | null
 	>(null);
 
-	// Icon picker state
-	const [showIconPicker, setShowIconPicker] = useState(false);
-	const [iconSearchQuery, setIconSearchQuery] = useState("");
-
 	// Publish modal state
 	const [showPublishModal, setShowPublishModal] = useState(false);
 	const [showUnpublishModal, setShowUnpublishModal] = useState(false);
-	const [showPublishChangesModal, setShowPublishChangesModal] = useState(false);
+
+	// Create with AI
+	const agentCreation = useAgentCreation();
+	const isCreationActive = agentCreation.status !== "idle";
+
+	// Improve instructions with AI
+	const improveInstructions = useImproveInstructions();
+	const [showImproveDialog, setShowImproveDialog] = useState(false);
+
+	// Generate conversation starters with AI
+	const generateStarters = useGenerateConversationStarters();
+
+	// Apply generated conversation starters when they arrive
+	useEffect(() => {
+		if (
+			generateStarters.status === "success" &&
+			generateStarters.generatedStarters
+		) {
+			const starters = generateStarters.generatedStarters;
+			setConfig((prev) => {
+				const existing = prev.conversationStarters;
+				const newOnes = starters.filter((s) => !existing.includes(s));
+				const availableSlots = MAX_CONVERSATION_STARTERS - existing.length;
+				const toAdd = newOnes.slice(0, availableSlots);
+				if (toAdd.length === 0) return prev;
+				return {
+					...prev,
+					conversationStarters: [...existing, ...toAdd],
+				};
+			});
+			generateStarters.reset();
+		} else if (generateStarters.status === "error") {
+			toast.error(t("conversationStarters.generateFailed"));
+			generateStarters.reset();
+		}
+	}, [
+		generateStarters.status,
+		generateStarters.generatedStarters,
+		generateStarters.reset,
+		t,
+	]);
 
 	// Track the original published config for diff comparison (only for editing)
-	const [publishedConfig] = useState<AgentConfig | null>(savedAgent || null);
+	const publishedConfigRef = useRef<AgentConfig | null>(null);
+	useEffect(() => {
+		if (
+			savedAgent &&
+			!publishedConfigRef.current &&
+			savedAgent.state === "PUBLISHED"
+		) {
+			publishedConfigRef.current = structuredClone(savedAgent);
+		}
+	}, [savedAgent]);
+	const publishedConfig = publishedConfigRef.current;
 
 	// Workflow picker state
 	const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
@@ -882,48 +309,13 @@ export default function AgentBuilderPage() {
 		linkedAgentName: string;
 	} | null>(null);
 
-	// Knowledge picker state
-	const [knowledgeSearchQuery, setKnowledgeSearchQuery] = useState("");
-
-	// Access tab state
-	const [accessSearchQuery, setAccessSearchQuery] = useState("");
-	const [showAccessDropdown, setShowAccessDropdown] = useState(false);
-	const [addedAccessItems, setAddedAccessItems] = useState<
-		Array<{
-			id: string;
-			type: "team" | "user";
-			name: string;
-			email?: string;
-			initials?: string;
-			color: string;
-			bgClass: string;
-			textClass: string;
-		}>
-	>([]);
-
 	// Create new workflow modal state
 	const [showCreateWorkflowModal, setShowCreateWorkflowModal] = useState(false);
-	const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
 
 	// Add skill modal state
-	const [showAddSkillModal, setShowAddSkillModal] = useState(false);
-	const [skillSearchQuery, setSkillSearchQuery] = useState("");
-	const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-	const [skillsTab, setSkillsTab] = useState<"available" | "all">("available");
-
+	const [showAddToolsModal, setShowAddToolsModal] = useState(false);
 	// Instructions expanded modal state
 	const [showInstructionsModal, setShowInstructionsModal] = useState(false);
-
-	// AI feature loading states
-	const [isImprovingInstructions, setIsImprovingInstructions] = useState(false);
-	const [improvePreview, setImprovePreview] = useState<{
-		original: string;
-		improved: string;
-	} | null>(null);
-	const [isGeneratingStarters, setIsGeneratingStarters] = useState(false);
-
-	// Conversation starters customization toggle
-	const [showCustomStarters, setShowCustomStarters] = useState(true);
 
 	// Description visibility toggle
 	const [showDescription, setShowDescription] = useState(false);
@@ -931,26 +323,117 @@ export default function AgentBuilderPage() {
 	// Demo mode state
 	const [demoMode, setDemoMode] = useState(false);
 	const [demoStep, setDemoStep] = useState(0);
+	const [demoScenarioKey, setDemoScenarioKey] = useState<"pto" | "laptop">(
+		"pto",
+	);
 
 	const DEMO_STEPS = [
-		{ label: "Create Agent", description: "Fill in agent details" },
-		{ label: "Add Skills", description: "Configure workflows" },
-		{ label: "Add Starters", description: "Set conversation starters" },
-		{ label: "Test Agent", description: "Navigate to test page" },
-		{ label: "Publish", description: "Make agent live" },
+		{
+			label: t("builder.demo.steps.createAgent"),
+			description: t("builder.demo.steps.createAgentDesc"),
+		},
+		{
+			label: t("builder.demo.steps.addSkills"),
+			description: t("builder.demo.steps.addSkillsDesc"),
+		},
+		{
+			label: t("builder.demo.steps.addStarters"),
+			description: t("builder.demo.steps.addStartersDesc"),
+		},
+		{
+			label: t("builder.demo.steps.testAgent"),
+			description: t("builder.demo.steps.testAgentDesc"),
+		},
+		{
+			label: t("builder.demo.steps.publish"),
+			description: t("builder.demo.steps.publishDesc"),
+		},
 	];
 
+	// Per-scenario values that drive each demo step. Sales picks a scenario from
+	// the trigger button; the handler below pulls from this map.
+	const DEMO_SCENARIOS: Record<
+		"pto" | "laptop",
+		{
+			label: string;
+			createAgent: Partial<AgentConfig>;
+			skills: string[];
+			starters: string[];
+			instructions: string;
+		}
+	> = {
+		pto: {
+			label: "PTO Assistant",
+			createAgent: {
+				name: "PTO Assistant",
+				description:
+					"Helps internal employees check their PTO balance and submit PTO requests.",
+				agentType: "workflow" as const,
+				role: "HR Assistant",
+				iconId: "bot",
+				iconColorId: "blue",
+			},
+			skills: [
+				"Check Existing PTO",
+				"Request PTO",
+				"Block Outlook Calendar for PTO",
+			],
+			starters: [
+				"How many PTO days do I have left?",
+				"I'd like to request time off next month.",
+				"Can you block my calendar for vacation?",
+			],
+			instructions: [
+				"You are a friendly HR assistant who helps internal employees with PTO.",
+				"",
+				"1. Greet them and ask whether they want to check their balance or request PTO.",
+				"2. If checking balance, use the Check Existing PTO skill and summarize the result.",
+				"3. If requesting PTO, use the Request PTO skill to collect start date, end date, and reason, then submit it.",
+				"4. After submission, offer to block their Outlook calendar with the Block Outlook Calendar for PTO skill.",
+				"",
+				"Always confirm key details before submitting.",
+			].join("\n"),
+		},
+		laptop: {
+			label: "Laptop Loan Assistant",
+			createAgent: {
+				name: "Laptop Loan Assistant",
+				description:
+					"Helps internal employees request a temporary loaner laptop from IT.",
+				agentType: "workflow" as const,
+				role: "IT Agent",
+				iconId: "bot",
+				iconColorId: "indigo",
+			},
+			skills: ["Submit temporary Laptop request in ITSM"],
+			starters: [
+				"I need a loaner laptop for a trip next week.",
+				"My laptop is being repaired — can I borrow one?",
+				"How do I request a temporary laptop?",
+			],
+			instructions: [
+				"You are a friendly IT agent who helps internal employees request temporary laptop loans.",
+				"",
+				"Follow these steps in order:",
+				"1. Ask the employee which date they first need the laptop.",
+				"2. Ask which date they will return the laptop.",
+				"3. Ask them to choose a laptop from: Dell Latitude 7450, Dell XPS 13, Dell Precision 5680, Lenovo ThinkPad X1 Carbon, Lenovo ThinkPad T14.",
+				"4. Ask how to deliver it — mailed home or hand-delivered to their desk.",
+				"5. Confirm the details, call Submit temporary Laptop request in ITSM, and share a generated request number (REQ-LAPTOP-######).",
+				"",
+				"Do not proceed to the next step until the previous one is answered.",
+			].join("\n"),
+		},
+	};
+
 	const handleDemoNext = () => {
+		const scenario = DEMO_SCENARIOS[demoScenarioKey];
 		switch (demoStep) {
 			case 0:
 				setConfig((prev) => ({
 					...prev,
-					name: "Store Hours Manager",
-					description: "Updates store operating hours after manager approval",
-					agentType: "workflow" as const,
-					role: "Store Operations Manager",
-					iconId: "bot",
-					iconColorId: "emerald",
+					...scenario.createAgent,
+					instructions: scenario.instructions,
 				}));
 				setStep("done");
 				setDemoStep(1);
@@ -958,22 +441,14 @@ export default function AgentBuilderPage() {
 			case 1:
 				setConfig((prev) => ({
 					...prev,
-					workflows: ["Update Store Hours"],
-					instructions: addSkillToInstructions(
-						prev.instructions,
-						"Update Store Hours",
-					),
+					tools: scenario.skills,
 				}));
 				setDemoStep(2);
 				break;
 			case 2:
 				setConfig((prev) => ({
 					...prev,
-					conversationStarters: [
-						"Update store hours for location 42",
-						"Change weekend hours",
-						"Set holiday schedule",
-					],
+					conversationStarters: scenario.starters,
 				}));
 				setDemoStep(3);
 				break;
@@ -994,85 +469,7 @@ export default function AgentBuilderPage() {
 		}
 	};
 
-	// Knowledge collapsible toggle
-	const [showKnowledge, setShowKnowledge] = useState(false);
-
-	// Track when skills were just added to show "updated" message
-	const [instructionsUpdatedFromSkills, setInstructionsUpdatedFromSkills] =
-		useState(false);
-	const prevWorkflowsLength = useRef(config.workflows.length);
-
-	// Detect when skills are added and auto-populate instructions
-	useEffect(() => {
-		if (config.workflows.length > prevWorkflowsLength.current) {
-			const allSkillsPool = [
-				...AVAILABLE_SKILLS,
-				...getPublishedWorkflowSkills(),
-			];
-			const skillEntries = config.workflows.map((name) => {
-				const match = allSkillsPool.find((s) => s.name === name);
-				return {
-					name,
-					instructions: match?.skillInstructions || `Handle ${name} requests.`,
-				};
-			});
-
-			const skillNames = skillEntries
-				.map((s) => s.name.toLowerCase())
-				.join(", ");
-			const taskLines = skillEntries
-				.map((s) => `- **${s.name}**: ${s.instructions}`)
-				.join("\n");
-
-			setConfig((prev) => ({
-				...prev,
-				instructions: `## Role\nYou are a specialized assistant that helps users with ${skillNames}.\n\n## Backstory\nYou have expertise in ${skillNames} and understand the importance of accurate, timely resolution for each request. You ensure that all actions are properly validated before execution.\n\n## Goal\nResolve user requests efficiently by leveraging the skills below. Always verify identity before performing sensitive operations.\n\n## Task\nAnalyze context to identify the user's request and match it to the appropriate skill:\n${taskLines}\n\nAlways confirm actions before executing and escalate if outside your skill scope.`,
-			}));
-			setInstructionsUpdatedFromSkills(true);
-			const timer = setTimeout(
-				() => setInstructionsUpdatedFromSkills(false),
-				5000,
-			);
-			return () => clearTimeout(timer);
-		}
-		prevWorkflowsLength.current = config.workflows.length;
-	}, [config.workflows.length, config.workflows]);
-
-	// Builder mode toggle - can be set via URL ?mode=chat|wizard|wizard-float|canvas
-	const [searchParams] = useSearchParams();
-	const modeParam = searchParams.get("mode") as
-		| "chat"
-		| "wizard"
-		| "wizard-float"
-		| "canvas"
-		| null;
-	const [builderMode, setBuilderMode] = useState<
-		"chat" | "wizard" | "wizard-float" | "canvas"
-	>(
-		modeParam &&
-			["chat", "wizard", "wizard-float", "canvas"].includes(modeParam)
-			? modeParam
-			: "chat",
-	);
-
-	// Auto-save with 1.5s debounce
-	const {
-		status: saveStatus,
-		isDirty,
-		error: saveError,
-	} = useAutoSave({
-		data: config,
-		onSave: async (data) => {
-			// Mock save - in production this would call the API
-			console.log("Auto-saving agent config:", data);
-			// Simulate network delay
-			await new Promise((resolve) => setTimeout(resolve, 500));
-			// In production: await agentApi.saveAgent(agentId, data);
-		},
-		enabled: step === "done" || isEditing, // Only auto-save when in configure mode
-	});
-
-	const [messages, setMessages] = useState<Message[]>([
+	const [_messages] = useState<BuilderMessage[]>([
 		{
 			id: "1",
 			role: "assistant",
@@ -1083,21 +480,12 @@ export default function AgentBuilderPage() {
 	// Auto-scroll to bottom on new messages
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [
-		messages,
-		isTyping,
-		showConfirmButtons,
-		showTypeSelector,
-		showSourceSelector,
-		showTypeConfirmation,
-		showTriggerPhrases,
-		showGuardrails,
-	]);
+	}, []);
 
 	// Auto-scroll test messages
 	useEffect(() => {
 		testMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [testMessages, isTestTyping]);
+	}, []);
 
 	// Initialize test chat when opening test modal
 	useEffect(() => {
@@ -1118,1294 +506,6 @@ export default function AgentBuilderPage() {
 		config.description,
 	]);
 
-	// Handle test message submission
-	const handleTestSendMessage = () => {
-		if (!testInput.trim() || isTestTyping) return;
-
-		const userMessage: Message = {
-			id: `test-user-${Date.now()}`,
-			role: "user",
-			content: testInput.trim(),
-		};
-		setTestMessages([userMessage]); // Replace messages for single-turn debug view
-		const input = testInput.trim();
-		setTestInput("");
-		setExpandedStep(null);
-
-		// Generate debug trace
-		const trace = generateDebugTrace(input);
-		setDebugTrace(trace);
-
-		// Simulate agent response
-		setIsTestTyping(true);
-		setTimeout(
-			() => {
-				// Generate a simulated response based on the agent config
-				const response = generateTestResponse(input);
-				setTestMessages((prev) => [
-					...prev,
-					{
-						id: `test-assistant-${Date.now()}`,
-						role: "assistant",
-						content: response,
-					},
-				]);
-				setIsTestTyping(false);
-			},
-			1000 + Math.random() * 1000,
-		);
-	};
-
-	// Generate simulated test response based on agent config
-	const generateTestResponse = (userInput: string): string => {
-		const input = userInput.toLowerCase();
-
-		// Check if agent has minimal config
-		const hasSkills = config.workflows.length > 0;
-		const hasKnowledge = config.knowledgeSources.length > 0;
-		const hasInstructions =
-			config.instructions && config.instructions.trim().length > 0;
-
-		// Nudge: No skills and no knowledge configured
-		if (!hasSkills && !hasKnowledge && !hasInstructions) {
-			return `I'd love to help, but I don't have any skills or knowledge configured yet.\n\n**To get me working:**\n• Add **Skills** to let me perform actions\n• Add **Knowledge** sources so I can answer questions\n• Write **Instructions** to define how I behave\n\nConfigure me in the panel on the left!`;
-		}
-
-		// Check guardrails first
-		for (const guardrail of config.guardrails) {
-			if (guardrail && input.includes(guardrail.toLowerCase())) {
-				return `I'm sorry, but I'm not able to help with ${guardrail}. Please contact the appropriate team for assistance with that topic.`;
-			}
-		}
-
-		// Meta questions about finding/adding skills
-		if (
-			input.includes("find skill") ||
-			input.includes("add skill") ||
-			input.includes("more skill") ||
-			input.includes("what skill") ||
-			input.includes("need skill") ||
-			input.includes("skills to add")
-		) {
-			const currentSkills = hasSkills
-				? `**Current skills:**\n${config.workflows.map((s) => `• ${s}`).join("\n")}\n\n`
-				: "";
-
-			return `${currentSkills}**Suggested skills for ${config.name || "this agent"}:**\n• Check VPN status\n• Submit IT ticket\n• Software installation request\n• Hardware replacement request\n• Email configuration help\n\n**To add skills:**\n1. Click "+ Add skill" in Configure\n2. Browse or search available skills\n3. Select and add`;
-		}
-
-		// Check if this matches any of the agent's skills/workflows
-		const hasPasswordReset = config.workflows.some((w) =>
-			w.toLowerCase().includes("password"),
-		);
-		const hasUnlockAccount = config.workflows.some((w) =>
-			w.toLowerCase().includes("unlock"),
-		);
-		const hasRequestAccess = config.workflows.some((w) =>
-			w.toLowerCase().includes("access"),
-		);
-		const hasPTO = config.workflows.some((w) =>
-			w.toLowerCase().includes("pto"),
-		);
-		const hasBirthday = config.workflows.some((w) =>
-			w.toLowerCase().includes("birthday"),
-		);
-
-		// Password reset flow
-		if (
-			hasPasswordReset &&
-			(input.includes("password") ||
-				input.includes("forgot") ||
-				input.includes("reset"))
-		) {
-			return `I can help you reset your password. Let me verify your identity first.\n\n**To reset your password, I'll need:**\n• Your employee ID or email address\n• Answer to your security question\n\nOnce verified, I'll send a password reset link to your registered email. The link expires in 15 minutes.\n\nWould you like me to proceed with the password reset?`;
-		}
-
-		// Account unlock flow
-		if (
-			hasUnlockAccount &&
-			(input.includes("locked") ||
-				input.includes("unlock") ||
-				input.includes("can't log in") ||
-				input.includes("cannot log in"))
-		) {
-			return `I see you're having trouble accessing your account. Let me help you unlock it.\n\n**Account Status Check:**\n• Checking Active Directory status...\n• Account appears to be locked due to multiple failed login attempts\n\n**To unlock your account:**\n1. I'll verify your identity\n2. Unlock your AD account\n3. You can then log in with your existing password\n\nShall I proceed with unlocking your account?`;
-		}
-
-		// System access request flow
-		if (
-			hasRequestAccess &&
-			(input.includes("access") ||
-				input.includes("permission") ||
-				input.includes("system"))
-		) {
-			return `I can help you request access to a system.\n\n**Available systems:**\n• Salesforce CRM\n• Jira Project Management\n• Confluence Wiki\n• GitHub Enterprise\n• AWS Console\n\nPlease specify which system you need access to, and I'll initiate the access request workflow. Your manager will receive a notification for approval.\n\nWhich system do you need access to?`;
-		}
-
-		// PTO check flow
-		if (
-			hasPTO &&
-			(input.includes("pto") ||
-				input.includes("time off") ||
-				input.includes("vacation") ||
-				input.includes("leave"))
-		) {
-			return `Let me check your PTO balance.\n\n**Your Time Off Summary:**\n• Available PTO: 12 days\n• Used this year: 8 days\n• Pending requests: 0 days\n\nWould you like to submit a new time off request?`;
-		}
-
-		// Birthday lookup flow
-		if (
-			hasBirthday &&
-			(input.includes("birthday") || input.includes("coworker"))
-		) {
-			return `I can help you look up an employee's birthday.\n\nPlease provide the employee's name or email, and I'll find their birthday for you. Note: Only work anniversary dates are shared publicly; birth dates require the employee's consent to share.\n\nWhose birthday would you like to look up?`;
-		}
-
-		// Generic skill-based response if agent has skills but no specific match
-		if (hasSkills) {
-			return `I'm ${config.name || "your assistant"}, and I can help you with:\n\n${config.workflows.map((s) => `• ${s}`).join("\n")}\n\nBased on your message, it looks like you might need help with one of these. Could you tell me more specifically what you need?`;
-		}
-
-		// Knowledge-based response
-		if (hasKnowledge) {
-			return `I can help answer questions based on my knowledge sources:\n\n${config.knowledgeSources
-				.slice(0, 3)
-				.map((s) => `• ${s}`)
-				.join(
-					"\n",
-				)}${config.knowledgeSources.length > 3 ? `\n• ...and ${config.knowledgeSources.length - 3} more` : ""}\n\nCould you be more specific about what you'd like to know?`;
-		}
-
-		// Default response with instructions
-		return `Thanks for your question about "${userInput}"\n\nAs ${config.name || "your assistant"}, I'm configured to help based on my instructions.\n\n[This is a preview. In production, I'll provide real answers based on my configuration.]`;
-	};
-
-	// Generate debug trace for a user message
-	const generateDebugTrace = (userInput: string): DebugTraceStep[] => {
-		const input = userInput.toLowerCase();
-		const hasSkills = config.workflows.length > 0;
-		const hasKnowledge = config.knowledgeSources.length > 0;
-		const matchedGuardrail = config.guardrails.find(
-			(g) => g && input.includes(g.toLowerCase()),
-		);
-		const matchedSkill = config.workflows.find((w) => {
-			const skillLower = w.toLowerCase();
-			return (
-				input.includes(skillLower) ||
-				(skillLower.includes("password") && input.includes("password")) ||
-				(skillLower.includes("unlock") && input.includes("unlock")) ||
-				(skillLower.includes("access") && input.includes("access"))
-			);
-		});
-
-		// Failure triggers for testing
-		const isTimeoutTest = input.includes("timeout") || input.includes("slow");
-		const isConnectionError = input.includes("error") || input.includes("fail");
-		const isNoResults = input.includes("nothing") || input.includes("empty");
-
-		const trace: DebugTraceStep[] = [
-			{
-				id: "branch",
-				type: "trigger",
-				label: "Branch",
-				description: "Decide on next step",
-				status: "success",
-				duration: 120,
-				input: { message: userInput },
-				output: {
-					decision: matchedSkill
-						? "execute_skill"
-						: hasKnowledge
-							? "search_knowledge"
-							: "direct_response",
-				},
-			},
-			{
-				id: "plan",
-				type: "intent",
-				label: "Plan & Execute",
-				description:
-					"Identify the appropriate tools and initiate their execution",
-				status: "success",
-				duration: 180 + Math.floor(Math.random() * 100),
-				input: { message: userInput },
-				output: {
-					plan: matchedSkill
-						? ["search_knowledge", "execute_skill", "respond"]
-						: hasKnowledge
-							? ["search_knowledge", "respond"]
-							: ["respond"],
-					confidence: 0.87 + Math.random() * 0.1,
-				},
-			},
-		];
-
-		// Add knowledge search step if agent has knowledge
-		if (hasKnowledge) {
-			const knowledgeFailed = isTimeoutTest || isConnectionError;
-			trace.push({
-				id: "knowledge",
-				type: "knowledge",
-				label: "Company search",
-				description: knowledgeFailed
-					? isTimeoutTest
-						? "Search timed out"
-						: "Connection failed"
-					: isNoResults
-						? "No relevant company knowledge found"
-						: "Checking for any relevant company knowledge",
-				status: knowledgeFailed ? "error" : "success",
-				duration: isTimeoutTest ? 30000 : 800 + Math.floor(Math.random() * 400),
-				input: { query: userInput, sources: config.knowledgeSources },
-				output: knowledgeFailed
-					? undefined
-					: {
-							documentsFound: isNoResults
-								? 0
-								: Math.floor(Math.random() * 5) + 1,
-							sources: config.knowledgeSources.slice(0, 2),
-						},
-				error: isTimeoutTest
-					? "The knowledge search took too long to respond. Try again or check your data source connection."
-					: isConnectionError
-						? "Couldn't connect to the knowledge source. The service may be temporarily unavailable."
-						: undefined,
-			});
-		}
-
-		// Add skill execution step if matched
-		if (matchedSkill) {
-			const skillFailed = isConnectionError && !isTimeoutTest;
-			trace.push({
-				id: "skill",
-				type: "skill",
-				label: `Skill: ${matchedSkill}`,
-				description: skillFailed
-					? "Skill execution failed"
-					: "Execute matched skill",
-				status: skillFailed ? "error" : "success",
-				duration: skillFailed ? 150 : 600 + Math.floor(Math.random() * 300),
-				input: { skill: matchedSkill, params: { userInput } },
-				output: skillFailed
-					? undefined
-					: { executed: true, result: "Action completed" },
-				error: skillFailed
-					? `The "${matchedSkill}" skill couldn't complete. The connected service isn't responding.`
-					: undefined,
-			});
-		}
-
-		// Determine if any previous step failed
-		const hasPreviousError = trace.some((t) => t.status === "error");
-
-		// Add guardrail check only if there are guardrails
-		if (config.guardrails.filter(Boolean).length > 0) {
-			trace.push({
-				id: "guardrail",
-				type: "guardrail",
-				label: "Guardrail",
-				description: matchedGuardrail
-					? `Blocked topic: ${matchedGuardrail}`
-					: "Verify response meets safety guidelines",
-				status: matchedGuardrail ? "error" : "success",
-				duration: 45 + Math.floor(Math.random() * 30),
-				input: { guardrails: config.guardrails.filter(Boolean) },
-				output: {
-					passed: !matchedGuardrail,
-					blocked: matchedGuardrail || null,
-					checkedRules: config.guardrails.filter(Boolean).length,
-				},
-				error: matchedGuardrail
-					? `Message blocked by guardrail: ${matchedGuardrail}`
-					: undefined,
-			});
-		}
-
-		// Add response generation
-		const responseFailed = matchedGuardrail || hasPreviousError;
-		trace.push({
-			id: "response",
-			type: "response",
-			label: "Respond",
-			description: responseFailed ? "Generate fallback response" : "Respond",
-			status: responseFailed ? "error" : "success",
-			duration: 450 + Math.floor(Math.random() * 200),
-			input: { context: "Compiled from previous steps" },
-			output: {
-				responseGenerated: true,
-				fallback: responseFailed,
-				tokenCount: Math.floor(Math.random() * 200) + 50,
-			},
-		});
-
-		return trace;
-	};
-
-	const handleTestKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			handleTestSendMessage();
-		}
-	};
-
-	// Handle clicking a conversation starter in test mode
-	const handleTestStarterClick = (starter: string) => {
-		setTestInput(starter);
-	};
-
-	const inferAgentType = (
-		config: AgentConfig,
-	): "answer" | "knowledge" | "workflow" => {
-		const text =
-			`${config.role} ${config.responsibilities} ${config.completionCriteria}`.toLowerCase();
-
-		// Workflow indicators
-		const workflowKeywords = [
-			"automate",
-			"run",
-			"execute",
-			"trigger",
-			"action",
-			"task",
-			"process",
-			"workflow",
-			"reset password",
-			"create ticket",
-			"submit",
-			"update system",
-		];
-		if (workflowKeywords.some((kw) => text.includes(kw))) {
-			return "workflow";
-		}
-
-		// Knowledge indicators
-		const knowledgeKeywords = [
-			"document",
-			"specific",
-			"policy",
-			"compliance",
-			"handbook",
-			"manual",
-			"only from",
-			"based on",
-			"according to",
-			"strictly",
-		];
-		if (knowledgeKeywords.some((kw) => text.includes(kw))) {
-			return "knowledge";
-		}
-
-		// Default to answer agent
-		return "answer";
-	};
-
-	// Generate trigger phrase suggestions based on agent config
-	const generateTriggerPhrases = (agentConfig: AgentConfig): string[] => {
-		const desc = agentConfig.description.toLowerCase();
-		const role = agentConfig.role.toLowerCase();
-		const responsibilities = agentConfig.responsibilities.toLowerCase();
-
-		// Onboarding-related agent
-		if (
-			desc.includes("onboarding") ||
-			role.includes("onboarding") ||
-			responsibilities.includes("onboarding") ||
-			responsibilities.includes("new employee")
-		) {
-			return [
-				"I'm a new employee and need help getting started",
-				"Can you help me with my first day orientation?",
-				"I need to set up my accounts and access",
-				"What do I need to do for onboarding?",
-				"Help me understand the company processes",
-				"I'm new here, what are my next steps?",
-				"Can you guide me through employee orientation?",
-				"I need help with new hire paperwork",
-				"What tools and systems do I need access to?",
-				"Can you explain the onboarding workflow?",
-			];
-		}
-
-		// HR/Benefits-related agent
-		if (
-			desc.includes("hr") ||
-			desc.includes("benefits") ||
-			role.includes("hr") ||
-			responsibilities.includes("pto") ||
-			responsibilities.includes("benefits")
-		) {
-			return [
-				"How do I request time off?",
-				"What are my health insurance options?",
-				"How do I enroll in benefits?",
-				"What's the PTO policy?",
-				"How do I update my personal information?",
-				"Who do I contact about payroll issues?",
-				"What holidays does the company observe?",
-				"How do I access my pay stubs?",
-			];
-		}
-
-		// IT/Technical support agent
-		if (
-			desc.includes("it") ||
-			desc.includes("technical") ||
-			role.includes("it") ||
-			responsibilities.includes("password") ||
-			responsibilities.includes("access")
-		) {
-			return [
-				"I forgot my password",
-				"How do I reset my password?",
-				"I need access to a system",
-				"My computer isn't working",
-				"How do I connect to VPN?",
-				"I need software installed",
-				"Who do I contact for IT help?",
-				"How do I set up my email?",
-			];
-		}
-
-		// Default generic phrases
-		return [
-			"How can you help me?",
-			"What can you do?",
-			"I have a question",
-			"I need assistance",
-			"Can you help me with something?",
-			"Where do I find information about...",
-		];
-	};
-
-	// Generate Overall Understanding summary based on config and type
-	const generateOverallUnderstanding = (
-		agentConfig: AgentConfig,
-		agentType: "answer" | "knowledge" | "workflow",
-	): string => {
-		const role = agentConfig.role || "assistant";
-		const responsibilities = agentConfig.responsibilities || "helping users";
-		const completion =
-			agentConfig.completionCriteria || "when the task is complete";
-
-		if (agentType === "answer") {
-			return `This is an answer formatting agent that acts as ${role}. It will take pre-retrieved content and transform it into clear, conversational responses while ${responsibilities}. The agent considers its job complete when ${completion}.`;
-		} else if (agentType === "knowledge") {
-			return `This is an embedded knowledge agent that acts as ${role}. It will provide answers directly from its pre-configured knowledge base, ${responsibilities}. The agent considers its job complete when ${completion}.`;
-		} else {
-			return `This is a workflow execution agent that acts as ${role}. It will run automations and workflows while ${responsibilities}, then explain the results clearly. The agent considers its job complete when ${completion}.`;
-		}
-	};
-
-	// Suggest relevant knowledge sources based on agent config
-	const suggestRelevantSources = (agentConfig: AgentConfig): string[] => {
-		const text =
-			`${agentConfig.description} ${agentConfig.role} ${agentConfig.responsibilities}`.toLowerCase();
-
-		// Score each source based on tag matches
-		const scored = AVAILABLE_KNOWLEDGE_SOURCES.map((source) => {
-			let score = 0;
-			source.tags.forEach((tag) => {
-				if (text.includes(tag)) score += 2;
-			});
-			// Also check name/description
-			if (text.includes(source.name.toLowerCase())) score += 3;
-			source.description
-				.toLowerCase()
-				.split(" ")
-				.forEach((word) => {
-					if (word.length > 3 && text.includes(word)) score += 1;
-				});
-			return { id: source.id, score };
-		});
-
-		// Return top matches (score > 0), sorted by score
-		return scored
-			.filter((s) => s.score > 0)
-			.sort((a, b) => b.score - a.score)
-			.slice(0, 5)
-			.map((s) => s.id);
-	};
-
-	const addAssistantMessage = (
-		content: string,
-		options?: { showButtons?: boolean },
-	) => {
-		setIsTyping(true);
-		setShowConfirmButtons(false);
-
-		setTimeout(() => {
-			const newMessage: Message = {
-				id: Date.now().toString(),
-				role: "assistant",
-				content,
-			};
-			setMessages((prev) => [...prev, newMessage]);
-			setIsTyping(false);
-			if (options?.showButtons) {
-				setShowConfirmButtons(true);
-			}
-		}, 800);
-	};
-
-	const processUserInput = (input: string) => {
-		switch (step) {
-			case "start":
-			case "intent":
-				setConfig((prev) => ({
-					...prev,
-					description: input,
-				}));
-				setStep("role");
-				addAssistantMessage(
-					`Got it. Let's define who this agent is.\n\n**How would you describe the role or persona of this agent?**\nFor example: "a friendly HR advisor" or "an on-call IT specialist."`,
-				);
-				break;
-
-			case "role":
-				setConfig((prev) => ({ ...prev, role: input }));
-				setStep("responsibilities");
-				addAssistantMessage(
-					`Nice. Now let's get specific.\n\n**What should this agent help with day to day?**\nYou can list the types of questions or situations it should handle.`,
-				);
-				break;
-
-			case "responsibilities":
-				setConfig((prev) => ({ ...prev, responsibilities: input }));
-				setStep("completion");
-				addAssistantMessage(
-					`Almost there.\n\n**When should this agent consider its job complete?**\nFor example, when the question is answered, when next steps are provided, or when it needs to hand off to a human.`,
-				);
-				break;
-
-			case "completion": {
-				const updatedConfig = { ...config, completionCriteria: input };
-				const inferredType = inferAgentType(updatedConfig);
-				setConfig(updatedConfig);
-				_setSuggestedType(inferredType);
-				setSelectedType(inferredType);
-				setStep("select_type");
-
-				setIsTyping(true);
-				setTimeout(() => {
-					setMessages((prev) => [
-						...prev,
-						{
-							id: Date.now().toString(),
-							role: "assistant",
-							content: `Based on what you shared, I'd suggest an **${AGENT_TYPE_INFO[inferredType].label}** for this use case.\n\nPlease select the agent type that best fits your needs:`,
-						},
-					]);
-					setIsTyping(false);
-					setShowTypeSelector(true);
-				}, 800);
-				break;
-			}
-
-			case "done":
-				// In done state, parse natural language to update config
-				handleDoneStateInput(input);
-				break;
-		}
-	};
-
-	// Handle natural language config updates when in "done" state
-	const handleDoneStateInput = (input: string) => {
-		const lowerInput = input.toLowerCase();
-		let handled = false;
-		const changes: string[] = [];
-
-		// Name change
-		const nameMatch =
-			input.match(
-				/(?:change|set|update|rename)\s+(?:the\s+)?(?:agent\s+)?name\s+(?:to\s+)?["']?([^"']+)["']?/i,
-			) ||
-			input.match(/(?:call\s+(?:it|this|the\s+agent)\s+)["']?([^"']+)["']?/i);
-		if (nameMatch) {
-			const newName = nameMatch[1].trim();
-			setConfig((prev) => ({ ...prev, name: newName }));
-			changes.push(`name to "${newName}"`);
-			handled = true;
-		}
-
-		// Description change
-		const descMatch =
-			input.match(
-				/(?:change|set|update)\s+(?:the\s+)?description\s+(?:to\s+)?["']?([^"']+)["']?/i,
-			) ||
-			input.match(/(?:make\s+(?:the\s+)?description)\s+["']?([^"']+)["']?/i);
-		if (descMatch) {
-			const newDesc = descMatch[1].trim();
-			setConfig((prev) => ({ ...prev, description: newDesc }));
-			changes.push(`description`);
-			handled = true;
-		}
-
-		// Add conversation starter
-		const starterMatch =
-			input.match(
-				/(?:add|create)\s+(?:a\s+)?(?:conversation\s+)?starter[:\s]+["']?([^"']+)["']?/i,
-			) ||
-			input.match(
-				/add\s+["']([^"']+)["']\s+(?:as\s+)?(?:a\s+)?(?:conversation\s+)?starter/i,
-			);
-		if (starterMatch) {
-			const newStarter = starterMatch[1].trim();
-			if (
-				config.conversationStarters.length < 4 &&
-				!config.conversationStarters.includes(newStarter)
-			) {
-				setConfig((prev) => ({
-					...prev,
-					conversationStarters: [...prev.conversationStarters, newStarter],
-				}));
-				changes.push(`conversation starter "${newStarter}"`);
-				handled = true;
-			}
-		}
-
-		// Remove conversation starter
-		const removeStarterMatch = input.match(
-			/(?:remove|delete)\s+(?:the\s+)?(?:conversation\s+)?starter[:\s]+["']?([^"']+)["']?/i,
-		);
-		if (removeStarterMatch) {
-			const toRemove = removeStarterMatch[1].trim().toLowerCase();
-			const idx = config.conversationStarters.findIndex((s) =>
-				s.toLowerCase().includes(toRemove),
-			);
-			if (idx !== -1) {
-				const removed = config.conversationStarters[idx];
-				setConfig((prev) => ({
-					...prev,
-					conversationStarters: prev.conversationStarters.filter(
-						(_, i) => i !== idx,
-					),
-				}));
-				changes.push(`removed starter "${removed}"`);
-				handled = true;
-			}
-		}
-
-		// Add guardrail
-		const guardrailMatch =
-			input.match(
-				/(?:add|create)\s+(?:a\s+)?guardrail[:\s]+["']?([^"']+)["']?/i,
-			) ||
-			input.match(
-				/(?:don't|do\s+not|shouldn't)\s+(?:answer|help\s+with|handle)\s+["']?([^"']+)["']?/i,
-			);
-		if (guardrailMatch) {
-			const newGuardrail = guardrailMatch[1].trim();
-			if (!config.guardrails.includes(newGuardrail)) {
-				setConfig((prev) => ({
-					...prev,
-					guardrails: [...prev.guardrails, newGuardrail],
-				}));
-				changes.push(`guardrail for "${newGuardrail}"`);
-				handled = true;
-			}
-		}
-
-		// Enable/disable web search
-		if (lowerInput.includes("enable") && lowerInput.includes("web search")) {
-			setConfig((prev) => ({
-				...prev,
-				capabilities: { ...prev.capabilities, webSearch: true },
-			}));
-			changes.push("enabled web search");
-			handled = true;
-		}
-		if (lowerInput.includes("disable") && lowerInput.includes("web search")) {
-			setConfig((prev) => ({
-				...prev,
-				capabilities: { ...prev.capabilities, webSearch: false },
-			}));
-			changes.push("disabled web search");
-			handled = true;
-		}
-
-		// Change agent type
-		if (lowerInput.includes("change") && lowerInput.includes("type")) {
-			if (lowerInput.includes("answer")) {
-				setConfig((prev) => ({ ...prev, agentType: "answer" }));
-				changes.push("agent type to Answer Agent");
-				handled = true;
-			} else if (lowerInput.includes("knowledge")) {
-				setConfig((prev) => ({ ...prev, agentType: "knowledge" }));
-				changes.push("agent type to Knowledge Agent");
-				handled = true;
-			} else if (lowerInput.includes("workflow")) {
-				setConfig((prev) => ({ ...prev, agentType: "workflow" }));
-				changes.push("agent type to Workflow Agent");
-				handled = true;
-			}
-		}
-
-		// Update instructions
-		const instructionsMatch = input.match(
-			/(?:change|set|update)\s+(?:the\s+)?instructions?\s+(?:to\s+)?["']?(.+)["']?$/i,
-		);
-		if (instructionsMatch) {
-			const newInstructions = instructionsMatch[1].trim();
-			setConfig((prev) => ({ ...prev, instructions: newInstructions }));
-			changes.push("instructions");
-			handled = true;
-		}
-
-		// Handle skill-related questions
-		if (
-			lowerInput.includes("skill") ||
-			lowerInput.includes("find skill") ||
-			lowerInput.includes("add skill")
-		) {
-			const currentSkills =
-				config.workflows.length > 0
-					? `**Current skills:**\n${config.workflows.map((s) => `• ${s}`).join("\n")}\n\n`
-					: "";
-
-			addAssistantMessage(
-				`${currentSkills}**Suggested skills for ${config.name || "this agent"}:**\n` +
-					`• Check VPN status\n` +
-					`• Submit IT ticket\n` +
-					`• Software installation request\n` +
-					`• Hardware replacement request\n` +
-					`• Email configuration help\n\n` +
-					`**To add skills:**\n` +
-					`1. Switch to the **Configure** tab\n` +
-					`2. Click "+ Add skill" in the Skills section\n` +
-					`3. Browse or search available skills\n` +
-					`4. Select skills and click "Add"`,
-			);
-			return;
-		}
-
-		// Provide feedback
-		if (handled && changes.length > 0) {
-			const changeList = changes.join(", ");
-			addAssistantMessage(
-				`✓ Updated ${changeList}. The preview has been refreshed.\n\nWhat else would you like to change?`,
-			);
-		} else {
-			// Try to be helpful with unhandled input
-			addAssistantMessage(
-				`I can help you update your agent! Try commands like:\n\n` +
-					`• "Change the name to [new name]"\n` +
-					`• "Add a conversation starter: [question]"\n` +
-					`• "Add a guardrail: [topic to avoid]"\n` +
-					`• "Enable/disable web search"\n` +
-					`• "Change the type to [answer/knowledge/workflow]"\n\n` +
-					`Or switch to the **Configure** tab to make changes directly.`,
-			);
-		}
-	};
-
-	const _handleConfirm = () => {
-		setShowConfirmButtons(false);
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Yes, continue",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Move to type-specific requirements step
-		setStep("knowledge_sources");
-
-		if (config.agentType === "answer") {
-			setIsTyping(true);
-			setTimeout(() => {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: `Great! To help this agent answer questions effectively, would you like to connect any knowledge sources?\n\nThis could include HR docs, policy guides, FAQs, or other reference materials.`,
-					},
-				]);
-				setIsTyping(false);
-				_setShowKnowledgeButtons(true);
-			}, 800);
-		} else if (config.agentType === "knowledge") {
-			setIsTyping(true);
-			setTimeout(() => {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: `Since this is a **Knowledge Agent**, it will only answer from specific documents — no guessing or inference.\n\n**Which documents should this agent use?**\nThis is required for Knowledge Agents to ensure accuracy and compliance.`,
-					},
-				]);
-				setIsTyping(false);
-				_setShowKnowledgeButtons(true);
-			}, 800);
-		} else if (config.agentType === "workflow") {
-			setIsTyping(true);
-			setTimeout(() => {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: `Since this is a **Workflow Agent**, it needs to connect to workflows to perform actions.\n\n**Which workflows should this agent have access to?**\nThis is required for Workflow Agents to execute tasks.`,
-					},
-				]);
-				setIsTyping(false);
-				_setShowWorkflowButtons(true);
-			}, 800);
-		}
-	};
-
-	const _handleAddKnowledgeSources = () => {
-		_setShowKnowledgeButtons(false);
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Add knowledge sources",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Simulate adding knowledge sources
-		setConfig((prev) => ({
-			...prev,
-			knowledgeSources: ["HR Policies", "Benefits Guide", "PTO Handbook"],
-			hasRequiredConnections: true,
-		}));
-
-		setIsTyping(true);
-		setTimeout(() => {
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `I've connected the following knowledge sources:\n• HR Policies\n• Benefits Guide\n• PTO Handbook\n\nYour agent is now configured and ready. You can review the settings in the Configure tab or click Publish when ready.`,
-				},
-			]);
-			setIsTyping(false);
-			setStep("done");
-		}, 1000);
-	};
-
-	const _handleSkipKnowledgeSources = () => {
-		_setShowKnowledgeButtons(false);
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Skip for now",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// For Answer Agents, skipping is allowed
-		if (config.agentType === "answer") {
-			setConfig((prev) => ({ ...prev, hasRequiredConnections: true }));
-			addAssistantMessage(
-				"No problem! You can add knowledge sources later in the Configure tab.\n\nYour agent is ready. Click Publish when you're done.",
-			);
-			setStep("done");
-		} else {
-			// For Knowledge Agents, this is required
-			addAssistantMessage(
-				"Knowledge sources are required for Knowledge Agents. Please select at least one document to continue.",
-			);
-			_setShowKnowledgeButtons(true);
-		}
-	};
-
-	const _handleAddWorkflows = () => {
-		_setShowWorkflowButtons(false);
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Connect workflows",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Simulate adding workflows
-		setConfig((prev) => ({
-			...prev,
-			workflows: ["Password Reset", "Access Request"],
-			instructions: ["Password Reset", "Access Request"].reduce(
-				(inst, skill) => addSkillToInstructions(inst, skill),
-				prev.instructions,
-			),
-			hasRequiredConnections: true,
-		}));
-
-		setIsTyping(true);
-		setTimeout(() => {
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `I've connected the following workflows:\n• Password Reset\n• Access Request\n\nYour agent is now configured and ready. You can review the settings in the Configure tab or click Publish when ready.`,
-				},
-			]);
-			setIsTyping(false);
-			setStep("done");
-		}, 1000);
-	};
-
-	// Handler for type selection confirmation (new flow)
-	const _handleTypeSelectionConfirm = () => {
-		if (!selectedType) return;
-
-		setShowTypeSelector(false);
-		setConfig((prev) => ({ ...prev, agentType: selectedType }));
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: `Selected: ${AGENT_TYPE_INFO[selectedType].label}`,
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Move to confirmation step with Overall Understanding
-		setStep("confirm_type");
-		setIsTyping(true);
-		_setStatusMessage("Generating agent understanding...");
-
-		setTimeout(() => {
-			setIsTyping(false);
-			_setStatusMessage(null);
-
-			const understanding = generateOverallUnderstanding(config, selectedType);
-			const typeLabel = AGENT_TYPE_INFO[selectedType].label;
-
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `Got it! You're building a **${typeLabel}**.\n\n**Agent Overall Understanding:** ${understanding}\n\nIs this accurate? Please confirm if this correctly captures your agent, or let me know what needs to be adjusted.`,
-				},
-			]);
-			setShowTypeConfirmation(true);
-		}, 1000);
-	};
-
-	// Handler for confirming the agent type understanding
-	const _handleTypeConfirmationConfirm = () => {
-		setShowTypeConfirmation(false);
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Yes, that's correct",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Move to trigger phrases step
-		setStep("trigger_phrases");
-		setIsTyping(true);
-		_setStatusMessage("Generating example phrases...");
-
-		// Generate trigger phrases based on config
-		const phrases = generateTriggerPhrases(config);
-		setSuggestedTriggerPhrases(phrases);
-
-		setTimeout(() => {
-			setIsTyping(false);
-			_setStatusMessage(null);
-
-			const typeLabel = selectedType
-				? AGENT_TYPE_INFO[selectedType].shortLabel
-				: "agent";
-			const phrasesList = phrases.map((p, i) => `${i + 1}. "${p}"`).join("\n");
-
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `**Example phrases users might say:**\n\n${phrasesList}\n\nThese examples cover different ways users might request your ${typeLabel.toLowerCase()}.\n\nDo these examples capture how users would request your agent? You can add, remove, or modify these in the Configure tab.`,
-				},
-			]);
-			setShowTriggerPhrases(true);
-		}, 1000);
-	};
-
-	// Handler for continuing after trigger phrases
-	const _handleTriggerPhrasesConfirm = () => {
-		setShowTriggerPhrases(false);
-
-		// Save the suggested phrases to config as conversation starters
-		setConfig((prev) => ({
-			...prev,
-			conversationStarters: suggestedTriggerPhrases.slice(0, 4), // Take first 4 as starters
-		}));
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Looks good, continue",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Move to guardrails step
-		setStep("guardrails");
-		setIsTyping(true);
-
-		setTimeout(() => {
-			setIsTyping(false);
-
-			const agentContext = config.description
-				.toLowerCase()
-				.includes("onboarding")
-				? "onboarding"
-				: config.role.toLowerCase().includes("hr")
-					? "HR"
-					: "this";
-
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `Now I need to understand the boundaries of your ${agentContext} agent.\n\n**What types of requests should this agent NOT handle?** For example:\n\n• Should it avoid HR policy questions?\n• Should it not handle IT troubleshooting?\n• Are there specific topics outside of ${agentContext} it should redirect?\n\nPlease tell me what types of requests should be excluded, or say 'none' if it should handle all ${agentContext}-related requests.`,
-				},
-			]);
-			setShowGuardrails(true);
-			setGuardrailInput("");
-		}, 800);
-	};
-
-	// Handler for guardrails input submission
-	const handleGuardrailsSubmit = () => {
-		setShowGuardrails(false);
-
-		const input = guardrailInput.trim();
-		const isNone = input.toLowerCase() === "none" || input === "";
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: isNone ? "None - handle all related requests" : input,
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Parse guardrails from input (split by commas, newlines, or bullet points)
-		const guardrails = isNone
-			? []
-			: input
-					.split(/[,\n•]/)
-					.map((s) => s.trim())
-					.filter((s) => s.length > 0);
-
-		setConfig((prev) => ({
-			...prev,
-			guardrails,
-		}));
-
-		// Move to source/workflow selection based on type
-		setStep("select_sources");
-		setIsTyping(true);
-		_setStatusMessage("Loading available resources...");
-
-		// Calculate suggested sources based on agent config
-		const suggested = suggestRelevantSources(config);
-		_setSuggestedSourceIds(suggested);
-		// Pre-select suggested sources
-		setSelectedSources(suggested);
-		_setSourceSearchQuery("");
-
-		setTimeout(() => {
-			setIsTyping(false);
-			_setStatusMessage(null);
-
-			const hasSuggestions = suggested.length > 0;
-
-			if (selectedType === "answer") {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: hasSuggestions
-							? `To help this agent answer questions effectively, I've pre-selected some relevant knowledge sources based on what you described.\n\nReview and adjust the selection, or search for more:`
-							: `To help this agent answer questions effectively, you can connect knowledge sources.\n\nSelect the sources this agent should use (or skip if not needed):`,
-					},
-				]);
-			} else if (selectedType === "knowledge") {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: hasSuggestions
-							? `Since this is an **Embedded Knowledge Agent**, it will only answer from specific documents.\n\nI've pre-selected some relevant sources. Review and adjust (at least one required):`
-							: `Since this is an **Embedded Knowledge Agent**, it will only answer from specific documents — no guessing.\n\n**Select the documents this agent must use** (at least one required):`,
-					},
-				]);
-			} else {
-				setMessages((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						role: "assistant",
-						content: `Since this is a **Workflow Executor**, it needs workflows to perform actions.\n\n**Select the workflows this agent can execute** (at least one required):`,
-					},
-				]);
-			}
-			setShowSourceSelector(true);
-		}, 800);
-	};
-
-	// Handler for skipping guardrails
-	const _handleGuardrailsSkip = () => {
-		setGuardrailInput("none");
-		handleGuardrailsSubmit();
-	};
-
-	// Handler for adjusting the agent type (goes back to selection)
-	const _handleTypeConfirmationAdjust = () => {
-		setShowTypeConfirmation(false);
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "I'd like to adjust this",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Go back to type selection
-		setStep("select_type");
-		setIsTyping(true);
-
-		setTimeout(() => {
-			setIsTyping(false);
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content: `No problem! Let's pick a different agent type, or tell me more about what you need:`,
-				},
-			]);
-			setShowTypeSelector(true);
-		}, 600);
-	};
-
-	// Handler for source/workflow selection confirmation
-	const _handleSourceSelectionConfirm = () => {
-		const isWorkflowAgent = selectedType === "workflow";
-		const isKnowledgeAgent = selectedType === "knowledge";
-		const selected = isWorkflowAgent ? _selectedWorkflows : selectedSources;
-
-		// Validate required selections
-		if ((isWorkflowAgent || isKnowledgeAgent) && selected.length === 0) {
-			// Show error - selection required
-			return;
-		}
-
-		setShowSourceSelector(false);
-
-		const selectedNames = isWorkflowAgent
-			? _selectedWorkflows
-					.map((id) => AVAILABLE_WORKFLOWS.find((w) => w.id === id)?.name)
-					.filter(Boolean)
-			: selectedSources
-					.map(
-						(id) => AVAILABLE_KNOWLEDGE_SOURCES.find((s) => s.id === id)?.name,
-					)
-					.filter(Boolean);
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content:
-				selected.length > 0
-					? `Selected: ${selectedNames.join(", ")}`
-					: "Skip for now",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Update config
-		if (isWorkflowAgent) {
-			setConfig((prev) => ({
-				...prev,
-				workflows: selectedNames as string[],
-				instructions: (selectedNames as string[]).reduce(
-					(inst, skill) => addSkillToInstructions(inst, skill),
-					prev.instructions,
-				),
-				hasRequiredConnections: true,
-			}));
-		} else {
-			setConfig((prev) => ({
-				...prev,
-				knowledgeSources: selectedNames as string[],
-				hasRequiredConnections: true,
-			}));
-		}
-
-		setIsTyping(true);
-		_setStatusMessage("Finalizing configuration...");
-
-		setTimeout(() => {
-			setIsTyping(false);
-			_setStatusMessage(null);
-
-			const resourceType = isWorkflowAgent ? "workflows" : "knowledge sources";
-			const resourceList =
-				selectedNames.length > 0
-					? `\n${selectedNames.map((n) => `• ${n}`).join("\n")}`
-					: "";
-
-			setMessages((prev) => [
-				...prev,
-				{
-					id: Date.now().toString(),
-					role: "assistant",
-					content:
-						selected.length > 0
-							? `I've connected the following ${resourceType}:${resourceList}\n\nYour agent is now configured and ready. You can review the settings in the Configure tab or click Publish when ready.`
-							: `No problem! You can add ${resourceType} later in the Configure tab.\n\nYour agent is ready. Click Publish when you're done.`,
-				},
-			]);
-			setStep("done");
-		}, 1000);
-	};
-
-	// Toggle source selection
-	const _toggleSourceSelection = (id: string) => {
-		setSelectedSources((prev) =>
-			prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-		);
-	};
-
-	const _handleChangeType = () => {
-		setShowConfirmButtons(false);
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: "Change agent type",
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		// Cycle through types
-		const types: Array<"answer" | "knowledge" | "workflow"> = [
-			"answer",
-			"knowledge",
-			"workflow",
-		];
-		const currentIndex = types.indexOf(config.agentType || "answer");
-		const nextType = types[(currentIndex + 1) % types.length];
-
-		setConfig((prev) => ({ ...prev, agentType: nextType }));
-
-		const typeInfo = AGENT_TYPE_INFO[nextType];
-		addAssistantMessage(
-			`How about this instead:\n\n**${typeInfo.label}**\n\nIt will focus on ${typeInfo.description}.\nDoes that sound right?`,
-			{ showButtons: true },
-		);
-	};
-
 	const handleBack = () => {
 		navigate("/agents");
 	};
@@ -2415,7 +515,97 @@ export default function AgentBuilderPage() {
 		setShowPublishModal(true);
 	};
 
-	// Calculate diff between current config and published config
+	// Update Agent — smart save router
+	// ---------------------------------
+	// Diff form state against the server-loaded baseline. Cheap-only changes
+	// (name/description/icon/conversationStarters/guardrails) are PUT directly
+	// via updateAgent. Any change to instructions or skills requires running
+	// AgentRitaDeveloper because those fields drive agent_tasks + tools.
+	const updateDiff = useMemo(() => {
+		if (!savedAgent) return null;
+		return diffAgentConfig(config, savedAgent);
+	}, [config, savedAgent]);
+	const skillValidation = useMemo(() => {
+		if (!savedAgent) return null;
+		return validateSkillReferences(config, savedAgent);
+	}, [config, savedAgent]);
+
+	const cheapSaveDisabled =
+		!updateDiff?.hasChanges ||
+		agentCreation.isCreating ||
+		updateAgent.isPending ||
+		nameTaken ||
+		hasEmptyGuardrails ||
+		!skillValidation?.valid ||
+		instructionsBlocksSubmit;
+
+	const handleUpdateAgent = async () => {
+		if (!agentEid || !savedAgent || !updateDiff) return;
+
+		// Defense-in-depth: the button is disabled when skillValidation fails,
+		// but re-check at submit time in case the disabled check was bypassed
+		// (keyboard, stale state, etc.).
+		if (skillValidation && !skillValidation.valid) {
+			// Dynamic key: validateSkillReferences returns a translation key string
+			// that's resolved at runtime. i18next's heavy t() overloads can't
+			// narrow a runtime key + params object — escape the type via any.
+			const dynT = t as unknown as (
+				key: string,
+				params?: Record<string, string>,
+			) => string;
+			toast.error(
+				dynT(
+					skillValidation.messageKey ?? "builder.failedToUpdate",
+					skillValidation.messageParams ?? {},
+				),
+			);
+			return;
+		}
+
+		if (!updateDiff.hasChanges) return;
+
+		// Expensive changes → need the meta-agent. Kick it off directly with
+		// the current form values; AgentCreationOverlay streams progress.
+		if (updateDiff.expensiveFields.length > 0) {
+			// Ask the server to regenerate the description when the user didn't
+			// touch it — instructions likely drifted and the stale description
+			// no longer reflects what the agent does.
+			const descriptionUnchanged =
+				!updateDiff.cheapFields.includes("description");
+			agentCreation.create({
+				name: config.name,
+				description: config.description,
+				instructions: config.instructions,
+				iconId: config.iconId,
+				iconColorId: config.iconColorId,
+				conversationStarters: config.conversationStarters,
+				guardrails: config.guardrails.filter((g) => g.trim()),
+				targetAgentEid: agentEid,
+				generateDescription: descriptionUnchanged,
+			});
+			return;
+		}
+
+		// Cheap-only path: direct PUT, no meta-agent, no overlay.
+		try {
+			await updateAgent.mutateAsync({
+				eid: agentEid,
+				data: {
+					name: config.name,
+					description: config.description,
+					iconId: config.iconId,
+					iconColorId: config.iconColorId,
+					conversationStarters: config.conversationStarters,
+					guardrails: config.guardrails.filter((g) => g.trim()),
+				},
+			});
+			toast.success(t("builder.agentUpdated"));
+		} catch {
+			toast.error(t("builder.failedToUpdate"));
+		}
+	};
+
+	// Calculate diff between current config and published config (persisted fields only)
 	const getConfigChanges = () => {
 		if (!publishedConfig) return [];
 
@@ -2427,154 +617,23 @@ export default function AgentBuilderPage() {
 			type: "added" | "removed" | "changed";
 		}> = [];
 
-		// Name
 		if (config.name !== publishedConfig.name) {
 			changes.push({
 				field: "name",
-				label: "Name",
+				label: t("builder.configChanges.name"),
 				from: publishedConfig.name,
 				to: config.name,
 				type: "changed",
 			});
 		}
 
-		// Description
-		if (config.description !== publishedConfig.description) {
-			changes.push({
-				field: "description",
-				label: "Description",
-				from: publishedConfig.description || "(empty)",
-				to: config.description || "(empty)",
-				type: "changed",
-			});
-		}
-
-		// Skills (workflows)
-		const addedSkills = config.workflows.filter(
-			(s) => !publishedConfig.workflows.includes(s),
-		);
-		const removedSkills = publishedConfig.workflows.filter(
-			(s) => !config.workflows.includes(s),
-		);
-		addedSkills.forEach((skill) => {
-			changes.push({
-				field: "skills",
-				label: "Skill added",
-				from: "",
-				to: skill,
-				type: "added",
-			});
-		});
-		removedSkills.forEach((skill) => {
-			changes.push({
-				field: "skills",
-				label: "Skill removed",
-				from: skill,
-				to: "",
-				type: "removed",
-			});
-		});
-
-		// Knowledge sources
-		const addedKnowledge = config.knowledgeSources.filter(
-			(k) => !publishedConfig.knowledgeSources.includes(k),
-		);
-		const removedKnowledge = publishedConfig.knowledgeSources.filter(
-			(k) => !config.knowledgeSources.includes(k),
-		);
-		addedKnowledge.forEach((source) => {
-			changes.push({
-				field: "knowledge",
-				label: "Knowledge added",
-				from: "",
-				to: source,
-				type: "added",
-			});
-		});
-		removedKnowledge.forEach((source) => {
-			changes.push({
-				field: "knowledge",
-				label: "Knowledge removed",
-				from: source,
-				to: "",
-				type: "removed",
-			});
-		});
-
-		// Instructions
-		if (config.instructions !== publishedConfig.instructions) {
-			changes.push({
-				field: "instructions",
-				label: "Instructions",
-				from: "(modified)",
-				to: "(modified)",
-				type: "changed",
-			});
-		}
-
-		// Conversation starters
-		const startersChanged =
-			JSON.stringify(config.conversationStarters) !==
-			JSON.stringify(publishedConfig.conversationStarters);
-		if (startersChanged) {
-			changes.push({
-				field: "starters",
-				label: "Conversation starters",
-				from: `${publishedConfig.conversationStarters.length} items`,
-				to: `${config.conversationStarters.length} items`,
-				type: "changed",
-			});
-		}
-
-		// Guardrails
-		const guardrailsChanged =
-			JSON.stringify(config.guardrails) !==
-			JSON.stringify(publishedConfig.guardrails);
-		if (guardrailsChanged) {
-			changes.push({
-				field: "guardrails",
-				label: "Guardrails",
-				from: `${publishedConfig.guardrails.length} items`,
-				to: `${config.guardrails.length} items`,
-				type: "changed",
-			});
-		}
-
-		// Capabilities
-		if (
-			config.capabilities.webSearch !== publishedConfig.capabilities.webSearch
-		) {
-			changes.push({
-				field: "webSearch",
-				label: "Web search",
-				from: publishedConfig.capabilities.webSearch ? "Enabled" : "Disabled",
-				to: config.capabilities.webSearch ? "Enabled" : "Disabled",
-				type: "changed",
-			});
-		}
-		if (
-			config.capabilities.useAllWorkspaceContent !==
-			publishedConfig.capabilities.useAllWorkspaceContent
-		) {
-			changes.push({
-				field: "workspaceContent",
-				label: "Workspace knowledge",
-				from: publishedConfig.capabilities.useAllWorkspaceContent
-					? "Enabled"
-					: "Disabled",
-				to: config.capabilities.useAllWorkspaceContent ? "Enabled" : "Disabled",
-				type: "changed",
-			});
-		}
-
-		// Icon
 		if (
 			config.iconId !== publishedConfig.iconId ||
 			config.iconColorId !== publishedConfig.iconColorId
 		) {
 			changes.push({
 				field: "icon",
-				label: "Icon",
+				label: t("builder.configChanges.icon"),
 				from: "(changed)",
 				to: "(changed)",
 				type: "changed",
@@ -2584,11 +643,29 @@ export default function AgentBuilderPage() {
 		return changes;
 	};
 
-	const configChanges = isEditing ? getConfigChanges() : [];
+	const configChanges = isPublished ? getConfigChanges() : [];
 	const hasChanges = configChanges.length > 0;
 
-	const handleConfirmPublish = () => {
-		console.log("Publishing agent:", config);
+	const handleConfirmPublish = async () => {
+		try {
+			const publishData = {
+				name: config.name,
+				iconId: config.iconId,
+				iconColorId: config.iconColorId,
+				state: "PUBLISHED" as const,
+			};
+			if (agentEid) {
+				await updateAgent.mutateAsync({ eid: agentEid, data: publishData });
+			} else {
+				const created = await createAgent.mutateAsync(publishData);
+				if (created.id) setAgentEid(created.id);
+			}
+		} catch {
+			toast.error(t("builder.failedToPublish"));
+			setShowPublishModal(false);
+			return;
+		}
+
 		setShowPublishModal(false);
 
 		// Fire confetti celebration
@@ -2621,214 +698,42 @@ export default function AgentBuilderPage() {
 		navigate("/agents", {
 			state: {
 				publishedAgent: {
-					id: isEditing ? agentId : Date.now().toString(),
+					id: agentEid || agentId || "",
 					name: config.name,
 					description: config.description,
 					agentType: config.agentType,
 					iconId: config.iconId,
 					iconColorId: config.iconColorId,
-					skills: config.workflows,
+					skills: config.tools,
 				},
 			},
 		});
 	};
 
-	const handleSendMessage = () => {
-		if (!inputValue.trim() || isTyping || showConfirmButtons) return;
-
-		const userMessage: Message = {
-			id: Date.now().toString(),
-			role: "user",
-			content: inputValue.trim(),
-		};
-
-		setMessages((prev) => [...prev, userMessage]);
-		const input = inputValue.trim();
-		setInputValue("");
-
-		processUserInput(input);
-	};
-
-	const _handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			handleSendMessage();
-		}
-	};
-
-	const renderMessageContent = (content: string) => {
-		// Simple markdown-like bold parsing
-		const parts = content.split(/(\*\*[^*]+\*\*)/g);
-		return parts.map((part, i) => {
-			if (part.startsWith("**") && part.endsWith("**")) {
-				return <strong key={i}>{part.slice(2, -2)}</strong>;
-			}
-			return <span key={i}>{part}</span>;
-		});
-	};
-
-	// Mode switcher bar - hidden for screenshots, access via URL ?mode=chat|wizard|wizard-float|canvas
-	const ModeSwitcherBar = () => (
-		<div className="hidden flex items-center justify-center gap-3 px-4 py-2 bg-white border-b">
-			<span className="text-xs text-muted-foreground">Builder variation:</span>
-			<div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
-				<button
-					onClick={() => setBuilderMode("chat")}
-					className={cn(
-						"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-						builderMode === "chat"
-							? "bg-white text-foreground shadow-sm"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-				>
-					<MessageSquare className="size-3.5" />
-					Chat
-				</button>
-				<button
-					onClick={() => setBuilderMode("wizard")}
-					className={cn(
-						"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-						builderMode === "wizard"
-							? "bg-white text-foreground shadow-sm"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-				>
-					<FileText className="size-3.5" />
-					Wizard
-				</button>
-				<button
-					onClick={() => setBuilderMode("wizard-float")}
-					className={cn(
-						"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-						builderMode === "wizard-float"
-							? "bg-white text-foreground shadow-sm"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-				>
-					<Sparkles className="size-3.5" />
-					Wizard + AI
-				</button>
-				<button
-					onClick={() => setBuilderMode("canvas")}
-					className={cn(
-						"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-						builderMode === "canvas"
-							? "bg-white text-foreground shadow-sm"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-				>
-					<Workflow className="size-3.5" />
-					Canvas
-				</button>
-			</div>
-		</div>
-	);
-
-	// If wizard mode is selected, render the WizardAgentBuilder
-	if (builderMode === "wizard") {
+	// Loading state when fetching existing agent
+	if (isEditing && isLoadingAgent) {
 		return (
-			<div className="flex flex-col h-screen">
-				<ModeSwitcherBar />
-				<div className="flex-1 overflow-hidden">
-					<WizardAgentBuilder
-						initialConfig={{
-							name: config.name,
-							description: config.description,
-							role: config.role,
-							completionCriteria: config.completionCriteria,
-							iconId: config.iconId,
-							iconColorId: config.iconColorId,
-							agentType: config.agentType,
-						}}
-						onBack={handleBack}
-						onPublish={(wizardConfig) => {
-							setConfig((prev) => ({
-								...prev,
-								name: wizardConfig.name,
-								description: wizardConfig.description,
-								role: wizardConfig.role,
-								completionCriteria: wizardConfig.completionCriteria,
-								iconId: wizardConfig.iconId,
-								iconColorId: wizardConfig.iconColorId,
-								agentType: wizardConfig.agentType,
-							}));
-							setShowPublishModal(true);
-						}}
-						isEditing={isEditing}
-					/>
-				</div>
+			<div className="flex items-center justify-center h-screen bg-muted/50">
+				<div className="text-muted-foreground">{t("builder.loading")}</div>
 			</div>
 		);
 	}
 
-	// If wizard-float mode is selected, render the WizardFloatBuilder
-	if (builderMode === "wizard-float") {
+	if (isEditing && loadError) {
 		return (
-			<div className="flex flex-col h-screen">
-				<ModeSwitcherBar />
-				<div className="flex-1 overflow-hidden">
-					<WizardFloatBuilder
-						initialConfig={{
-							name: config.name,
-							description: config.description,
-							role: config.role,
-							completionCriteria: config.completionCriteria,
-							iconId: config.iconId,
-							iconColorId: config.iconColorId,
-							agentType: config.agentType,
-						}}
-						onBack={handleBack}
-						onPublish={(wizardConfig) => {
-							setConfig((prev) => ({
-								...prev,
-								name: wizardConfig.name,
-								description: wizardConfig.description,
-								role: wizardConfig.role,
-								completionCriteria: wizardConfig.completionCriteria,
-								iconId: wizardConfig.iconId,
-								iconColorId: wizardConfig.iconColorId,
-								agentType: wizardConfig.agentType,
-							}));
-							setShowPublishModal(true);
-						}}
-						isEditing={isEditing}
-					/>
+			<div className="flex flex-col items-center justify-center h-screen gap-4 bg-muted/50">
+				<div className="text-sm text-muted-foreground">
+					{t("builder.loadError")}
 				</div>
-			</div>
-		);
-	}
-
-	// If canvas mode is selected, render the CanvasBuilder
-	if (builderMode === "canvas") {
-		return (
-			<div className="flex flex-col h-screen">
-				<ModeSwitcherBar />
-				<div className="flex-1 overflow-hidden">
-					<CanvasBuilder
-						initialConfig={{
-							name: config.name,
-							description: config.description,
-						}}
-						onBack={handleBack}
-						onPublish={(canvasConfig) => {
-							setConfig((prev) => ({
-								...prev,
-								name: canvasConfig.name,
-								description: canvasConfig.description,
-							}));
-							setShowPublishModal(true);
-						}}
-						isEditing={isEditing}
-					/>
-				</div>
+				<Button variant="outline" onClick={() => navigate("/agents")}>
+					{t("builder.backToAgents")}
+				</Button>
 			</div>
 		);
 	}
 
 	return (
 		<div className="flex flex-col h-screen bg-muted/50">
-			<ModeSwitcherBar />
-
 			{/* Header */}
 			<header className="flex items-center justify-between px-4 py-3 bg-white border-b">
 				<div className="flex items-center gap-3">
@@ -2836,73 +741,73 @@ export default function AgentBuilderPage() {
 						variant="ghost"
 						size="icon"
 						onClick={handleBack}
-						aria-label="Go back to agents"
+						aria-label={t("builder.goBack")}
 					>
 						<ArrowLeft className="size-5" />
 					</Button>
 					<h1 className="text-lg font-medium">{config.name}</h1>
 					<Badge
-						variant={isEditing || step === "done" ? "default" : "secondary"}
+						variant={
+							isPublished || (!savedAgent && step === "done")
+								? "default"
+								: "secondary"
+						}
 					>
-						{isEditing ? (
+						{isPublished ? (
 							<>
 								<Check className="size-3 mr-1" />
-								Published
+								{t("builder.statusPublished")}
 							</>
+						) : isDraft ? (
+							t("builder.statusDraft")
 						) : step === "done" ? (
 							<>
 								<Check className="size-3 mr-1" />
-								Ready to publish
+								{t("builder.statusReady")}
 							</>
 						) : (
-							"Draft"
+							t("builder.statusDraft")
 						)}
 					</Badge>
-					{(step === "done" || isEditing) && (
-						<SaveStatusIndicator
-							status={saveStatus}
-							isDirty={isDirty}
-							error={saveError}
-						/>
-					)}
 				</div>
 				<div className="flex items-center gap-2">
-					<Button variant="outline" className="gap-2">
-						<HelpCircle className="size-4" />
-						How agent builder works
-					</Button>
-					<Button
-						variant="outline"
-						className="gap-2"
-						onClick={() =>
-							navigate(isEditing ? `/agents/${agentId}/test` : "/agents/test", {
-								state: { agentConfig: config },
-							})
-						}
-						disabled={
-							!config.name ||
-							config.name === "my agent" ||
-							(!config.description &&
-								!config.instructions &&
-								!config.conversationStarters.some((s) => s.trim()))
-						}
-					>
-						<Play className="size-4" />
-						Test
-					</Button>
-					{isEditing ? (
+					{(isEditing || agentEid) && (
+						<Button
+							variant="outline"
+							className="gap-2"
+							onClick={() =>
+								navigate(
+									agentEid ? `/agents/${agentEid}/test` : "/agents/test",
+									{
+										state: { agentConfig: config },
+									},
+								)
+							}
+							disabled={
+								!config.name ||
+								config.name === "my agent" ||
+								(!config.description &&
+									!config.instructions &&
+									!config.conversationStarters.some((s) => s.trim()))
+							}
+						>
+							<Play className="size-4" />
+							{t("builder.test")}
+						</Button>
+					)}
+					{isPublished ? (
 						<>
 							<Button
 								variant="outline"
 								onClick={() => setShowUnpublishModal(true)}
 							>
-								Unpublish
+								{t("builder.unpublish")}
 							</Button>
 							<Button
-								onClick={() => setShowPublishChangesModal(true)}
+								onClick={() => setShowPublishModal(true)}
 								disabled={!hasChanges}
 							>
-								Publish changes
+								{t("builder.publishChanges")}
 								{hasChanges && (
 									<span className="ml-1.5 px-1.5 py-0.5 bg-white/20 rounded text-xs">
 										{configChanges.length}
@@ -2910,1876 +815,731 @@ export default function AgentBuilderPage() {
 								)}
 							</Button>
 						</>
+					) : isEditing && agentEid ? (
+						<>
+							<Button
+								variant="outline"
+								onClick={handleUpdateAgent}
+								disabled={cheapSaveDisabled}
+								title={
+									skillValidation && !skillValidation.valid
+										? (
+												t as unknown as (
+													key: string,
+													params?: Record<string, string>,
+												) => string
+											)(
+												skillValidation.messageKey ?? "",
+												skillValidation.messageParams ?? {},
+											)
+										: undefined
+								}
+							>
+								{updateAgent.isPending && (
+									<Loader2 className="size-4 animate-spin" />
+								)}
+								{t("builder.updateAgent")}
+							</Button>
+							<Button
+								onClick={handlePublish}
+								disabled={!config.name || instructionsBlocksSubmit}
+							>
+								{t("builder.publish")}
+							</Button>
+						</>
+					) : !isEditing && !agentEid ? (
+						<Button
+							onClick={() => {
+								agentCreation.create({
+									name: config.name,
+									description: config.description,
+									instructions: config.instructions,
+									iconId: config.iconId,
+									iconColorId: config.iconColorId,
+									conversationStarters: config.conversationStarters,
+									guardrails: config.guardrails.filter((g) => g.trim()),
+									generateDescription: !config.description.trim(),
+								});
+							}}
+							disabled={
+								!config.name.trim() ||
+								instructionsBlocksSubmit ||
+								nameTaken ||
+								hasEmptyGuardrails ||
+								agentCreation.isCreating
+							}
+						>
+							{agentCreation.isCreating && (
+								<Loader2 className="size-4 animate-spin" />
+							)}
+							{t("builder.createAgent")}
+						</Button>
 					) : (
 						<Button
 							onClick={handlePublish}
-							disabled={
-								!config.name || (!config.instructions && !config.description)
-							}
+							disabled={!config.name || instructionsBlocksSubmit}
 						>
-							Publish
+							{t("builder.publish")}
 						</Button>
 					)}
 				</div>
 			</header>
 
-			{/* Main content */}
-			<div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
-				{/* Left panel - Configure/Access */}
-				<div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
-					{/* Configure content */}
-					<div className="flex-1 overflow-y-auto p-6">
-						<div className="max-w-2xl mx-auto space-y-8">
-							{/* Name of agent with icon picker */}
-							<div>
-								<div className="flex items-center gap-1.5">
-									<Label htmlFor="agent-name" className="text-sm font-medium">
-										Name of agent
-									</Label>
-									<FieldHelpPopover
-										description="Pick a clear, action-oriented name your users will recognize."
-										examples={["HR Onboarding Buddy", "IT HelpDesk Agent"]}
-										ariaLabel="Name field help"
-									/>
-								</div>
-								<div className="flex items-center gap-4 mt-2">
-									<Input
-										id="agent-name"
-										value={config.name}
-										onChange={(e) =>
-											setConfig((prev) => ({ ...prev, name: e.target.value }))
-										}
-										placeholder="Enter agent name"
-										className="flex-1"
-									/>
-									{/* Icon picker button */}
-									<div className="relative flex items-center">
-										<button
-											onClick={() => setShowIconPicker(!showIconPicker)}
-											className={cn(
-												"size-[38px] rounded-lg flex items-center justify-center transition-colors",
-												ICON_COLORS.find((c) => c.id === config.iconColorId)
-													?.bg || "bg-violet-200",
-											)}
-											aria-label="Change agent icon"
-										>
-											{(() => {
-												const iconData = AVAILABLE_ICONS.find(
-													(i) => i.id === config.iconId,
-												);
-												const colorData = ICON_COLORS.find(
-													(c) => c.id === config.iconColorId,
-												);
-												const IconComponent = iconData?.icon || Bot;
-												return (
-													<IconComponent
-														className={cn(
-															"size-6",
-															colorData?.text || "text-white",
-														)}
-													/>
-												);
-											})()}
-										</button>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="size-9"
-											onClick={() => setShowIconPicker(!showIconPicker)}
-										>
-											<ChevronDown className="size-4" />
-										</Button>
-
-										{/* Icon Picker Dropdown */}
-										{showIconPicker && (
-											<div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border z-50 p-4">
-												{/* Color selection */}
-												<div className="mb-4">
-													<p className="text-sm font-medium text-muted-foreground mb-2">
-														Color
-													</p>
-													<div className="flex gap-2">
-														{ICON_COLORS.map((color) => (
-															<button
-																key={color.id}
-																onClick={() =>
-																	setConfig((prev) => ({
-																		...prev,
-																		iconColorId: color.id,
-																	}))
-																}
-																className={cn(
-																	"size-10 rounded-full transition-all",
-																	color.bg,
-																	config.iconColorId === color.id
-																		? "ring-2 ring-offset-2 ring-primary"
-																		: "hover:scale-110",
-																)}
-																aria-label={`Select ${color.id} color`}
-															/>
-														))}
-													</div>
-												</div>
-
-												{/* Icon selection */}
-												<div>
-													<p className="text-sm font-medium text-muted-foreground mb-2">
-														Icon
-													</p>
-													<div className="relative mb-3">
-														<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-														<Input
-															placeholder="Find by type, role, or expertise"
-															value={iconSearchQuery}
-															onChange={(e) =>
-																setIconSearchQuery(e.target.value)
-															}
-															className="pl-9"
-														/>
-													</div>
-													<div className="grid grid-cols-6 gap-1 max-h-[240px] overflow-y-auto">
-														{AVAILABLE_ICONS.filter((icon) => {
-															if (!iconSearchQuery) return true;
-															const query = iconSearchQuery.toLowerCase();
-															return (
-																icon.id.includes(query) ||
-																icon.keywords.some((k) => k.includes(query))
-															);
-														}).map((iconData) => {
-															const IconComponent = iconData.icon;
-															return (
-																<button
-																	key={iconData.id}
-																	onClick={() => {
-																		setConfig((prev) => ({
-																			...prev,
-																			iconId: iconData.id,
-																		}));
-																		setShowIconPicker(false);
-																		setIconSearchQuery("");
-																	}}
-																	className={cn(
-																		"size-10 rounded-lg flex items-center justify-center transition-colors",
-																		config.iconId === iconData.id
-																			? "bg-primary/10 text-primary"
-																			: "hover:bg-muted text-muted-foreground hover:text-foreground",
-																	)}
-																>
-																	<IconComponent className="size-5" />
-																</button>
-															);
-														})}
-													</div>
-												</div>
-											</div>
-										)}
-									</div>
-								</div>
-							</div>
-
-							{/* Description - Collapsible */}
-							{!showDescription && !config.description?.trim() ? (
-								<button
-									onClick={() => setShowDescription(true)}
-									className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-								>
-									<Plus className="size-4" />
-									<span>Add description</span>
-								</button>
-							) : (
+			{/* Main content — replaced by creation overlay when active */}
+			{isCreationActive ? (
+				<AgentCreationOverlay
+					status={agentCreation.status}
+					mode={agentCreation.mode}
+					executionSteps={agentCreation.executionSteps}
+					inputMessage={agentCreation.inputMessage}
+					agentName={agentCreation.agentName}
+					agentId={agentCreation.agentId}
+					error={agentCreation.error}
+					onEditAgent={(id) => {
+						agentCreation.reset();
+						// In update mode we're already on /agents/:id — reset clears the
+						// overlay and the form rehydrates from the freshly-invalidated
+						// detail query (SSEContext handles the invalidation).
+						if (agentCreation.mode === "update" && id === agentEid) {
+							setHasLoadedFromApi(false);
+							return;
+						}
+						navigate(`/agents/${id}`);
+					}}
+					onTestAgent={(id) => {
+						agentCreation.reset();
+						navigate(`/agents/${id}/test`);
+					}}
+					onSendInput={(input) => {
+						if (agentCreation.creationId && agentCreation.executionId) {
+							agentApi.sendCreationInput({
+								creationId: agentCreation.creationId,
+								prevExecutionId: agentCreation.executionId,
+								prompt: input,
+							});
+							const store = useAgentCreationStore.getState();
+							store.resumeCreation();
+						}
+					}}
+					onRetry={() => {
+						agentCreation.reset();
+						agentCreation.create({
+							name: config.name,
+							description: config.description,
+							instructions: config.instructions,
+							iconId: config.iconId,
+							iconColorId: config.iconColorId,
+							conversationStarters: config.conversationStarters,
+							guardrails: config.guardrails.filter((g) => g.trim()),
+							generateDescription: !config.description.trim(),
+						});
+					}}
+					onCancel={() => {
+						agentCreation.reset();
+					}}
+				/>
+			) : (
+				<div className="flex flex-1 overflow-hidden p-4 gap-4 justify-center">
+					{/* Left panel - Configure/Access */}
+					<div className="flex flex-col flex-1 max-w-3xl bg-white rounded-xl">
+						{/* Configure content */}
+						<div className="flex-1 overflow-y-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-8">
+								{/* Name of agent with icon picker */}
 								<div>
 									<div className="flex items-center gap-1.5">
-										<Label
-											htmlFor="agent-description"
-											className="text-sm font-medium"
-										>
-											Description
+										<Label htmlFor="agent-name" className="text-sm font-medium">
+											{t("builder.form.nameLabel")}
 										</Label>
-										<FieldHelpPopover
-											description="A short summary of the agent's purpose. Shown in the agent list."
-											examples={[
-												"Helps new hires complete onboarding paperwork.",
-												"Resets passwords and unlocks accounts for IT requests.",
-											]}
-											ariaLabel="Description field help"
+										<FieldHelp
+											label={t("builder.form.nameLabel")}
+											description={t("builder.help.name.description")}
+											examples={
+												t("builder.help.name.examples", {
+													returnObjects: true,
+												}) as string[]
+											}
+											triggerAriaLabel={t("builder.helpTriggerAria")}
 										/>
 									</div>
-									<Textarea
-										id="agent-description"
-										value={config.description}
-										onChange={(e) =>
-											setConfig((prev) => ({
-												...prev,
-												description: e.target.value,
-											}))
-										}
-										placeholder="Answers IT support questions and helps employees troubleshoot common technical issues."
-										className="mt-2 min-h-[60px] resize-none text-muted-foreground"
-										autoFocus={showDescription && !config.description}
-									/>
-								</div>
-							)}
-
-							{/* Skills Section */}
-							<div id="skills-section" className="space-y-2">
-								<div className="flex items-start justify-between">
-									<div>
-										<div className="flex items-center gap-1.5">
-											<Label className="text-sm font-medium">Skills</Label>
-											<FieldHelpPopover
-												description="Capabilities the agent can perform. Add skills from your library or create new ones."
-												examples={["Reset password", "Lookup PTO balance"]}
-												ariaLabel="Skills field help"
-											/>
+									<div className="flex items-start gap-4 mt-2">
+										<div className="flex-1">
+											<div className="relative">
+												<Input
+													id="agent-name"
+													value={config.name}
+													onChange={(e) => {
+														setConfig((prev) => ({
+															...prev,
+															name: e.target.value,
+														}));
+														if (!nameTouched) setNameTouched(true);
+													}}
+													onBlur={() => setNameTouched(true)}
+													placeholder={t("builder.form.namePlaceholder")}
+													aria-invalid={nameEmpty || nameTaken}
+													aria-describedby="builder-name-feedback"
+												/>
+												{isCheckingName && config.name.trim() && (
+													<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+												)}
+											</div>
+											<div
+												id="builder-name-feedback"
+												aria-live="polite"
+												className="min-h-5 mt-1"
+											>
+												{nameEmpty && (
+													<p className="text-sm text-destructive">
+														{t("builder.form.nameRequired")}
+													</p>
+												)}
+												{nameTaken && (
+													<p className="text-sm text-destructive">
+														{t("builder.form.nameTaken")}
+													</p>
+												)}
+												{nameAvailable && !nameEmpty && (
+													<p className="text-sm text-emerald-600 flex items-center gap-1">
+														<Check className="size-3.5" />
+														{t("builder.form.nameAvailable")}
+													</p>
+												)}
+											</div>
 										</div>
-										<p className="text-sm text-muted-foreground mt-1">
-											Help users understand what this agent can help them with
-											by adding skills
-										</p>
+										{/* Icon picker button */}
+										<AgentIconPicker
+											iconId={config.iconId}
+											iconColorId={config.iconColorId}
+											onIconChange={(iconId) =>
+												setConfig((prev) => ({
+													...prev,
+													iconId,
+												}))
+											}
+											onColorChange={(iconColorId) =>
+												setConfig((prev) => ({
+													...prev,
+													iconColorId,
+												}))
+											}
+										/>
 									</div>
-									<Button
-										variant="outline"
-										size="sm"
-										className="h-8 gap-1.5"
-										onClick={() => setShowAddSkillModal(true)}
-									>
-										<Plus className="size-4" />
-										Add skill
-									</Button>
 								</div>
 
-								{config.workflows.length === 0 ? (
-									/* Empty state */
-									<button
-										onClick={() => setShowAddSkillModal(true)}
-										className="w-full border border-dashed rounded-lg py-6 px-4 text-center hover:border-muted-foreground/50 transition-colors"
-									>
-										<p className="text-sm font-medium">Add skills</p>
-										<p className="text-sm text-muted-foreground mt-1">
-											Add existing skills to this agent to improve context
-										</p>
-									</button>
-								) : (
-									/* Added skills list - Resolve Actions/Workflows use violet icons */
-									<div className="border rounded-md px-4 py-2">
-										<div className="space-y-1">
-											{config.workflows.map((workflow, index) => {
-												const skillData = AVAILABLE_SKILLS.find(
-													(s) => s.name === workflow,
-												);
-												const SkillIcon = skillData?.icon || Zap;
-												return (
-													<div
-														key={index}
-														className="flex items-center gap-2.5 py-1"
-													>
-														<div className="size-5 rounded flex items-center justify-center flex-shrink-0 bg-violet-200">
-															<SkillIcon className="size-3 text-foreground" />
-														</div>
-														<span className="text-xs flex-1">{workflow}</span>
-														<button
-															onClick={() => {
-																const removed = workflow;
-																const updated = config.workflows.filter(
-																	(_, i) => i !== index,
-																);
-																setConfig((prev) => ({
-																	...prev,
-																	workflows: updated,
-																	instructions: removeSkillFromInstructions(
-																		prev.instructions,
-																		removed,
-																	),
-																}));
-															}}
-															className="p-2 text-muted-foreground hover:text-foreground"
-														>
-															<X className="size-3" />
-														</button>
-													</div>
-												);
-											})}
-										</div>
-									</div>
-								)}
-							</div>
-
-							{/* Instructions Section */}
-							<div className="space-y-2">
-								<div>
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-1.5">
+								{/* Description - Collapsible, only visible when editing */}
+								{isEditing &&
+									(!showDescription && !config.description?.trim() ? (
+										<button
+											onClick={() => setShowDescription(true)}
+											className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+										>
+											<Plus className="size-4" />
+											<span>{t("builder.form.addDescription")}</span>
+										</button>
+									) : (
+										<div>
 											<Label
-												htmlFor="instructions"
+												htmlFor="agent-description"
 												className="text-sm font-medium"
 											>
-												Instructions
+												{t("builder.form.descriptionLabel")}
 											</Label>
-											<FieldHelpPopover
-												description="Tell the agent who it is, how it should behave, and when its job is done. Use ## headings to structure (Role, Backstory, Goal)."
-												examples={[
-													"## Role\nYou are an HR onboarding assistant\u2026",
-													"## Goal\nThe user has submitted their I-9 and reviewed the handbook.",
-												]}
-												ariaLabel="Instructions field help"
+											<Textarea
+												id="agent-description"
+												value={config.description}
+												onChange={(e) =>
+													setConfig((prev) => ({
+														...prev,
+														description: e.target.value,
+													}))
+												}
+												placeholder={t("builder.form.descriptionPlaceholder")}
+												className="mt-2 min-h-[60px] resize-none text-muted-foreground"
+												autoFocus={showDescription && !config.description}
 											/>
+										</div>
+									))}
+
+								{/* Skills Section */}
+								<div id="skills-section" className="space-y-2">
+									<div className="flex items-start justify-between">
+										<div>
+											<div className="flex items-center gap-1.5">
+												<Label className="text-sm font-medium">
+													{t("builder.form.skillsLabel")}
+												</Label>
+												<FieldHelp
+													label={t("builder.form.skillsLabel")}
+													description={t("builder.help.skills.description")}
+													examples={
+														t("builder.help.skills.examples", {
+															returnObjects: true,
+														}) as string[]
+													}
+													triggerAriaLabel={t("builder.helpTriggerAria")}
+												/>
+											</div>
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.skillsDescription")}
+											</p>
+										</div>
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-8 gap-1.5"
+											onClick={() => setShowAddToolsModal(true)}
+										>
+											<Plus className="size-4" />
+											{t("builder.form.addSkill")}
+										</Button>
+									</div>
+
+									{config.tools.length === 0 ? (
+										/* Empty state */
+										<button
+											onClick={() => setShowAddToolsModal(true)}
+											className="w-full border border-dashed rounded-lg py-6 px-4 text-center hover:border-muted-foreground/50 transition-colors"
+										>
+											<p className="text-sm font-medium">
+												{t("builder.form.addSkills")}
+											</p>
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.addSkillsDescription")}
+											</p>
+										</button>
+									) : (
+										/* Added tools list */
+										<div className="border rounded-md px-4 py-2">
+											<div className="space-y-1">
+												{config.tools.map((toolName, index) => {
+													return (
+														<div
+															key={index}
+															className="flex items-center gap-2.5 py-1"
+														>
+															<div className="size-5 rounded flex items-center justify-center flex-shrink-0 bg-muted">
+																<Zap className="size-3 text-muted-foreground" />
+															</div>
+															<span className="text-xs flex-1">
+																{humanizeToolName(toolName)}
+															</span>
+															<button
+																onClick={() => {
+																	setConfig((prev) => ({
+																		...prev,
+																		tools: prev.tools.filter(
+																			(_, i) => i !== index,
+																		),
+																		instructions: syncRemovedToolInInstructions(
+																			prev.instructions ?? "",
+																			toolName,
+																		),
+																	}));
+																}}
+																aria-label={t("builder.form.removeTool", {
+																	tool: humanizeToolName(toolName),
+																})}
+																className="p-2 text-muted-foreground hover:text-foreground"
+															>
+																<X className="size-3" aria-hidden="true" />
+															</button>
+														</div>
+													);
+												})}
+											</div>
+										</div>
+									)}
+								</div>
+
+								{/* Instructions Section */}
+								<div className="space-y-2">
+									<div className="flex items-center justify-between">
+										<div>
+											<div className="flex items-center gap-1.5">
+												<Label
+													htmlFor="instructions"
+													className="text-sm font-medium"
+												>
+													{t("builder.form.instructionsLabel")}
+												</Label>
+												<FieldHelp
+													label={t("builder.form.instructionsLabel")}
+													description={t(
+														"builder.help.instructions.description",
+													)}
+													examples={
+														t("builder.help.instructions.examples", {
+															returnObjects: true,
+														}) as string[]
+													}
+													triggerAriaLabel={t("builder.helpTriggerAria")}
+												/>
+											</div>
+											<p className="text-sm text-muted-foreground mt-1">
+												{t("builder.form.instructionsDescription")}
+											</p>
 										</div>
 										<Button
 											variant="ghost"
 											size="sm"
-											className="gap-1 h-7 text-xs"
+											className="gap-1.5 h-8"
 											disabled={
-												isImprovingInstructions ||
-												!!improvePreview ||
-												!config.instructions.trim()
+												improveInstructions.status === "improving" ||
+												isCreationActive ||
+												(!config.instructions.trim() &&
+													!config.description.trim())
 											}
-											onClick={async () => {
-												setIsImprovingInstructions(true);
-												try {
-													const result = await mockImproveInstructions(
-														config.instructions,
-														config.name,
-													);
-													setImprovePreview({
-														original: config.instructions,
-														improved: result,
-													});
-												} finally {
-													setIsImprovingInstructions(false);
-												}
+											onClick={() => {
+												improveInstructions.improve({
+													name: config.name,
+													description: config.description,
+													instructions: config.instructions,
+													agentType: config.agentType,
+													tools: config.tools,
+													conversationStarters: config.conversationStarters,
+													guardrails: config.guardrails.filter((g) => g.trim()),
+													knowledgeSources: config.knowledgeSources,
+													capabilities: config.capabilities,
+												});
+												setShowImproveDialog(true);
 											}}
 										>
-											{isImprovingInstructions ? (
+											{improveInstructions.status === "improving" ? (
 												<Loader2 className="size-3.5 animate-spin" />
 											) : (
 												<Sparkles className="size-3.5" />
 											)}
-											Improve
+											{t("builder.form.improve")}
 										</Button>
 									</div>
-									<p className="text-sm text-muted-foreground mt-1">
-										Control your agents behavior by adding instructions.
-									</p>
-								</div>
 
-								{/* Instructions textarea with footer */}
-								<div className="border rounded-lg overflow-hidden">
-									<div className="relative">
-										<Textarea
-											id="instructions"
-											value={config.instructions}
-											onChange={(e) =>
-												setConfig((prev) => ({
-													...prev,
-													instructions: e.target.value,
-												}))
-											}
-											placeholder={
-												"## Role\n\n## Backstory\n\n## Goal\n\n## Task"
-											}
-											className="min-h-[80px] max-h-[120px] resize-none text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
-										/>
-										<button
-											className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
-											aria-label="Expand instructions"
-											onClick={() => setShowInstructionsModal(true)}
-										>
-											<svg
-												width="16"
-												height="16"
-												viewBox="0 0 16 16"
-												fill="none"
-												xmlns="http://www.w3.org/2000/svg"
-											>
-												<path
-													d="M10 2H14V6M6 14H2V10M14 2L9 7M2 14L7 9"
-													stroke="currentColor"
-													strokeWidth="1.5"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												/>
-											</svg>
-										</button>
-									</div>
-								</div>
-								<p className="text-xs text-muted-foreground">
-									Update instructions as needed
-								</p>
-
-								{/* Updated from skills message */}
-								{instructionsUpdatedFromSkills && (
-									<p className="text-xs text-primary mt-1">
-										Updated based on skills
-									</p>
-								)}
-							</div>
-
-							{/* Conversation Starters Section */}
-							<div className="space-y-2">
-								<div className="flex items-start justify-between">
-									<div>
-										<div className="flex items-center gap-1.5">
-											<label className="text-sm font-medium text-foreground">
-												Conversation starters
-											</label>
-											<FieldHelpPopover
-												description="Suggested prompts shown to users when they open this agent."
-												examples={[
-													"How do I request PTO?",
-													"Reset my password",
-												]}
-												ariaLabel="Conversation starters field help"
-											/>
-										</div>
-										<p className="text-sm text-muted-foreground mt-0.5">
-											Suggested prompts shown to users when starting a
-											conversation
-										</p>
-									</div>
-								</div>
-								{/* Input with inline tags */}
-								<div className="border rounded-md min-h-9 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-									{/* Added starters as solid badges */}
-									{config.conversationStarters.map((starter, index) => (
-										<div
-											key={index}
-											className="flex items-center gap-1 px-2 py-0.5 border border-dashed rounded-md text-xs text-muted-foreground whitespace-nowrap"
-										>
-											<span>{starter}</span>
-											<button
-												onClick={() => {
-													const updated = config.conversationStarters.filter(
-														(_, i) => i !== index,
-													);
+									{/* Instructions textarea with footer */}
+									<div className="border rounded-lg overflow-hidden">
+										<div className="relative">
+											<Textarea
+												id="instructions"
+												value={config.instructions}
+												onChange={(e) => {
 													setConfig((prev) => ({
 														...prev,
-														conversationStarters: updated,
+														instructions: e.target.value,
 													}));
 												}}
-												className="text-muted-foreground hover:text-destructive"
-												aria-label={`Remove ${starter}`}
+												onBlur={() => setInstructionsTouched(true)}
+												placeholder={
+													"## Role\n\n## Backstory\n\n## Goal\n\n## Task"
+												}
+												aria-invalid={instructionsError}
+												aria-describedby="instructions-feedback"
+												className="min-h-[80px] resize-y text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
+											/>
+											<button
+												className="absolute top-2 right-2 p-2 text-muted-foreground hover:text-foreground"
+												aria-label={t("builder.form.expandInstructions")}
+												onClick={() => setShowInstructionsModal(true)}
 											>
-												<X className="size-3" />
+												<svg
+													width="16"
+													height="16"
+													viewBox="0 0 16 16"
+													fill="none"
+													xmlns="http://www.w3.org/2000/svg"
+												>
+													<path
+														d="M10 2H14V6M6 14H2V10M14 2L9 7M2 14L7 9"
+														stroke="currentColor"
+														strokeWidth="1.5"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+													/>
+												</svg>
 											</button>
 										</div>
-									))}
-									{/* Input for typing new starters */}
-									{config.conversationStarters.length < 4 && (
-										<input
-											type="text"
-											placeholder="Type and press Enter to add..."
-											className="flex-1 min-w-[150px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-											onKeyDown={(e) => {
-												const input = e.currentTarget;
-												if (e.key === "Enter" && input.value.trim()) {
-													e.preventDefault();
-													const newStarter = input.value.trim();
-													setConfig((prev) => ({
-														...prev,
-														conversationStarters: [
-															...prev.conversationStarters,
-															newStarter,
-														],
-													}));
-													input.value = "";
-												}
-											}}
-										/>
-									)}
-								</div>
-							</div>
-
-							{/* Guardrails Section */}
-							<div className="space-y-2">
-								<div>
-									<div className="flex items-center gap-1.5">
-										<label className="text-sm font-medium text-foreground">
-											Guardrails
-										</label>
-										<FieldHelpPopover
-											description="Topics or actions the agent must NOT handle. Be specific."
-											examples={[
-												"Do not give legal advice",
-												"Never share salary information",
-											]}
-											ariaLabel="Guardrails field help"
-										/>
 									</div>
-									<p className="text-xs text-muted-foreground mt-0.5">
-										Topics or requests the agent should NOT handle
+									<p className="text-xs text-muted-foreground">
+										{t("builder.form.instructionsHint")}
 									</p>
-								</div>
 
-								{config.guardrails.length === 0 ? (
-									<button
-										onClick={() => {
-											setConfig((prev) => ({
-												...prev,
-												guardrails: [...prev.guardrails, ""],
-											}));
-										}}
-										className="w-full border border-dashed rounded-lg py-4 px-4 text-center hover:border-muted-foreground/50 transition-colors"
-									>
-										<p className="text-sm text-muted-foreground">
-											Add a guardrail
-										</p>
-									</button>
-								) : (
-									<div className="space-y-2">
-										{config.guardrails.map((guardrail, index) => (
-											<div key={index} className="flex items-center gap-2">
-												<Input
-													value={guardrail}
-													onChange={(e) => {
-														const updated = [...config.guardrails];
-														updated[index] = e.target.value;
-														setConfig((prev) => ({
-															...prev,
-															guardrails: updated,
-														}));
-													}}
-													placeholder="e.g., HR policy questions"
-													className="flex-1"
-												/>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="size-9 text-muted-foreground hover:text-foreground"
-													onClick={() => {
-														const updated = config.guardrails.filter(
-															(_, i) => i !== index,
-														);
-														setConfig((prev) => ({
-															...prev,
-															guardrails: updated,
-														}));
-													}}
-												>
-													<Trash2 className="size-4" />
-												</Button>
-											</div>
-										))}
-										<Button
-											variant="ghost"
-											size="sm"
-											className="h-8 gap-1.5 text-muted-foreground"
-											onClick={() => {
-												setConfig((prev) => ({
-													...prev,
-													guardrails: [...prev.guardrails, ""],
-												}));
-											}}
-										>
-											<Plus className="size-4" />
-											Add guardrail
-										</Button>
-									</div>
-								)}
-							</div>
-
-							{/* Knowledge Section */}
-							<div className="space-y-2">
-								<div>
-									<div className="flex items-center gap-1.5">
-										<Label className="text-sm font-medium">Knowledge</Label>
-										<FieldHelpPopover
-											description="Sources the agent draws from when answering. Toggle web search and workspace knowledge as needed."
-											examples={[
-												"Enable web search for general/public info",
-												"Enable workspace knowledge for internal docs",
-											]}
-											ariaLabel="Knowledge field help"
-										/>
-									</div>
-									<p className="text-sm text-muted-foreground mt-1">
-										Give your agent general knowledge to answer best
-									</p>
-								</div>
-
-								{/* Search input */}
-								<div className="relative">
 									<div
-										className="border rounded-md px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:border-muted-foreground/50 transition-colors"
-										onClick={() => {
-											if (!config.capabilities.useAllWorkspaceContent) {
-												const input = document.getElementById(
-													"knowledge-search-input",
-												);
-												input?.focus();
-											}
-										}}
+										id="instructions-feedback"
+										aria-live="polite"
+										className="min-h-5 mt-1"
 									>
-										<Search className="size-3 text-muted-foreground" />
-										<input
-											id="knowledge-search-input"
-											type="text"
-											placeholder="Browse files from connected integrations or uploads"
-											className={cn(
-												"flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground",
-												config.capabilities.useAllWorkspaceContent &&
-													"opacity-50 cursor-not-allowed",
-											)}
-											value={knowledgeSearchQuery}
-											onChange={(e) => setKnowledgeSearchQuery(e.target.value)}
-											disabled={config.capabilities.useAllWorkspaceContent}
-										/>
-									</div>
-
-									{/* Dropdown results */}
-									{knowledgeSearchQuery.trim() &&
-										!config.capabilities.useAllWorkspaceContent && (
-											<div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-[300px] overflow-y-auto z-20">
-												{AVAILABLE_KNOWLEDGE_SOURCES.filter((source) => {
-													const query = knowledgeSearchQuery.toLowerCase();
-													return (
-														source.name.toLowerCase().includes(query) ||
-														source.description.toLowerCase().includes(query) ||
-														source.tags.some((tag) =>
-															tag.toLowerCase().includes(query),
-														)
-													);
-												}).map((source) => {
-													const isAlreadyAdded =
-														config.knowledgeSources.includes(source.name);
-													return (
-														<button
-															key={source.id}
-															className={cn(
-																"w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-muted/50 transition-colors",
-																isAlreadyAdded && "opacity-50",
-															)}
-															onClick={() => {
-																if (isAlreadyAdded) return;
-																setConfig((prev) => ({
-																	...prev,
-																	knowledgeSources: [
-																		...prev.knowledgeSources,
-																		source.name,
-																	],
-																}));
-																setKnowledgeSearchQuery("");
-															}}
-															disabled={isAlreadyAdded}
-														>
-															<div
-																className={cn(
-																	"size-5 rounded flex items-center justify-center flex-shrink-0",
-																	source.type === "upload"
-																		? "bg-amber-100"
-																		: "bg-blue-100",
-																)}
-															>
-																{source.type === "upload" ? (
-																	<FileText className="size-3 text-foreground" />
-																) : (
-																	<Link2 className="size-3 text-foreground" />
-																)}
-															</div>
-															<span className="text-sm flex-1">
-																{source.name}
-															</span>
-															{isAlreadyAdded && (
-																<Check className="size-4 text-primary" />
-															)}
-														</button>
-													);
+										{instructionsErrorCode === "required" && (
+											<p className="text-sm text-destructive">
+												{t("builder.form.instructionsRequired")}
+											</p>
+										)}
+										{instructionsErrorCode === "tooShort" && (
+											<p className="text-sm text-destructive">
+												{t("builder.form.instructionsTooShort", {
+													min: MIN_INSTRUCTIONS_LENGTH,
 												})}
-												{AVAILABLE_KNOWLEDGE_SOURCES.filter((source) => {
-													const query = knowledgeSearchQuery.toLowerCase();
-													return (
-														source.name.toLowerCase().includes(query) ||
-														source.description.toLowerCase().includes(query) ||
-														source.tags.some((tag) =>
-															tag.toLowerCase().includes(query),
-														)
-													);
-												}).length === 0 && (
-													<div className="px-4 py-6 text-center text-muted-foreground">
-														<p className="text-sm">No matching sources found</p>
-													</div>
-												)}
-											</div>
+											</p>
 										)}
-								</div>
-
-								{/* Knowledge container with documents and toggles */}
-								<div className="border rounded-lg">
-									{/* Documents section - only show when not using all workspace */}
-									{!config.capabilities.useAllWorkspaceContent &&
-										config.knowledgeSources.length > 0 && (
-											<div className="p-2">
-												<p className="text-sm text-muted-foreground px-2 py-1">
-													Documents ({config.knowledgeSources.length})
-												</p>
-												<div className="px-2 space-y-1">
-													{config.knowledgeSources.map((sourceName, index) => {
-														const sourceData = AVAILABLE_KNOWLEDGE_SOURCES.find(
-															(s) => s.name === sourceName,
-														);
-														const isConnection =
-															sourceData?.type === "connection";
-														return (
-															<div
-																key={index}
-																className="flex items-center gap-2.5 py-1"
-															>
-																<div
-																	className={cn(
-																		"size-5 rounded flex items-center justify-center flex-shrink-0",
-																		isConnection
-																			? "bg-blue-100"
-																			: "bg-amber-100",
-																	)}
-																>
-																	{isConnection ? (
-																		<Link2 className="size-3 text-foreground" />
-																	) : (
-																		<FileText className="size-3 text-foreground" />
-																	)}
-																</div>
-																<span className="text-xs flex-1">
-																	{sourceName}
-																</span>
-																<button
-																	onClick={() => {
-																		const updated =
-																			config.knowledgeSources.filter(
-																				(_, i) => i !== index,
-																			);
-																		setConfig((prev) => ({
-																			...prev,
-																			knowledgeSources: updated,
-																		}));
-																	}}
-																	className="p-2 text-muted-foreground hover:text-foreground"
-																>
-																	<X className="size-3" />
-																</button>
-															</div>
-														);
-													})}
-												</div>
-											</div>
-										)}
-
-									{/* Toggle options */}
-									<div className="px-4">
-										<div className="flex items-start gap-3 py-3">
-											<Checkbox
-												checked={config.capabilities.webSearch}
-												onCheckedChange={(checked) =>
-													setConfig((prev) => ({
-														...prev,
-														capabilities: {
-															...prev.capabilities,
-															webSearch: !!checked,
-														},
-													}))
-												}
-												className="mt-0.5"
-											/>
-											<div className="flex-1">
-												<p className="text-sm font-medium">
-													Search the web for information
-												</p>
-												<p className="text-sm text-muted-foreground mt-1">
-													Let the agent search and reference information found
-													on the websites
-												</p>
-											</div>
-										</div>
-										<div className="border-t" />
-										<div className="flex items-start gap-3 py-3">
-											<Checkbox
-												checked={config.capabilities.useAllWorkspaceContent}
-												onCheckedChange={(checked) => {
-													setConfig((prev) => ({
-														...prev,
-														capabilities: {
-															...prev.capabilities,
-															useAllWorkspaceContent: !!checked,
-														},
-													}));
-													if (checked) {
-														setKnowledgeSearchQuery("");
-													}
-												}}
-												className="mt-0.5"
-											/>
-											<div className="flex-1">
-												<p className="text-sm font-medium">
-													Enable all workspace knowledge
-												</p>
-												<p className="text-sm text-muted-foreground mt-1">
-													Let the agent use all shared integrations, files, and
-													other assets in this workspace
-												</p>
-											</div>
-										</div>
 									</div>
 								</div>
+
+								{/* Conversation Starters Section */}
+								<AgentConversationStarters
+									starters={config.conversationStarters}
+									onChange={(starters) =>
+										setConfig((prev) => ({
+											...prev,
+											conversationStarters: starters,
+										}))
+									}
+									maxStarters={MAX_CONVERSATION_STARTERS}
+									onGenerate={() => {
+										generateStarters.generate({
+											name: config.name,
+											description: config.description,
+											instructions: config.instructions,
+											agentType: config.agentType,
+											tools: config.tools,
+											conversationStarters: config.conversationStarters,
+											guardrails: config.guardrails.filter((g) => g.trim()),
+											knowledgeSources: config.knowledgeSources,
+											capabilities: config.capabilities,
+										});
+									}}
+									isGenerating={generateStarters.status === "generating"}
+									generateDisabled={
+										agentCreation.isCreating ||
+										(!config.instructions.trim() && !config.description.trim())
+									}
+								/>
+
+								{/* Guardrails Section */}
+								<AgentGuardrailsSection
+									guardrails={config.guardrails}
+									onChange={(guardrails) =>
+										setConfig((prev) => ({
+											...prev,
+											guardrails,
+										}))
+									}
+								/>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Change Agent Type Modal */}
-			{showChangeTypeModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowChangeTypeModal(false)}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
-						<div className="flex items-center justify-between">
-							<h2 className="text-lg font-medium">Change Agent Type</h2>
-							<button
-								onClick={() => setShowChangeTypeModal(false)}
-								className="text-muted-foreground hover:text-foreground"
-							>
-								<X className="size-5" />
-							</button>
-						</div>
+			<ChangeAgentTypeModal
+				open={showChangeTypeModal}
+				onOpenChange={setShowChangeTypeModal}
+				currentType={config.agentType}
+				knowledgeSourcesCount={config.knowledgeSources.length}
+				toolsCount={config.tools.length}
+				isEditing={isEditing}
+				onConfirm={(newType, needsDoubleConfirm) => {
+					if (needsDoubleConfirm) {
+						setPendingAgentType(newType);
+						setShowConfirmTypeChangeModal(true);
+					} else {
+						setConfig((prev) => ({
+							...prev,
+							agentType: newType,
+							knowledgeSources:
+								newType === "workflow" ? [] : prev.knowledgeSources,
+							tools: newType === "knowledge" ? [] : prev.tools,
+						}));
+					}
+				}}
+			/>
 
-						<p className="text-sm text-muted-foreground">
-							Select a new agent type. This will affect available configuration
-							options.
-						</p>
-
-						<div className="space-y-2">
-							{(["answer", "knowledge", "workflow"] as const).map((type) => {
-								const typeInfo = AGENT_TYPE_INFO[type];
-								return (
-									<label
-										key={type}
-										className={cn(
-											"flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all",
-											pendingAgentType === type
-												? "border-primary ring-1 ring-primary bg-white"
-												: "border-muted bg-white hover:border-muted-foreground/30",
-										)}
-									>
-										<input
-											type="radio"
-											name="change-agent-type"
-											checked={pendingAgentType === type}
-											onChange={() => setPendingAgentType(type)}
-											className="mt-1.5"
-										/>
-										{/* Icon box */}
-										<div
-											className={cn(
-												"size-10 rounded-lg flex items-center justify-center flex-shrink-0",
-												typeInfo.iconBg,
-											)}
-										>
-											{type === "answer" && (
-												<MessageSquare
-													className={cn("size-5", typeInfo.iconColor)}
-												/>
-											)}
-											{type === "knowledge" && (
-												<BookOpen
-													className={cn("size-5", typeInfo.iconColor)}
-												/>
-											)}
-											{type === "workflow" && (
-												<Workflow
-													className={cn("size-5", typeInfo.iconColor)}
-												/>
-											)}
-										</div>
-										<div className="flex-1 min-w-0">
-											<span className="font-medium">{typeInfo.label}</span>
-											<p className="text-sm text-muted-foreground mt-0.5">
-												{typeInfo.shortDesc}
-											</p>
-										</div>
-									</label>
-								);
-							})}
-						</div>
-
-						{/* Show what will change */}
-						{pendingAgentType && pendingAgentType !== config.agentType && (
-							<div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-								<p className="text-sm font-medium text-amber-800 mb-2">
-									What will change:
-								</p>
-								<ul className="text-sm text-amber-700 space-y-1">
-									{pendingAgentType === "workflow" &&
-										config.knowledgeSources.length > 0 && (
-											<li>
-												• Knowledge sources will be removed (
-												{config.knowledgeSources.length} sources)
-											</li>
-										)}
-									{pendingAgentType === "knowledge" &&
-										config.workflows.length > 0 && (
-											<li>
-												• Actions/workflows will be removed (
-												{config.workflows.length} workflow)
-											</li>
-										)}
-									{config.agentType === "workflow" &&
-										pendingAgentType !== "workflow" && (
-											<li>• Workflow configuration will be cleared</li>
-										)}
-									{config.agentType === "knowledge" &&
-										pendingAgentType !== "knowledge" && (
-											<li>• Knowledge-only settings will be adjusted</li>
-										)}
-									<li>• Agent behavior and capabilities will change</li>
-								</ul>
-							</div>
-						)}
-
-						<div className="flex justify-end gap-2 pt-2">
-							<Button
-								variant="outline"
-								onClick={() => setShowChangeTypeModal(false)}
-							>
-								Cancel
-							</Button>
-							<Button
-								onClick={() => {
-									if (
-										pendingAgentType &&
-										pendingAgentType !== config.agentType
-									) {
-										if (isEditing) {
-											// Show double confirm for existing agents
-											setShowChangeTypeModal(false);
-											setShowConfirmTypeChangeModal(true);
-										} else {
-											// Direct change for new agents
-											setConfig((prev) => ({
-												...prev,
-												agentType: pendingAgentType,
-												// Clear knowledge sources if switching to workflow
-												knowledgeSources:
-													pendingAgentType === "workflow"
-														? []
-														: prev.knowledgeSources,
-												// Clear workflows if switching to knowledge
-												workflows:
-													pendingAgentType === "knowledge"
-														? []
-														: prev.workflows,
-											}));
-											setShowChangeTypeModal(false);
-										}
-									}
-								}}
-								disabled={
-									!pendingAgentType || pendingAgentType === config.agentType
-								}
-							>
-								{isEditing ? "Continue" : "Confirm Change"}
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
-
-			{/* Double Confirm Type Change Modal (for existing agents) */}
-			{showConfirmTypeChangeModal && pendingAgentType && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowConfirmTypeChangeModal(false)}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
-						<div className="flex items-center gap-3">
-							<div className="size-10 rounded-full bg-amber-100 flex items-center justify-center">
-								<AlertCircle className="size-5 text-amber-600" />
-							</div>
-							<div>
-								<h2 className="text-lg font-medium">Confirm Type Change</h2>
-								<p className="text-sm text-muted-foreground">
-									This action affects a saved agent
-								</p>
-							</div>
-						</div>
-
-						<div className="bg-muted/50 rounded-lg p-4 space-y-3">
-							<div className="flex items-center justify-between">
-								<span className="text-sm text-muted-foreground">
-									Current type:
-								</span>
-								<Badge variant="secondary" className="gap-1">
-									{config.agentType === "answer" && (
-										<MessageSquare className="size-3" />
-									)}
-									{config.agentType === "knowledge" && (
-										<FileText className="size-3" />
-									)}
-									{config.agentType === "workflow" && (
-										<Workflow className="size-3" />
-									)}
-									{config.agentType &&
-										AGENT_TYPE_INFO[config.agentType].shortLabel}
-								</Badge>
-							</div>
-							<div className="flex items-center justify-center">
-								<ArrowLeft className="size-4 text-muted-foreground rotate-180" />
-							</div>
-							<div className="flex items-center justify-between">
-								<span className="text-sm text-muted-foreground">New type:</span>
-								<Badge variant="default" className="gap-1">
-									{pendingAgentType === "answer" && (
-										<MessageSquare className="size-3" />
-									)}
-									{pendingAgentType === "knowledge" && (
-										<FileText className="size-3" />
-									)}
-									{pendingAgentType === "workflow" && (
-										<Workflow className="size-3" />
-									)}
-									{AGENT_TYPE_INFO[pendingAgentType].shortLabel}
-								</Badge>
-							</div>
-						</div>
-
-						<div className="bg-red-50 border border-red-200 rounded-lg p-3">
-							<p className="text-sm font-medium text-red-800 mb-1">Warning</p>
-							<p className="text-sm text-red-700">
-								Changing the agent type for <strong>{config.name}</strong> will
-								modify how this agent works. Users who interact with this agent
-								may experience different behavior.
-							</p>
-						</div>
-
-						<div className="flex justify-end gap-2 pt-2">
-							<Button
-								variant="outline"
-								onClick={() => {
-									setShowConfirmTypeChangeModal(false);
-									setShowChangeTypeModal(true);
-								}}
-							>
-								Go Back
-							</Button>
-							<Button
-								variant="destructive"
-								onClick={() => {
-									setConfig((prev) => ({
-										...prev,
-										agentType: pendingAgentType,
-										// Clear knowledge sources if switching to workflow
-										knowledgeSources:
-											pendingAgentType === "workflow"
-												? []
-												: prev.knowledgeSources,
-										// Clear workflows if switching to knowledge
-										workflows:
-											pendingAgentType === "knowledge" ? [] : prev.workflows,
-									}));
-									setShowConfirmTypeChangeModal(false);
-									setPendingAgentType(null);
-								}}
-							>
-								Confirm Change
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
+			{/* Double Confirm Type Change Modal */}
+			<ConfirmTypeChangeModal
+				open={showConfirmTypeChangeModal}
+				onOpenChange={setShowConfirmTypeChangeModal}
+				currentType={config.agentType}
+				pendingType={pendingAgentType}
+				agentName={config.name}
+				onGoBack={() => {
+					setShowConfirmTypeChangeModal(false);
+					setShowChangeTypeModal(true);
+				}}
+				onConfirm={() => {
+					setConfig((prev) => ({
+						...prev,
+						agentType: pendingAgentType,
+						knowledgeSources:
+							pendingAgentType === "workflow" ? [] : prev.knowledgeSources,
+						tools: pendingAgentType === "knowledge" ? [] : prev.tools,
+					}));
+					setShowConfirmTypeChangeModal(false);
+					setPendingAgentType(null);
+				}}
+			/>
 
 			{/* Publish Confirmation Modal */}
-			{showPublishModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowPublishModal(false)}
-					/>
-					<div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-						<button
-							onClick={() => setShowPublishModal(false)}
-							className="absolute top-[15px] right-[15px] opacity-70 hover:opacity-100"
-						>
-							<X className="size-4" />
-						</button>
-
-						{/* Header */}
-						<div className="flex flex-col gap-1.5">
-							<p className="text-lg font-semibold leading-none text-foreground">
-								Publish agent
-							</p>
-							<p className="text-sm text-muted-foreground leading-5">
-								Publishing will make this agent active and available to be
-								matched with real users in this environment.
-							</p>
-						</div>
-
-						{/* Agent card */}
-						<div className="bg-neutral-50 rounded-md px-2 py-2">
-							<div className="flex gap-2.5 items-start">
-								<div
-									className={cn(
-										"size-[38px] rounded-lg flex items-center justify-center shrink-0 overflow-clip p-2",
-										ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg ||
-											"bg-violet-200",
-									)}
-								>
-									{(() => {
-										const IconComponent =
-											AVAILABLE_ICONS.find((i) => i.id === config.iconId)
-												?.icon || Squirrel;
-										const colorClass =
-											ICON_COLORS.find((c) => c.id === config.iconColorId)
-												?.text || "text-white";
-										return (
-											<IconComponent className={cn("size-6", colorClass)} />
-										);
-									})()}
-								</div>
-								<div className="flex-1 min-w-0 flex flex-col gap-2.5">
-									<div className="flex flex-col pb-0.5">
-										<p className="text-base font-bold text-foreground truncate leading-[22px]">
-											{config.name}
-										</p>
-										<p className="text-xs text-foreground leading-none">
-											{config.description}
-										</p>
-									</div>
-									{config.workflows.length > 0 && (
-										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-											<span>Skills</span>
-											<span className="text-right">
-												{config.workflows.length}
-											</span>
-										</div>
-									)}
-									{config.knowledgeSources.length > 0 && (
-										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-											<span>Knowledge Sources</span>
-											<span className="text-right">
-												{config.knowledgeSources.length}
-											</span>
-										</div>
-									)}
-									{config.guardrails.length > 0 && (
-										<div className="flex items-center justify-between text-sm text-foreground leading-none h-[18px]">
-											<span>Guardrails</span>
-											<span className="text-right">
-												{config.guardrails.length}
-											</span>
-										</div>
-									)}
-								</div>
-							</div>
-						</div>
-
-						{/* Footer */}
-						<div className="flex items-center justify-end gap-2">
-							<Button
-								variant="outline"
-								onClick={() => setShowPublishModal(false)}
-							>
-								Cancel
-							</Button>
-							<Button onClick={handleConfirmPublish}>Publish</Button>
-						</div>
-					</div>
-				</div>
-			)}
+			<PublishModal
+				open={showPublishModal}
+				onOpenChange={setShowPublishModal}
+				config={config}
+				onConfirm={handleConfirmPublish}
+			/>
 
 			{/* Unpublish Confirmation Modal */}
-			{showUnpublishModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowUnpublishModal(false)}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-8 space-y-6">
-						{/* Close button */}
-						<button
-							onClick={() => setShowUnpublishModal(false)}
-							className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-						>
-							<X className="size-5" />
-						</button>
-
-						{/* Centered icon and title */}
-						<div className="flex flex-col items-center text-center pt-2">
-							<div
-								className={cn(
-									"size-20 rounded-2xl flex items-center justify-center mb-4 bg-amber-100",
-								)}
-							>
-								<Clock className="size-10 text-amber-600" />
-							</div>
-							<h2 className="text-xl font-semibold mb-1">
-								Unpublish this agent?
-							</h2>
-							<p className="text-sm text-muted-foreground max-w-xs">
-								<span className="font-medium text-foreground">
-									{config.name}
-								</span>{" "}
-								will no longer be available to users. You can republish it
-								anytime.
-							</p>
-						</div>
-
-						{/* Warning info */}
-						<div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-							<p className="text-sm text-amber-800 font-medium">
-								What happens when you unpublish:
-							</p>
-							<ul className="text-sm text-amber-700 space-y-1.5 ml-4 list-disc">
-								<li>Users will no longer be able to access this agent</li>
-								<li>Existing conversations will be preserved</li>
-								<li>All configuration and settings will be saved</li>
-							</ul>
-						</div>
-
-						{/* Action buttons */}
-						<div className="flex gap-3 pt-2">
-							<Button
-								variant="outline"
-								onClick={() => setShowUnpublishModal(false)}
-								className="flex-1"
-							>
-								Cancel
-							</Button>
-							<Button
-								variant="destructive"
-								onClick={() => {
-									setShowUnpublishModal(false);
-									navigate("/agents", {
-										state: {
-											unpublishedAgent: {
-												id: agentId,
-												name: config.name,
-											},
-										},
-									});
-								}}
-								className="flex-1"
-							>
-								Unpublish
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
-
-			{/* Publish Changes Modal with Diff */}
-			{showPublishChangesModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowPublishChangesModal(false)}
-					/>
-					<div className="relative bg-background border border-border rounded-lg shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-						<button
-							onClick={() => setShowPublishChangesModal(false)}
-							className="absolute top-[15px] right-[15px] opacity-70 hover:opacity-100"
-						>
-							<X className="size-4" />
-						</button>
-
-						{/* Header */}
-						<div className="flex flex-col gap-1.5">
-							<p className="text-lg font-semibold leading-none text-foreground">
-								Publish changes
-							</p>
-							<p className="text-sm text-muted-foreground leading-5">
-								Review the change{configChanges.length !== 1 ? "s" : ""} before
-								publishing updates to{" "}
-								<span className="font-bold text-foreground">{config.name}</span>
-							</p>
-						</div>
-
-						{/* Agent card with changes */}
-						<div className="bg-neutral-50 rounded-md px-2 py-2">
-							<div className="flex gap-2.5 items-start">
-								<div
-									className={cn(
-										"size-[38px] rounded-lg flex items-center justify-center shrink-0 overflow-clip p-2",
-										ICON_COLORS.find((c) => c.id === config.iconColorId)?.bg ||
-											"bg-violet-200",
-									)}
-								>
-									{(() => {
-										const IconComp =
-											AVAILABLE_ICONS.find((i) => i.id === config.iconId)
-												?.icon || Squirrel;
-										const colorCls =
-											ICON_COLORS.find((c) => c.id === config.iconColorId)
-												?.text || "text-white";
-										return <IconComp className={cn("size-6", colorCls)} />;
-									})()}
-								</div>
-								<div className="flex-1 min-w-0 flex flex-col gap-2.5">
-									<div className="flex flex-col pb-0.5">
-										<p className="text-base font-bold text-foreground truncate leading-[22px]">
-											{config.name}
-										</p>
-										<p className="text-xs text-foreground leading-none">
-											{config.description}
-										</p>
-									</div>
-									{/* Changes list inside card */}
-									<div className="bg-neutral-100 rounded-md p-2 flex flex-col gap-2.5">
-										{configChanges.map((change, index) => (
-											<div
-												key={index}
-												className="flex items-center justify-between gap-2.5"
-											>
-												<p className="text-sm text-foreground leading-none h-[18px] flex items-end">
-													{change.label}
-												</p>
-												<span className="text-xs font-semibold text-foreground border border-border bg-background rounded-md px-2 py-0.5 leading-4 whitespace-nowrap">
-													{change.type === "added"
-														? "Added"
-														: change.type === "removed"
-															? "Removed"
-															: "Updated"}
-												</span>
-											</div>
-										))}
-									</div>
-								</div>
-							</div>
-						</div>
-
-						{/* Footer */}
-						<div className="flex items-center justify-end gap-2">
-							<Button
-								variant="outline"
-								onClick={() => setShowPublishChangesModal(false)}
-							>
-								Cancel
-							</Button>
-							<Button
-								onClick={() => {
-									setShowPublishChangesModal(false);
-									toast.success("Changes published", {
-										description: `${configChanges.length} change${configChanges.length !== 1 ? "s" : ""} applied to ${config.name}`,
-									});
-								}}
-							>
-								Publish changes
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
+			<UnpublishModal
+				open={showUnpublishModal}
+				onOpenChange={setShowUnpublishModal}
+				onConfirm={async () => {
+					try {
+						if (agentEid) {
+							await updateAgent.mutateAsync({
+								eid: agentEid,
+								data: { state: "DRAFT" },
+							});
+						}
+					} catch {
+						toast.error(t("builder.failedToUnpublish"));
+						setShowUnpublishModal(false);
+						return;
+					}
+					setShowUnpublishModal(false);
+					navigate("/agents", {
+						state: {
+							unpublishedAgent: {
+								id: agentEid || agentId,
+								name: config.name,
+							},
+						},
+					});
+				}}
+			/>
 
 			{/* Instructions Expanded Modal */}
-			{showInstructionsModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => setShowInstructionsModal(false)}
-					/>
-					<div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden">
-						<button
-							onClick={() => setShowInstructionsModal(false)}
-							className="absolute top-4 right-4 text-muted-foreground hover:text-foreground z-10"
-						>
-							<X className="size-5" />
-						</button>
-						<div className="flex-1 overflow-y-auto p-6">
-							<Textarea
-								value={config.instructions}
-								onChange={(e) =>
-									setConfig((prev) => ({
-										...prev,
-										instructions: e.target.value,
-									}))
-								}
-								placeholder={"## Role\n\n## Backstory\n\n## Goal\n\n## Task"}
-								className="min-h-[400px] resize-none text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
-							/>
-						</div>
-						<div className="px-6 py-4 border-t">
-							<p className="text-xs text-muted-foreground">
-								Update instructions as needed
-							</p>
-						</div>
-					</div>
-				</div>
-			)}
+			<InstructionsExpandedModal
+				open={showInstructionsModal}
+				onOpenChange={setShowInstructionsModal}
+				value={config.instructions}
+				onChange={(value) =>
+					setConfig((prev) => ({ ...prev, instructions: value }))
+				}
+				onImproveClick={() => {
+					improveInstructions.improve({
+						name: config.name,
+						description: config.description,
+						instructions: config.instructions,
+						agentType: config.agentType,
+						tools: config.tools,
+						conversationStarters: config.conversationStarters,
+						guardrails: config.guardrails.filter((g) => g.trim()),
+						knowledgeSources: config.knowledgeSources,
+						capabilities: config.capabilities,
+					});
+					setShowImproveDialog(true);
+				}}
+				isImproving={improveInstructions.status === "improving"}
+			/>
 
-			{/* Create New Workflow Modal (v3/Jarvis) */}
-			{showCreateWorkflowModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => {
-							setShowCreateWorkflowModal(false);
-							setNewWorkflowDescription("");
-						}}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-						{/* Header */}
-						<div className="flex items-center justify-between px-6 py-4 border-b">
-							<h2 className="text-lg font-medium">New workflow</h2>
-							<button
-								onClick={() => {
-									setShowCreateWorkflowModal(false);
-									setNewWorkflowDescription("");
-								}}
-								className="text-muted-foreground hover:text-foreground"
-							>
-								<X className="size-5" />
-							</button>
-						</div>
+			{/* Improve Instructions Sheet */}
+			<ImproveInstructionsDialog
+				open={showImproveDialog}
+				onOpenChange={(open) => {
+					setShowImproveDialog(open);
+					if (!open) improveInstructions.reset();
+				}}
+				onAcceptInstructions={(improved) => {
+					setConfig((prev) => ({ ...prev, instructions: improved }));
+					if (!instructionsTouched) setInstructionsTouched(true);
+				}}
+				onRetry={() => {
+					improveInstructions.improve({
+						name: config.name,
+						description: config.description,
+						instructions: config.instructions,
+						agentType: config.agentType,
+						tools: config.tools,
+						conversationStarters: config.conversationStarters,
+						guardrails: config.guardrails.filter((g) => g.trim()),
+						knowledgeSources: config.knowledgeSources,
+						capabilities: config.capabilities,
+					});
+				}}
+			/>
 
-						{/* Content */}
-						<div className="flex-1 overflow-y-auto p-6 space-y-6">
-							{/* Chat input area */}
-							<div className="bg-muted/30 rounded-xl p-8 min-h-[200px] flex flex-col items-center justify-center">
-								<h3 className="text-xl font-medium mb-4">
-									Describe your workflow
-								</h3>
-								<div className="w-full max-w-lg relative">
-									<Textarea
-										value={newWorkflowDescription}
-										onChange={(e) => setNewWorkflowDescription(e.target.value)}
-										placeholder="Every time I receive an email, review the content and..."
-										className="min-h-[80px] resize-none pr-12"
-									/>
-									<button
-										className="absolute right-3 bottom-3 size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-50"
-										disabled={!newWorkflowDescription.trim()}
-										onClick={() => {
-											toast.info("Workflow creation with AI coming in v3");
-										}}
-									>
-										<Send className="size-4" />
-									</button>
-								</div>
-								<button
-									className="mt-4 text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
-									onClick={() => {
-										toast.info("Start from scratch coming in v3");
-									}}
-								>
-									Start from scratch
-									<ChevronDown className="size-4 -rotate-90" />
-								</button>
-							</div>
+			{/* Create New Workflow Modal */}
+			<CreateWorkflowModal
+				open={showCreateWorkflowModal}
+				onOpenChange={setShowCreateWorkflowModal}
+			/>
 
-							{/* Example templates */}
-							<div className="space-y-3">
-								<h4 className="text-sm font-medium text-muted-foreground">
-									Start from an example
-								</h4>
-								<div className="grid grid-cols-2 gap-3">
-									<button
-										className="flex items-start gap-3 p-4 border rounded-xl text-left hover:bg-muted/50 transition-colors"
-										onClick={() => {
-											setNewWorkflowDescription(
-												"Before each meeting, prepare a concise pre-read with key context from past meetings",
-											);
-										}}
-									>
-										<div className="size-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-											<Calendar className="size-5 text-purple-600" />
-										</div>
-										<div>
-											<p className="text-sm font-medium">
-												Prepare me for meetings
-											</p>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Before each meeting, you'll receive a concise pre-read
-												with key context from past meeting...
-											</p>
-										</div>
-									</button>
-									<button
-										className="flex items-start gap-3 p-4 border rounded-xl text-left hover:bg-muted/50 transition-colors"
-										onClick={() => {
-											setNewWorkflowDescription(
-												"Automatically look at incoming emails and determine if they should be replied to",
-											);
-										}}
-									>
-										<div className="size-10 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
-											<Mail className="size-5 text-rose-500" />
-										</div>
-										<div>
-											<p className="text-sm font-medium">Draft email replies</p>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Automatically looks at incoming emails and determines if
-												they should be replied to. If so, ...
-											</p>
-										</div>
-									</button>
-									<button
-										className="flex items-start gap-3 p-4 border rounded-xl text-left hover:bg-muted/50 transition-colors"
-										onClick={() => {
-											setNewWorkflowDescription(
-												"Reset a user's password in Active Directory after verifying their identity",
-											);
-										}}
-									>
-										<div className="size-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-											<Key className="size-5 text-blue-600" />
-										</div>
-										<div>
-											<p className="text-sm font-medium">Password reset</p>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Verify user identity and reset their password in Active
-												Directory...
-											</p>
-										</div>
-									</button>
-									<button
-										className="flex items-start gap-3 p-4 border rounded-xl text-left hover:bg-muted/50 transition-colors"
-										onClick={() => {
-											setNewWorkflowDescription(
-												"Provision new hire accounts across all required systems",
-											);
-										}}
-									>
-										<div className="size-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-											<Users className="size-5 text-emerald-600" />
-										</div>
-										<div>
-											<p className="text-sm font-medium">New hire onboarding</p>
-											<p className="text-xs text-muted-foreground mt-0.5">
-												Provision accounts and access for new employees across
-												all required systems...
-											</p>
-										</div>
-									</button>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			)}
-
-			{/* Add Skill Modal */}
-			{showAddSkillModal &&
-				(() => {
-					const closeModal = () => {
-						setShowAddSkillModal(false);
-						setSkillSearchQuery("");
-						setSelectedSkills([]);
-						setSkillsTab("available");
-					};
-
-					const filterBySearch = (skill) =>
-						!skillSearchQuery ||
-						skill.name.toLowerCase().includes(skillSearchQuery.toLowerCase()) ||
-						skill.author.toLowerCase().includes(skillSearchQuery.toLowerCase());
-
-					const allSkillsPool = [
-						...AVAILABLE_SKILLS,
-						...getPublishedWorkflowSkills(),
-					];
-
-					const availableSkills = allSkillsPool
-						.filter(
-							(s) =>
-								s.linkedAgent === null && !config.workflows.includes(s.name),
-						)
-						.filter(filterBySearch);
-
-					const allSkills = allSkillsPool.filter(filterBySearch);
-
-					const displayedSkills =
-						skillsTab === "available" ? availableSkills : allSkills;
-
-					const getIconBg = (author: string) =>
-						/IT|System|Compliance/i.test(author)
-							? "bg-violet-200"
-							: "bg-amber-100";
-
-					return (
-						<div className="fixed inset-0 z-50 flex items-center justify-center">
-							<div
-								className="absolute inset-0 bg-black/50"
-								onClick={closeModal}
-							/>
-							<div className="relative bg-white rounded-xl shadow-lg w-full max-w-lg h-[600px] overflow-hidden flex flex-col">
-								{/* Close */}
-								<button
-									onClick={closeModal}
-									className="absolute right-4 top-4 text-muted-foreground/70 hover:text-foreground z-10"
-								>
-									<X className="size-4" />
-								</button>
-								{/* Header + Search + Tabs */}
-								<div className="px-6 pt-6 flex flex-col gap-4">
-									<div>
-										<h2 className="text-lg font-semibold">Add skills</h2>
-										<p className="text-sm text-muted-foreground mt-1.5">
-											Help users understand what this agent can help them with
-											by adding skills
-										</p>
-									</div>
-									<div className="relative">
-										<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-										<Input
-											placeholder="Search skills..."
-											className="pl-9 rounded-lg"
-											value={skillSearchQuery}
-											onChange={(e) => setSkillSearchQuery(e.target.value)}
-										/>
-									</div>
-									<Tabs
-										value={skillsTab}
-										onValueChange={(v) => setSkillsTab(v)}
-									>
-										<TabsList className="w-full">
-											<TabsTrigger value="available" className="flex-1">
-												Available
-												<Badge
-													variant="secondary"
-													className="ml-1.5 text-xs px-1.5 py-0"
-												>
-													{availableSkills.length}
-												</Badge>
-											</TabsTrigger>
-											<TabsTrigger value="all" className="flex-1">
-												All
-												<Badge
-													variant="secondary"
-													className="ml-1.5 text-xs px-1.5 py-0"
-												>
-													{allSkills.length}
-												</Badge>
-											</TabsTrigger>
-										</TabsList>
-									</Tabs>
-								</div>
-
-								{/* Skills list */}
-								<div className="flex-1 overflow-y-auto max-h-[400px] mt-5">
-									{displayedSkills.map((skill) => {
-										const isAlreadyAdded = config.workflows.includes(
-											skill.name,
-										);
-										const isLinkedToOther =
-											skill.linkedAgent !== null && !isAlreadyAdded;
-										const isSelected = selectedSkills.includes(skill.name);
-										const SkillIcon = skill.icon;
-
-										return (
-											<div
-												key={skill.id}
-												className={cn(
-													"flex items-start gap-[10px] px-6 py-[10px] border-b",
-													isLinkedToOther && "opacity-60",
-												)}
-											>
-												<div
-													className={cn(
-														"size-5 rounded-sm flex items-center justify-center flex-shrink-0 mt-0.5",
-														getIconBg(skill.author),
-													)}
-												>
-													<SkillIcon className="size-3" />
-												</div>
-												<div className="min-w-0 flex-1">
-													<p className="text-sm font-medium leading-none">
-														{skill.name}
-													</p>
-													<p className="text-sm text-muted-foreground leading-5">
-														{skill.author}
-													</p>
-												</div>
-												<div className="flex-shrink-0">
-													{isAlreadyAdded ? (
-														<span className="text-xs text-muted-foreground">
-															Added
-														</span>
-													) : isLinkedToOther ? (
-														<div className="text-right">
-															<p className="text-xs text-primary">
-																Duplicate in Actions
-															</p>
-															<p className="text-xs text-muted-foreground">
-																used in {skill.linkedAgent}
-															</p>
-														</div>
-													) : (
-														<Switch
-															checked={isSelected}
-															onCheckedChange={(checked) => {
-																setSelectedSkills((prev) =>
-																	checked
-																		? [...prev, skill.name]
-																		: prev.filter((s) => s !== skill.name),
-																);
-															}}
-														/>
-													)}
-												</div>
-											</div>
-										);
-									})}
-									{displayedSkills.length === 0 && (
-										<div className="py-8 text-center text-sm text-muted-foreground">
-											No skills found matching "{skillSearchQuery}"
-										</div>
-									)}
-								</div>
-
-								{/* Footer */}
-								<div className="px-6 py-3 flex justify-end gap-2">
-									<Button variant="outline" size="sm" onClick={closeModal}>
-										Cancel
-									</Button>
-									<Button
-										size="sm"
-										disabled={selectedSkills.length === 0}
-										onClick={() => {
-											const newStarters: string[] = [];
-											selectedSkills.forEach((skillName) => {
-												const skill = AVAILABLE_SKILLS.find(
-													(s) => s.name === skillName,
-												);
-												if (skill?.starters) {
-													skill.starters.slice(0, 1).forEach((starter) => {
-														if (!newStarters.includes(starter)) {
-															newStarters.push(starter);
-														}
-													});
-												}
-											});
-
-											setConfig((prev) => {
-												const existingStarters = prev.conversationStarters;
-												const startersToAdd = newStarters.filter(
-													(s) => !existingStarters.includes(s),
-												);
-												const availableSlots = 4 - existingStarters.length;
-												const finalNewStarters = startersToAdd.slice(
-													0,
-													availableSlots,
-												);
-
-												return {
-													...prev,
-													workflows: [...prev.workflows, ...selectedSkills],
-													instructions: selectedSkills.reduce(
-														(inst, skill) =>
-															addSkillToInstructions(inst, skill),
-														prev.instructions,
-													),
-													conversationStarters: [
-														...existingStarters,
-														...finalNewStarters,
-													],
-												};
-											});
-											closeModal();
-										}}
-									>
-										Add{" "}
-										{selectedSkills.length > 0
-											? `(${selectedSkills.length})`
-											: ""}
-									</Button>
-								</div>
-							</div>
-						</div>
-					);
-				})()}
+			{/* Add Tools Modal */}
+			<AddToolsModal
+				open={showAddToolsModal}
+				onOpenChange={setShowAddToolsModal}
+				currentTools={config.tools}
+				onAdd={(toolNames) => {
+					setConfig((prev) => ({
+						...prev,
+						tools: [...prev.tools, ...toolNames],
+						instructions: syncAddedToolsInInstructions(
+							prev.instructions ?? "",
+							toolNames,
+						),
+					}));
+				}}
+			/>
 
 			{/* Unlink Workflow Confirmation Modal */}
-			{showUnlinkConfirm && workflowToUnlink && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center">
-					{/* Backdrop */}
-					<div
-						className="absolute inset-0 bg-black/50"
-						onClick={() => {
-							setShowUnlinkConfirm(false);
-							setWorkflowToUnlink(null);
-						}}
-					/>
-					{/* Modal */}
-					<div className="relative bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
-						<div className="flex items-center justify-between">
-							<h2 className="text-lg font-medium">Unlink Workflow</h2>
-							<button
-								onClick={() => {
-									setShowUnlinkConfirm(false);
-									setWorkflowToUnlink(null);
-								}}
-								className="text-muted-foreground hover:text-foreground"
-							>
-								<X className="size-5" />
-							</button>
-						</div>
-
-						<div className="space-y-3">
-							<p className="text-sm text-muted-foreground">
-								<strong>{workflowToUnlink.name}</strong> is currently linked to{" "}
-								<strong>{workflowToUnlink.linkedAgentName}</strong>.
-							</p>
-							<div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-								<p className="text-sm text-amber-800">
-									Unlinking this workflow will remove it from the other agent.
-									Each workflow can only be connected to one agent at a time.
-								</p>
-							</div>
-						</div>
-
-						<div className="flex justify-end gap-2 pt-2">
-							<Button
-								variant="outline"
-								onClick={() => {
-									setShowUnlinkConfirm(false);
-									setWorkflowToUnlink(null);
-								}}
-							>
-								Cancel
-							</Button>
-							<Button
-								onClick={() => {
-									// Add the workflow to this agent
-									setConfig((prev) => ({
-										...prev,
-										workflows: [...prev.workflows, workflowToUnlink.name],
-										instructions: addSkillToInstructions(
-											prev.instructions,
-											workflowToUnlink.name,
-										),
-									}));
-									setShowUnlinkConfirm(false);
-									setWorkflowToUnlink(null);
-									toast.success(
-										`${workflowToUnlink.name} unlinked from ${workflowToUnlink.linkedAgentName} and added to this agent`,
-									);
-								}}
-							>
-								Unlink & Add
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
-			{/* Demo mode trigger button */}
+			<UnlinkWorkflowModal
+				open={showUnlinkConfirm}
+				onOpenChange={(open) => {
+					setShowUnlinkConfirm(open);
+					if (!open) setWorkflowToUnlink(null);
+				}}
+				workflow={workflowToUnlink}
+				onConfirm={() => {
+					if (!workflowToUnlink) return;
+					setConfig((prev) => ({
+						...prev,
+						tools: [...prev.tools, workflowToUnlink.name],
+					}));
+					setShowUnlinkConfirm(false);
+					toast.success(
+						t("builder.unlinkedToast", {
+							skill: workflowToUnlink.name,
+							agent: workflowToUnlink.linkedAgentName,
+						}),
+					);
+					setWorkflowToUnlink(null);
+				}}
+			/>
+			{/* Demo mode trigger — scenario picker */}
 			{!demoMode && (
-				<button
-					type="button"
-					onClick={() => {
-						setDemoMode(true);
-						setDemoStep(0);
-					}}
-					className="fixed bottom-4 left-4 z-50 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-full shadow-lg hover:bg-violet-700 transition-colors flex items-center gap-1.5"
-				>
-					<Play className="size-3" />
-					Demo
-				</button>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							className="fixed bottom-4 left-4 z-50 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-full shadow-lg hover:bg-violet-700 transition-colors flex items-center gap-1.5"
+						>
+							<Play className="size-3" />
+							{t("builder.demo.trigger")}
+							<ChevronDown className="size-3" />
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start" side="top" className="w-56">
+						{(Object.keys(DEMO_SCENARIOS) as Array<"pto" | "laptop">).map(
+							(key) => (
+								<DropdownMenuItem
+									key={key}
+									onClick={() => {
+										setDemoScenarioKey(key);
+										setDemoMode(true);
+										setDemoStep(0);
+									}}
+								>
+									{DEMO_SCENARIOS[key].label}
+								</DropdownMenuItem>
+							),
+						)}
+					</DropdownMenuContent>
+				</DropdownMenu>
 			)}
 
 			{/* Demo stepper bar */}
@@ -4787,7 +1547,12 @@ export default function AgentBuilderPage() {
 				<div className="fixed bottom-0 left-0 right-0 z-50 bg-violet-900 text-white px-6 py-3 flex items-center gap-4 shadow-2xl">
 					<div className="flex items-center gap-2">
 						<Play className="size-4" />
-						<span className="text-sm font-semibold">Demo Mode</span>
+						<span className="text-sm font-semibold">
+							{t("builder.demo.title")}
+						</span>
+						<span className="text-xs text-white/70">
+							· {DEMO_SCENARIOS[demoScenarioKey].label}
+						</span>
 					</div>
 					<div className="flex-1 flex items-center gap-1">
 						{DEMO_STEPS.map((s, i) => (
@@ -4825,7 +1590,7 @@ export default function AgentBuilderPage() {
 							className="text-white/70 hover:text-white hover:bg-white/10 h-7 text-xs"
 							onClick={handleDemoNext}
 						>
-							Next
+							{t("builder.demo.next")}
 						</Button>
 						<Button
 							size="sm"
@@ -4836,107 +1601,11 @@ export default function AgentBuilderPage() {
 								setDemoStep(0);
 							}}
 						>
-							Exit Demo
+							{t("builder.demo.exit")}
 						</Button>
 					</div>
 				</div>
 			)}
-
-			{/* Improve Instructions Preview Modal */}
-			{(() => {
-				const rows = improvePreview
-					? computeSideBySideRows(
-							improvePreview.original,
-							improvePreview.improved,
-						)
-					: [];
-				return (
-					<Dialog
-						open={!!improvePreview}
-						onOpenChange={(open) => {
-							if (!open) setImprovePreview(null);
-						}}
-					>
-						<DialogContent className="!max-w-6xl max-h-[85vh] overflow-hidden flex flex-col">
-							<DialogHeader>
-								<DialogTitle>Improve instructions</DialogTitle>
-								<p className="text-sm text-muted-foreground">
-									Review the suggested changes before accepting.
-								</p>
-							</DialogHeader>
-							<div className="overflow-y-auto rounded-lg max-h-[60vh]">
-								{/* Column headers */}
-								<div className="grid grid-cols-2 gap-4 sticky top-0 z-10 bg-background pb-2">
-									<p className="text-sm font-medium text-muted-foreground">
-										Current
-									</p>
-									<p className="text-sm font-medium text-muted-foreground">
-										Improved
-									</p>
-								</div>
-								<div className="grid grid-cols-2 gap-4">
-									<div className="rounded-lg overflow-hidden border">
-										{rows.map((row, i) => (
-											<div
-												key={i}
-												className={cn(
-													"px-4 py-0.5 text-sm min-h-[26px]",
-													row.left.type === "removed" &&
-														"bg-red-50 text-red-900",
-													row.left.type === "unchanged" && "text-foreground",
-													row.left.type === "empty" && "bg-muted/10",
-												)}
-											>
-												{row.left.type !== "empty"
-													? row.left.text || "\u00A0"
-													: "\u00A0"}
-											</div>
-										))}
-									</div>
-									<div className="rounded-lg overflow-hidden border">
-										{rows.map((row, i) => (
-											<div
-												key={i}
-												className={cn(
-													"px-4 py-0.5 text-sm min-h-[26px]",
-													row.right.type === "added" &&
-														"bg-green-50 text-green-900",
-													row.right.type === "unchanged" && "text-foreground",
-													row.right.type === "empty" && "bg-muted/10",
-												)}
-											>
-												{row.right.type !== "empty"
-													? row.right.text || "\u00A0"
-													: "\u00A0"}
-											</div>
-										))}
-									</div>
-								</div>
-							</div>
-							<DialogFooter>
-								<Button
-									variant="outline"
-									onClick={() => setImprovePreview(null)}
-								>
-									Discard
-								</Button>
-								<Button
-									onClick={() => {
-										setConfig((prev) => ({
-											...prev,
-											instructions: improvePreview!.improved,
-										}));
-										setImprovePreview(null);
-										toast.success("Instructions improved");
-									}}
-								>
-									Accept
-								</Button>
-							</DialogFooter>
-						</DialogContent>
-					</Dialog>
-				);
-			})()}
 		</div>
 	);
 }

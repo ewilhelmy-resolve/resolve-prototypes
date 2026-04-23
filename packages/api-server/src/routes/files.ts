@@ -301,6 +301,66 @@ const webhookService = new WebhookService();
 // Default file size limit: 100MB in KB
 const DEFAULT_FILE_SIZE_LIMIT_KB = "102400";
 
+// How long a document may stay in `processing` before the list endpoint
+// auto-marks it as failed. The platform owns the actual processing and is
+// expected to publish a terminal RabbitMQ message; this is defense-in-depth
+// for when that message is lost or never produced.
+const PROCESSING_TIMEOUT_MINUTES = Number.parseInt(
+	process.env.PROCESSING_TIMEOUT_MINUTES || "5",
+	10,
+);
+
+async function markDocumentFailed(
+	userId: string,
+	organizationId: string,
+	documentId: string,
+	errorMessage: string,
+): Promise<void> {
+	try {
+		await withOrgContext(userId, organizationId, async (client) => {
+			await client.query(
+				`UPDATE blob_metadata
+				 SET status = 'failed',
+				     metadata = jsonb_set(
+				         COALESCE(metadata, '{}'::jsonb),
+				         '{error}',
+				         to_jsonb($1::text)
+				     ),
+				     updated_at = NOW()
+				 WHERE id = $2 AND organization_id = $3`,
+				[errorMessage, documentId, organizationId],
+			);
+		});
+	} catch (dbError) {
+		logger.error(
+			{ error: dbError, documentId },
+			"Failed to mark document as failed",
+		);
+	}
+}
+
+async function reconcileStuckProcessing(
+	client: {
+		query: (text: string, params?: unknown[]) => Promise<unknown>;
+	},
+	organizationId: string,
+): Promise<void> {
+	await client.query(
+		`UPDATE blob_metadata
+		 SET status = 'failed',
+		     metadata = jsonb_set(
+		         COALESCE(metadata, '{}'::jsonb),
+		         '{error}',
+		         to_jsonb('processing timeout'::text)
+		     ),
+		     updated_at = NOW()
+		 WHERE organization_id = $1
+		   AND status = 'processing'
+		   AND updated_at < NOW() - (INTERVAL '1 minute' * $2)`,
+		[organizationId, PROCESSING_TIMEOUT_MINUTES],
+	);
+}
+
 // Configure multer for memory storage (files stored in memory temporarily)
 const upload = multer({
 	storage: multer.memoryStorage(),
@@ -494,7 +554,10 @@ router.post(
 				process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
 			const documentUrl = `${baseUrl}/api/files/${result.id}/download`;
 
-			// Send document upload webhook
+			// Send document upload webhook. If delivery fails, flip the row to
+			// `failed` so the UI shows the actual state (and the retry button
+			// becomes meaningful). The file itself is already stored.
+			let finalStatus: string = result.status;
 			try {
 				const webhookResponse = await webhookService.sendDocumentEvent({
 					organizationId: authReq.user.activeOrganizationId,
@@ -513,10 +576,23 @@ router.post(
 						{ webhookError: webhookResponse.error },
 						"Webhook failed for uploaded document",
 					);
+					await markDocumentFailed(
+						authReq.user.id,
+						authReq.user.activeOrganizationId,
+						result.id,
+						"webhook delivery failed",
+					);
+					finalStatus = "failed";
 				}
 			} catch (webhookError) {
 				logger.error({ error: webhookError }, "Error sending upload webhook");
-				// Continue with the upload response even if webhook fails
+				await markDocumentFailed(
+					authReq.user.id,
+					authReq.user.activeOrganizationId,
+					result.id,
+					"webhook delivery failed",
+				);
+				finalStatus = "failed";
 			}
 
 			logger.info(
@@ -536,7 +612,7 @@ router.post(
 					filename: result.filename,
 					size: result.file_size,
 					type: result.mime_type,
-					status: result.status,
+					status: finalStatus,
 					source: result.source,
 					created_at: result.created_at,
 				},
@@ -948,6 +1024,14 @@ router.get("/", authenticateUser, async (req, res) => {
 			authReq.user.id,
 			authReq.user.activeOrganizationId,
 			async (client) => {
+				// Lazy reconciler: flip stuck `processing` rows to `failed` before
+				// returning the list. Platform owns terminal status via RabbitMQ;
+				// this only fires when that message was lost or never published.
+				await reconcileStuckProcessing(
+					client,
+					authReq.user.activeOrganizationId,
+				);
+
 				// Build WHERE clause dynamically
 				const whereConditions: string[] = ["bm.organization_id = $1"];
 				const queryParams: any[] = [authReq.user.activeOrganizationId];
@@ -1163,6 +1247,13 @@ router.post(
 						documentId: documentId,
 					},
 					"Failed to send document for processing",
+				);
+
+				await markDocumentFailed(
+					authReq.user.id,
+					authReq.user.activeOrganizationId,
+					documentId,
+					"webhook delivery failed",
 				);
 
 				res.status(500).json({

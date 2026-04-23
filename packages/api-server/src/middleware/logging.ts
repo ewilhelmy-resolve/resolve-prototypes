@@ -83,19 +83,19 @@ export const addUserContextToLogs = (
 	if (req.log && (req as any).user) {
 		const user = (req as any).user;
 
-		// Create a new logger with user context
+		// Create a new logger with user context (email only in non-production)
 		req.log = createContextLogger(req.log, req.log.bindings().reqId, {
 			userId: user.id,
 			organizationId: user.activeOrganizationId,
-			email: user.email,
+			...(process.env.NODE_ENV !== "production" && { email: user.email }),
 		});
 
-		// Log successful authentication
+		// Log successful authentication (email only in non-production)
 		req.log.info(
 			{
 				userId: user.id,
 				organizationId: user.activeOrganizationId,
-				userEmail: user.email,
+				...(process.env.NODE_ENV !== "production" && { userEmail: user.email }),
 			},
 			"User authenticated",
 		);
@@ -163,7 +163,9 @@ export const errorLoggingMiddleware = (
 			? {
 					userId: (req as any).user.id,
 					organizationId: (req as any).user.activeOrganizationId,
-					userEmail: (req as any).user.email,
+					...(process.env.NODE_ENV !== "production" && {
+						userEmail: (req as any).user.email,
+					}),
 				}
 			: undefined,
 	};

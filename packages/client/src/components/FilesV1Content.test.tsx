@@ -24,7 +24,7 @@ import { FILE_SOURCE, FILE_STATUS } from "@/lib/constants";
 import FilesV1Content from "./FilesV1Content";
 
 // Mock ritaToast
-vi.mock("@/components/ui/rita-toast", () => ({
+vi.mock("@/components/custom/rita-toast", () => ({
 	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
@@ -612,7 +612,7 @@ describe("FilesV1Content", () => {
 			fireEvent.change(input);
 
 			// Should show error toast for invalid file type
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			await waitFor(() => {
 				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({
@@ -645,7 +645,7 @@ describe("FilesV1Content", () => {
 			fireEvent.change(input);
 
 			// Should show uploading toast
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			await waitFor(() => {
 				expect(ritaToast.info).toHaveBeenCalledWith(
 					expect.objectContaining({

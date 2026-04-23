@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ritaToast } from "@/components/ui/rita-toast";
+import { ritaToast } from "@/components/custom/rita-toast";
 import i18n from "@/i18n";
 import { memberApi } from "@/services/api";
 import { useAuthStore } from "@/stores/auth-store";

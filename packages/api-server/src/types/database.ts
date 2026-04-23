@@ -31,6 +31,7 @@ export interface ActivityContexts {
 	created_at: Generated<Timestamp | null>;
 	id: Generated<string>;
 	organization_id: string;
+	user_id: string;
 }
 
 export interface Agents {
@@ -97,6 +98,30 @@ export interface Blobs {
 	blob_id: Generated<string>;
 	data: Buffer;
 	digest: string;
+}
+
+export interface ClusterDiscovery {
+	/**
+	 * Whether discovery has been reviewed and approved
+	 */
+	approved: Generated<boolean>;
+	/**
+	 * Proposed cluster name (no FK — discovery precedes cluster creation)
+	 */
+	cluster_name: string;
+	/**
+	 * Whether approved discovery has been committed to clusters table
+	 */
+	committed: Generated<boolean>;
+	created_at: Generated<Timestamp>;
+	id: Generated<string>;
+	/**
+	 * Freeform JSONB for discovery context and scoring data
+	 */
+	metadata: Generated<Json | null>;
+	organization_id: string;
+	ticket_id: string;
+	updated_at: Generated<Timestamp>;
 }
 
 export interface ClusterKbLinks {
@@ -507,14 +532,15 @@ export interface SyncCancellationRequests {
 }
 
 export interface Tickets {
-	/**
-	 * Assigned agent from ITSM (set by ingestion)
-	 */
 	assigned_to: string | null;
 	/**
 	 * NULL until classification workflow assigns cluster
 	 */
 	cluster_id: string | null;
+	/**
+	 * Clustering similarity/relevance score (0.0–1.0)
+	 */
+	cluster_score: number | null;
 	/**
 	 * Text used for classification (set by ingestion, used by classification workflow)
 	 */
@@ -536,14 +562,12 @@ export interface Tickets {
 	external_status: string;
 	id: Generated<string>;
 	organization_id: string;
-	/**
-	 * Ticket priority from ITSM (set by ingestion)
-	 */
 	priority: string | null;
-	/**
-	 * Ticket requester from ITSM (set by ingestion)
-	 */
 	requester: string | null;
+	/**
+	 * Close/resolution notes from ITSM system. Non-null indicates a historical ticket usable for knowledge generation.
+	 */
+	resolution: string | null;
 	/**
 	 * Rita processing status: NEEDS_RESPONSE or COMPLETED
 	 */
@@ -604,6 +628,7 @@ export interface DB {
 	autopilot_settings: AutopilotSettings;
 	blob_metadata: BlobMetadata;
 	blobs: Blobs;
+	cluster_discovery: ClusterDiscovery;
 	cluster_kb_links: ClusterKbLinks;
 	clusters: Clusters;
 	conversations: Conversations;

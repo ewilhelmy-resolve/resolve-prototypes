@@ -8,10 +8,10 @@ import {
 	addUserContextToLogs,
 	errorLoggingMiddleware,
 	healthCheckLoggingMiddleware,
-	logApiOperation,
 	requestLoggingMiddleware,
 } from "./middleware/logging.js";
 import { rollbarErrorMiddleware } from "./middleware/rollbar.js";
+import agentRoutes from "./routes/agents.js";
 import authRoutes from "./routes/auth.js";
 import autopilotSettingsRoutes from "./routes/autopilotSettings.js";
 import clusterRoutes from "./routes/clusters.js";
@@ -27,6 +27,10 @@ import invitationRoutes from "./routes/invitations.js";
 import memberRoutes from "./routes/members.js";
 import mlModelRoutes from "./routes/mlModels.js";
 import organizationRoutes from "./routes/organizations.js";
+import shareRoutes, {
+	authenticatedShareRouter,
+	iframeShareRouter,
+} from "./routes/share.routes.js";
 import sseRoutes from "./routes/sse.js";
 import ticketRoutes from "./routes/tickets.js";
 import workflowRoutes from "./routes/workflows.js";
@@ -92,55 +96,29 @@ app.use("/api-docs", docsRoutes);
 // Authentication routes (no auth required)
 app.use("/auth", authRoutes);
 
+// Test-only routes (dev/test only — feature flag overrides, debug endpoints)
+if (process.env.NODE_ENV !== "production") {
+	import("./routes/testRoutes.js").then((mod) => {
+		app.use("/test", mod.default);
+		logger.info("Test routes registered at /test/*");
+	});
+	import("./routes/debugRoutes.js").then((mod) => {
+		app.use(mod.default);
+		logger.info("Debug routes registered (test-sse, test-org-context)");
+	});
+}
+
 // Iframe routes (no auth required - public access)
 app.use("/api/iframe", iframeRoutes);
+app.use("/api/iframe", iframeShareRouter);
+app.use("/api/share", shareRoutes);
+app.use("/api/conversations", addUserContextToLogs, authenticatedShareRouter);
 
 // Invitation routes (mixed auth - some public, some protected)
 app.use("/api/invitations", invitationRoutes);
 
 // Credential delegation routes (mixed auth - some public, some protected)
 app.use("/api/credential-delegations", credentialDelegationRoutes);
-
-// Test SSE endpoint (no auth required)
-app.get("/test-sse", (req, res) => {
-	res.writeHead(200, {
-		"Content-Type": "text/event-stream",
-		"Cache-Control": "no-cache",
-		Connection: "keep-alive",
-		"Access-Control-Allow-Origin":
-			process.env.CLIENT_URL || "http://localhost:5173",
-		"Access-Control-Allow-Credentials": "true",
-		"Access-Control-Allow-Headers": "Cache-Control",
-	});
-
-	let counter = 0;
-
-	const sendEvent = () => {
-		counter++;
-		const data = JSON.stringify({
-			type: "test_message",
-			data: {
-				message: `Test message ${counter}`,
-				timestamp: new Date().toISOString(),
-				counter: counter,
-			},
-		});
-
-		res.write(`data: ${data}\n\n`);
-	};
-
-	// Send initial message
-	sendEvent();
-
-	// Send a message every 3 seconds
-	const interval = setInterval(sendEvent, 3000);
-
-	// Clean up on client disconnect
-	req.on("close", () => {
-		clearInterval(interval);
-		console.log("Test SSE client disconnected");
-	});
-});
 
 // Protected routes (require authentication)
 // IMPORTANT: Register /api/organizations/members BEFORE /api/organizations to avoid route conflicts
@@ -162,6 +140,7 @@ app.use(
 	addUserContextToLogs,
 	autopilotSettingsRoutes,
 );
+app.use("/api/agents", authenticateUser, addUserContextToLogs, agentRoutes);
 app.use("/api/clusters", authenticateUser, addUserContextToLogs, clusterRoutes);
 app.use(
 	"/api/ml-models",
@@ -192,47 +171,16 @@ app.use(
 	featureFlagRoutes,
 );
 
-// Test organization context
-app.get(
-	"/api/test-org-context",
-	authenticateUser,
-	addUserContextToLogs,
-	logApiOperation("test-org-context"),
-	async (req: any, res) => {
+// Test endpoint to verify Rollbar error reporting pipeline (non-production only)
+if (process.env.NODE_ENV !== "production") {
+	app.get("/api/test-rollbar", (_req, res) => {
 		try {
-			const { withOrgContext } = await import("./config/database.js");
-
-			req.log.debug("Testing organization context");
-
-			const result = await withOrgContext(
-				req.user.id,
-				req.user.activeOrganizationId,
-				async (client) => {
-					// Test query that uses RLS policies
-					const messages = await client.query("SELECT * FROM messages LIMIT 5");
-					const orgs = await client.query("SELECT * FROM organizations");
-
-					return {
-						messagesCount: messages.rows.length,
-						organizationsCount: orgs.rows.length,
-					};
-				},
-			);
-
-			req.log.info({ result }, "Organization context test successful");
-
-			res.json({
-				user: req.user,
-				orgContext: result,
-				message: "Organization context working",
-			});
-		} catch (error) {
-			req.log.error({ error }, "Organization context test failed");
-			res.status(500).json({ error: "Failed to test organization context" });
+			throw new Error("Rollbar integration test — safe to ignore");
+		} catch (_err) {
+			res.status(500).json({ error: "Failed to test Rollbar integration" });
 		}
-	},
-);
-
+	});
+}
 // Error handling middleware (must be last)
 // Rollbar error handler - reports errors to Rollbar
 app.use(rollbarErrorMiddleware);

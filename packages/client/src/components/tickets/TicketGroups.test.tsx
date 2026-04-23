@@ -14,22 +14,20 @@ vi.mock("@/hooks/useIsIngesting", () => ({
 	useIsIngesting: (...args: unknown[]) => mockUseIsIngesting(...args),
 }));
 
+const mockUseClusters = vi.fn();
 const mockUseInfiniteClusters = vi.fn();
 const mockUseClusterActions = vi.fn();
 vi.mock("@/hooks/useClusters", () => ({
+	useClusters: (...args: unknown[]) => mockUseClusters(...args),
 	useInfiniteClusters: (...args: unknown[]) => mockUseInfiniteClusters(...args),
 	useClusterActions: (...args: unknown[]) => mockUseClusterActions(...args),
 	clusterKeys: { all: ["clusters"], lists: () => ["clusters", "list"] },
 }));
 
-vi.mock("@/hooks/useDebounce", () => ({
-	useDebounce: <T,>(value: T, _delay?: number): T => value,
-}));
-
 vi.mock("@/stores/ticketSettingsStore", () => ({
 	useTicketSettingsStore: () => ({
 		blendedRatePerHour: 30,
-		timeToTake: 12,
+		avgMinutesPerTicket: 12,
 	}),
 }));
 
@@ -43,6 +41,11 @@ beforeEach(() => {
 		isIngesting: false,
 		latestRun: null,
 		isBelowThreshold: false,
+	});
+	mockUseClusters.mockReturnValue({
+		data: undefined,
+		isLoading: false,
+		error: null,
 	});
 	mockUseInfiniteClusters.mockReturnValue({
 		data: undefined,
@@ -68,15 +71,15 @@ function renderTicketGroups() {
 
 describe("TicketGroups conditional rendering", () => {
 	it("shows import UI during first import (not 'Connect source')", () => {
-		// Model exists but not yet complete (first import in progress)
 		mockUseActiveModel.mockReturnValue({
-			data: { metadata: { training_state: "pending" } },
+			data: null,
 			isLoading: false,
 			notifySyncStarted: vi.fn(),
 		});
 		mockUseIsIngesting.mockReturnValue({
 			isIngesting: true,
 			latestRun: { status: "running", records_processed: 50, metadata: {} },
+			isBelowThreshold: false,
 		});
 
 		renderTicketGroups();
@@ -117,32 +120,24 @@ describe("TicketGroups conditional rendering", () => {
 			isLoading: false,
 			notifySyncStarted: vi.fn(),
 		});
-		mockUseInfiniteClusters.mockReturnValue({
+		mockUseClusters.mockReturnValue({
 			data: {
-				pages: [
+				data: [
 					{
-						data: [
-							{
-								id: "c1",
-								name: "Password Reset",
-								subcluster_name: null,
-								ticket_count: 42,
-								needs_response_count: 5,
-								kb_status: "found",
-								updated_at: "2025-06-01T00:00:00Z",
-							},
-						],
-						pagination: { has_more: false },
-						totals: { total_clusters: 1 },
+						id: "c1",
+						name: "Password Reset",
+						subcluster_name: null,
+						ticket_count: 42,
+						needs_response_count: 10,
+						kb_status: "FOUND",
+						updated_at: new Date().toISOString(),
 					},
 				],
-				pageParams: [undefined],
+				pagination: { has_more: false, total: 1 },
+				totals: { total_clusters: 1 },
 			},
 			isLoading: false,
 			error: null,
-			fetchNextPage: vi.fn(),
-			hasNextPage: false,
-			isFetchingNextPage: false,
 		});
 
 		renderTicketGroups();
@@ -153,15 +148,19 @@ describe("TicketGroups conditional rendering", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("shows below-threshold error when latest run has tickets_below_threshold", () => {
-		// With the new implementation, below-threshold shows "training failed"
-		// since isBelowThreshold handling was moved to useIsIngesting
-		// and the component shows the failed state via trainingState
+	it("shows training failed banner when training failed", () => {
 		mockUseActiveModel.mockReturnValue({
 			data: { metadata: { training_state: "failed" } },
 			isLoading: false,
 			notifySyncStarted: vi.fn(),
 		});
+
+		renderTicketGroups();
+
+		expect(screen.getByText("groups.trainingFailed")).toBeInTheDocument();
+	});
+
+	it("shows below-threshold error when latest run has tickets_below_threshold", () => {
 		mockUseIsIngesting.mockReturnValue({
 			isIngesting: false,
 			latestRun: {
@@ -179,66 +178,47 @@ describe("TicketGroups conditional rendering", () => {
 
 		renderTicketGroups();
 
-		expect(screen.getByText("groups.trainingFailed")).toBeInTheDocument();
+		expect(
+			screen.getByText("groups.ticketsBelowThreshold"),
+		).toBeInTheDocument();
 		expect(
 			screen.queryByText("groups.noSourceConnected"),
 		).not.toBeInTheDocument();
 		expect(screen.getByText("groups.goToItsmConnections")).toBeInTheDocument();
 	});
 
-	it("shows cluster cards when there are clusters", () => {
+	it("renders multiple clusters in card view", () => {
 		mockUseActiveModel.mockReturnValue({
 			data: { metadata: { training_state: "complete" } },
 			isLoading: false,
 			notifySyncStarted: vi.fn(),
 		});
 
-		const clusters = Array.from({ length: 20 }, (_, i) => ({
+		const clusters = Array.from({ length: 5 }, (_, i) => ({
 			id: `c${i}`,
 			name: `Cluster ${i}`,
 			subcluster_name: null,
 			ticket_count: 10,
-			needs_response_count: 2,
+			needs_response_count: 3,
 			kb_status: "PENDING",
-			updated_at: "2025-06-01T00:00:00Z",
+			updated_at: new Date().toISOString(),
 		}));
 
-		mockUseInfiniteClusters.mockReturnValue({
+		mockUseClusters.mockReturnValue({
 			data: {
-				pages: [
-					{
-						data: clusters,
-						pagination: { has_more: false },
-						totals: { total_clusters: 20 },
-					},
-				],
-				pageParams: [undefined],
+				data: clusters,
+				pagination: { has_more: false, total: 5 },
+				totals: { total_clusters: 5 },
 			},
 			isLoading: false,
 			error: null,
-			fetchNextPage: vi.fn(),
-			hasNextPage: false,
-			isFetchingNextPage: false,
 		});
 
 		renderTicketGroups();
 
-		// All cluster items rendered
-		for (let i = 0; i < 20; i++) {
+		for (let i = 0; i < 5; i++) {
 			expect(screen.getByText(`Cluster ${i}`)).toBeInTheDocument();
 		}
-	});
-
-	it("shows training failed banner when training failed", () => {
-		mockUseActiveModel.mockReturnValue({
-			data: { metadata: { training_state: "failed" } },
-			isLoading: false,
-			notifySyncStarted: vi.fn(),
-		});
-
-		renderTicketGroups();
-
-		expect(screen.getByText("groups.trainingFailed")).toBeInTheDocument();
 	});
 
 	it("shows spinner while model is loading", () => {
@@ -256,5 +236,37 @@ describe("TicketGroups conditional rendering", () => {
 		expect(
 			screen.queryByText("groups.noSourceConnected"),
 		).not.toBeInTheDocument();
+	});
+
+	it("shows pagination when more pages available", () => {
+		mockUseActiveModel.mockReturnValue({
+			data: { metadata: { training_state: "complete" } },
+			isLoading: false,
+			notifySyncStarted: vi.fn(),
+		});
+		mockUseClusters.mockReturnValue({
+			data: {
+				data: [
+					{
+						id: "c1",
+						name: "Cluster A",
+						subcluster_name: null,
+						ticket_count: 20,
+						needs_response_count: 5,
+						kb_status: "FOUND",
+						updated_at: new Date().toISOString(),
+					},
+				],
+				pagination: { has_more: true, total: 25, offset: 0, limit: 20 },
+				totals: { total_clusters: 25 },
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		renderTicketGroups();
+
+		expect(screen.getByText("groups.pagination.next")).toBeInTheDocument();
+		expect(screen.getByText("groups.pagination.previous")).toBeInTheDocument();
 	});
 });

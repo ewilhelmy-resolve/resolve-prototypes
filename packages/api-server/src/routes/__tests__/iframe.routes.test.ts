@@ -6,6 +6,9 @@
  * - POST /api/iframe/execute
  * - GET /api/iframe/debug
  * - GET /api/iframe/session-context
+ * - DELETE /api/iframe/conversation/:conversationId (auth + ownership)
+ * - POST /api/iframe/ui-form-response (auth + 401/500)
+ * - POST /api/iframe/ui-action (auth + ownership + 401/500)
  *
  * /execute endpoint gets all IDs from Valkey config - no session lookup needed.
  */
@@ -15,14 +18,35 @@ import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies before imports
-const { mockIframeService, mockWorkflowService } = vi.hoisted(() => ({
+const {
+	mockIframeService,
+	mockWorkflowService,
+	mockPool,
+	mockAuthenticateUser,
+} = vi.hoisted(() => ({
 	mockIframeService: {
 		validateAndSetup: vi.fn(),
 		fetchValkeyPayloadWithDebug: vi.fn(),
+		deleteConversation: vi.fn(),
+		sendUIFormResponse: vi.fn(),
+		sendUIAction: vi.fn(),
+		verifyConversationOwnership: vi.fn(),
 	},
 	mockWorkflowService: {
 		executeFromHashkey: vi.fn(),
 	},
+	mockPool: {
+		query: vi.fn(),
+	},
+	mockAuthenticateUser: vi.fn((req: any, _res: any, next: any) => {
+		req.user = {
+			id: "test-user-id",
+			activeOrganizationId: "test-org-id",
+			email: "test@example.com",
+		};
+		req.session = { sessionId: "test-session-id" };
+		next();
+	}),
 }));
 
 vi.mock("../../services/IframeService.js", () => ({
@@ -31,6 +55,14 @@ vi.mock("../../services/IframeService.js", () => ({
 
 vi.mock("../../services/WorkflowExecutionService.js", () => ({
 	getWorkflowExecutionService: () => mockWorkflowService,
+}));
+
+vi.mock("../../config/database.js", () => ({
+	pool: mockPool,
+}));
+
+vi.mock("../../middleware/auth.js", () => ({
+	authenticateUser: mockAuthenticateUser,
 }));
 
 vi.mock("../../config/valkey.js", () => ({
@@ -292,6 +324,229 @@ describe("iframe.routes", () => {
 			expect(response.body.valkey).toBeDefined();
 			expect(response.body.valkey.configured).toBe(true);
 			expect(response.body.environment).toBeDefined();
+		});
+	});
+
+	describe("DELETE /api/iframe/conversation/:conversationId", () => {
+		it("should delete conversation when user owns it", async () => {
+			mockIframeService.verifyConversationOwnership.mockResolvedValue(true);
+			mockIframeService.deleteConversation.mockResolvedValue(undefined);
+
+			const response = await request(app)
+				.delete("/api/iframe/conversation/conv-123")
+				.expect(200);
+
+			expect(response.body.success).toBe(true);
+			expect(
+				mockIframeService.verifyConversationOwnership,
+			).toHaveBeenCalledWith("conv-123", "test-org-id", "test-user-id");
+			expect(mockIframeService.deleteConversation).toHaveBeenCalledWith(
+				"conv-123",
+			);
+		});
+
+		it("should return 404 when conversation not owned by user", async () => {
+			mockIframeService.verifyConversationOwnership.mockResolvedValue(false);
+
+			const response = await request(app)
+				.delete("/api/iframe/conversation/other-conv")
+				.expect(404);
+
+			expect(response.body.success).toBe(false);
+			expect(response.body.error).toBe("Conversation not found");
+			expect(mockIframeService.deleteConversation).not.toHaveBeenCalled();
+		});
+
+		it("should return 401 for unauthenticated requests", async () => {
+			mockAuthenticateUser.mockImplementationOnce((_req: any, res: any) => {
+				res
+					.status(401)
+					.json({ error: "No session found. Please login.", code: "NO_AUTH" });
+			});
+
+			const response = await request(app)
+				.delete("/api/iframe/conversation/conv-123")
+				.expect(401);
+
+			expect(response.body.code).toBe("NO_AUTH");
+			expect(mockIframeService.deleteConversation).not.toHaveBeenCalled();
+		});
+
+		it("should return 500 on unexpected error", async () => {
+			mockIframeService.verifyConversationOwnership.mockResolvedValue(true);
+			mockIframeService.deleteConversation.mockRejectedValue(
+				new Error("DB error"),
+			);
+
+			const response = await request(app)
+				.delete("/api/iframe/conversation/conv-123")
+				.expect(500);
+
+			expect(response.body.success).toBe(false);
+		});
+	});
+
+	describe("POST /api/iframe/ui-form-response", () => {
+		it("should submit form response with valid session", async () => {
+			mockIframeService.sendUIFormResponse.mockResolvedValue(undefined);
+
+			const response = await request(app)
+				.post("/api/iframe/ui-form-response")
+				.send({
+					requestId: "req-1",
+					action: "submit",
+					status: "submitted",
+					data: { field: "value" },
+				})
+				.expect(200);
+
+			expect(response.body.success).toBe(true);
+			expect(mockIframeService.sendUIFormResponse).toHaveBeenCalledWith({
+				requestId: "req-1",
+				action: "submit",
+				status: "submitted",
+				data: { field: "value" },
+			});
+		});
+
+		it("should return 400 when required fields are missing", async () => {
+			const response = await request(app)
+				.post("/api/iframe/ui-form-response")
+				.send({ action: "submit" })
+				.expect(400);
+
+			expect(response.body.success).toBe(false);
+			expect(mockIframeService.sendUIFormResponse).not.toHaveBeenCalled();
+		});
+
+		it("should return 400 for invalid status", async () => {
+			const response = await request(app)
+				.post("/api/iframe/ui-form-response")
+				.send({ requestId: "req-1", status: "invalid" })
+				.expect(400);
+
+			expect(response.body.success).toBe(false);
+			expect(response.body.error).toContain("Invalid status");
+		});
+
+		it("should return 401 for unauthenticated requests", async () => {
+			mockAuthenticateUser.mockImplementationOnce((_req: any, res: any) => {
+				res
+					.status(401)
+					.json({ error: "No session found. Please login.", code: "NO_AUTH" });
+			});
+
+			const response = await request(app)
+				.post("/api/iframe/ui-form-response")
+				.send({ requestId: "req-1", status: "submitted" })
+				.expect(401);
+
+			expect(response.body.code).toBe("NO_AUTH");
+			expect(mockIframeService.sendUIFormResponse).not.toHaveBeenCalled();
+		});
+
+		it("should return 500 on unexpected error", async () => {
+			mockIframeService.sendUIFormResponse.mockRejectedValue(
+				new Error("Webhook failed"),
+			);
+
+			const response = await request(app)
+				.post("/api/iframe/ui-form-response")
+				.send({
+					requestId: "req-1",
+					action: "submit",
+					status: "submitted",
+					data: { field: "value" },
+				})
+				.expect(500);
+
+			expect(response.body.success).toBe(false);
+		});
+	});
+
+	describe("POST /api/iframe/ui-action", () => {
+		it("should forward action when user owns conversation", async () => {
+			mockIframeService.verifyConversationOwnership.mockResolvedValue(true);
+			mockIframeService.sendUIAction.mockResolvedValue(undefined);
+
+			const response = await request(app)
+				.post("/api/iframe/ui-action")
+				.send({
+					action: "click",
+					data: {},
+					messageId: "msg-1",
+					conversationId: "conv-123",
+				})
+				.expect(200);
+
+			expect(response.body.success).toBe(true);
+			expect(
+				mockIframeService.verifyConversationOwnership,
+			).toHaveBeenCalledWith("conv-123", "test-org-id", "test-user-id");
+		});
+
+		it("should return 404 when conversation not owned by user", async () => {
+			mockIframeService.verifyConversationOwnership.mockResolvedValue(false);
+
+			const response = await request(app)
+				.post("/api/iframe/ui-action")
+				.send({
+					action: "click",
+					messageId: "msg-1",
+					conversationId: "other-conv",
+				})
+				.expect(404);
+
+			expect(response.body.success).toBe(false);
+			expect(response.body.error).toBe("Conversation not found");
+			expect(mockIframeService.sendUIAction).not.toHaveBeenCalled();
+		});
+
+		it("should return 400 when required fields are missing", async () => {
+			const response = await request(app)
+				.post("/api/iframe/ui-action")
+				.send({ action: "click" })
+				.expect(400);
+
+			expect(response.body.success).toBe(false);
+		});
+
+		it("should return 401 for unauthenticated requests", async () => {
+			mockAuthenticateUser.mockImplementationOnce((_req: any, res: any) => {
+				res
+					.status(401)
+					.json({ error: "No session found. Please login.", code: "NO_AUTH" });
+			});
+
+			const response = await request(app)
+				.post("/api/iframe/ui-action")
+				.send({
+					action: "click",
+					messageId: "msg-1",
+					conversationId: "conv-123",
+				})
+				.expect(401);
+
+			expect(response.body.code).toBe("NO_AUTH");
+			expect(mockIframeService.sendUIAction).not.toHaveBeenCalled();
+		});
+
+		it("should return 500 on unexpected error", async () => {
+			mockIframeService.verifyConversationOwnership.mockResolvedValue(true);
+			mockIframeService.sendUIAction.mockRejectedValue(
+				new Error("Webhook failed"),
+			);
+
+			const response = await request(app)
+				.post("/api/iframe/ui-action")
+				.send({
+					action: "click",
+					messageId: "msg-1",
+					conversationId: "conv-123",
+				})
+				.expect(500);
+
+			expect(response.body.success).toBe(false);
 		});
 	});
 

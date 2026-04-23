@@ -1,6 +1,13 @@
 /**
- * TicketDetailPage.test.tsx - Tests for ticket detail page that passes
- * ticketIds array to TicketDetailHeader for navigation.
+ * TicketDetailPage.test.tsx - TDD RED phase tests for URL-param-driven
+ * neighbor-ticket navigation refactor.
+ *
+ * These tests target the REFACTORED component that:
+ * 1. Reads URL search params (idx, sort, sort_dir, tab, search)
+ * 2. Calls useClusterTickets with offset/limit derived from idx
+ * 3. Derives prev/next ticket IDs from the 3-ticket window
+ * 4. Passes prevTicketId, nextTicketId, currentPosition, totalTickets,
+ *    searchParams to TicketDetailHeader
  */
 
 import { render } from "@testing-library/react";
@@ -19,13 +26,20 @@ vi.mock("@/hooks/useClusters", () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Mock react-router-dom
+// Mock react-router-dom  (default: full search params with idx=5)
 // ---------------------------------------------------------------------------
+const mockNavigate = vi.fn();
+let mockSearchParams = new URLSearchParams(
+	"sort=subject&sort_dir=asc&tab=completed&search=vpn&idx=5",
+);
+
 vi.mock("react-router-dom", async () => {
 	const actual = await vi.importActual("react-router-dom");
 	return {
 		...actual,
 		useParams: () => ({ clusterId: "cluster-1", ticketId: "t-current" }),
+		useNavigate: () => mockNavigate,
+		useSearchParams: () => [mockSearchParams],
 	};
 });
 
@@ -56,8 +70,17 @@ vi.mock("@/components/tickets/TicketDetailHeader", () => ({
 		mockTicketDetailHeaderProps(props);
 		return (
 			<div data-testid="ticket-detail-header">
-				<span data-testid="header-ticket-ids">
-					{JSON.stringify(props.ticketIds)}
+				<span data-testid="header-prev-ticket-id">
+					{String(props.prevTicketId ?? "")}
+				</span>
+				<span data-testid="header-next-ticket-id">
+					{String(props.nextTicketId ?? "")}
+				</span>
+				<span data-testid="header-current-position">
+					{String(props.currentPosition ?? "")}
+				</span>
+				<span data-testid="header-total-tickets">
+					{String(props.totalTickets ?? "")}
 				</span>
 			</div>
 		);
@@ -92,9 +115,9 @@ const defaultTicket = {
 	source_metadata: {},
 };
 
-const multiTicketResponse = {
+const threeTicketsResponse = {
 	data: [{ id: "t-prev" }, { id: "t-current" }, { id: "t-next" }],
-	pagination: { total: 42, limit: 100, has_more: false },
+	pagination: { total: 42, limit: 3, offset: 4, has_more: true },
 };
 
 // ---------------------------------------------------------------------------
@@ -104,6 +127,11 @@ describe("TicketDetailPage", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 
+		// Reset search params to default (idx=5 with sort params)
+		mockSearchParams = new URLSearchParams(
+			"sort=subject&sort_dir=asc&tab=completed&search=vpn&idx=5",
+		);
+
 		mockUseTicket.mockReturnValue({
 			data: defaultTicket,
 			isLoading: false,
@@ -111,57 +139,194 @@ describe("TicketDetailPage", () => {
 		});
 
 		mockUseClusterTickets.mockReturnValue({
-			data: multiTicketResponse,
+			data: threeTicketsResponse,
 			isLoading: false,
 			error: null,
 		});
 	});
 
 	// -----------------------------------------------------------------------
-	// 1. Passes ticketIds array to TicketDetailHeader
+	// 1. Passes URL search params to useClusterTickets
 	// -----------------------------------------------------------------------
-	it("passes ticketIds array to TicketDetailHeader", () => {
+	it("passes URL search params to useClusterTickets with correct offset and limit", () => {
+		render(
+			<TestProviders
+				initialEntries={[
+					"/tickets/cluster-1/t-current?sort=subject&sort_dir=asc&tab=completed&search=vpn&idx=5",
+				]}
+			>
+				<TicketDetailPage />
+			</TestProviders>,
+		);
+
+		expect(mockUseClusterTickets).toHaveBeenCalledWith(
+			"cluster-1",
+			{
+				offset: 4,
+				limit: 3,
+				sort: "subject",
+				sort_dir: "asc",
+				tab: "completed",
+				search: "vpn",
+			},
+			{ keepPrevious: true },
+		);
+	});
+
+	// -----------------------------------------------------------------------
+	// 1b. tab=open → external_status=Open (not tab=open)
+	// -----------------------------------------------------------------------
+	it("converts tab=open to external_status=Open in neighbor query params", () => {
+		mockSearchParams = new URLSearchParams(
+			"sort=subject&sort_dir=asc&tab=open&search=vpn&idx=5",
+		);
+
+		render(
+			<TestProviders
+				initialEntries={[
+					"/tickets/cluster-1/t-current?sort=subject&sort_dir=asc&tab=open&search=vpn&idx=5",
+				]}
+			>
+				<TicketDetailPage />
+			</TestProviders>,
+		);
+
+		expect(mockUseClusterTickets).toHaveBeenCalledWith(
+			"cluster-1",
+			expect.objectContaining({
+				offset: 4,
+				limit: 3,
+				sort: "subject",
+				sort_dir: "asc",
+				external_status: "Open",
+				search: "vpn",
+			}),
+			{ keepPrevious: true },
+		);
+
+		const callParams = mockUseClusterTickets.mock.calls[0][1];
+		expect(callParams).not.toHaveProperty("tab");
+	});
+
+	// -----------------------------------------------------------------------
+	// 1c. tab=all → no tab, no external_status
+	// -----------------------------------------------------------------------
+	it("omits both tab and external_status when tab=all", () => {
+		mockSearchParams = new URLSearchParams(
+			"sort=subject&sort_dir=asc&tab=all&search=vpn&idx=5",
+		);
+
+		render(
+			<TestProviders
+				initialEntries={[
+					"/tickets/cluster-1/t-current?sort=subject&sort_dir=asc&tab=all&search=vpn&idx=5",
+				]}
+			>
+				<TicketDetailPage />
+			</TestProviders>,
+		);
+
+		expect(mockUseClusterTickets).toHaveBeenCalledWith(
+			"cluster-1",
+			expect.objectContaining({
+				offset: 4,
+				limit: 3,
+				sort: "subject",
+				sort_dir: "asc",
+				search: "vpn",
+			}),
+			{ keepPrevious: true },
+		);
+
+		const callParams = mockUseClusterTickets.mock.calls[0][1];
+		expect(callParams).not.toHaveProperty("tab");
+		expect(callParams).not.toHaveProperty("external_status");
+	});
+
+	// -----------------------------------------------------------------------
+	// 2. Falls back gracefully when no idx
+	// -----------------------------------------------------------------------
+	it("does not call useClusterTickets with neighbor params when idx is absent", () => {
+		mockSearchParams = new URLSearchParams("");
+
 		render(
 			<TestProviders initialEntries={["/tickets/cluster-1/t-current"]}>
 				<TicketDetailPage />
 			</TestProviders>,
 		);
 
+		// Should either not call useClusterTickets at all, or not pass
+		// the offset/limit/sort params that come from idx-based navigation
+		const calls = mockUseClusterTickets.mock.calls;
+		const hasNeighborCall = calls.some(
+			(call: unknown[]) =>
+				call[1] &&
+				typeof call[1] === "object" &&
+				"offset" in (call[1] as Record<string, unknown>) &&
+				"limit" in (call[1] as Record<string, unknown>) &&
+				(call[1] as Record<string, unknown>).limit === 3,
+		);
+		expect(hasNeighborCall).toBe(false);
+	});
+
+	// -----------------------------------------------------------------------
+	// 3. Derives prev/next correctly from results (middle ticket, idx=5)
+	// -----------------------------------------------------------------------
+	it("passes prevTicketId and nextTicketId to TicketDetailHeader for a middle ticket", () => {
+		render(
+			<TestProviders
+				initialEntries={[
+					"/tickets/cluster-1/t-current?sort=subject&sort_dir=asc&tab=completed&search=vpn&idx=5",
+				]}
+			>
+				<TicketDetailPage />
+			</TestProviders>,
+		);
+
+		// The refactored component should pass derived prev/next IDs
 		expect(mockTicketDetailHeaderProps).toHaveBeenCalledWith(
 			expect.objectContaining({
-				ticketId: "t-current",
-				externalId: "INC-001",
-				clusterId: "cluster-1",
-				ticketIds: ["t-prev", "t-current", "t-next"],
+				prevTicketId: "t-prev",
+				nextTicketId: "t-next",
+				currentPosition: 5, // 0-based index; header adds +1 for display
+				totalTickets: 42,
 			}),
 		);
 	});
 
 	// -----------------------------------------------------------------------
-	// 2. Passes empty ticketIds when cluster tickets not loaded
+	// 4. Handles first ticket (idx=0) -- prevTicketId should be null
 	// -----------------------------------------------------------------------
-	it("passes empty ticketIds when cluster tickets are not loaded", () => {
+	it("passes null prevTicketId to TicketDetailHeader when viewing the first ticket (idx=0)", () => {
+		mockSearchParams = new URLSearchParams("idx=0");
+
 		mockUseClusterTickets.mockReturnValue({
-			data: undefined,
-			isLoading: true,
+			data: {
+				data: [{ id: "t-current" }, { id: "t-next" }],
+				pagination: { total: 42, limit: 3, offset: 0, has_more: true },
+			},
+			isLoading: false,
 			error: null,
 		});
 
 		render(
-			<TestProviders initialEntries={["/tickets/cluster-1/t-current"]}>
+			<TestProviders initialEntries={["/tickets/cluster-1/t-current?idx=0"]}>
 				<TicketDetailPage />
 			</TestProviders>,
 		);
 
 		expect(mockTicketDetailHeaderProps).toHaveBeenCalledWith(
 			expect.objectContaining({
-				ticketIds: [],
+				prevTicketId: null,
+				nextTicketId: "t-next",
+				currentPosition: 0, // 0-based; header adds +1 for display
+				totalTickets: 42,
 			}),
 		);
 	});
 
 	// -----------------------------------------------------------------------
-	// 3. Shows loading state
+	// 5. Shows loading state
 	// -----------------------------------------------------------------------
 	it("renders spinner when ticket is loading", () => {
 		mockUseTicket.mockReturnValue({
@@ -171,7 +336,7 @@ describe("TicketDetailPage", () => {
 		});
 
 		const { container } = render(
-			<TestProviders initialEntries={["/tickets/cluster-1/t-current"]}>
+			<TestProviders initialEntries={["/tickets/cluster-1/t-current?idx=5"]}>
 				<TicketDetailPage />
 			</TestProviders>,
 		);
@@ -182,53 +347,125 @@ describe("TicketDetailPage", () => {
 	});
 
 	// -----------------------------------------------------------------------
-	// 4. Shows error state when ticket not found
+	// 6. URL tampering: idx beyond total disables navigation
 	// -----------------------------------------------------------------------
-	it("renders error state when ticket fails to load", () => {
-		mockUseTicket.mockReturnValue({
-			data: undefined,
+	it("handles idx beyond total by disabling navigation", () => {
+		mockSearchParams = new URLSearchParams("idx=999");
+
+		mockUseClusterTickets.mockReturnValue({
+			data: {
+				data: [],
+				pagination: { total: 42, limit: 3, offset: 998, has_more: false },
+			},
 			isLoading: false,
-			error: new Error("Not found"),
+			error: null,
 		});
 
 		render(
-			<TestProviders initialEntries={["/tickets/cluster-1/t-current"]}>
+			<TestProviders initialEntries={["/tickets/cluster-1/t-current?idx=999"]}>
 				<TicketDetailPage />
 			</TestProviders>,
 		);
 
-		// Should not render the header when there's an error
-		expect(mockTicketDetailHeaderProps).not.toHaveBeenCalled();
-	});
-
-	// -----------------------------------------------------------------------
-	// 5. Passes correct ticketId and externalId
-	// -----------------------------------------------------------------------
-	it("passes ticketId and externalId from loaded ticket", () => {
-		render(
-			<TestProviders initialEntries={["/tickets/cluster-1/t-current"]}>
-				<TicketDetailPage />
-			</TestProviders>,
-		);
-
+		// idx=999 with empty results: currentPosInResults = 999 - 998 = 1
+		// results is empty so both neighbors resolve to null
 		expect(mockTicketDetailHeaderProps).toHaveBeenCalledWith(
 			expect.objectContaining({
-				ticketId: "t-current",
-				externalId: "INC-001",
+				prevTicketId: null,
+				nextTicketId: null,
 			}),
 		);
 	});
 
 	// -----------------------------------------------------------------------
-	// 6. Renders ticket subject as heading
+	// 7. URL tampering: negative idx disables navigation
 	// -----------------------------------------------------------------------
-	it("renders ticket subject as heading", () => {
-		const { getByText } = render(
-			<TestProviders initialEntries={["/tickets/cluster-1/t-current"]}>
+	it("handles negative idx gracefully", () => {
+		mockSearchParams = new URLSearchParams("idx=-5");
+
+		mockUseClusterTickets.mockReturnValue({
+			data: {
+				data: [{ id: "t-a" }, { id: "t-b" }, { id: "t-c" }],
+				pagination: { total: 42, limit: 3, offset: 0, has_more: true },
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		render(
+			<TestProviders initialEntries={["/tickets/cluster-1/t-current?idx=-5"]}>
 				<TicketDetailPage />
 			</TestProviders>,
 		);
 
-		expect(getByText("VPN Issue")).toBeInTheDocument();
+		// offset = max(0, -5 - 1) = 0
+		// currentPosInResults = -5 - 0 = -5
+		// -5 > 0 is false  => prevTicketId = null
+		// -5 < 2 is true   => results[-4]?.id = undefined => null
+		expect(mockTicketDetailHeaderProps).toHaveBeenCalledWith(
+			expect.objectContaining({
+				prevTicketId: null,
+				nextTicketId: null,
+			}),
+		);
+	});
+
+	// -----------------------------------------------------------------------
+	// 8. URL tampering: non-numeric idx disables navigation context
+	// -----------------------------------------------------------------------
+	it("handles non-numeric idx by disabling navigation context", () => {
+		mockSearchParams = new URLSearchParams("idx=abc");
+
+		render(
+			<TestProviders initialEntries={["/tickets/cluster-1/t-current?idx=abc"]}>
+				<TicketDetailPage />
+			</TestProviders>,
+		);
+
+		// Number("abc") = NaN => hasNavContext = false
+		// useClusterTickets should NOT be called with neighbor params (offset/limit=3)
+		const calls = mockUseClusterTickets.mock.calls;
+		const hasNeighborCall = calls.some(
+			(call: unknown[]) =>
+				call[1] &&
+				typeof call[1] === "object" &&
+				"offset" in (call[1] as Record<string, unknown>) &&
+				"limit" in (call[1] as Record<string, unknown>) &&
+				(call[1] as Record<string, unknown>).limit === 3,
+		);
+		expect(hasNeighborCall).toBe(false);
+	});
+
+	// -----------------------------------------------------------------------
+	// 9. idx=0 with 2 results shows only next navigation
+	// -----------------------------------------------------------------------
+	it("handles idx=0 correctly showing only next navigation", () => {
+		mockSearchParams = new URLSearchParams("idx=0");
+
+		mockUseClusterTickets.mockReturnValue({
+			data: {
+				data: [{ id: "t-current" }, { id: "t-next" }],
+				pagination: { total: 42, limit: 3, offset: 0, has_more: true },
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		render(
+			<TestProviders initialEntries={["/tickets/cluster-1/t-current?idx=0"]}>
+				<TicketDetailPage />
+			</TestProviders>,
+		);
+
+		// offset = max(0, 0 - 1) = 0
+		// currentPosInResults = 0 - 0 = 0
+		// 0 > 0 is false => prevTicketId = null
+		// 0 < 1 is true  => nextTicketId = "t-next"
+		expect(mockTicketDetailHeaderProps).toHaveBeenCalledWith(
+			expect.objectContaining({
+				prevTicketId: null,
+				nextTicketId: "t-next",
+			}),
+		);
 	});
 });

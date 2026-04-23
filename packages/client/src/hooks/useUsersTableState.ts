@@ -1,4 +1,4 @@
-import { useReducer } from "react";
+import { useCallback, useReducer } from "react";
 import type { Member, OrganizationRole } from "@/types/member";
 
 /**
@@ -106,6 +106,7 @@ function usersTableReducer(
 		case "SET_SEARCH_INPUT":
 			return { ...state, searchInput: action.payload };
 		case "SET_SEARCH_QUERY":
+			if (state.searchQuery === action.payload) return state;
 			return { ...state, searchQuery: action.payload, page: 0 };
 		case "SET_STATUS_FILTER":
 			return {
@@ -175,12 +176,12 @@ export function useUsersTableState() {
 	const [state, dispatch] = useReducer(usersTableReducer, initialState);
 
 	// Handlers - Selection
-	const handleSelectAll = (checked: boolean, members: Member[]) => {
+	const handleSelectAll = useCallback((checked: boolean, members: Member[]) => {
 		dispatch({
 			type: "SET_SELECTED_USERS",
 			payload: checked ? members.map((member) => member.id) : [],
 		});
-	};
+	}, []);
 
 	const handleSelectUser = (userId: string, checked: boolean) => {
 		dispatch({
@@ -192,110 +193,119 @@ export function useUsersTableState() {
 	};
 
 	// Handlers - Dialogs
-	const handleEditUser = (member: Member) => {
+	const handleEditUser = useCallback((member: Member) => {
 		dispatch({ type: "OPEN_EDIT_SHEET", payload: member });
-	};
+	}, []);
 
-	const handleDeactivateUser = (member: Member) => {
+	const handleDeactivateUser = useCallback((member: Member) => {
 		dispatch({ type: "OPEN_DEACTIVATE_DIALOG", payload: member });
-	};
+	}, []);
 
-	const handleDeleteUser = (member: Member) => {
+	const handleDeleteUser = useCallback((member: Member) => {
 		dispatch({ type: "OPEN_DELETE_DIALOG", payload: member });
-	};
+	}, []);
 
 	// Handler - Sorting
-	const handleSort = (
-		column: "name" | "role" | "status" | "joinedAt" | "conversationsCount",
-	) => {
-		dispatch({ type: "TOGGLE_SORT", payload: column });
-	};
+	const handleSort = useCallback(
+		(
+			column: "name" | "role" | "status" | "joinedAt" | "conversationsCount",
+		) => {
+			dispatch({ type: "TOGGLE_SORT", payload: column });
+		},
+		[],
+	);
 
 	// Setters
-	const setSearchInput = (input: string) => {
+	const setSearchInput = useCallback((input: string) => {
 		dispatch({ type: "SET_SEARCH_INPUT", payload: input });
-	};
+	}, []);
 
-	const setSearchQuery = (query: string) => {
+	const setSearchQuery = useCallback((query: string) => {
 		dispatch({ type: "SET_SEARCH_QUERY", payload: query });
-	};
+	}, []);
 
-	const setStatusFilter = (filter: "All" | "active" | "inactive") => {
-		dispatch({ type: "SET_STATUS_FILTER", payload: filter });
-	};
+	const setStatusFilter = useCallback(
+		(filter: "All" | "active" | "inactive") => {
+			dispatch({ type: "SET_STATUS_FILTER", payload: filter });
+		},
+		[],
+	);
 
-	const setPage = (page: number) => {
+	const setPage = useCallback((page: number) => {
 		dispatch({ type: "SET_PAGE", payload: page });
-	};
+	}, []);
 
-	const setSelectedUsers = (users: string[]) => {
+	const setSelectedUsers = useCallback((users: string[]) => {
 		dispatch({ type: "SET_SELECTED_USERS", payload: users });
-	};
+	}, []);
 
-	const setEditSheetOpen = (open: boolean) => {
+	const setEditSheetOpen = useCallback((open: boolean) => {
 		if (!open) {
 			dispatch({ type: "CLOSE_EDIT_SHEET" });
 		}
-	};
+	}, []);
 
-	const setDeleteDialogOpen = (open: boolean) => {
+	const setDeleteDialogOpen = useCallback((open: boolean) => {
 		if (!open) {
 			dispatch({ type: "CLOSE_DELETE_DIALOG" });
 		}
-	};
+	}, []);
 
-	const setDeactivateDialogOpen = (open: boolean) => {
+	const setDeactivateDialogOpen = useCallback((open: boolean) => {
 		if (!open) {
 			dispatch({ type: "CLOSE_DEACTIVATE_DIALOG" });
 		}
-	};
+	}, []);
 
-	const setBulkDeleteDialogOpen = (open: boolean) => {
+	const setBulkDeleteDialogOpen = useCallback((open: boolean) => {
 		if (open) {
 			dispatch({ type: "OPEN_BULK_DELETE_DIALOG" });
 		} else {
 			dispatch({ type: "CLOSE_BULK_DELETE_DIALOG" });
 		}
-	};
+	}, []);
 
-	const setRoleChangeDialogOpen = (open: boolean) => {
+	const setRoleChangeDialogOpen = useCallback((open: boolean) => {
 		if (!open) {
 			dispatch({ type: "CLOSE_ROLE_CHANGE_DIALOG" });
 		}
-	};
+	}, []);
 
-	const setPendingRoleChange = (
-		change: {
-			userId: string;
-			newRole: OrganizationRole;
-			oldRole: OrganizationRole;
-		} | null,
-	) => {
-		if (change) {
-			dispatch({ type: "OPEN_ROLE_CHANGE_DIALOG", payload: change });
-		} else {
-			dispatch({ type: "CLOSE_ROLE_CHANGE_DIALOG" });
-		}
-	};
+	const setPendingRoleChange = useCallback(
+		(
+			change: {
+				userId: string;
+				newRole: OrganizationRole;
+				oldRole: OrganizationRole;
+			} | null,
+		) => {
+			if (change) {
+				dispatch({ type: "OPEN_ROLE_CHANGE_DIALOG", payload: change });
+			} else {
+				dispatch({ type: "CLOSE_ROLE_CHANGE_DIALOG" });
+			}
+		},
+		[],
+	);
 
 	// Additional setters for direct state access (backward compatibility)
-	const setEditingUser = (user: Member | null) => {
+	const setEditingUser = useCallback((user: Member | null) => {
 		if (user) {
 			dispatch({ type: "OPEN_EDIT_SHEET", payload: user });
 		}
-	};
+	}, []);
 
-	const setDeletingUser = (user: Member | null) => {
+	const setDeletingUser = useCallback((user: Member | null) => {
 		if (user) {
 			dispatch({ type: "OPEN_DELETE_DIALOG", payload: user });
 		}
-	};
+	}, []);
 
-	const setDeactivatingUser = (user: Member | null) => {
+	const setDeactivatingUser = useCallback((user: Member | null) => {
 		if (user) {
 			dispatch({ type: "OPEN_DEACTIVATE_DIALOG", payload: user });
 		}
-	};
+	}, []);
 
 	return {
 		// Selection

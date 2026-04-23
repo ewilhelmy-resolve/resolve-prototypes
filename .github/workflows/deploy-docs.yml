@@ -1,0 +1,61 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/spec-engine/**'
+      - 'packages/api-server/src/**'
+      - 'packages/client/src/**'
+      - 'packages/iframe-app/src/**'
+      - 'packages/docs-site/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-docs
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: pnpm/action-setup@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'pnpm'
+
+    - run: pnpm install --frozen-lockfile
+      env:
+        GITHUB_TOKEN: ${{ secrets.ONBOARDING_GITHUB_TOKEN }}
+
+    - name: Generate spec documentation
+      run: pnpm spec:build
+
+    - name: Verify spec integrity
+      run: pnpm spec:check all
+      continue-on-error: true
+
+    - name: Prepare docs content
+      run: pnpm --filter @rita/docs-site prepare-content
+
+    - name: Build Docusaurus
+      run: pnpm --filter @rita/docs-site build
+
+    - name: Deploy to GitHub Pages
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git remote set-url origin https://git:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+        pnpm --filter @rita/docs-site run deploy
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

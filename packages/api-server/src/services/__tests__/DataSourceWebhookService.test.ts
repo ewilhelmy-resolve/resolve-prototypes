@@ -4,6 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("axios");
 const mockedAxios = vi.mocked(axios, true);
 
+vi.mock("../../config/logger.js", () => ({
+	logger: {
+		info: vi.fn(),
+		error: vi.fn(),
+		warn: vi.fn(),
+		debug: vi.fn(),
+		child: vi.fn().mockReturnThis(),
+	},
+	createChildLogger: vi.fn(),
+	webhookLogger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+}));
+
 const mockQuery = vi.fn().mockResolvedValue({});
 const mockRelease = vi.fn();
 
@@ -47,6 +59,54 @@ describe("DataSourceWebhookService", () => {
 
 	afterEach(() => {
 		vi.restoreAllMocks();
+	});
+
+	describe("no console.log/error leakage", () => {
+		it("should NOT call console.log on successful send", async () => {
+			const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+			mockedAxios.post.mockResolvedValueOnce({
+				status: 200,
+				data: { ok: true },
+			});
+
+			await service.sendSyncTicketsEvent(defaultParams);
+
+			expect(consoleSpy).not.toHaveBeenCalled();
+		});
+
+		it("should NOT call console.error when all retries exhausted", async () => {
+			const consoleSpy = vi
+				.spyOn(console, "error")
+				.mockImplementation(() => {});
+			const serverError = {
+				response: { status: 500, data: { error: "Server error" } },
+				message: "Internal Server Error",
+			};
+			mockedAxios.post
+				.mockRejectedValueOnce(serverError)
+				.mockRejectedValueOnce(serverError)
+				.mockRejectedValueOnce(serverError);
+
+			await service.sendSyncTicketsEvent(defaultParams);
+
+			expect(consoleSpy).not.toHaveBeenCalled();
+		});
+
+		it("should NOT call console.log when webhook failure is stored in DB", async () => {
+			const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+			const serverError = {
+				response: { status: 500, data: { error: "Server error" } },
+				message: "Internal Server Error",
+			};
+			mockedAxios.post
+				.mockRejectedValueOnce(serverError)
+				.mockRejectedValueOnce(serverError)
+				.mockRejectedValueOnce(serverError);
+
+			await service.sendSyncTicketsEvent(defaultParams);
+
+			expect(consoleSpy).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("sendSyncTicketsEvent", () => {

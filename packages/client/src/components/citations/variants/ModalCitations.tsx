@@ -82,17 +82,12 @@ export function ModalCitations({
 						</DialogDescription>
 					</DialogHeader>
 
-					<div
+					<ul
 						className="flex-1 overflow-y-auto space-y-4 pr-2"
-						role="list"
 						aria-label="Citation sources"
 					>
 						{sources.map((source, index) => (
-							<div
-								key={`${messageId}-${index}`}
-								className="space-y-3"
-								role="listitem"
-							>
+							<li key={`${messageId}-${index}`} className="space-y-3">
 								{source.content ? (
 									// If content exists, show it as the main content
 									<>
@@ -162,9 +157,9 @@ export function ModalCitations({
 										</a>
 									</div>
 								)}
-							</div>
+							</li>
 						))}
-					</div>
+					</ul>
 				</DialogContent>
 			</Dialog>
 		</div>

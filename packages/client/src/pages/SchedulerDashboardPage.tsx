@@ -2,6 +2,8 @@
  * SchedulerDashboardPage - Workflow monitoring with design exploration
  */
 
+/** biome-ignore-all lint/a11y/useSemanticElements: clickable row cards retain role=button; converting to <button> breaks nested flex/grid layouts */
+
 import {
 	AlertCircle,
 	Calendar,

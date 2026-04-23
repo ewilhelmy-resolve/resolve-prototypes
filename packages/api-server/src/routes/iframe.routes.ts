@@ -15,6 +15,7 @@ import express from "express";
 import { logger } from "../config/logger.js";
 import { getValkeyStatus } from "../config/valkey.js";
 import { registry, z } from "../docs/openapi.js";
+import { authenticateUser } from "../middleware/auth.js";
 import { ErrorResponseSchema } from "../schemas/common.js";
 import {
 	IframeDebugResponseSchema,
@@ -27,6 +28,7 @@ import {
 } from "../schemas/iframe.js";
 import { getIframeService } from "../services/IframeService.js";
 import { getWorkflowExecutionService } from "../services/WorkflowExecutionService.js";
+import type { AuthenticatedRequest } from "../types/express.js";
 
 // ============================================================================
 // OpenAPI Documentation Registration
@@ -112,8 +114,7 @@ registry.registerPath({
 	tags: ["Iframe"],
 	summary: "Delete conversation",
 	description:
-		"Delete iframe conversation and all messages. Used for 'Clear Chat' feature.",
-	security: [],
+		"Delete iframe conversation and all messages. Used for 'Clear Chat' feature. Requires session cookie and conversation ownership.",
 	request: {
 		params: z.object({
 			conversationId: z
@@ -219,6 +220,7 @@ router.post("/validate-instantiation", async (req, res) => {
 			logger.warn(
 				{
 					error: result.error,
+					debug: result.debug,
 					sessionKey: `${sessionKey?.substring(0, 8)}...`,
 				},
 				"Iframe validation failed",
@@ -253,6 +255,8 @@ router.post("/validate-instantiation", async (req, res) => {
 			titleText: result.uiConfig?.titleText,
 			welcomeText: result.uiConfig?.welcomeText,
 			placeholderText: result.uiConfig?.placeholderText,
+			// Host page origin for secure postMessage targetOrigin
+			parentOrigin: result.parentOrigin,
 			// Full Valkey payload for dev tools (sensitive fields excluded)
 			valkeyPayload: result.valkeyPayload,
 		});
@@ -288,10 +292,11 @@ router.post("/validate-instantiation", async (req, res) => {
 });
 
 /**
- * Debug endpoint - check Valkey status and configuration
+ * Debug endpoint - check Valkey status, config, and optionally inspect a session
  * GET /api/iframe/debug
+ * GET /api/iframe/debug?sessionKey=xxx — includes Valkey payload (sensitive fields redacted)
  */
-router.get("/debug", async (_req, res) => {
+router.get("/debug", async (req, res) => {
 	const valkeyStatus = getValkeyStatus();
 	const envVars = {
 		VALKEY_URL: process.env.VALKEY_URL ? "set" : "not set",
@@ -299,11 +304,42 @@ router.get("/debug", async (_req, res) => {
 		ACTIONS_API_URL: process.env.ACTIONS_API_URL ? "set" : "not set",
 	};
 
-	res.json({
+	const response: Record<string, unknown> = {
 		timestamp: new Date().toISOString(),
 		valkey: valkeyStatus,
 		environment: envVars,
-	});
+	};
+
+	const sessionKey =
+		typeof req.query.sessionKey === "string" ? req.query.sessionKey : null;
+	if (sessionKey) {
+		try {
+			const iframeService = getIframeService();
+			const { config, debug } =
+				await iframeService.fetchValkeyPayloadWithDebug(sessionKey);
+
+			response.session = {
+				valkeyKey: `rita:session:${sessionKey}`,
+				found: !!config,
+				debug,
+				payload: config
+					? {
+							...config,
+							accessToken: config.accessToken ? "[REDACTED]" : undefined,
+							refreshToken: config.refreshToken ? "[REDACTED]" : undefined,
+							clientKey: config.clientKey ? "[REDACTED]" : undefined,
+						}
+					: null,
+			};
+		} catch (error) {
+			response.session = {
+				valkeyKey: `rita:session:${sessionKey}`,
+				error: (error as Error).message,
+			};
+		}
+	}
+
+	res.json(response);
 });
 
 /**
@@ -363,7 +399,6 @@ router.get("/session-context", async (req, res) => {
  */
 router.post("/execute", async (req, res) => {
 	const startTime = Date.now();
-
 	try {
 		const { hashkey, sessionKey } = req.body;
 		// Support both hashkey and sessionKey (portal uses sessionKey)
@@ -445,27 +480,46 @@ router.post("/execute", async (req, res) => {
  * Deletes conversation and all messages (cascade via FK).
  * Used by "Clear Chat" feature to start fresh.
  */
-router.delete("/conversation/:conversationId", async (req, res) => {
-	const { conversationId } = req.params;
+router.delete(
+	"/conversation/:conversationId",
+	authenticateUser,
+	async (req, res) => {
+		const authReq = req as AuthenticatedRequest;
+		const { conversationId } = req.params;
 
-	if (!conversationId) {
-		res.status(400).json({ success: false, error: "Missing conversationId" });
-		return;
-	}
+		if (!conversationId) {
+			res.status(400).json({ success: false, error: "Missing conversationId" });
+			return;
+		}
 
-	try {
-		const iframeService = getIframeService();
-		await iframeService.deleteConversation(conversationId);
-		res.json({ success: true });
-	} catch (error) {
-		const err = error as Error;
-		logger.error(
-			{ conversationId, error: err.message },
-			"Failed to delete conversation",
-		);
-		res.status(500).json({ success: false, error: "Failed to delete" });
-	}
-});
+		try {
+			const iframeService = getIframeService();
+
+			// Verify conversation belongs to authenticated user
+			const isOwner = await iframeService.verifyConversationOwnership(
+				conversationId,
+				authReq.user.activeOrganizationId,
+				authReq.user.id,
+			);
+			if (!isOwner) {
+				res
+					.status(404)
+					.json({ success: false, error: "Conversation not found" });
+				return;
+			}
+
+			await iframeService.deleteConversation(conversationId);
+			res.json({ success: true });
+		} catch (error) {
+			const err = error as Error;
+			logger.error(
+				{ conversationId, error: err.message },
+				"Failed to delete conversation",
+			);
+			res.status(500).json({ success: false, error: "Failed to delete" });
+		}
+	},
+);
 
 /**
  * Submit UI form response back to platform
@@ -474,7 +528,7 @@ router.delete("/conversation/:conversationId", async (req, res) => {
  * Used by UIFormRequestModal when user submits or cancels a form.
  * Sends webhook to Platform with form data for workflow correlation.
  */
-router.post("/ui-form-response", async (req, res) => {
+router.post("/ui-form-response", authenticateUser, async (req, res) => {
 	const { requestId, action, status, data } = req.body;
 
 	if (!requestId || !status) {
@@ -530,7 +584,8 @@ router.post("/ui-form-response", async (req, res) => {
  * Used by SchemaRenderer when user interacts with dynamic UI components.
  * Forwards action payload to platform via webhook.
  */
-router.post("/ui-action", async (req, res) => {
+router.post("/ui-action", authenticateUser, async (req, res) => {
+	const authReq = req as AuthenticatedRequest;
 	const { action, data, messageId, conversationId, timestamp } = req.body;
 
 	if (!action || !messageId || !conversationId) {
@@ -542,6 +597,19 @@ router.post("/ui-action", async (req, res) => {
 	}
 
 	try {
+		const iframeService = getIframeService();
+
+		// Verify conversation belongs to authenticated user
+		const isOwner = await iframeService.verifyConversationOwnership(
+			conversationId,
+			authReq.user.activeOrganizationId,
+			authReq.user.id,
+		);
+		if (!isOwner) {
+			res.status(404).json({ success: false, error: "Conversation not found" });
+			return;
+		}
+
 		logger.info(
 			{
 				action,
@@ -552,7 +620,6 @@ router.post("/ui-action", async (req, res) => {
 			"Processing UI action",
 		);
 
-		const iframeService = getIframeService();
 		await iframeService.sendUIAction({
 			action,
 			data,

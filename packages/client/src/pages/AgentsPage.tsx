@@ -7,103 +7,42 @@
  * - Filterable and sortable agents data table
  */
 
-import {
-	BookOpen,
-	ChevronDown,
-	FileText,
-	Plus,
-	Sparkles,
-	X,
-	Zap,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { BookOpen, ChevronDown, Loader2, Plus, X, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
-import { type Agent, AgentsTable } from "@/components/agents/AgentsTable";
-import {
-	type AgentTemplate,
-	AgentTemplateModal,
-} from "@/components/agents/AgentTemplateModal";
-import { CreateAgentDialog } from "@/components/agents/CreateAgentDialog";
+import { AgentsEmptyState } from "@/components/agents/AgentsEmptyState";
+import { AgentsTable } from "@/components/agents/AgentsTable";
 import { DeleteAgentModal } from "@/components/agents/DeleteAgentModal";
+import { InfiniteScrollContainer } from "@/components/custom/infinite-scroll-container";
 import RitaLayout from "@/components/layouts/RitaLayout";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { usePhaseGate } from "@/hooks/usePhaseGate";
+import { useDeleteAgent, useInfiniteAgents } from "@/hooks/api/useAgents";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/toast";
-import { useAgentBuildStore } from "@/stores/agentBuildStore";
-import { type Phase, usePhaseStore } from "@/stores/phaseStore";
+import type { AgentState, AgentTableRow } from "@/types/agent";
 
-// Mock data for agents table
-const mockAgents: Agent[] = [
-	{
-		id: "1",
-		name: "HelpDesk Advisor",
-		description: "Answers IT support questions",
-		status: "published",
-		skills: ["Reset password", "Unlock account", "Request system access"],
-		updatedBy: { initials: "CN", color: "teal" },
-		owner: { initials: "CN", color: "teal" },
-		lastUpdated: "16 Dec, 2025 11:44",
-	},
-	{
-		id: "2",
-		name: "Onboarding Compliance Checker",
-		description: "Answers from compliance docs",
-		status: "published",
-		skills: ["Verify I-9 forms", "Check background status", "Review tax docs"],
-		updatedBy: { initials: "KL", color: "purple" },
-		owner: { initials: "KL", color: "purple" },
-		lastUpdated: "06 Dec, 2025 12:03",
-	},
-	{
-		id: "3",
-		name: "Password Reset Bot",
-		description: "Automates password resets",
-		status: "draft",
-		skills: ["Password Reset"],
-		updatedBy: { initials: "AJ", color: "sky" },
-		owner: null,
-		lastUpdated: "03 Dec, 2025 13:27",
-	},
-	{
-		id: "4",
-		name: "PTO Balance Checker",
-		description: "Checks employee time off balances",
-		status: "published",
-		skills: ["Check PTO balance", "Request time off"],
-		updatedBy: { initials: "JS", color: "indigo" },
-		owner: { initials: "JS", color: "indigo" },
-		lastUpdated: "23 Nov, 2025 12:07",
-	},
-	{
-		id: "5",
-		name: "Employee Directory Bot",
-		description: "Looks up employee information",
-		status: "published",
-		skills: ["Lookup employee", "Find department", "Get contact info"],
-		updatedBy: { initials: "MM", color: "emerald" },
-		owner: { initials: "MM", color: "emerald" },
-		lastUpdated: "03 Nov, 2025 18:07",
-	},
-];
-
-type FilterStatus = "all" | "published" | "draft";
+// UI only supports the two lifecycle states agents live in during normal
+// builder use. TESTING/RETIRED exist in the domain model but aren't surfaced
+// in the filter dropdown.
+type FilterState = "all" | "DRAFT" | "PUBLISHED";
 type FilterOwner = "all" | "me" | "others";
+
+const STATE_FILTER_LABEL: Record<
+	FilterState,
+	"list.filters.all" | "list.filters.draft" | "list.filters.published"
+> = {
+	all: "list.filters.all",
+	DRAFT: "list.filters.draft",
+	PUBLISHED: "list.filters.published",
+};
 
 interface PublishedAgentState {
 	id: string;
@@ -116,185 +55,91 @@ interface PublishedAgentState {
 }
 
 export default function AgentsPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const location = useLocation();
-	const agentsPhase = usePhaseStore((state) => state.phases.agents);
-	const setPhase = usePhaseStore((state) => state.setPhase);
-	const phaseV2 = usePhaseGate("agents", "v2");
-	const phaseV3 = usePhaseGate("agents", "v3");
-	const builds = useAgentBuildStore((state) => state.builds);
+	const { getUserEmail } = useAuth();
+	const currentUserEmail = getUserEmail() ?? undefined;
 	const [searchQuery, setSearchQuery] = useState("");
+	const [debouncedSearch, setDebouncedSearch] = useState("");
+
+	useEffect(() => {
+		const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+		return () => clearTimeout(timer);
+	}, [searchQuery]);
+
 	const [ownerFilter, setOwnerFilter] = useState<FilterOwner>("all");
-	const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
-	const [createDialogOpen, setCreateDialogOpen] = useState(false);
-	const [templateModalOpen, setTemplateModalOpen] = useState(false);
+	const [stateFilter, setStateFilter] = useState<FilterState>("all");
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
+	const [agentToDelete, setAgentToDelete] = useState<AgentTableRow | null>(
+		null,
+	);
 	const [showEducationBanner, setShowEducationBanner] = useState(true);
 
-	// Dynamic agents list (includes newly published agents)
-	const [agents, setAgents] = useState<Agent[]>(mockAgents);
+	// Fetch agents from API with infinite scroll
+	const agentsFilters: {
+		state?: AgentState;
+		search?: string;
+		owner?: "me" | "others";
+	} = {};
+	if (stateFilter !== "all") {
+		agentsFilters.state = stateFilter;
+	}
+	if (debouncedSearch) {
+		agentsFilters.search = debouncedSearch;
+	}
+	if (ownerFilter !== "all") {
+		agentsFilters.owner = ownerFilter;
+	}
+	const {
+		data: agentsData,
+		isLoading,
+		isFetchingNextPage,
+		hasNextPage,
+		fetchNextPage,
+		error: agentsError,
+	} = useInfiniteAgents(
+		Object.keys(agentsFilters).length > 0 ? agentsFilters : undefined,
+	);
+	const deleteAgent = useDeleteAgent();
 
-	// Handle newly published, unpublished, or building agent from navigation state
+	const agents = useMemo(
+		() => agentsData?.pages.flatMap((p) => p.agents) ?? [],
+		[agentsData],
+	);
+
+	// Handle newly published or unpublished agent from navigation state
 	useEffect(() => {
 		const state = location.state as {
 			publishedAgent?: PublishedAgentState;
 			unpublishedAgent?: { id: string; name: string };
-			buildingAgent?: {
-				id: string;
-				name: string;
-				description: string;
-				skills?: string[];
-			};
 		} | null;
 		if (state?.publishedAgent) {
-			const published = state.publishedAgent;
-
-			// Add to agents table (or update if exists)
-			setAgents((prev) => {
-				const exists = prev.find((a) => a.id === published.id);
-				if (exists) {
-					// Update existing agent
-					return prev.map((a) =>
-						a.id === published.id
-							? {
-									...a,
-									name: published.name,
-									description: published.description,
-									status: "published" as const,
-								}
-							: a,
-					);
-				}
-				// Add new agent at the top
-				const newAgent: Agent = {
-					id: published.id,
-					name: published.name,
-					description: published.description,
-					status: "published",
-					skills: published.skills || [],
-					updatedBy: { initials: "You", color: "blue" },
-					owner: { initials: "You", color: "blue" },
-					lastUpdated: new Date().toLocaleDateString("en-GB", {
-						day: "2-digit",
-						month: "short",
-						year: "numeric",
-						hour: "2-digit",
-						minute: "2-digit",
-					}),
-				};
-				return [newAgent, ...prev];
-			});
-
-			toast.success(`${published.name} published`, {
-				description: "Agent is now live and available to users.",
-			});
-
-			// Clear the state to prevent re-adding on refresh
+			toast.success(
+				t("list.toasts.published", { name: state.publishedAgent.name }),
+				{
+					description: t("list.toasts.publishedDescription"),
+				},
+			);
 			window.history.replaceState({}, document.title);
 		}
 
 		if (state?.unpublishedAgent) {
-			const { id, name } = state.unpublishedAgent;
-			setAgents((prev) =>
-				prev.map((a) => (a.id === id ? { ...a, status: "draft" as const } : a)),
+			toast.info(
+				t("list.toasts.unpublished", { name: state.unpublishedAgent.name }),
+				{
+					description: t("list.toasts.unpublishedDescription"),
+				},
 			);
-			toast.info(`${name} moved to draft`, {
-				description: "Agent is no longer available to users.",
-			});
 			window.history.replaceState({}, document.title);
 		}
+	}, [location.state, t]);
 
-		if (state?.buildingAgent) {
-			const building = state.buildingAgent;
-			setAgents((prev) => {
-				if (prev.find((a) => a.id === building.id)) return prev;
-				const newAgent: Agent = {
-					id: building.id,
-					name: building.name,
-					description: building.description,
-					status: "building",
-					skills: building.skills || [],
-					updatedBy: { initials: "You", color: "blue" },
-					owner: { initials: "You", color: "blue" },
-					lastUpdated: new Date().toLocaleDateString("en-GB", {
-						day: "2-digit",
-						month: "short",
-						year: "numeric",
-						hour: "2-digit",
-						minute: "2-digit",
-					}),
-				};
-				return [newAgent, ...prev];
-			});
-			window.history.replaceState({}, document.title);
-		}
-	}, [location.state]);
-
-	// Sync build completions → flip "building" agents to "draft"
-	useEffect(() => {
-		for (const [id, build] of Object.entries(builds)) {
-			if (build.status === "complete") {
-				setAgents((prev) =>
-					prev.map((a) =>
-						a.id === id && a.status === "building"
-							? { ...a, status: "draft" as const }
-							: a,
-					),
-				);
-			}
-		}
-	}, [builds]);
-
-	// Filter agents based on search and filters
-	const filteredAgents = agents.filter((agent) => {
-		// Search filter
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
-			if (
-				!agent.name.toLowerCase().includes(query) &&
-				!agent.description.toLowerCase().includes(query)
-			) {
-				return false;
-			}
-		}
-
-		// Status filter
-		if (statusFilter !== "all" && agent.status !== statusFilter) {
-			return false;
-		}
-
-		return true;
-	});
-
-	const handleCreateAgent = (name: string) => {
-		// Navigate to agent builder with the new agent name
-		navigate("/agents/create", { state: { agentName: name } });
-		setCreateDialogOpen(false);
-	};
-
-	const handleSelectTemplate = (template: AgentTemplate) => {
-		// Navigate to agent builder with template data pre-populated
-		navigate("/agents/create", {
-			state: {
-				agentName: template.name,
-				template: template,
-			},
-		});
-	};
-
-	const handleAgentClick = (agent: Agent) => {
-		// Building agents are not interactive
-		if (agent.status === "building") return;
-		// v3: published agents → chat, draft → configure
-		if (phaseV3 && agent.status === "published") {
-			navigate(`/agents/${agent.id}/chat`);
-			return;
-		}
+	const handleAgentClick = (agent: AgentTableRow) => {
 		navigate(`/agents/${agent.id}`);
 	};
 
-	const handleDeleteClick = (agent: Agent) => {
+	const handleDeleteClick = (agent: AgentTableRow) => {
 		setAgentToDelete(agent);
 		setDeleteModalOpen(true);
 	};
@@ -302,12 +147,16 @@ export default function AgentsPage() {
 	const handleConfirmDelete = () => {
 		if (!agentToDelete) return;
 
-		// Remove from agents list
-		setAgents((prev) => prev.filter((a) => a.id !== agentToDelete.id));
-
-		// Reset state
-		setAgentToDelete(null);
-		setDeleteModalOpen(false);
+		deleteAgent.mutate(agentToDelete.id, {
+			onSuccess: () => {
+				toast.success(t("list.toasts.deleted", { name: agentToDelete.name }));
+				setAgentToDelete(null);
+				setDeleteModalOpen(false);
+			},
+			onError: () => {
+				toast.error(t("list.toasts.deleteFailed"));
+			},
+		});
 	};
 
 	return (
@@ -315,72 +164,13 @@ export default function AgentsPage() {
 			<div className="flex flex-col gap-6 p-4">
 				{/* Header */}
 				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-2">
-						<h1 className="text-xl font-serif text-card-foreground">Agents</h1>
-						<Select
-							value={agentsPhase}
-							onValueChange={(v) => setPhase("agents", v as Phase)}
-						>
-							<SelectTrigger
-								className="w-16 h-8 text-xs"
-								aria-label="Agents phase"
-							>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="v1">v1</SelectItem>
-								<SelectItem value="v2">v2</SelectItem>
-								<SelectItem value="v3">v3</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-					{!phaseV2 && (
-						<Button
-							className="gap-2"
-							onClick={() => navigate("/agents/create")}
-						>
-							<Plus className="size-4" />
-							Create agent
-						</Button>
-					)}
-					{phaseV2 && (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button className="gap-2">
-									<Plus className="size-4" />
-									Create agent
-									<ChevronDown className="size-4" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-56">
-								<DropdownMenuItem
-									onClick={() => setCreateDialogOpen(true)}
-									className="gap-2"
-								>
-									<FileText className="size-4" />
-									<div>
-										<div className="font-medium">From scratch</div>
-										<div className="text-xs text-muted-foreground">
-											Start with a blank agent
-										</div>
-									</div>
-								</DropdownMenuItem>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem
-									onClick={() => setTemplateModalOpen(true)}
-									className="gap-2"
-								>
-									<Sparkles className="size-4" />
-									<div>
-										<div className="font-medium">From template</div>
-										<div className="text-xs text-muted-foreground">
-											Use a pre-built template
-										</div>
-									</div>
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
+					<h1 className="text-xl font-serif text-card-foreground">
+						{t("list.title")}
+					</h1>
+					<Button className="gap-2" onClick={() => navigate("/agents/create")}>
+						<Plus className="size-4" />
+						{t("list.createAgent")}
+					</Button>
 				</div>
 
 				{/* Education banner */}
@@ -390,22 +180,19 @@ export default function AgentsPage() {
 						<button
 							onClick={() => setShowEducationBanner(false)}
 							className="absolute top-0 right-0 p-2 rounded-md hover:bg-muted transition-colors"
-							aria-label="Dismiss"
+							aria-label={t("list.banner.dismiss")}
 						>
-							<X className="size-4" />
+							<X className="size-4" aria-hidden="true" />
 						</button>
 
 						<div className="flex gap-6 items-start">
 							{/* Left content */}
 							<div className="flex-1 flex flex-col gap-2.5 p-5">
 								<h2 className="text-4xl font-serif">
-									Build intelligent agents
+									{t("list.banner.heading")}
 								</h2>
 								<p className="text-base text-foreground leading-relaxed">
-									Create AI-powered agents that answer questions from your
-									knowledge base, automate workflows, and help your team be more
-									productive. Connect to your existing tools and let agents
-									handle repetitive tasks.
+									{t("list.banner.description")}
 								</p>
 
 								{/* Action links */}
@@ -417,7 +204,7 @@ export default function AgentsPage() {
 										className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
 									>
 										<BookOpen className="size-4" />
-										How to create an agent
+										{t("list.banner.howToCreate")}
 									</button>
 									<button
 										onClick={() => {
@@ -426,15 +213,15 @@ export default function AgentsPage() {
 										className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
 									>
 										<Zap className="size-4" />
-										Adding skills to your agent
+										{t("list.banner.addingSkills")}
 									</button>
 								</div>
 							</div>
 
 							{/* Right illustration */}
 							<img
-								src="/src/assets/images/agents-banner-illustration.svg"
-								alt="Agent examples"
+								src="/images/agents-banner-illustration.svg"
+								alt={t("list.banner.illustrationAlt")}
 								className="hidden lg:block w-[350px] h-[204px] rounded-lg flex-shrink-0"
 							/>
 						</div>
@@ -452,7 +239,9 @@ export default function AgentsPage() {
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="secondary" className="gap-2">
-											Owner: {ownerFilter}
+											{t("list.filters.ownerLabel", {
+												value: t(`list.filters.${ownerFilter}`),
+											})}
 											<ChevronDown className="size-4" />
 										</Button>
 									</DropdownMenuTrigger>
@@ -461,49 +250,51 @@ export default function AgentsPage() {
 											checked={ownerFilter === "all"}
 											onCheckedChange={() => setOwnerFilter("all")}
 										>
-											All
+											{t("list.filters.all")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
 											checked={ownerFilter === "me"}
 											onCheckedChange={() => setOwnerFilter("me")}
 										>
-											Me
+											{t("list.filters.me")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
 											checked={ownerFilter === "others"}
 											onCheckedChange={() => setOwnerFilter("others")}
 										>
-											Others
+											{t("list.filters.others")}
 										</DropdownMenuCheckboxItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
 
-								{/* Status filter */}
+								{/* State filter */}
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button variant="secondary" className="gap-2">
-											Status: {statusFilter}
+											{t("list.filters.stateLabel", {
+												value: t(STATE_FILTER_LABEL[stateFilter]),
+											})}
 											<ChevronDown className="size-4" />
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "all"}
-											onCheckedChange={() => setStatusFilter("all")}
+											checked={stateFilter === "all"}
+											onCheckedChange={() => setStateFilter("all")}
 										>
-											All
+											{t("list.filters.all")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "published"}
-											onCheckedChange={() => setStatusFilter("published")}
+											checked={stateFilter === "PUBLISHED"}
+											onCheckedChange={() => setStateFilter("PUBLISHED")}
 										>
-											Published
+											{t("list.filters.published")}
 										</DropdownMenuCheckboxItem>
 										<DropdownMenuCheckboxItem
-											checked={statusFilter === "draft"}
-											onCheckedChange={() => setStatusFilter("draft")}
+											checked={stateFilter === "DRAFT"}
+											onCheckedChange={() => setStateFilter("DRAFT")}
 										>
-											Draft
+											{t("list.filters.draft")}
 										</DropdownMenuCheckboxItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
@@ -511,7 +302,9 @@ export default function AgentsPage() {
 
 							{/* Search */}
 							<Input
-								placeholder="Search agents..."
+								type="search"
+								placeholder={t("list.filters.searchPlaceholder")}
+								aria-label={t("list.filters.searchAriaLabel")}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className="max-w-[384px]"
@@ -519,42 +312,58 @@ export default function AgentsPage() {
 						</div>
 
 						{/* Agents table */}
-						<AgentsTable
-							agents={filteredAgents}
-							onAgentClick={handleAgentClick}
-							onEdit={(agent) => navigate(`/agents/${agent.id}`)}
-							onDelete={handleDeleteClick}
-						/>
+						{isLoading ? (
+							<output
+								aria-live="polite"
+								aria-busy="true"
+								className="flex items-center justify-center py-12"
+							>
+								<Loader2
+									className="size-6 animate-spin text-muted-foreground"
+									aria-hidden="true"
+								/>
+								<span className="sr-only">{t("list.loading")}</span>
+							</output>
+						) : agentsError ? (
+							<div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+								{agentsError instanceof Error
+									? agentsError.message
+									: t("list.error")}
+							</div>
+						) : agents.length === 0 ? (
+							<AgentsEmptyState
+								onCreateAgent={() => navigate("/agents/create")}
+							/>
+						) : (
+							<InfiniteScrollContainer
+								hasMore={hasNextPage ?? false}
+								isLoading={isFetchingNextPage}
+								onLoadMore={() => fetchNextPage()}
+							>
+								<AgentsTable
+									agents={agents}
+									onAgentClick={handleAgentClick}
+									onEdit={(agent) => navigate(`/agents/${agent.id}`)}
+									onDelete={handleDeleteClick}
+									currentUserEmail={currentUserEmail}
+								/>
+							</InfiniteScrollContainer>
+						)}
 					</div>
 				</div>
 			</div>
-
-			<CreateAgentDialog
-				open={createDialogOpen}
-				onOpenChange={setCreateDialogOpen}
-				onCreateAgent={handleCreateAgent}
-			/>
-
-			<AgentTemplateModal
-				open={templateModalOpen}
-				onOpenChange={setTemplateModalOpen}
-				onSelectTemplate={handleSelectTemplate}
-			/>
 
 			{agentToDelete && (
 				<DeleteAgentModal
 					open={deleteModalOpen}
 					onOpenChange={setDeleteModalOpen}
 					agentName={agentToDelete.name}
-					agentStatus={
-						agentToDelete.status === "published" ? "published" : "draft"
-					}
+					agentState={agentToDelete.state}
 					impact={{
-						skills: agentToDelete.skills?.length || 0,
-						conversationStarters: 3, // Mock data
-						usersThisWeek: agentToDelete.status === "published" ? 24 : 0,
-						linkedWorkflows:
-							agentToDelete.status === "published" ? ["Password Reset"] : [],
+						skills: agentToDelete.skills?.length ?? 0,
+						conversationStarters: 0, // TODO: populate from API when available
+						usersThisWeek: 0, // TODO: populate from usage analytics API
+						linkedWorkflows: [], // TODO: populate from workflow associations API
 					}}
 					onConfirmDelete={handleConfirmDelete}
 				/>

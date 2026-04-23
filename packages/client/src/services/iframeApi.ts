@@ -7,6 +7,9 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
+/** RG-838: All iframe requests carry this header so the server picks the right cookie */
+const IFRAME_HEADERS = { "X-Session-Context": "iframe" } as const;
+
 export interface ValidateInstantiationRequest {
 	sessionKey: string; // Key to Valkey payload (userId, tenantId, credentials)
 	existingConversationId?: string; // Skip conversation creation if provided
@@ -28,6 +31,8 @@ export interface ValidateInstantiationResponse {
 	tabInstanceId?: string;
 	tenantName?: string;
 	webhookTenantId?: string;
+	/** Host page origin for secure postMessage targetOrigin */
+	parentOrigin?: string;
 	/** Full Valkey payload for dev tools (sensitive fields redacted: accessToken, refreshToken, clientKey) */
 	valkeyPayload?: Record<string, unknown>;
 }
@@ -75,7 +80,7 @@ export const iframeApi = {
 			`${API_BASE_URL}/api/iframe/validate-instantiation`,
 			{
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...IFRAME_HEADERS },
 				credentials: "include", // Important: allows cookie to be set
 				body: JSON.stringify(request),
 			},
@@ -93,7 +98,7 @@ export const iframeApi = {
 	): Promise<ExecuteWorkflowResponse> => {
 		const response = await fetch(`${API_BASE_URL}/api/iframe/execute`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: { "Content-Type": "application/json", ...IFRAME_HEADERS },
 			credentials: "include",
 			body: JSON.stringify({ hashkey }),
 		});
@@ -126,7 +131,7 @@ export const iframeApi = {
 	sendUIAction: async (request: UIActionRequest): Promise<UIActionResponse> => {
 		const response = await fetch(`${API_BASE_URL}/api/iframe/ui-action`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: { "Content-Type": "application/json", ...IFRAME_HEADERS },
 			credentials: "include",
 			body: JSON.stringify(request),
 		});
@@ -145,7 +150,7 @@ export const iframeApi = {
 			`${API_BASE_URL}/api/iframe/ui-form-response`,
 			{
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...IFRAME_HEADERS },
 				credentials: "include",
 				body: JSON.stringify(request),
 			},

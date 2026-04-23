@@ -7,7 +7,7 @@ import {
 	useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
+import { Confetti, type ConfettiRef } from "@/components/custom/confetti";
 import { cn } from "@/lib/utils";
 import { ProTipBadge } from "./ProTipBadge";
 

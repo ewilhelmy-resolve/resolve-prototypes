@@ -7,29 +7,75 @@
  * 3. If not Good, give feedback → agent retries
  * 4. When Good after iterations, suggest config improvements
  * 5. Apply or skip, then test another or publish
+ *
+ * ## Wiring to real backend (TODO)
+ *
+ * Currently uses mock `generateResponse()` and `generateConfigSuggestion()`.
+ * To connect to the real agent execution backend:
+ *
+ * ### 1. Message send/receive — same SSE flow as chat
+ *
+ * The agent test page should use the same communication pattern as
+ * `/chat` and `/iframe/chat`: send a message via POST, receive responses
+ * via SSE (new_message events from RabbitMQ → SSE service).
+ *
+ * Replace `handleStartTest` and `handleFeedbackSubmit` internals:
+ * - POST to agent execution endpoint (e.g. `POST /api/agents/:id/execute`)
+ *   with `{ prompt, conversationId, feedbackHistory? }`
+ * - Response arrives via SSE `new_message` events (same as regular chat)
+ * - Use `useConversationStore` + `SSEProvider` to receive messages
+ * - OR use `ChatV2Content` component which handles store→render automatically
+ *
+ * ### 2. Conversation lifecycle — endpoint TBD
+ *
+ * Agent test conversations may load from a different endpoint than regular
+ * conversations (e.g. `GET /api/agents/:id/conversations` or similar).
+ * The conversation creation may also differ — currently the page doesn't
+ * persist conversations, but when wired it should:
+ * - Create conversation on first message (`POST /api/agents/:id/conversations`)
+ * - Load existing test conversations for the agent
+ * - Use `source: 'agent-test'` to distinguish from regular chat
+ *
+ * ### 3. Config suggestions — LLM-powered
+ *
+ * Replace `generateConfigSuggestion()` with a real API call:
+ * - `POST /api/agents/:id/suggest` with `{ feedbackHistory, currentConfig }`
+ * - Backend sends feedbackHistory to LLM, gets instruction improvements
+ * - Returns `{ message, updateType, updateValue }` same shape as current mock
+ *
+ * ### 4. Publish — already has the pattern
+ *
+ * `handlePublish` should call `PATCH /api/agents/:id` with the updated config.
+ * The `useAgent` hook from `@/hooks/api/useAgents` already provides the query;
+ * add a mutation hook for updates.
+ *
+ * ### 5. Rendering upgrade path
+ *
+ * When ready to support reasoning steps, completion cards, and rich metadata
+ * in agent test responses, replace the manual message rendering (lines ~468-650)
+ * with `ChatV2MessageRenderer` from `@/components/chat/`. It renders all
+ * message types (reasoning, sources, tasks, completion) from `ChatMessage[]`
+ * and works without SSE/stores when passed data as props.
  */
 
 import confetti from "canvas-confetti";
 import {
 	ArrowLeft,
-	BookOpen,
 	Bot,
 	BotMessageSquare,
 	Check,
 	ChevronUp,
 	Database,
-	Headphones,
-	Key,
 	Loader2,
 	RefreshCw,
 	SendHorizontal,
-	ShieldCheck,
 	ThumbsDown,
 	ThumbsUp,
 	X,
 	Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,99 +88,108 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { AGENT_COLOR_MAP, AGENT_ICON_MAP } from "@/constants/agents";
+import { useAgent } from "@/hooks/api/useAgents";
+// TODO: Uncomment these when wiring to real backend
+// import { useCreateConversation, useSendMessage } from "@/hooks/api/useConversations";
+// import { useSSEContext } from "@/contexts/SSEContext";
+// import { useConversationStore } from "@/stores/conversationStore";
+// import { ChatV2MessageRenderer } from "@/components/chat/ChatV2MessageRenderer";
+// import { groupMessages } from "@/lib/messageGrouping";
 import { cn } from "@/lib/utils";
+import type { AgentConfig, ConfigSuggestion, TestMessage } from "@/types/agent";
 
-// Icon mapping
-const ICON_MAP: Record<string, React.ElementType> = {
-	bot: Bot,
-	headphones: Headphones,
-	"shield-check": ShieldCheck,
-	key: Key,
-	"book-open": BookOpen,
-};
-
-const COLOR_MAP: Record<string, { bg: string; text: string }> = {
-	slate: { bg: "bg-slate-800", text: "text-white" },
-	blue: { bg: "bg-blue-600", text: "text-white" },
-	emerald: { bg: "bg-emerald-600", text: "text-white" },
-	purple: { bg: "bg-purple-600", text: "text-white" },
-	orange: { bg: "bg-orange-500", text: "text-white" },
-	rose: { bg: "bg-rose-500", text: "text-white" },
-};
-
-// Mock saved agents
-const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
-	"1": {
-		name: "HelpDesk Advisor",
-		description: "Answers IT support questions",
-		instructions:
-			"Help users with IT-related questions. Be patient and thorough.",
-		role: "IT Support Specialist",
-		iconId: "headphones",
-		iconColorId: "blue",
-		agentType: "answer",
-		conversationStarters: [
-			"I need to reset my password",
-			"My VPN isn't connecting",
-			"How do I request software?",
-		],
-		knowledgeSources: ["IT Knowledge Base"],
-		workflows: ["Reset password", "Unlock account", "Request system access"],
-		guardrails: ["salary", "performance reviews"],
-	},
-	"2": {
-		name: "Compliance Checker",
-		description: "Answers from compliance docs",
-		instructions: "Only answer from approved compliance documents.",
-		role: "Compliance Specialist",
-		iconId: "shield-check",
-		iconColorId: "emerald",
-		agentType: "knowledge",
-		conversationStarters: [
-			"Is my I-9 complete?",
-			"What background checks are required?",
-		],
-		knowledgeSources: ["Compliance Handbook", "HR Policies"],
-		workflows: ["Verify I-9 forms", "Check background status"],
-		guardrails: ["personal opinions", "legal advice"],
-	},
-};
-
-interface AgentConfig {
-	name: string;
-	description: string;
-	instructions: string;
-	role: string;
-	iconId: string;
-	iconColorId: string;
-	agentType: "answer" | "knowledge" | "workflow" | null;
-	conversationStarters: string[];
-	knowledgeSources: string[];
-	workflows: string[];
-	guardrails: string[];
-}
-
-interface ConfigSuggestion {
-	message: string;
-	updateType: "instructions";
-	updateValue: string;
-	applied?: boolean;
-}
-
-interface TestMessage {
-	id: string;
-	type:
-		| "user"
-		| "agent"
-		| "agent-retry"
-		| "system"
-		| "user-feedback"
-		| "suggestion";
-	content: string;
-	sourcesUsed?: { type: "knowledge" | "workflow"; name: string }[];
-	iterationNumber?: number;
-	suggestion?: ConfigSuggestion;
-}
+// =============================================================================
+// TODO: useAgentChat — replace mock functions with this hook
+//
+// This hook mirrors the /chat flow (useMessageHandler + useConversationManager)
+// but scoped to agent test conversations. SSE is already available since
+// AgentTestPage is inside RoleProtectedRoute which wraps SSEProvider.
+//
+// Usage: replace `handleStartTest` internals with `sendMessage()` below.
+// Response arrives via SSE → conversationStore.addMessage() → chatMessages.
+// =============================================================================
+//
+// function useAgentChat(agentId: string | undefined) {
+//   const { latestUpdate } = useSSEContext();
+//   const {
+//     messages,
+//     chatMessages,
+//     currentConversationId,
+//     addMessage,
+//     updateMessage,
+//     setCurrentConversation,
+//     setSending,
+//     isSending,
+//   } = useConversationStore();
+//
+//   const createConversation = useCreateConversation();
+//   const sendMessageMutation = useSendMessage();
+//
+//   // Handle SSE message_update events (status changes: processing → completed)
+//   useEffect(() => {
+//     if (latestUpdate) {
+//       updateMessage(latestUpdate.messageId, {
+//         status: latestUpdate.status,
+//         error_message: latestUpdate.errorMessage,
+//       });
+//     }
+//   }, [latestUpdate, updateMessage]);
+//
+//   // SSE new_message events are handled automatically by SSEContext →
+//   // conversationStore.addMessage() → groupMessages() → chatMessages updates.
+//   // No additional wiring needed for receiving messages.
+//
+//   const sendMessage = async (content: string) => {
+//     if (!content.trim() || isSending) return;
+//
+//     let conversationId = currentConversationId;
+//
+//     // TODO: Agent test conversations may use a different create endpoint
+//     // e.g. POST /api/agents/:id/conversations instead of POST /api/conversations
+//     // For now, using the same endpoint with a distinguishing title.
+//     if (!conversationId) {
+//       const conversation = await createConversation.mutateAsync({
+//         title: `Agent Test: ${content.substring(0, 30)}`,
+//       });
+//       conversationId = conversation.id;
+//       setCurrentConversation(conversationId);
+//     }
+//
+//     // TODO: Agent test messages may POST to a different endpoint
+//     // e.g. POST /api/agents/:id/execute { prompt, conversationId }
+//     // For now, using the same send endpoint — the webhook will route
+//     // to Actions Platform which triggers the agent workflow.
+//     await sendMessageMutation.mutateAsync({
+//       conversationId,
+//       content,
+//       tempId: `msg_${Date.now()}`,
+//     });
+//   };
+//
+//   // Derived state — is the agent currently responding?
+//   const isStreaming = messages.some(
+//     (msg) => msg.status === "processing" || msg.status === "pending",
+//   );
+//
+//   return {
+//     // Store-managed messages (grouped, with reasoning/completion rendering)
+//     chatMessages,       // Pass to ChatV2MessageRenderer
+//     messages,           // Raw messages for status checks
+//     isStreaming,
+//     isSending,
+//     currentConversationId,
+//
+//     // Actions
+//     sendMessage,        // Replaces handleStartTest internals
+//
+//     // TODO: Add these when agent-specific endpoints exist:
+//     // loadAgentConversations — GET /api/agents/:id/conversations
+//     // suggestConfigImprovement — POST /api/agents/:id/suggest
+//     // publishConfig — PATCH /api/agents/:id
+//   };
+// }
+// =============================================================================
 
 type TestPhase =
 	| "idle"
@@ -144,6 +199,7 @@ type TestPhase =
 	| "awaiting-suggestion-response";
 
 export default function AgentTestPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
@@ -151,12 +207,19 @@ export default function AgentTestPage() {
 	const stateConfig = (location.state?.config || location.state?.agentConfig) as
 		| AgentConfig
 		| undefined;
-	const urlConfig = agentId ? MOCK_SAVED_AGENTS[agentId] : undefined;
-	const initialConfig = stateConfig || urlConfig;
+	const { data: apiConfig } = useAgent(agentId);
+	const initialConfig = stateConfig || apiConfig;
 
 	const [config, setConfig] = useState<AgentConfig | null>(
 		initialConfig || null,
 	);
+
+	// Seed config from API when accessed via direct URL (no navigation state)
+	useEffect(() => {
+		if (apiConfig && !config && !stateConfig) {
+			setConfig(apiConfig);
+		}
+	}, [apiConfig, config, stateConfig]);
 	const [messages, setMessages] = useState<TestMessage[]>([]);
 	const [input, setInput] = useState("");
 	const [feedbackInput, setFeedbackInput] = useState("");
@@ -167,6 +230,9 @@ export default function AgentTestPage() {
 	const [hasChanges, setHasChanges] = useState(false);
 	const [showPublishDialog, setShowPublishDialog] = useState(false);
 	const [expandedSources, setExpandedSources] = useState<string | null>(null);
+	const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
+	// Laptop Loan demo: tracks which of the 5 scripted turns we're on.
+	const [laptopDemoStep, setLaptopDemoStep] = useState(0);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -175,18 +241,65 @@ export default function AgentTestPage() {
 	const [demoMode, setDemoMode] = useState(false);
 	const [demoStep, setDemoStep] = useState(0);
 
-	const DEMO_STEPS = [
-		{ label: "Send Prompt", description: "User asks a question" },
-		{ label: "Rate Poor", description: "Thumbs down the response" },
-		{ label: "Give Feedback", description: "Tell agent what's wrong" },
-		{ label: "Rate Good", description: "Approve the retry" },
-		{ label: "Apply Fix", description: "Apply suggestion to instructions" },
-		{ label: "Publish", description: "Make agent live" },
+	const isLaptopLoanDemo = config?.name === "Laptop Loan Assistant";
+
+	const DEMO_STEPS = isLaptopLoanDemo
+		? [
+				{ label: "Start", description: "User asks for a laptop" },
+				{ label: "Start date", description: "Employee provides start date" },
+				{ label: "Return date", description: "Employee provides return date" },
+				{ label: "Pick laptop", description: "Employee picks a model" },
+				{ label: "Delivery", description: "Employee picks delivery method" },
+				{ label: "Publish", description: "Make agent live" },
+			]
+		: [
+				{ label: "Send Prompt", description: "User asks a question" },
+				{ label: "Rate Poor", description: "Thumbs down the response" },
+				{ label: "Give Feedback", description: "Tell agent what's wrong" },
+				{ label: "Rate Good", description: "Approve the retry" },
+				{ label: "Apply Fix", description: "Apply suggestion to instructions" },
+				{ label: "Publish", description: "Make agent live" },
+			];
+
+	const LAPTOP_DEMO_USER_ANSWERS = [
+		"I need a loaner laptop for a trip next week.",
+		"October 15",
+		"October 22",
+		"Dell XPS 13",
+		"Mail it to my home address",
 	];
 
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 	const handleDemoNext = async () => {
+		// Laptop Loan scenario: each Next press sends a scripted user answer
+		// and gets the next agent question. Final step opens publish.
+		if (isLaptopLoanDemo) {
+			if (demoStep < LAPTOP_DEMO_USER_ANSWERS.length) {
+				const userAnswer = LAPTOP_DEMO_USER_ANSWERS[demoStep];
+				addMessage({ type: "user", content: userAnswer });
+				setIsLoading(true);
+				setPhase("processing");
+				await wait(600);
+				const scripted = getLaptopLoanScriptedResponse(demoStep, userAnswer);
+				addMessage({
+					type: "agent",
+					content: scripted.response,
+					sourcesUsed: scripted.sources,
+				});
+				setLaptopDemoStep((s) => Math.min(s + 1, 5));
+				setIsLoading(false);
+				setPhase("idle");
+				setDemoStep(demoStep + 1);
+				return;
+			}
+			// Final step — publish
+			setShowPublishDialog(true);
+			setDemoStep(0);
+			setDemoMode(false);
+			return;
+		}
+
 		switch (demoStep) {
 			case 0: {
 				// Send a test prompt
@@ -213,9 +326,10 @@ export default function AgentTestPage() {
 				setIsLoading(true);
 				setPhase("processing");
 				await wait(800);
+				if (!config) return;
 				const { response, sources } = generateResponse(
 					currentPrompt,
-					config!,
+					config,
 					newHistory,
 				);
 				addMessage({
@@ -256,8 +370,6 @@ export default function AgentTestPage() {
 		}
 	};
 
-	const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
-
 	useEffect(() => {
 		chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages]);
@@ -267,15 +379,17 @@ export default function AgentTestPage() {
 			<div className="h-screen flex items-center justify-center bg-background">
 				<div className="text-center space-y-4">
 					<Bot className="size-12 mx-auto text-muted-foreground" />
-					<p className="text-muted-foreground">No agent configuration found.</p>
-					<Button onClick={() => navigate("/agents")}>Back to Agents</Button>
+					<p className="text-muted-foreground">{t("test.notFound")}</p>
+					<Button onClick={() => navigate("/agents")}>
+						{t("test.backToAgents")}
+					</Button>
 				</div>
 			</div>
 		);
 	}
 
-	const Icon = ICON_MAP[config.iconId] || Bot;
-	const color = COLOR_MAP[config.iconColorId] || COLOR_MAP.slate;
+	const Icon = AGENT_ICON_MAP[config.iconId] || Bot;
+	const color = AGENT_COLOR_MAP[config.iconColorId] || AGENT_COLOR_MAP.slate;
 	const starters = config.conversationStarters
 		.filter((s) => s.trim())
 		.slice(0, 4);
@@ -295,6 +409,29 @@ export default function AgentTestPage() {
 
 		setIsLoading(true);
 		setPhase("processing");
+
+		// Laptop Loan demo: scripted multi-turn. Skip the rating loop entirely
+		// so sales can keep typing and watch the agent walk the 5-step flow.
+		if (config?.name === "Laptop Loan Assistant") {
+			await new Promise((r) => setTimeout(r, 500));
+			const scripted = getLaptopLoanScriptedResponse(laptopDemoStep, prompt);
+			addMessage({
+				type: "agent",
+				content: scripted.response,
+				sourcesUsed: scripted.sources,
+			});
+			setLaptopDemoStep((s) => Math.min(s + 1, 5));
+			setIsLoading(false);
+			setPhase("idle");
+			return;
+		}
+
+		// TODO: Replace mock with real backend call:
+		// await agentChat.sendMessage(prompt);
+		// Then SSE delivers the response → conversationStore → chatMessages.
+		// Remove the setTimeout + generateResponse below.
+		// The phase transition to "awaiting-rating" should happen when
+		// the last SSE message has turn_complete: true (watch chatMessages).
 		await new Promise((r) => setTimeout(r, 600 + Math.random() * 600));
 
 		const { response, sources } = generateResponse(prompt, config, []);
@@ -354,7 +491,8 @@ export default function AgentTestPage() {
 				(m) => m.type === "suggestion" && m.suggestion && !m.suggestion.applied,
 			);
 			if (suggestionIndex !== -1) {
-				const suggestion = messages[suggestionIndex].suggestion!;
+				const suggestion = messages[suggestionIndex].suggestion;
+				if (!suggestion) return;
 				setConfig((prev) =>
 					prev
 						? {
@@ -366,8 +504,8 @@ export default function AgentTestPage() {
 				setHasChanges(true);
 				setMessages((prev) =>
 					prev.map((m, i) =>
-						i === suggestionIndex
-							? { ...m, suggestion: { ...m.suggestion!, applied: true } }
+						i === suggestionIndex && m.suggestion
+							? { ...m, suggestion: { ...m.suggestion, applied: true } }
 							: m,
 					),
 				);
@@ -401,6 +539,29 @@ export default function AgentTestPage() {
 
 		setIsLoading(true);
 		setPhase("processing");
+
+		// Laptop Loan demo: treat feedback as a conversational continuation and
+		// return the next scripted step instead of the generic responder.
+		if (config?.name === "Laptop Loan Assistant") {
+			await new Promise((r) => setTimeout(r, 500));
+			const scripted = getLaptopLoanScriptedResponse(laptopDemoStep, feedback);
+			addMessage({
+				type: "agent",
+				content: scripted.response,
+				sourcesUsed: scripted.sources,
+			});
+			setLaptopDemoStep((s) => Math.min(s + 1, 5));
+			setIsLoading(false);
+			setPhase("idle");
+			return;
+		}
+
+		// TODO: Replace mock with real backend call:
+		// await agentChat.sendMessage(feedback);
+		// The backend should receive feedbackHistory context so the agent
+		// can adjust its response. This could be sent as message metadata:
+		// await agentChat.sendMessage(feedback, { feedbackIteration: newFeedbackHistory.length });
+		// Remove the setTimeout + generateResponse below.
 		await new Promise((r) => setTimeout(r, 600 + Math.random() * 600));
 
 		const { response, sources } = generateResponse(
@@ -425,6 +586,7 @@ export default function AgentTestPage() {
 		setCurrentPrompt("");
 		setFeedbackHistory([]);
 		setInput("");
+		setLaptopDemoStep(0);
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -468,17 +630,17 @@ export default function AgentTestPage() {
 					<div className="flex items-center gap-2">
 						<span className="font-semibold">{config.name}</span>
 						<Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
-							Test mode
+							{t("test.testMode")}
 						</Badge>
 					</div>
 				</div>
 
 				<div className="flex items-center gap-2">
 					<Button variant="outline" size="sm" onClick={handleReset}>
-						Reset
+						{t("test.reset")}
 					</Button>
 					<Button size="sm" onClick={() => setShowPublishDialog(true)}>
-						Publish
+						{t("test.publish")}
 					</Button>
 				</div>
 			</header>
@@ -492,7 +654,7 @@ export default function AgentTestPage() {
 						</div>
 						<div className="flex-1 min-w-0">
 							<p className="text-xs font-medium text-foreground mb-0.5">
-								Instructions updated
+								{t("test.instructionsUpdated")}
 							</p>
 							<p className="text-[11px] text-muted-foreground line-clamp-2 font-mono leading-relaxed whitespace-pre-wrap">
 								{config.instructions.slice(-200)}
@@ -501,7 +663,7 @@ export default function AgentTestPage() {
 						<button
 							onClick={() => setShowInstructionsPreview(false)}
 							className="text-muted-foreground hover:text-foreground shrink-0"
-							aria-label="Dismiss"
+							aria-label={t("test.dismiss")}
 						>
 							<X className="size-3.5" />
 						</button>
@@ -530,7 +692,7 @@ export default function AgentTestPage() {
 										{starters.length > 0 && (
 											<div className="space-y-2 max-w-md mx-auto">
 												<p className="text-sm text-muted-foreground mb-3">
-													Try a prompt:
+													{t("test.tryPrompt")}
 												</p>
 												{starters.map((starter, i) => (
 													<button
@@ -546,7 +708,20 @@ export default function AgentTestPage() {
 										)}
 									</div>
 								) : (
-									/* Messages */
+									/* Messages
+									 * TODO: Replace this manual message rendering with ChatV2MessageRenderer:
+									 *
+									 * <ChatV2MessageRenderer
+									 *   chatMessages={agentChat.chatMessages}
+									 *   isStreaming={agentChat.isStreaming}
+									 *   readOnly={false}
+									 *   onCopy={(text) => navigator.clipboard.writeText(text)}
+									 * />
+									 *
+									 * This gives you reasoning accordions, completion cards, sources,
+									 * tasks, and all rich metadata rendering for free.
+									 * Keep the rating bar + feedback textarea as an overlay below.
+									 */
 									<div className="flex flex-col gap-2">
 										{messages.map((msg) => (
 											<div key={msg.id}>
@@ -566,7 +741,11 @@ export default function AgentTestPage() {
 														{msg.type === "agent-retry" && (
 															<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-[50px]">
 																<RefreshCw className="size-2.5" />
-																<span>Revision {msg.iterationNumber}</span>
+																<span>
+																	{t("test.revision", {
+																		number: msg.iterationNumber,
+																	})}
+																</span>
 															</div>
 														)}
 
@@ -604,7 +783,9 @@ export default function AgentTestPage() {
 																					)}
 																				/>
 																				<span className="text-xs text-foreground">
-																					Sources ({msg.sourcesUsed.length})
+																					{t("test.sources", {
+																						count: msg.sourcesUsed.length,
+																					})}
 																				</span>
 																			</button>
 																			{expandedSources === msg.id && (
@@ -635,7 +816,7 @@ export default function AgentTestPage() {
 																		<div className="space-y-3">
 																			<div className="bg-neutral-50 rounded-md p-2 flex items-center gap-3">
 																				<span className="text-xs text-foreground">
-																					Rate this response:
+																					{t("test.rateResponse")}
 																				</span>
 																				<div className="flex items-center gap-3">
 																					<button
@@ -924,7 +1105,7 @@ export default function AgentTestPage() {
 												agentType: config.agentType,
 												iconId: config.iconId,
 												iconColorId: config.iconColorId,
-												skills: config.workflows,
+												skills: config.tools,
 											},
 										},
 									});
@@ -1016,7 +1197,69 @@ export default function AgentTestPage() {
 	);
 }
 
-// Generate response based on skills
+// TODO: Replace with real agent execution API call.
+// Wire: POST /api/agents/:id/execute { prompt, conversationId, feedbackHistory }
+// Response arrives via SSE new_message events (same flow as /chat and /iframe/chat).
+// The SSE → conversationStore → groupMessages → ChatMessage[] pipeline is reusable.
+/**
+ * Scripted multi-turn responses for the Laptop Loan Assistant sales demo.
+ * Matches the 5-step flow defined in AgentBuilderPage's DEMO_SCENARIOS:
+ *   0 → ask when they need the laptop
+ *   1 → ask when they'll return it
+ *   2 → ask which laptop
+ *   3 → ask delivery method
+ *   4 → confirm + request number
+ *   5+ → friendly wrap-up
+ */
+function getLaptopLoanScriptedResponse(
+	step: number,
+	_input: string,
+): {
+	response: string;
+	sources: { type: "knowledge" | "workflow"; name: string }[];
+} {
+	switch (step) {
+		case 0:
+			return {
+				response:
+					"Happy to help you get a loaner laptop. **What date do you first need the laptop?**",
+				sources: [],
+			};
+		case 1:
+			return {
+				response: "Got it. **What date will you return it?**",
+				sources: [],
+			};
+		case 2:
+			return {
+				response:
+					"Thanks. **Which laptop would you like?** Here are the options:\n\n• Dell Latitude 7450\n• Dell XPS 13\n• Dell Precision 5680\n• Lenovo ThinkPad X1 Carbon\n• Lenovo ThinkPad T14",
+				sources: [],
+			};
+		case 3:
+			return {
+				response:
+					"Great choice. **How should we deliver it?**\n\n• Mail it to your home address\n• Hand-deliver to your desk at work",
+				sources: [],
+			};
+		case 4: {
+			const reqNum = `REQ-LAPTOP-${String(Math.floor(100000 + Math.random() * 900000))}`;
+			return {
+				response: `All set! I've submitted your loaner laptop request.\n\n**Confirmation number:** ${reqNum}\n\nYou'll get an email once it's processed. Anything else?`,
+				sources: [
+					{ type: "workflow", name: "Submit temporary Laptop request in ITSM" },
+				],
+			};
+		}
+		default:
+			return {
+				response:
+					"Your request is already in — if you need another one, just let me know and I'll start a new request.",
+				sources: [],
+			};
+	}
+}
+
 function generateResponse(
 	input: string,
 	config: AgentConfig,
@@ -1174,7 +1417,9 @@ function generateResponse(
 	};
 }
 
-// Generate config suggestion
+// TODO: Replace with LLM-powered suggestion API.
+// Wire: POST /api/agents/:id/suggest { feedbackHistory, currentConfig }
+// Return shape stays the same: { message, updateType, updateValue }
 function generateConfigSuggestion(feedbackHistory: string[]): ConfigSuggestion {
 	const allFeedback = feedbackHistory.join(" ").toLowerCase();
 

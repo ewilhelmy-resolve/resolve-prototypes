@@ -122,6 +122,7 @@ function toClusterDetails(item: ClusterListItem): ClusterDetails {
 		kb_articles_count: item.kb_status === "FOUND" ? 3 : 0,
 		ticket_count: item.ticket_count,
 		open_count: item.needs_response_count,
+		historical_ticket_count: item.ticket_count,
 		created_at: item.created_at,
 		updated_at: item.updated_at,
 	};
