@@ -7,30 +7,75 @@
  * 3. If not Good, give feedback → agent retries
  * 4. When Good after iterations, suggest config improvements
  * 5. Apply or skip, then test another or publish
+ *
+ * ## Wiring to real backend (TODO)
+ *
+ * Currently uses mock `generateResponse()` and `generateConfigSuggestion()`.
+ * To connect to the real agent execution backend:
+ *
+ * ### 1. Message send/receive — same SSE flow as chat
+ *
+ * The agent test page should use the same communication pattern as
+ * `/chat` and `/iframe/chat`: send a message via POST, receive responses
+ * via SSE (new_message events from RabbitMQ → SSE service).
+ *
+ * Replace `handleStartTest` and `handleFeedbackSubmit` internals:
+ * - POST to agent execution endpoint (e.g. `POST /api/agents/:id/execute`)
+ *   with `{ prompt, conversationId, feedbackHistory? }`
+ * - Response arrives via SSE `new_message` events (same as regular chat)
+ * - Use `useConversationStore` + `SSEProvider` to receive messages
+ * - OR use `ChatV2Content` component which handles store→render automatically
+ *
+ * ### 2. Conversation lifecycle — endpoint TBD
+ *
+ * Agent test conversations may load from a different endpoint than regular
+ * conversations (e.g. `GET /api/agents/:id/conversations` or similar).
+ * The conversation creation may also differ — currently the page doesn't
+ * persist conversations, but when wired it should:
+ * - Create conversation on first message (`POST /api/agents/:id/conversations`)
+ * - Load existing test conversations for the agent
+ * - Use `source: 'agent-test'` to distinguish from regular chat
+ *
+ * ### 3. Config suggestions — LLM-powered
+ *
+ * Replace `generateConfigSuggestion()` with a real API call:
+ * - `POST /api/agents/:id/suggest` with `{ feedbackHistory, currentConfig }`
+ * - Backend sends feedbackHistory to LLM, gets instruction improvements
+ * - Returns `{ message, updateType, updateValue }` same shape as current mock
+ *
+ * ### 4. Publish — already has the pattern
+ *
+ * `handlePublish` should call `PATCH /api/agents/:id` with the updated config.
+ * The `useAgent` hook from `@/hooks/api/useAgents` already provides the query;
+ * add a mutation hook for updates.
+ *
+ * ### 5. Rendering upgrade path
+ *
+ * When ready to support reasoning steps, completion cards, and rich metadata
+ * in agent test responses, replace the manual message rendering (lines ~468-650)
+ * with `ChatV2MessageRenderer` from `@/components/chat/`. It renders all
+ * message types (reasoning, sources, tasks, completion) from `ChatMessage[]`
+ * and works without SSE/stores when passed data as props.
  */
 
 import confetti from "canvas-confetti";
 import {
 	ArrowLeft,
-	BookOpen,
 	Bot,
 	BotMessageSquare,
 	Check,
-	ChevronDown,
 	ChevronUp,
 	Database,
-	Headphones,
-	Key,
 	Loader2,
 	RefreshCw,
 	SendHorizontal,
-	ShieldCheck,
 	ThumbsDown,
 	ThumbsUp,
 	X,
 	Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,99 +88,108 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { AGENT_COLOR_MAP, AGENT_ICON_MAP } from "@/constants/agents";
+import { useAgent } from "@/hooks/api/useAgents";
+// TODO: Uncomment these when wiring to real backend
+// import { useCreateConversation, useSendMessage } from "@/hooks/api/useConversations";
+// import { useSSEContext } from "@/contexts/SSEContext";
+// import { useConversationStore } from "@/stores/conversationStore";
+// import { ChatV2MessageRenderer } from "@/components/chat/ChatV2MessageRenderer";
+// import { groupMessages } from "@/lib/messageGrouping";
 import { cn } from "@/lib/utils";
+import type { AgentConfig, ConfigSuggestion, TestMessage } from "@/types/agent";
 
-// Icon mapping
-const ICON_MAP: Record<string, React.ElementType> = {
-	bot: Bot,
-	headphones: Headphones,
-	"shield-check": ShieldCheck,
-	key: Key,
-	"book-open": BookOpen,
-};
-
-const COLOR_MAP: Record<string, { bg: string; text: string }> = {
-	slate: { bg: "bg-slate-800", text: "text-white" },
-	blue: { bg: "bg-blue-600", text: "text-white" },
-	emerald: { bg: "bg-emerald-600", text: "text-white" },
-	purple: { bg: "bg-purple-600", text: "text-white" },
-	orange: { bg: "bg-orange-500", text: "text-white" },
-	rose: { bg: "bg-rose-500", text: "text-white" },
-};
-
-// Mock saved agents
-const MOCK_SAVED_AGENTS: Record<string, AgentConfig> = {
-	"1": {
-		name: "HelpDesk Advisor",
-		description: "Answers IT support questions",
-		instructions:
-			"Help users with IT-related questions. Be patient and thorough.",
-		role: "IT Support Specialist",
-		iconId: "headphones",
-		iconColorId: "blue",
-		agentType: "answer",
-		conversationStarters: [
-			"I need to reset my password",
-			"My VPN isn't connecting",
-			"How do I request software?",
-		],
-		knowledgeSources: ["IT Knowledge Base"],
-		workflows: ["Reset password", "Unlock account", "Request system access"],
-		guardrails: ["salary", "performance reviews"],
-	},
-	"2": {
-		name: "Compliance Checker",
-		description: "Answers from compliance docs",
-		instructions: "Only answer from approved compliance documents.",
-		role: "Compliance Specialist",
-		iconId: "shield-check",
-		iconColorId: "emerald",
-		agentType: "knowledge",
-		conversationStarters: [
-			"Is my I-9 complete?",
-			"What background checks are required?",
-		],
-		knowledgeSources: ["Compliance Handbook", "HR Policies"],
-		workflows: ["Verify I-9 forms", "Check background status"],
-		guardrails: ["personal opinions", "legal advice"],
-	},
-};
-
-interface AgentConfig {
-	name: string;
-	description: string;
-	instructions: string;
-	role: string;
-	iconId: string;
-	iconColorId: string;
-	agentType: "answer" | "knowledge" | "workflow" | null;
-	conversationStarters: string[];
-	knowledgeSources: string[];
-	workflows: string[];
-	guardrails: string[];
-}
-
-interface ConfigSuggestion {
-	message: string;
-	updateType: "instructions";
-	updateValue: string;
-	applied?: boolean;
-}
-
-interface TestMessage {
-	id: string;
-	type:
-		| "user"
-		| "agent"
-		| "agent-retry"
-		| "system"
-		| "user-feedback"
-		| "suggestion";
-	content: string;
-	sourcesUsed?: { type: "knowledge" | "workflow"; name: string }[];
-	iterationNumber?: number;
-	suggestion?: ConfigSuggestion;
-}
+// =============================================================================
+// TODO: useAgentChat — replace mock functions with this hook
+//
+// This hook mirrors the /chat flow (useMessageHandler + useConversationManager)
+// but scoped to agent test conversations. SSE is already available since
+// AgentTestPage is inside RoleProtectedRoute which wraps SSEProvider.
+//
+// Usage: replace `handleStartTest` internals with `sendMessage()` below.
+// Response arrives via SSE → conversationStore.addMessage() → chatMessages.
+// =============================================================================
+//
+// function useAgentChat(agentId: string | undefined) {
+//   const { latestUpdate } = useSSEContext();
+//   const {
+//     messages,
+//     chatMessages,
+//     currentConversationId,
+//     addMessage,
+//     updateMessage,
+//     setCurrentConversation,
+//     setSending,
+//     isSending,
+//   } = useConversationStore();
+//
+//   const createConversation = useCreateConversation();
+//   const sendMessageMutation = useSendMessage();
+//
+//   // Handle SSE message_update events (status changes: processing → completed)
+//   useEffect(() => {
+//     if (latestUpdate) {
+//       updateMessage(latestUpdate.messageId, {
+//         status: latestUpdate.status,
+//         error_message: latestUpdate.errorMessage,
+//       });
+//     }
+//   }, [latestUpdate, updateMessage]);
+//
+//   // SSE new_message events are handled automatically by SSEContext →
+//   // conversationStore.addMessage() → groupMessages() → chatMessages updates.
+//   // No additional wiring needed for receiving messages.
+//
+//   const sendMessage = async (content: string) => {
+//     if (!content.trim() || isSending) return;
+//
+//     let conversationId = currentConversationId;
+//
+//     // TODO: Agent test conversations may use a different create endpoint
+//     // e.g. POST /api/agents/:id/conversations instead of POST /api/conversations
+//     // For now, using the same endpoint with a distinguishing title.
+//     if (!conversationId) {
+//       const conversation = await createConversation.mutateAsync({
+//         title: `Agent Test: ${content.substring(0, 30)}`,
+//       });
+//       conversationId = conversation.id;
+//       setCurrentConversation(conversationId);
+//     }
+//
+//     // TODO: Agent test messages may POST to a different endpoint
+//     // e.g. POST /api/agents/:id/execute { prompt, conversationId }
+//     // For now, using the same send endpoint — the webhook will route
+//     // to Actions Platform which triggers the agent workflow.
+//     await sendMessageMutation.mutateAsync({
+//       conversationId,
+//       content,
+//       tempId: `msg_${Date.now()}`,
+//     });
+//   };
+//
+//   // Derived state — is the agent currently responding?
+//   const isStreaming = messages.some(
+//     (msg) => msg.status === "processing" || msg.status === "pending",
+//   );
+//
+//   return {
+//     // Store-managed messages (grouped, with reasoning/completion rendering)
+//     chatMessages,       // Pass to ChatV2MessageRenderer
+//     messages,           // Raw messages for status checks
+//     isStreaming,
+//     isSending,
+//     currentConversationId,
+//
+//     // Actions
+//     sendMessage,        // Replaces handleStartTest internals
+//
+//     // TODO: Add these when agent-specific endpoints exist:
+//     // loadAgentConversations — GET /api/agents/:id/conversations
+//     // suggestConfigImprovement — POST /api/agents/:id/suggest
+//     // publishConfig — PATCH /api/agents/:id
+//   };
+// }
+// =============================================================================
 
 type TestPhase =
 	| "idle"
@@ -145,6 +199,7 @@ type TestPhase =
 	| "awaiting-suggestion-response";
 
 export default function AgentTestPage() {
+	const { t } = useTranslation("agents");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { id: agentId } = useParams<{ id: string }>();
@@ -152,12 +207,19 @@ export default function AgentTestPage() {
 	const stateConfig = (location.state?.config || location.state?.agentConfig) as
 		| AgentConfig
 		| undefined;
-	const urlConfig = agentId ? MOCK_SAVED_AGENTS[agentId] : undefined;
-	const initialConfig = stateConfig || urlConfig;
+	const { data: apiConfig } = useAgent(agentId);
+	const initialConfig = stateConfig || apiConfig;
 
 	const [config, setConfig] = useState<AgentConfig | null>(
 		initialConfig || null,
 	);
+
+	// Seed config from API when accessed via direct URL (no navigation state)
+	useEffect(() => {
+		if (apiConfig && !config && !stateConfig) {
+			setConfig(apiConfig);
+		}
+	}, [apiConfig, config, stateConfig]);
 	const [messages, setMessages] = useState<TestMessage[]>([]);
 	const [input, setInput] = useState("");
 	const [feedbackInput, setFeedbackInput] = useState("");
@@ -168,6 +230,7 @@ export default function AgentTestPage() {
 	const [hasChanges, setHasChanges] = useState(false);
 	const [showPublishDialog, setShowPublishDialog] = useState(false);
 	const [expandedSources, setExpandedSources] = useState<string | null>(null);
+	const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -205,7 +268,8 @@ export default function AgentTestPage() {
 			}
 			case 2: {
 				// Give feedback directly (bypass state since setFeedbackInput is async)
-				const demoFeedback = "Be more specific about the steps and include a timeline";
+				const demoFeedback =
+					"Be more specific about the steps and include a timeline";
 				const newHistory = [...feedbackHistory, demoFeedback];
 				setFeedbackHistory(newHistory);
 				addMessage({ type: "user-feedback", content: demoFeedback });
@@ -213,8 +277,18 @@ export default function AgentTestPage() {
 				setIsLoading(true);
 				setPhase("processing");
 				await wait(800);
-				const { response, sources } = generateResponse(currentPrompt, config, newHistory);
-				addMessage({ type: "agent-retry", content: response, sourcesUsed: sources, iterationNumber: newHistory.length });
+				if (!config) return;
+				const { response, sources } = generateResponse(
+					currentPrompt,
+					config,
+					newHistory,
+				);
+				addMessage({
+					type: "agent-retry",
+					content: response,
+					sourcesUsed: sources,
+					iterationNumber: newHistory.length,
+				});
 				setIsLoading(false);
 				setPhase("awaiting-rating");
 				setDemoStep(3);
@@ -247,6 +321,7 @@ export default function AgentTestPage() {
 		}
 	};
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll on new messages
 	useEffect(() => {
 		chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages]);
@@ -256,15 +331,17 @@ export default function AgentTestPage() {
 			<div className="h-screen flex items-center justify-center bg-background">
 				<div className="text-center space-y-4">
 					<Bot className="size-12 mx-auto text-muted-foreground" />
-					<p className="text-muted-foreground">No agent configuration found.</p>
-					<Button onClick={() => navigate("/agents")}>Back to Agents</Button>
+					<p className="text-muted-foreground">{t("test.notFound")}</p>
+					<Button onClick={() => navigate("/agents")}>
+						{t("test.backToAgents")}
+					</Button>
 				</div>
 			</div>
 		);
 	}
 
-	const Icon = ICON_MAP[config.iconId] || Bot;
-	const color = COLOR_MAP[config.iconColorId] || COLOR_MAP.slate;
+	const Icon = AGENT_ICON_MAP[config.iconId] || Bot;
+	const color = AGENT_COLOR_MAP[config.iconColorId] || AGENT_COLOR_MAP.slate;
 	const starters = config.conversationStarters
 		.filter((s) => s.trim())
 		.slice(0, 4);
@@ -284,6 +361,13 @@ export default function AgentTestPage() {
 
 		setIsLoading(true);
 		setPhase("processing");
+
+		// TODO: Replace mock with real backend call:
+		// await agentChat.sendMessage(prompt);
+		// Then SSE delivers the response → conversationStore → chatMessages.
+		// Remove the setTimeout + generateResponse below.
+		// The phase transition to "awaiting-rating" should happen when
+		// the last SSE message has turn_complete: true (watch chatMessages).
 		await new Promise((r) => setTimeout(r, 600 + Math.random() * 600));
 
 		const { response, sources } = generateResponse(prompt, config, []);
@@ -337,29 +421,27 @@ export default function AgentTestPage() {
 		}
 	};
 
-	const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
-
 	const handleSuggestionResponse = (accepted: boolean) => {
 		if (accepted) {
 			const suggestionIndex = messages.findIndex(
 				(m) => m.type === "suggestion" && m.suggestion && !m.suggestion.applied,
 			);
 			if (suggestionIndex !== -1) {
-				const suggestion = messages[suggestionIndex].suggestion!;
+				const suggestion = messages[suggestionIndex].suggestion;
+				if (!suggestion) return;
 				setConfig((prev) =>
 					prev
 						? {
 								...prev,
-								instructions:
-									prev.instructions + "\n\n" + suggestion.updateValue,
+								instructions: `${prev.instructions}\n\n${suggestion.updateValue}`,
 							}
 						: prev,
 				);
 				setHasChanges(true);
 				setMessages((prev) =>
 					prev.map((m, i) =>
-						i === suggestionIndex
-							? { ...m, suggestion: { ...m.suggestion!, applied: true } }
+						i === suggestionIndex && m.suggestion
+							? { ...m, suggestion: { ...m.suggestion, applied: true } }
 							: m,
 					),
 				);
@@ -373,7 +455,8 @@ export default function AgentTestPage() {
 		} else {
 			addMessage({
 				type: "system",
-				content: "Skipped. You can edit the instructions manually, then retest. When you're happy with the results, publish to go live.",
+				content:
+					"Skipped. You can edit the instructions manually, then retest. When you're happy with the results, publish to go live.",
 			});
 		}
 		setPhase("idle");
@@ -392,6 +475,13 @@ export default function AgentTestPage() {
 
 		setIsLoading(true);
 		setPhase("processing");
+
+		// TODO: Replace mock with real backend call:
+		// await agentChat.sendMessage(feedback);
+		// The backend should receive feedbackHistory context so the agent
+		// can adjust its response. This could be sent as message metadata:
+		// await agentChat.sendMessage(feedback, { feedbackIteration: newFeedbackHistory.length });
+		// Remove the setTimeout + generateResponse below.
 		await new Promise((r) => setTimeout(r, 600 + Math.random() * 600));
 
 		const { response, sources } = generateResponse(
@@ -459,24 +549,17 @@ export default function AgentTestPage() {
 					<div className="flex items-center gap-2">
 						<span className="font-semibold">{config.name}</span>
 						<Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
-							Test mode
+							{t("test.testMode")}
 						</Badge>
 					</div>
 				</div>
 
 				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleReset}
-					>
-						Reset
+					<Button variant="outline" size="sm" onClick={handleReset}>
+						{t("test.reset")}
 					</Button>
-					<Button
-						size="sm"
-						onClick={() => setShowPublishDialog(true)}
-					>
-						Publish
+					<Button size="sm" onClick={() => setShowPublishDialog(true)}>
+						{t("test.publish")}
 					</Button>
 				</div>
 			</header>
@@ -489,7 +572,9 @@ export default function AgentTestPage() {
 							<Check className="size-2.5 text-background" />
 						</div>
 						<div className="flex-1 min-w-0">
-							<p className="text-xs font-medium text-foreground mb-0.5">Instructions updated</p>
+							<p className="text-xs font-medium text-foreground mb-0.5">
+								{t("test.instructionsUpdated")}
+							</p>
 							<p className="text-[11px] text-muted-foreground line-clamp-2 font-mono leading-relaxed whitespace-pre-wrap">
 								{config.instructions.slice(-200)}
 							</p>
@@ -497,7 +582,7 @@ export default function AgentTestPage() {
 						<button
 							onClick={() => setShowInstructionsPreview(false)}
 							className="text-muted-foreground hover:text-foreground shrink-0"
-							aria-label="Dismiss"
+							aria-label={t("test.dismiss")}
 						>
 							<X className="size-3.5" />
 						</button>
@@ -526,7 +611,7 @@ export default function AgentTestPage() {
 										{starters.length > 0 && (
 											<div className="space-y-2 max-w-md mx-auto">
 												<p className="text-sm text-muted-foreground mb-3">
-													Try a prompt:
+													{t("test.tryPrompt")}
 												</p>
 												{starters.map((starter, i) => (
 													<button
@@ -542,7 +627,20 @@ export default function AgentTestPage() {
 										)}
 									</div>
 								) : (
-									/* Messages */
+									/* Messages
+									 * TODO: Replace this manual message rendering with ChatV2MessageRenderer:
+									 *
+									 * <ChatV2MessageRenderer
+									 *   chatMessages={agentChat.chatMessages}
+									 *   isStreaming={agentChat.isStreaming}
+									 *   readOnly={false}
+									 *   onCopy={(text) => navigator.clipboard.writeText(text)}
+									 * />
+									 *
+									 * This gives you reasoning accordions, completion cards, sources,
+									 * tasks, and all rich metadata rendering for free.
+									 * Keep the rating bar + feedback textarea as an overlay below.
+									 */
 									<div className="flex flex-col gap-2">
 										{messages.map((msg) => (
 											<div key={msg.id}>
@@ -556,12 +654,17 @@ export default function AgentTestPage() {
 												)}
 
 												{/* Agent response */}
-												{(msg.type === "agent" || msg.type === "agent-retry") && (
+												{(msg.type === "agent" ||
+													msg.type === "agent-retry") && (
 													<div className="space-y-2">
 														{msg.type === "agent-retry" && (
 															<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground ml-[50px]">
 																<RefreshCw className="size-2.5" />
-																<span>Revision {msg.iterationNumber}</span>
+																<span>
+																	{t("test.revision", {
+																		number: msg.iterationNumber,
+																	})}
+																</span>
 															</div>
 														)}
 
@@ -577,48 +680,63 @@ export default function AgentTestPage() {
 																</p>
 
 																{/* Sources */}
-																{msg.sourcesUsed && msg.sourcesUsed.length > 0 && (
-																	<>
-																		<button
-																			onClick={() =>
-																				setExpandedSources(
-																					expandedSources === msg.id
-																						? null
-																						: msg.id,
-																				)
-																			}
-																			className="flex items-center gap-1 bg-white rounded-md px-2 py-0.5"
-																		>
-																			<ChevronUp className={cn("size-3 transition-transform", expandedSources === msg.id ? "" : "rotate-180")} />
-																			<span className="text-xs text-foreground">Sources ({msg.sourcesUsed.length})</span>
-																		</button>
-																		{expandedSources === msg.id && (
-																			<div className="mt-1.5 space-y-0.5">
-																				{msg.sourcesUsed.map((source, i) => (
-																					<div
-																						key={i}
-																						className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
-																					>
-																						{source.type === "knowledge" ? (
-																							<Database className="size-2.5" />
-																						) : (
-																							<Zap className="size-2.5" />
-																						)}
-																						{source.name}
-																					</div>
-																				))}
-																			</div>
-																		)}
-																	</>
-																)}
+																{msg.sourcesUsed &&
+																	msg.sourcesUsed.length > 0 && (
+																		<>
+																			<button
+																				onClick={() =>
+																					setExpandedSources(
+																						expandedSources === msg.id
+																							? null
+																							: msg.id,
+																					)
+																				}
+																				className="flex items-center gap-1 bg-white rounded-md px-2 py-0.5"
+																			>
+																				<ChevronUp
+																					className={cn(
+																						"size-3 transition-transform",
+																						expandedSources === msg.id
+																							? ""
+																							: "rotate-180",
+																					)}
+																				/>
+																				<span className="text-xs text-foreground">
+																					{t("test.sources", {
+																						count: msg.sourcesUsed.length,
+																					})}
+																				</span>
+																			</button>
+																			{expandedSources === msg.id && (
+																				<div className="mt-1.5 space-y-0.5">
+																					{msg.sourcesUsed.map((source, i) => (
+																						<div
+																							key={i}
+																							className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+																						>
+																							{source.type === "knowledge" ? (
+																								<Database className="size-2.5" />
+																							) : (
+																								<Zap className="size-2.5" />
+																							)}
+																							{source.name}
+																						</div>
+																					))}
+																				</div>
+																			)}
+																		</>
+																	)}
 
 																{/* Rating bar */}
 																{(phase === "awaiting-rating" ||
 																	phase === "awaiting-feedback") &&
-																	messages[messages.length - 1]?.id === msg.id && (
+																	messages[messages.length - 1]?.id ===
+																		msg.id && (
 																		<div className="space-y-3">
 																			<div className="bg-neutral-50 rounded-md p-2 flex items-center gap-3">
-																				<span className="text-xs text-foreground">Rate this response:</span>
+																				<span className="text-xs text-foreground">
+																					{t("test.rateResponse")}
+																				</span>
 																				<div className="flex items-center gap-3">
 																					<button
 																						onClick={() => handleRating("good")}
@@ -647,7 +765,6 @@ export default function AgentTestPage() {
 																						}
 																						placeholder="Help us improve. What went wrong?"
 																						className="w-full h-20 px-3 py-2 text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
-																						autoFocus
 																					/>
 																					<div className="flex justify-end gap-2">
 																						<button
@@ -688,16 +805,18 @@ export default function AgentTestPage() {
 												)}
 
 												{/* System message */}
-												{msg.type === "system" && msg.content !== "INSTRUCTIONS_UPDATED" && (
-													<p className="text-[11px] text-muted-foreground text-center py-2">
-														{msg.content}
-													</p>
-												)}
-												{msg.type === "system" && msg.content === "INSTRUCTIONS_UPDATED" && (
-													<p className="text-[11px] text-muted-foreground text-center py-2">
-														Instructions updated
-													</p>
-												)}
+												{msg.type === "system" &&
+													msg.content !== "INSTRUCTIONS_UPDATED" && (
+														<p className="text-[11px] text-muted-foreground text-center py-2">
+															{msg.content}
+														</p>
+													)}
+												{msg.type === "system" &&
+													msg.content === "INSTRUCTIONS_UPDATED" && (
+														<p className="text-[11px] text-muted-foreground text-center py-2">
+															Instructions updated
+														</p>
+													)}
 
 												{/* Suggestion */}
 												{msg.type === "suggestion" && msg.suggestion && (
@@ -733,7 +852,8 @@ export default function AgentTestPage() {
 																		</p>
 																	</div>
 																	<p className="text-sm text-foreground leading-5">
-																		Retest to verify the improvement, or publish if you're satisfied.
+																		Retest to verify the improvement, or publish
+																		if you're satisfied.
 																	</p>
 																	<div className="flex items-center gap-3">
 																		<Button
@@ -764,7 +884,9 @@ export default function AgentTestPage() {
 																	<div className="flex items-center gap-2">
 																		<Button
 																			size="sm"
-																			onClick={() => handleSuggestionResponse(true)}
+																			onClick={() =>
+																				handleSuggestionResponse(true)
+																			}
 																			className="h-8 text-xs rounded-md shadow-sm"
 																		>
 																			Apply to Agent Instructions
@@ -772,7 +894,9 @@ export default function AgentTestPage() {
 																		<Button
 																			variant="ghost"
 																			size="sm"
-																			onClick={() => handleSuggestionResponse(false)}
+																			onClick={() =>
+																				handleSuggestionResponse(false)
+																			}
 																			className="h-8 text-xs"
 																		>
 																			Skip suggestion
@@ -816,7 +940,9 @@ export default function AgentTestPage() {
 										onKeyDown={handleKeyDown}
 										placeholder="Test another prompt..."
 										className="min-h-[27px] max-h-[100px] text-base resize-none border-0 shadow-none focus-visible:ring-0 p-0"
-										disabled={isLoading || phase === "awaiting-suggestion-response"}
+										disabled={
+											isLoading || phase === "awaiting-suggestion-response"
+										}
 									/>
 									<Button
 										size="icon"
@@ -845,7 +971,8 @@ export default function AgentTestPage() {
 							Publish Agent
 						</DialogTitle>
 						<DialogDescription>
-							Publishing will make this agent active and available to be matched with real users in this environment.
+							Publishing will make this agent active and available to be matched
+							with real users in this environment.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -882,7 +1009,11 @@ export default function AgentTestPage() {
 						</Button>
 						<Button
 							onClick={() => {
-								confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+								confetti({
+									particleCount: 150,
+									spread: 80,
+									origin: { y: 0.6 },
+								});
 								setTimeout(() => {
 									navigate("/agents", {
 										state: {
@@ -893,7 +1024,7 @@ export default function AgentTestPage() {
 												agentType: config.agentType,
 												iconId: config.iconId,
 												iconColorId: config.iconColorId,
-												skills: config.workflows,
+												skills: config.tools,
 											},
 										},
 									});
@@ -985,7 +1116,10 @@ export default function AgentTestPage() {
 	);
 }
 
-// Generate response based on skills
+// TODO: Replace with real agent execution API call.
+// Wire: POST /api/agents/:id/execute { prompt, conversationId, feedbackHistory }
+// Response arrives via SSE new_message events (same flow as /chat and /iframe/chat).
+// The SSE → conversationStore → groupMessages → ChatMessage[] pipeline is reusable.
 function generateResponse(
 	input: string,
 	config: AgentConfig,
@@ -1143,7 +1277,9 @@ function generateResponse(
 	};
 }
 
-// Generate config suggestion
+// TODO: Replace with LLM-powered suggestion API.
+// Wire: POST /api/agents/:id/suggest { feedbackHistory, currentConfig }
+// Return shape stays the same: { message, updateType, updateValue }
 function generateConfigSuggestion(feedbackHistory: string[]): ConfigSuggestion {
 	const allFeedback = feedbackHistory.join(" ").toLowerCase();
 

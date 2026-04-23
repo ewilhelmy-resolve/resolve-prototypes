@@ -12,6 +12,7 @@ import type {
 	WebhookResponse,
 	WebhookSource,
 } from "../types/webhook.js";
+import { validateWebhookUrl } from "../utils/validateWebhookUrl.js";
 import type { IframeWebhookConfig } from "./sessionStore.js";
 
 /** Keys whose values must never be persisted to the database or logged */
@@ -24,6 +25,8 @@ const SENSITIVE_FIELD_KEYS = new Set([
 	"credentials",
 	"verification_token",
 	"verification_url",
+	"instanceUrl",
+	"username",
 ]);
 
 /**
@@ -246,8 +249,11 @@ export class WebhookService {
 			);
 		}
 
-		// Build tenant-specific webhook URL (remove trailing slash if present)
-		const baseUrl = iframeConfig.actionsApiBaseUrl.replace(/\/$/, "");
+		// Build tenant-specific webhook URL — validate first to prevent SSRF
+		const baseUrl = validateWebhookUrl(
+			iframeConfig.actionsApiBaseUrl.replace(/\/$/, ""),
+			{ skipInDev: true },
+		);
 		const webhookUrl = `${baseUrl}/api/Webhooks/postEvent/${iframeConfig.tenantId}`;
 
 		// Build HTTP Basic auth header (clientId:clientKey base64 encoded)
@@ -272,7 +278,35 @@ export class WebhookService {
 			timestamp: (messageParams.createdAt || new Date()).toISOString(),
 		};
 
-		return this.sendEventToUrl(webhookUrl, authHeader, payload);
+		const messageResult = await this.sendEventToUrl(
+			webhookUrl,
+			authHeader,
+			payload,
+		);
+
+		// Also send workflow_trigger so Actions Platform event listener picks up every message
+		// (message_created handles RabbitMQ routing; workflow_trigger triggers platform workflows)
+		const workflowPayload: BaseWebhookPayload & Record<string, any> = {
+			source: "rita-chat-iframe",
+			action: "workflow_trigger",
+			timestamp: payload.timestamp,
+			...iframeConfig,
+			conversation_id: messageParams.conversationId,
+			message_id: messageParams.messageId,
+			customer_message: messageParams.customerMessage,
+		};
+
+		// Fire-and-forget — don't block message response on workflow trigger
+		this.sendEventToUrl(webhookUrl, authHeader, workflowPayload).catch(
+			(err) => {
+				console.error(
+					"[WebhookService] workflow_trigger webhook failed:",
+					(err as Error).message,
+				);
+			},
+		);
+
+		return messageResult;
 	}
 
 	/**

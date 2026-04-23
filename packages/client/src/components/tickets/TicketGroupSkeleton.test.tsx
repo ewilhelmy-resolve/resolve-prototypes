@@ -37,22 +37,20 @@ describe("TicketGroupSkeleton", () => {
 		expect(countSkeleton).toBeInTheDocument();
 	});
 
-	it("renders skeleton for progress bar", () => {
+	it("renders skeleton for metrics area", () => {
 		const { container } = render(<TicketGroupSkeleton />);
 
-		// Progress bar skeleton
-		const progressSkeleton = container.querySelector(
-			".h-2.w-full.rounded-full",
-		);
-		expect(progressSkeleton).toBeInTheDocument();
+		// Metrics skeleton (gap icon placeholder)
+		const metricsSkeleton = container.querySelector(".h-6.w-6.rounded-full");
+		expect(metricsSkeleton).toBeInTheDocument();
 	});
 
-	it("renders skeleton for badge", () => {
+	it("renders skeleton for footer", () => {
 		const { container } = render(<TicketGroupSkeleton />);
 
-		// Badge skeleton
-		const badgeSkeleton = container.querySelector(".h-5.w-24.rounded-full");
-		expect(badgeSkeleton).toBeInTheDocument();
+		// Footer skeleton
+		const footerSkeleton = container.querySelector(".h-4.w-32");
+		expect(footerSkeleton).toBeInTheDocument();
 	});
 });
 

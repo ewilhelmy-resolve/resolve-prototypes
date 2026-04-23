@@ -1,0 +1,94 @@
+[
+	{
+		"id": "owner",
+		"name": "Owner",
+		"role": "owner",
+		"description": "Organization creator with full control. Only role that can manage organization-level settings, permanently delete members, and change roles. Cannot be demoted if last active owner.",
+		"permissions": [
+			"Manage organization settings (rename, delete)",
+			"Create new organizations",
+			"Permanently delete members (triggers Keycloak account deletion)",
+			"Change member roles (owner → admin → user)",
+			"Activate/deactivate members",
+			"Invite and remove members",
+			"Configure data source connections (knowledge + ITSM)",
+			"Create and manage credential delegations",
+			"View all conversations and files",
+			"Manage feature flags",
+			"Access developer tools",
+			"Create and manage agents",
+			"View ticket clusters and analytics"
+		],
+		"constraints": [
+			"LAST_OWNER — cannot be demoted if last active owner in organization"
+		]
+	},
+	{
+		"id": "admin",
+		"name": "Admin",
+		"role": "admin",
+		"description": "Organization administrator. Can manage members (except owners), data sources, and most features. Cannot manage organization-level settings or permanently delete members.",
+		"permissions": [
+			"Invite and remove members (soft delete only, not owners)",
+			"Activate/deactivate members (not owners)",
+			"Configure data source connections (knowledge + ITSM)",
+			"Create and manage credential delegations",
+			"View all conversations and files",
+			"Manage feature flags",
+			"Access developer tools",
+			"Create and manage agents",
+			"View ticket clusters and analytics"
+		],
+		"constraints": [
+			"INSUFFICIENT_PERMISSIONS — cannot modify owner role or status",
+			"Cannot permanently delete members (owner-only)",
+			"Cannot manage organization settings (owner-only)"
+		]
+	},
+	{
+		"id": "standard-user",
+		"name": "Standard User",
+		"role": "user",
+		"description": "Regular organization member. Can use chat and manage their own content. Blocked from settings, member management, data sources, agents, and ticket clusters at the router level.",
+		"permissions": [
+			"Create and view own conversations (max 20, oldest auto-deleted)",
+			"Send messages in chat",
+			"Upload and manage own files",
+			"View own profile",
+			"View knowledge base articles"
+		],
+		"constraints": [
+			"RoleProtectedRoute blocks: /agents, /content, /tickets",
+			"canManageInvitations: false",
+			"canManageMembers: false",
+			"canManageOrganization: false",
+			"canDeleteConversations: false",
+			"canManageFiles: false"
+		],
+		"blocked_routes": [
+			"/agents/*",
+			"/content",
+			"/tickets/*",
+			"/settings/users (view-only)"
+		]
+	},
+	{
+		"id": "iframe-user",
+		"name": "Iframe User",
+		"role": "member (JIT-provisioned)",
+		"description": "User accessing Rita through the Actions Platform (Jarvis) iframe embed. Identity comes from Valkey session written by host platform. Automatically provisioned on first iframe load. No Keycloak login page.",
+		"permissions": [
+			"Chat within iframe context",
+			"Interact with workflow results (reasoning steps, completion cards)",
+			"Submit UI forms (schema renderer)",
+			"View conversation in embedded mode"
+		],
+		"constraints": [
+			"Session scoped to Valkey key from host platform",
+			"Bypasses org membership check (trust host app auth)",
+			"Email is synthetic: iframe-{guid}@iframe.internal",
+			"No sidebar, no navigation, no settings access"
+		],
+		"auth_flow": "Host Keycloak → Valkey session → sessionKey URL param → JIT provisioning → session cookie"
+	}
+]

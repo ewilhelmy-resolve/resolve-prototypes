@@ -23,6 +23,10 @@ env:
     DEPLOY_DEV_HOST: 'ec2-52-45-128-201.compute-1.amazonaws.com'
     DEPLOY_USER: 'ec2-user'
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build-theme:
     runs-on: ubuntu-latest
@@ -40,6 +44,8 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.ONBOARDING_GITHUB_TOKEN }}
 
       - name: Build theme CSS
         run: pnpm --filter keycloak-rita-theme build

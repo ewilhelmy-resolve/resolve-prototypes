@@ -1,7 +1,9 @@
 import {
 	keepPreviousData,
 	useInfiniteQuery,
+	useMutation,
 	useQuery,
+	useQueryClient,
 } from "@tanstack/react-query";
 import {
 	getMockClusterDetails,
@@ -166,6 +168,40 @@ export function useClusterKbArticles(id: string | undefined) {
 		},
 		enabled: !!id,
 		staleTime: 30000,
+	});
+}
+
+/**
+ * Add a knowledge article to a cluster
+ * @param clusterId - Cluster UUID
+ * @returns Mutation that accepts content and filename
+ */
+export function useAddKbArticle(clusterId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (params: { content: string; filename: string }) =>
+			clustersApi.addKbArticle(clusterId, params.content, params.filename),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: clusterKeys.detail(clusterId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: clusterKeys.kbArticleList(clusterId),
+			});
+			queryClient.invalidateQueries({ queryKey: clusterKeys.lists() });
+		},
+	});
+}
+
+/**
+ * Generate a knowledge article from cluster sources
+ * @param clusterId - Cluster UUID
+ * @returns Mutation that accepts source IDs and returns a generation_id
+ */
+export function useGenerateKnowledge(clusterId: string) {
+	return useMutation({
+		mutationFn: (sources: string[]) =>
+			clustersApi.generateKnowledge(clusterId, sources),
 	});
 }
 

@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
 import {
 	Sheet,
@@ -9,7 +10,6 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
-import { StatusAlert } from "@/components/ui/status-alert";
 
 /** Field prediction data for auto-populate */
 export interface FieldPrediction {

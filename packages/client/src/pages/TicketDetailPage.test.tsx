@@ -174,6 +174,76 @@ describe("TicketDetailPage", () => {
 	});
 
 	// -----------------------------------------------------------------------
+	// 1b. tab=open → external_status=Open (not tab=open)
+	// -----------------------------------------------------------------------
+	it("converts tab=open to external_status=Open in neighbor query params", () => {
+		mockSearchParams = new URLSearchParams(
+			"sort=subject&sort_dir=asc&tab=open&search=vpn&idx=5",
+		);
+
+		render(
+			<TestProviders
+				initialEntries={[
+					"/tickets/cluster-1/t-current?sort=subject&sort_dir=asc&tab=open&search=vpn&idx=5",
+				]}
+			>
+				<TicketDetailPage />
+			</TestProviders>,
+		);
+
+		expect(mockUseClusterTickets).toHaveBeenCalledWith(
+			"cluster-1",
+			expect.objectContaining({
+				offset: 4,
+				limit: 3,
+				sort: "subject",
+				sort_dir: "asc",
+				external_status: "Open",
+				search: "vpn",
+			}),
+			{ keepPrevious: true },
+		);
+
+		const callParams = mockUseClusterTickets.mock.calls[0][1];
+		expect(callParams).not.toHaveProperty("tab");
+	});
+
+	// -----------------------------------------------------------------------
+	// 1c. tab=all → no tab, no external_status
+	// -----------------------------------------------------------------------
+	it("omits both tab and external_status when tab=all", () => {
+		mockSearchParams = new URLSearchParams(
+			"sort=subject&sort_dir=asc&tab=all&search=vpn&idx=5",
+		);
+
+		render(
+			<TestProviders
+				initialEntries={[
+					"/tickets/cluster-1/t-current?sort=subject&sort_dir=asc&tab=all&search=vpn&idx=5",
+				]}
+			>
+				<TicketDetailPage />
+			</TestProviders>,
+		);
+
+		expect(mockUseClusterTickets).toHaveBeenCalledWith(
+			"cluster-1",
+			expect.objectContaining({
+				offset: 4,
+				limit: 3,
+				sort: "subject",
+				sort_dir: "asc",
+				search: "vpn",
+			}),
+			{ keepPrevious: true },
+		);
+
+		const callParams = mockUseClusterTickets.mock.calls[0][1];
+		expect(callParams).not.toHaveProperty("tab");
+		expect(callParams).not.toHaveProperty("external_status");
+	});
+
+	// -----------------------------------------------------------------------
 	// 2. Falls back gracefully when no idx
 	// -----------------------------------------------------------------------
 	it("does not call useClusterTickets with neighbor params when idx is absent", () => {

@@ -1,0 +1,100 @@
+namespace: rita-dev
+
+image:
+  repository: ""  # Set via helmfile from ECR_REGISTRY env var
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Keycloak configuration (runtime)
+keycloak:
+  url: ""  # Set via helmfile (e.g., https://auth.dev.resolve.io)
+  realm: ""  # Set via helmfile (tenant namespace, e.g., pmilev)
+  clientId: "onboarding-auth-client"
+  clientImport:
+    enabled: false  # Set to true to enable automated client import
+    adminUser: ""   # Set via helmfile (Keycloak admin username)
+    adminPassword: ""  # Set via helmfile (Keycloak admin password)
+    clientSecret: ""   # Set via helmfile (rita-go-auth-client secret)
+  domain: "resolve.io"  # Set via helmfile
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 80
+  name: frontend
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "200m"
+
+healthCheck:
+  liveness:
+    enabled: true
+    path: /
+    initialDelaySeconds: 10
+    periodSeconds: 30
+  readiness:
+    enabled: true
+    path: /
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '10'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+    alb.ingress.kubernetes.io/success-codes: '200,301,302'
+  host: ""  # Set via environment values (e.g., rita-dev.resolve.io)
+  certificateArn: ""  # Set via environment values (wildcard *.resolve.io)
+  groupName: ""  # Set for shared ALB (e.g., "rita-prod")
+
+# Deployment strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# Autoscaling (disabled by default for dev)
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Network policy (disabled by default)
+networkPolicy:
+  enabled: false
+
+# Pod disruption budget (disabled by default)
+pdb:
+  enabled: false
+  minAvailable: 1
+
+# Route53 DNS automation
+route53:
+  enabled: false  # Set to true to enable automated DNS record creation
+  hostedZoneId: ""  # Set via helmfile (e.g., Z1234567890ABC)
+  serviceAccount:
+    annotations: {}  # Add IAM role annotation for IRSA if needed
+      # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/route53-role
+  rbac:
+    create: true

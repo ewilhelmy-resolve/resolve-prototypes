@@ -50,7 +50,9 @@ vi.mock("../sessionStore.js", () => ({
 
 vi.mock("../sessionService.js", () => ({
 	getSessionService: vi.fn(() => ({
-		generateSessionCookie: vi.fn().mockReturnValue("session=mock; Path=/; HttpOnly"),
+		generateSessionCookie: vi
+			.fn()
+			.mockReturnValue("session=mock; Path=/; HttpOnly"),
 	})),
 }));
 
@@ -89,15 +91,21 @@ vi.mock("amqplib", () => ({
 }));
 
 vi.mock("../../consumers/DataSourceStatusConsumer.js", () => ({
-	DataSourceStatusConsumer: class { startConsumer = vi.fn(); },
+	DataSourceStatusConsumer: class {
+		startConsumer = vi.fn();
+	},
 }));
 
 vi.mock("../../consumers/DocumentProcessingConsumer.js", () => ({
-	DocumentProcessingConsumer: class { startConsumer = vi.fn(); },
+	DocumentProcessingConsumer: class {
+		startConsumer = vi.fn();
+	},
 }));
 
 vi.mock("../../consumers/WorkflowConsumer.js", () => ({
-	WorkflowConsumer: class { startConsumer = vi.fn(); },
+	WorkflowConsumer: class {
+		startConsumer = vi.fn();
+	},
 }));
 
 import { IframeService } from "../IframeService.js";
@@ -119,9 +127,20 @@ const TEST_UI_SCHEMA = {
 			title: "ServiceNow Credentials",
 			submitAction: "submit_credentials",
 			children: [
-				{ type: "input", name: "instance_url", label: "Instance URL", required: true },
+				{
+					type: "input",
+					name: "instance_url",
+					label: "Instance URL",
+					required: true,
+				},
 				{ type: "input", name: "username", label: "Username", required: true },
-				{ type: "input", name: "password", label: "Password", inputType: "password", required: true },
+				{
+					type: "input",
+					name: "password",
+					label: "Password",
+					inputType: "password",
+					required: true,
+				},
 			],
 		},
 	},
@@ -146,7 +165,10 @@ const TEST_WEBHOOK_CONFIG = {
 };
 
 describe("UI Form Request E2E", () => {
-	let mockClient: { query: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> };
+	let mockClient: {
+		query: ReturnType<typeof vi.fn>;
+		release: ReturnType<typeof vi.fn>;
+	};
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -187,22 +209,24 @@ describe("UI Form Request E2E", () => {
 
 			// Mock withOrgContext to capture what gets stored
 			let capturedMetadata: any;
-			mockWithOrgContext.mockImplementation(async (_userId, _orgId, callback) => {
-				const mockOrgClient = {
-					query: vi.fn().mockImplementation((sql: string, params: any[]) => {
-						// Capture the INSERT INTO messages metadata
-						if (sql.includes("INSERT INTO messages")) {
-							capturedMetadata = JSON.parse(params[4]); // metadata is 5th param
-							return { rows: [{ id: "new-msg-id" }] };
-						}
-						if (sql.includes("SELECT id FROM messages")) {
-							return { rows: [{ id: TEST_MESSAGE_ID }] };
-						}
-						return { rows: [] };
-					}),
-				};
-				return callback(mockOrgClient);
-			});
+			mockWithOrgContext.mockImplementation(
+				async (_userId, _orgId, callback) => {
+					const mockOrgClient = {
+						query: vi.fn().mockImplementation((sql: string, params: any[]) => {
+							// Capture the INSERT INTO messages metadata
+							if (sql.includes("INSERT INTO messages")) {
+								capturedMetadata = JSON.parse(params[4]); // metadata is 5th param
+								return { rows: [{ id: "new-msg-id" }] };
+							}
+							if (sql.includes("SELECT id FROM messages")) {
+								return { rows: [{ id: TEST_MESSAGE_ID }] };
+							}
+							return { rows: [] };
+						}),
+					};
+					return callback(mockOrgClient);
+				},
+			);
 
 			const processMessage = (service as any).processMessage.bind(service);
 			await processMessage(rabbitPayload);
@@ -238,13 +262,15 @@ describe("UI Form Request E2E", () => {
 			// Mock: find message by request_id
 			mockClient.query
 				.mockResolvedValueOnce({
-					rows: [{
-						id: "msg-123",
-						metadata: TEST_FORM_METADATA,
-						conversation_id: TEST_CONVERSATION_ID,
-						organization_id: TEST_ORG_ID,
-						user_id: TEST_USER_ID,
-					}],
+					rows: [
+						{
+							id: "msg-123",
+							metadata: TEST_FORM_METADATA,
+							conversation_id: TEST_CONVERSATION_ID,
+							organization_id: TEST_ORG_ID,
+							user_id: TEST_USER_ID,
+						},
+					],
 				})
 				// Mock: UPDATE messages
 				.mockResolvedValueOnce({ rows: [] });
@@ -288,13 +314,15 @@ describe("UI Form Request E2E", () => {
 		it("should update message metadata to cancelled on cancel", async () => {
 			mockClient.query
 				.mockResolvedValueOnce({
-					rows: [{
-						id: "msg-123",
-						metadata: TEST_FORM_METADATA,
-						conversation_id: TEST_CONVERSATION_ID,
-						organization_id: TEST_ORG_ID,
-						user_id: TEST_USER_ID,
-					}],
+					rows: [
+						{
+							id: "msg-123",
+							metadata: TEST_FORM_METADATA,
+							conversation_id: TEST_CONVERSATION_ID,
+							organization_id: TEST_ORG_ID,
+							user_id: TEST_USER_ID,
+						},
+					],
 				})
 				.mockResolvedValueOnce({ rows: [] });
 
@@ -314,13 +342,15 @@ describe("UI Form Request E2E", () => {
 
 		it("should reject already-completed form requests", async () => {
 			mockClient.query.mockResolvedValueOnce({
-				rows: [{
-					id: "msg-123",
-					metadata: { ...TEST_FORM_METADATA, status: "completed" },
-					conversation_id: TEST_CONVERSATION_ID,
-					organization_id: TEST_ORG_ID,
-					user_id: TEST_USER_ID,
-				}],
+				rows: [
+					{
+						id: "msg-123",
+						metadata: { ...TEST_FORM_METADATA, status: "completed" },
+						conversation_id: TEST_CONVERSATION_ID,
+						organization_id: TEST_ORG_ID,
+						user_id: TEST_USER_ID,
+					},
+				],
 			});
 
 			await expect(
@@ -362,13 +392,15 @@ describe("UI Form Request E2E", () => {
 			// Mock: find message
 			mockClient.query
 				.mockResolvedValueOnce({
-					rows: [{
-						id: "msg-123",
-						metadata: TEST_FORM_METADATA,
-						conversation_id: TEST_CONVERSATION_ID,
-						organization_id: TEST_ORG_ID,
-						user_id: TEST_USER_ID,
-					}],
+					rows: [
+						{
+							id: "msg-123",
+							metadata: TEST_FORM_METADATA,
+							conversation_id: TEST_CONVERSATION_ID,
+							organization_id: TEST_ORG_ID,
+							user_id: TEST_USER_ID,
+						},
+					],
 				})
 				.mockResolvedValueOnce({ rows: [] }); // UPDATE
 
@@ -395,7 +427,8 @@ describe("UI Form Request E2E", () => {
 			// Verify axios.post was called
 			expect(mockAxios.post).toHaveBeenCalledTimes(1);
 
-			const [webhookUrl, webhookPayload, options] = mockAxios.post.mock.calls[0];
+			const [webhookUrl, webhookPayload, options] =
+				mockAxios.post.mock.calls[0];
 
 			// Verify webhook URL
 			expect(webhookUrl).toBe(
@@ -404,7 +437,7 @@ describe("UI Form Request E2E", () => {
 
 			// Verify payload uses form_data (NOT data)
 			expect(webhookPayload.source).toBe("rita-chat-iframe");
-			expect(webhookPayload.action).toBe("ui_form_response");
+			expect(webhookPayload.action).toBe("submit_credentials");
 			expect(webhookPayload.request_id).toBe(TEST_REQUEST_ID);
 			expect(webhookPayload.status).toBe("submitted");
 			expect(webhookPayload.form_action).toBe("submit_credentials");
@@ -426,13 +459,15 @@ describe("UI Form Request E2E", () => {
 		it("should not send webhook when no config available", async () => {
 			mockClient.query
 				.mockResolvedValueOnce({
-					rows: [{
-						id: "msg-123",
-						metadata: TEST_FORM_METADATA,
-						conversation_id: TEST_CONVERSATION_ID,
-						organization_id: TEST_ORG_ID,
-						user_id: TEST_USER_ID,
-					}],
+					rows: [
+						{
+							id: "msg-123",
+							metadata: TEST_FORM_METADATA,
+							conversation_id: TEST_CONVERSATION_ID,
+							organization_id: TEST_ORG_ID,
+							user_id: TEST_USER_ID,
+						},
+					],
 				})
 				.mockResolvedValueOnce({ rows: [] });
 

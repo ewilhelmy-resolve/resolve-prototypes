@@ -10,11 +10,11 @@
  * - At least one lowercase letter
  * - At least one uppercase letter
  * - At least one digit
- * - At least one special character (@$!%*?&#.)
- * - Only allows alphanumeric and special characters
+ * - At least one special character (any non-alphanumeric, non-whitespace character)
+ * - No whitespace characters allowed
  */
 export const PASSWORD_REGEX =
-	/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#.])[A-Za-z\d@$!%*?&#.]+$/;
+	/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d\s])[^\s]+$/;
 
 /**
  * Minimum password length requirement
@@ -29,7 +29,7 @@ export const MIN_PASSWORD_LENGTH = 8;
  * - At least one uppercase letter (A-Z)
  * - At least one lowercase letter (a-z)
  * - At least one number (0-9)
- * - At least one special character (@$!%*?&#.)
+ * - At least one special character (any non-alphanumeric, non-whitespace character)
  *
  * @param password - The password to validate (will be trimmed)
  * @returns Error message if invalid, null if valid

@@ -72,7 +72,7 @@ export default function ClusterDetailPage() {
 	const phaseV2 = usePhaseGate("tickets", "v2");
 	const phaseV3 = usePhaseGate("tickets", "v3");
 	const { data: cluster, isLoading, error } = useClusterDetails(id);
-	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 	const bannerRef = useRef<HTMLDivElement>(null);
 	const [autoRespondOpen, setAutoRespondOpen] = useState(false);
 	const [autoPopulateOpen, setAutoPopulateOpen] = useState(false);
@@ -248,14 +248,14 @@ export default function ClusterDetailPage() {
 							/>
 							{phaseV2 && (
 								<StatCard
-									value={`$${(blendedRatePerHour * (timeToTake / 60) * cluster.ticket_count).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+									value={`$${(blendedRatePerHour * (avgMinutesPerTicket / 60) * cluster.ticket_count).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
 									label={t("clusterDetail.stats.estMoneySaved")}
 									loading={false}
 								/>
 							)}
 							{phaseV2 && (
 								<StatCard
-									value={`${Math.floor((timeToTake * cluster.ticket_count) / 60)}hr`}
+									value={`${Math.floor((avgMinutesPerTicket * cluster.ticket_count) / 60)}hr`}
 									label={
 										<span className="flex items-center gap-1">
 											{t("clusterDetail.stats.estTimeSaved")}
@@ -264,7 +264,7 @@ export default function ClusterDetailPage() {
 													<Info className="size-3 text-muted-foreground" />
 												</TooltipTrigger>
 												<TooltipContent side="bottom" className="max-w-[220px] text-xs">
-													{timeToTake} min × {cluster.ticket_count.toLocaleString()} tickets
+													{avgMinutesPerTicket} min × {cluster.ticket_count.toLocaleString()} tickets
 												</TooltipContent>
 											</Tooltip>
 										</span>

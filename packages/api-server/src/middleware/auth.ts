@@ -1,7 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../config/logger.js";
 import { authRepository } from "../repositories/AuthRepository.js";
-import { getSessionService } from "../services/sessionService.js";
+import {
+	getSessionService,
+	SessionService,
+} from "../services/sessionService.js";
 import type { AuthenticatedRequest } from "../types/express.js";
 
 /**
@@ -34,9 +37,29 @@ export const authenticateUser = async (
 		}
 
 		const sessionService = getSessionService();
-		const sessionId = sessionService.parseSessionIdFromCookie(
+
+		// RG-838: Rita Go and iframe run on the same domain with separate
+		// cookies (rita_session vs rita_iframe_session). Determine which
+		// session to use based on:
+		// 1. X-Session-Context header (set by client — most reliable)
+		// 2. URL path (fallback for SSE/EventSource which can't set headers)
+		// 3. Whichever cookie exists (single-context user)
+		const iframeSessionId = sessionService.parseSessionIdFromCookie(
+			req.headers.cookie,
+			SessionService.IFRAME_COOKIE_NAME,
+		);
+		const regularSessionId = sessionService.parseSessionIdFromCookie(
 			req.headers.cookie,
 		);
+
+		const contextHeader = req.headers["x-session-context"];
+		const isIframeContext =
+			contextHeader === "iframe" ||
+			req.path.startsWith("/iframe") ||
+			req.baseUrl?.includes("/iframe");
+		const sessionId = isIframeContext
+			? iframeSessionId || regularSessionId
+			: regularSessionId || iframeSessionId;
 
 		if (!sessionId) {
 			res.status(401).json({
@@ -63,8 +86,15 @@ export const authenticateUser = async (
 			const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
 			await sessionService.updateSession(sessionId, { expiresAt: newExpiry });
 
-			// Update cookie with extended expiration
-			const cookie = sessionService.generateSessionCookie(sessionId);
+			// Update cookie with extended expiration — use the right cookie name
+			const cookieName = session.isIframeSession
+				? SessionService.IFRAME_COOKIE_NAME
+				: SessionService.COOKIE_NAME;
+			const cookie = sessionService.generateSessionCookie(
+				sessionId,
+				undefined,
+				cookieName,
+			);
 			res.setHeader("Set-Cookie", cookie);
 
 			logger.debug(

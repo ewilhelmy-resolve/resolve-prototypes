@@ -59,7 +59,7 @@ vi.mock("@/hooks/useActiveModel", () => ({
 	useActiveModel: vi.fn(() => mockActiveModelQuery),
 }));
 
-vi.mock("@/components/ui/rita-toast", () => ({
+vi.mock("@/components/custom/rita-toast", () => ({
 	ritaToast: {
 		success: vi.fn(),
 		error: vi.fn(),
@@ -405,7 +405,10 @@ describe("FreshserviceItsmConfiguration", () => {
 			const source = createMockSource();
 			renderWithProvider(source);
 
-			expect(screen.getByRole("switch")).toBeDisabled();
+			expect(screen.getByRole("switch")).toHaveAttribute(
+				"aria-disabled",
+				"true",
+			);
 		});
 
 		it("should pass disabled=false to AutoSyncToggle when not syncing", () => {
@@ -421,7 +424,7 @@ describe("FreshserviceItsmConfiguration", () => {
 
 	describe("Toast Notifications", () => {
 		it("should show success toast on sync start", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			const source = createMockSource();
 			renderWithProvider(source);
 
@@ -437,7 +440,7 @@ describe("FreshserviceItsmConfiguration", () => {
 		});
 
 		it("should show error toast on sync failure", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			mockSyncTicketsMutation.mutateAsync = vi
 				.fn()
 				.mockRejectedValueOnce(new Error("Sync failed"));
@@ -457,7 +460,7 @@ describe("FreshserviceItsmConfiguration", () => {
 		});
 
 		it("should show error toast when backendData is missing", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			const source = createMockSource({ backendData: undefined });
 			renderWithProvider(source);
 
@@ -473,7 +476,7 @@ describe("FreshserviceItsmConfiguration", () => {
 		});
 
 		it("should show success toast on cancel sync", async () => {
-			const { ritaToast } = await import("@/components/ui/rita-toast");
+			const { ritaToast } = await import("@/components/custom/rita-toast");
 			mockLatestIngestionRunQuery.data = {
 				status: "running",
 				records_processed: 10,

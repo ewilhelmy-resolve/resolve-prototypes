@@ -40,6 +40,7 @@ interface UseAutoSaveReturn {
 	error: string | null;
 }
 
+// TODO(react-19): Consider useTransition for save operations to avoid blocking UI
 export function useAutoSave<T>({
 	data,
 	onSave,
@@ -96,6 +97,7 @@ export function useAutoSave<T>({
 	}, [data, isDirty, onSave, savedDisplayMs]);
 
 	// Auto-save with debounce
+	// biome-ignore lint/correctness/useExhaustiveDependencies: trigger save on data change via serializedData
 	useEffect(() => {
 		if (!enabled || !isDirty) return;
 

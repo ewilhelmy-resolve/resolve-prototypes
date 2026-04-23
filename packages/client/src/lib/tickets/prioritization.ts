@@ -30,13 +30,13 @@ export function deriveCTAState(cluster: ClusterListItem): CTAState {
 export function rankClusters(
 	clusters: ClusterListItem[],
 	blendedRatePerHour: number,
-	timeToTake: number,
+	avgMinutesPerTicket: number,
 ): RankedCluster[] {
 	return clusters
 		.map((cluster) => {
 			const estimatedMonthlyCost = cluster.needs_response_count * blendedRatePerHour;
 			const estimatedMonthlyHours =
-				(cluster.needs_response_count * timeToTake) / 60;
+				(cluster.needs_response_count * avgMinutesPerTicket) / 60;
 			const manualBurdenPercent =
 				cluster.ticket_count > 0
 					? (cluster.needs_response_count / cluster.ticket_count) * 100
@@ -136,7 +136,7 @@ export type RoiSortKey = "costImpact" | "mttr" | "timeTaken";
 export function rankClustersByRoi(
 	clusters: ClusterListItem[],
 	blendedRatePerHour: number,
-	timeToTake: number,
+	avgMinutesPerTicket: number,
 	sortKey: RoiSortKey = "costImpact",
 	sortDir: "asc" | "desc" = "desc",
 ): RoiRankedCluster[] {
@@ -145,8 +145,8 @@ export function rankClustersByRoi(
 			? `${cluster.name} - ${cluster.subcluster_name}`
 			: cluster.name;
 		const costImpact =
-			blendedRatePerHour * (timeToTake / 60) * cluster.ticket_count;
-		const timeTaken = timeToTake * cluster.needs_response_count;
+			blendedRatePerHour * (avgMinutesPerTicket / 60) * cluster.ticket_count;
+		const timeTaken = avgMinutesPerTicket * cluster.needs_response_count;
 		const mttr = MOCK_MTTR_MINUTES[cluster.id] ?? 20;
 
 		return {
@@ -171,7 +171,7 @@ export function rankClustersByRoi(
 export function computeAggregateSavings(
 	clusters: ClusterListItem[],
 	blendedRatePerHour: number,
-	timeToTake: number,
+	avgMinutesPerTicket: number,
 ): AggregateSavings {
 	let totalNeedsResponse = 0;
 	let knowledgeFoundCount = 0;
@@ -186,7 +186,7 @@ export function computeAggregateSavings(
 	return {
 		totalNeedsResponse,
 		totalMonthlyCost: totalNeedsResponse * blendedRatePerHour,
-		totalMonthlyHours: (totalNeedsResponse * timeToTake) / 60,
+		totalMonthlyHours: (totalNeedsResponse * avgMinutesPerTicket) / 60,
 		knowledgeFoundCount,
 		totalCount: clusters.length,
 	};

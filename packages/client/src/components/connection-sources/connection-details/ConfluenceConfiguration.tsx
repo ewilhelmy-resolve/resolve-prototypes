@@ -1,20 +1,8 @@
 "use client";
 
-import { Loader2, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { ritaToast } from "@/components/ui/rita-toast";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
+import { ritaToast } from "@/components/custom/rita-toast";
 import { STATUS } from "@/constants/connectionSources";
 import { useConnectionSource } from "@/contexts/ConnectionSourceContext";
 import {
@@ -26,7 +14,7 @@ import {
 	parseAvailableSpaces,
 	parseSelectedSpaces,
 } from "@/lib/dataSourceUtils";
-import type { MultiSelectOption } from "../../ui/multi-select";
+import type { MultiSelectOption } from "../../custom/multi-select";
 import { ConnectionActionsMenu } from "../ConnectionActionsMenu";
 import { ConnectionStatusCard } from "../ConnectionStatusCard";
 import FormSectionTitle from "../form-elements/FormSectionTitle";
@@ -49,10 +37,6 @@ export default function ConfluenceConfiguration({
 
 	const isSyncing =
 		source.status.toLowerCase() === STATUS.SYNCING.toLowerCase();
-
-	const [isAnalyzing, setIsAnalyzing] = useState(false);
-	const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
-	const [syncInterval, setSyncInterval] = useState("24h");
 
 	const availableSpaces: MultiSelectOption[] = useMemo(() => {
 		const spaces = parseAvailableSpaces(source.backendData?.latest_options);
@@ -130,17 +114,6 @@ export default function ConfluenceConfiguration({
 		}
 	};
 
-	const handleAnalyzeKnowledge = async () => {
-		setIsAnalyzing(true);
-		// Simulate analysis — will be replaced with real API call
-		await new Promise((r) => setTimeout(r, 2000));
-		setIsAnalyzing(false);
-		ritaToast.success({
-			title: "Analysis complete",
-			description: "Knowledge sources have been analyzed and matched to ticket clusters.",
-		});
-	};
-
 	return (
 		<div className="w-full flex flex-col gap-2">
 			<div className="flex flex-col gap-2.5">
@@ -174,75 +147,6 @@ export default function ConfluenceConfiguration({
 					cancelSyncLabel={t("config.sync.cancelSync")}
 					inProgressLabel={t("config.sync.inProgress")}
 				/>
-			</div>
-
-			<Separator className="my-4" />
-
-			{/* Knowledge Analysis */}
-			<div className="flex flex-col gap-2.5">
-				<FormSectionTitle title="Knowledge Analysis" />
-
-				<div className="border border-border bg-popover rounded-md p-4 flex flex-col gap-4">
-					<div>
-						<p className="text-sm text-muted-foreground">
-							Analyze synced knowledge against your ticket clusters to identify coverage gaps and matches.
-						</p>
-					</div>
-
-					<Button
-						onClick={handleAnalyzeKnowledge}
-						disabled={isAnalyzing || isSyncing}
-						variant="outline"
-						className="w-fit"
-					>
-						{isAnalyzing ? (
-							<>
-								<Loader2 className="size-4 animate-spin mr-1.5" />
-								Analyzing...
-							</>
-						) : (
-							<>
-								<Search className="size-4 mr-1.5" />
-								Analyze Knowledge
-							</>
-						)}
-					</Button>
-				</div>
-
-				{/* Auto-sync Schedule */}
-				<div className="border border-border bg-popover rounded-md p-4 flex flex-col gap-4">
-					<div className="flex items-center justify-between">
-						<div>
-							<Label>Auto-sync schedule</Label>
-							<p className="text-sm text-muted-foreground mt-0.5">
-								Automatically sync and analyze on a recurring schedule.
-							</p>
-						</div>
-						<Switch
-							checked={autoSyncEnabled}
-							onCheckedChange={setAutoSyncEnabled}
-							aria-label="Toggle auto-sync"
-						/>
-					</div>
-
-					{autoSyncEnabled && (
-						<div className="flex items-center gap-3">
-							<Label className="shrink-0">Run every</Label>
-							<Select value={syncInterval} onValueChange={setSyncInterval}>
-								<SelectTrigger className="w-[160px]" aria-label="Sync interval">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="6h">6 hours</SelectItem>
-									<SelectItem value="12h">12 hours</SelectItem>
-									<SelectItem value="24h">24 hours</SelectItem>
-									<SelectItem value="48h">48 hours</SelectItem>
-									<SelectItem value="7d">7 days</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-					)}
-				</div>
 			</div>
 		</div>
 	);

@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { QueryWrapper } from "@/test/mocks/providers";
 import { ClustersPageHeader } from "./ClustersPageHeader";
 
-vi.mock("@/hooks/api/useAutopilotSettings", () => ({
-	useAutopilotSettings: () => ({
-		data: { cost_per_ticket: 25, avg_time_per_ticket_minutes: 15 },
+vi.mock("@/stores/ticketSettingsStore", () => ({
+	useTicketSettingsStore: () => ({
+		blendedRatePerHour: 25,
+		avgMinutesPerTicket: 15,
 	}),
 }));
 
@@ -36,40 +37,37 @@ function renderHeader(
 }
 
 describe("ClustersPageHeader", () => {
-	it("calculates stats with automated tickets", () => {
-		renderHeader({ totalTickets: 200, automatedTickets: 50 });
+	it("calculates stats using all tickets", () => {
+		renderHeader({ totalTickets: 200 });
 
+		// Total tickets
 		expect(screen.getByText("200")).toBeInTheDocument();
-		expect(screen.getByText("50")).toBeInTheDocument();
-		expect(screen.getByText("25%")).toBeInTheDocument();
+		// Money: 200 × $25/hr × (15/60) = $1,250 → "$1.3k"
 		expect(screen.getByText("$1.3k")).toBeInTheDocument();
-		expect(screen.getByText("12.5hr")).toBeInTheDocument();
+		// Time: 200 × 15min = 3000min → "50hr"
+		expect(screen.getByText("50hr")).toBeInTheDocument();
+		// MTTR and reassignment hidden behind ENABLE_CLUSTER_ADVANCED_FEATURES flag
+		expect(screen.queryByText("--")).not.toBeInTheDocument();
 	});
 
-	it("defaults automatedTickets to 0", () => {
-		renderHeader({ totalTickets: 100 });
+	it("shows zero values when totalTickets is 0", () => {
+		renderHeader({ totalTickets: 0 });
 
-		expect(screen.getByText("0")).toBeInTheDocument();
-		expect(screen.getByText("0%")).toBeInTheDocument();
 		expect(screen.getByText("$0")).toBeInTheDocument();
 		expect(screen.getByText("0min")).toBeInTheDocument();
-	});
-
-	it("avoids division by zero when totalTickets is 0", () => {
-		renderHeader({ totalTickets: 0, automatedTickets: 0 });
-
-		expect(screen.getByText("0%")).toBeInTheDocument();
 		expect(screen.queryByText("NaN")).not.toBeInTheDocument();
 	});
 
 	it("formats money under $1000 without k suffix", () => {
-		renderHeader({ totalTickets: 100, automatedTickets: 10 });
+		// 100 tickets × $25/hr × (15/60) = $625
+		renderHeader({ totalTickets: 100 });
 
-		expect(screen.getByText("$250")).toBeInTheDocument();
+		expect(screen.getByText("$625")).toBeInTheDocument();
 	});
 
 	it("formats time under 60min without hr suffix", () => {
-		renderHeader({ totalTickets: 100, automatedTickets: 3 });
+		// 3 tickets × 15min = 45min
+		renderHeader({ totalTickets: 3 });
 
 		expect(screen.getByText("45min")).toBeInTheDocument();
 	});
@@ -77,10 +75,10 @@ describe("ClustersPageHeader", () => {
 	it("shows skeletons when loading", () => {
 		renderHeader({
 			totalTickets: 100,
-			automatedTickets: 50,
 			showSkeletons: true,
 		});
 
+		// With flag off, MTTR/Reassignment hidden — no non-skeleton headings
 		expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(0);
 	});
 
@@ -114,7 +112,20 @@ describe("ClustersPageHeader", () => {
 		await user.click(
 			screen.getByRole("button", { name: "groups.periods.last30Days" }),
 		);
-		await user.click(screen.getByText("groups.periods.last90Days"));
+		await user.click(await screen.findByText("groups.periods.last90Days"));
 		expect(onPeriodChange).toHaveBeenCalledWith("last90");
+	});
+
+	it("renders three stat labels when advanced features flag is off", () => {
+		renderHeader({ totalTickets: 100 });
+
+		expect(screen.getByText("header.stats.totalTickets")).toBeInTheDocument();
+		expect(screen.getByText("header.stats.estMoneySaved")).toBeInTheDocument();
+		expect(screen.getByText("header.stats.estTimeSaved")).toBeInTheDocument();
+		// MTTR and reassignment hidden behind ENABLE_CLUSTER_ADVANCED_FEATURES
+		expect(screen.queryByText("header.stats.mttr")).not.toBeInTheDocument();
+		expect(
+			screen.queryByText("header.stats.avgReassignmentRate"),
+		).not.toBeInTheDocument();
 	});
 });

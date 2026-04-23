@@ -45,6 +45,13 @@ pnpm dev:theme        # Keycloak theme dev
 pnpm dev:iframe-app   # Iframe host (port 5174)
 pnpm setup            # Initial project setup
 
+# E2E Validation (agent-driven)
+pnpm e2e:check        # Verify all services running
+pnpm db:reset         # Reset DB to deterministic seed
+pnpm e2e:login        # Get session cookie for playwright-cli
+pnpm e2e:login testmember test  # Login as member
+pnpm e2e:reset-keycloak  # Re-import Keycloak realm
+
 # Build
 pnpm build            # Build api-server + client
 pnpm build:theme      # Build Keycloak theme
@@ -185,10 +192,10 @@ Client build uses `vite build` without `tsc`. Type checking runs separately via 
 Iframe-embeddable version for host pages on same domain.
 
 - Minimal UI (no sidebar/nav)
-- Public guest access (no Keycloak)
+- Host-delegated auth — user authenticates via shared Keycloak on Actions Platform, session passed via Valkey
 - Intent tracking via `intent-eid` param
 - Routes: `/iframe/chat`, `/iframe/chat/:conversationId`
-- All iframe users share `public-guest-user` account
+- Embedded as: `<iframe src="/iframe/chat?sessionKey={valkey-guid}">`
 - See `packages/client/IFRAME.md` for integration guide
 
 ## Documentation Strategy

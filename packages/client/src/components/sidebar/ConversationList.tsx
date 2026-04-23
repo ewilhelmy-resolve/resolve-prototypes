@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { InfiniteScrollContainer } from "@/components/custom/infinite-scroll-container";
 import { ConversationListItem } from "@/components/sidebar/ConversationListItem";
-import { InfiniteScrollContainer } from "@/components/ui/infinite-scroll-container";
 import {
 	SidebarGroup,
 	SidebarGroupLabel,

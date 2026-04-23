@@ -63,10 +63,10 @@ export function ClustersPageHeader({
 	const phaseV3 = usePhaseGate("tickets", "v3");
 	const ticketsPhase = usePhaseStore((state) => state.phases.tickets);
 	const setPhase = usePhaseStore((state) => state.setPhase);
-	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
-	const moneySaved = blendedRatePerHour * (timeToTake / 60) * totalTickets;
-	const timeSavedMins = timeToTake * totalTickets;
+	const moneySaved = blendedRatePerHour * (avgMinutesPerTicket / 60) * totalTickets;
+	const timeSavedMins = avgMinutesPerTicket * totalTickets;
 	const timeSavedHrs = Math.floor(timeSavedMins / 60);
 
 	const periodLabels: Record<PeriodFilter, string> = {

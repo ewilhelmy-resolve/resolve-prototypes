@@ -9,7 +9,7 @@ export const FileStatusSchema = z
 	.openapi({ description: "File processing status" });
 
 export const FileSourceSchema = z
-	.enum(["manual", "confluence", "jira", "sharepoint"])
+	.enum(["manual", "confluence", "jira", "sharepoint", "ai-generated"])
 	.openapi({ description: "Source of the file" });
 
 export const DocumentSchema = z

@@ -14,16 +14,16 @@ interface ManualWorkListProps {
 
 export function ManualWorkList({ clusters }: ManualWorkListProps) {
 	const blendedRatePerHour = useTicketSettingsStore((s) => s.blendedRatePerHour);
-	const timeToTake = useTicketSettingsStore((s) => s.timeToTake);
+	const avgMinutesPerTicket = useTicketSettingsStore((s) => s.avgMinutesPerTicket);
 
 	const ranked = useMemo(
-		() => rankClusters(clusters, blendedRatePerHour, timeToTake),
-		[clusters, blendedRatePerHour, timeToTake],
+		() => rankClusters(clusters, blendedRatePerHour, avgMinutesPerTicket),
+		[clusters, blendedRatePerHour, avgMinutesPerTicket],
 	);
 
 	const savings = useMemo(
-		() => computeAggregateSavings(clusters, blendedRatePerHour, timeToTake),
-		[clusters, blendedRatePerHour, timeToTake],
+		() => computeAggregateSavings(clusters, blendedRatePerHour, avgMinutesPerTicket),
+		[clusters, blendedRatePerHour, avgMinutesPerTicket],
 	);
 
 	return (

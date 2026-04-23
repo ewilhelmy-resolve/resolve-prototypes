@@ -8,9 +8,9 @@
  * - Action menu
  */
 
-import { ArrowUpDown, Loader2, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,42 +28,24 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { AgentStatus } from "./AgentCard";
+import type { AgentTableRow } from "@/types/agent";
 
-export interface Agent {
-	id: string;
-	name: string;
-	description: string;
-	status: AgentStatus;
-	skills?: string[];
-	updatedBy: {
-		initials: string;
-		color: string;
-	} | null;
-	owner: {
-		initials: string;
-		color: string;
-	} | null;
-	lastUpdated: string;
-}
+export type { AgentTableRow as Agent };
 
 interface AgentsTableProps {
-	agents: Agent[];
-	onAgentClick?: (agent: Agent) => void;
-	onEdit?: (agent: Agent) => void;
-	onDelete?: (agent: Agent) => void;
+	agents: AgentTableRow[];
+	onAgentClick?: (agent: AgentTableRow) => void;
+	onEdit?: (agent: AgentTableRow) => void;
+	onDelete?: (agent: AgentTableRow) => void;
+	/**
+	 * When provided, rows whose `updatedBy` matches this email render "Me"
+	 * instead of the email in the Updated by column.
+	 */
+	currentUserEmail?: string;
 }
 
-type SortField = "status" | "updatedBy" | "lastUpdated";
+type SortField = "state" | "updatedBy" | "lastUpdated";
 type SortDirection = "asc" | "desc";
-
-const avatarColors: Record<string, string> = {
-	teal: "bg-teal-200",
-	purple: "bg-purple-100",
-	sky: "bg-sky-200",
-	indigo: "bg-indigo-100",
-	emerald: "bg-emerald-100",
-};
 
 function SortableHeader({
 	field,
@@ -87,9 +69,18 @@ function SortableHeader({
 			onClick={() => onSort(field)}
 		>
 			{children}
-			<ArrowUpDown className="size-4" />
+			<ArrowUpDown className="size-4" aria-hidden="true" />
 		</Button>
 	);
+}
+
+function ariaSortFor(
+	field: SortField,
+	sortField: SortField | null,
+	sortDirection: SortDirection,
+): "ascending" | "descending" | "none" {
+	if (sortField !== field) return "none";
+	return sortDirection === "asc" ? "ascending" : "descending";
 }
 
 export function AgentsTable({
@@ -97,7 +88,9 @@ export function AgentsTable({
 	onAgentClick,
 	onEdit,
 	onDelete,
+	currentUserEmail,
 }: AgentsTableProps) {
+	const { t } = useTranslation("agents");
 	const [sortField, setSortField] = useState<SortField | null>(null);
 	const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -115,13 +108,11 @@ export function AgentsTable({
 
 		let comparison = 0;
 		switch (sortField) {
-			case "status":
-				comparison = a.status.localeCompare(b.status);
+			case "state":
+				comparison = a.state.localeCompare(b.state);
 				break;
 			case "updatedBy":
-				comparison = (a.updatedBy?.initials || "").localeCompare(
-					b.updatedBy?.initials || "",
-				);
+				comparison = (a.updatedBy || "").localeCompare(b.updatedBy || "");
 				break;
 			case "lastUpdated":
 				comparison =
@@ -134,32 +125,41 @@ export function AgentsTable({
 
 	return (
 		<div className="rounded-md border overflow-hidden">
-			<Table>
+			<Table aria-label={t("table.ariaLabel")}>
 				<TableHeader>
 					<TableRow className="hover:bg-transparent">
-						<TableHead className="min-w-[250px] pl-4">Name</TableHead>
-						<TableHead className="w-[200px]">Skills</TableHead>
-						<TableHead className="w-[127px]">
-							<SortableHeader field="status" onSort={handleSort}>
-								Status
+						<TableHead className="min-w-[250px] pl-4">
+							{t("table.columns.name")}
+						</TableHead>
+						<TableHead className="w-[200px]">
+							{t("table.columns.skills")}
+						</TableHead>
+						<TableHead
+							className="w-[127px]"
+							aria-sort={ariaSortFor("state", sortField, sortDirection)}
+						>
+							<SortableHeader field="state" onSort={handleSort}>
+								{t("table.columns.state")}
 							</SortableHeader>
 						</TableHead>
-						<TableHead className="w-[136px]">
-							<SortableHeader
-								field="updatedBy"
-								align="center"
-								onSort={handleSort}
-							>
-								Updated by
+						<TableHead
+							className="w-[136px]"
+							aria-sort={ariaSortFor("updatedBy", sortField, sortDirection)}
+						>
+							<SortableHeader field="updatedBy" onSort={handleSort}>
+								{t("table.columns.updatedBy")}
 							</SortableHeader>
 						</TableHead>
-						<TableHead className="w-[162px]">
+						<TableHead
+							className="w-[162px]"
+							aria-sort={ariaSortFor("lastUpdated", sortField, sortDirection)}
+						>
 							<SortableHeader
 								field="lastUpdated"
 								align="right"
 								onSort={handleSort}
 							>
-								Last updated
+								{t("table.columns.lastUpdated")}
 							</SortableHeader>
 						</TableHead>
 						<TableHead className="w-16" />
@@ -169,32 +169,41 @@ export function AgentsTable({
 					{sortedAgents.map((agent) => (
 						<TableRow
 							key={agent.id}
-							className={cn(
-								"h-[84px]",
-								agent.status !== "building" && "cursor-pointer",
-							)}
-							onClick={() =>
-								agent.status !== "building" && onAgentClick?.(agent)
-							}
+							className="h-[84px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+							tabIndex={onAgentClick ? 0 : undefined}
+							onClick={() => onAgentClick?.(agent)}
+							onKeyDown={(e) => {
+								if (!onAgentClick) return;
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									onAgentClick(agent);
+								}
+							}}
 						>
-							<TableCell className="pl-4">
-								<div className="flex flex-col">
+							<TableCell className="pl-4 max-w-[300px]">
+								<div className="flex flex-col min-w-0">
 									<span className="text-primary font-medium truncate">
 										{agent.name}
 									</span>
-									<span className="text-muted-foreground text-sm truncate">
+									<span
+										className="text-muted-foreground text-sm truncate"
+										title={agent.description}
+									>
 										{agent.description}
 									</span>
 								</div>
 							</TableCell>
 							<TableCell>
 								{agent.skills && agent.skills.length > 0 ? (
-									<div className="flex items-center gap-1 max-w-[180px]">
+									<div
+										className="flex items-center gap-1 max-w-[200px]"
+										title={agent.skills.join(", ")}
+									>
 										<span className="text-sm text-muted-foreground truncate">
 											{agent.skills.slice(0, 2).join(", ")}
 										</span>
 										{agent.skills.length > 2 && (
-											<span className="text-xs text-muted-foreground whitespace-nowrap">
+											<span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
 												+{agent.skills.length - 2}
 											</span>
 										)}
@@ -205,65 +214,53 @@ export function AgentsTable({
 							</TableCell>
 							<TableCell>
 								<Badge
-									variant={agent.status === "published" ? "default" : "outline"}
-									className={cn(agent.status === "building" && "gap-1.5")}
+									variant={agent.state === "PUBLISHED" ? "default" : "outline"}
 								>
-									{agent.status === "building" && (
-										<Loader2 className="size-3 animate-spin" />
-									)}
-									{agent.status === "published"
-										? "Published"
-										: agent.status === "building"
-											? "Building..."
-											: "Draft"}
+									{agent.state === "PUBLISHED"
+										? t("table.statePublished")
+										: agent.state === "RETIRED"
+											? t("table.stateRetired")
+											: agent.state === "TESTING"
+												? t("table.stateTesting")
+												: t("table.stateDraft")}
 								</Badge>
 							</TableCell>
 							<TableCell>
-								<div className="flex justify-center">
-									{agent.updatedBy ? (
-										<Avatar className="size-10">
-											<AvatarFallback
-												className={cn(
-													avatarColors[agent.updatedBy.color] || "bg-muted",
-												)}
-											>
-												{agent.updatedBy.initials}
-											</AvatarFallback>
-										</Avatar>
-									) : (
-										<span className="text-muted-foreground">--</span>
-									)}
-								</div>
+								<span className="text-sm text-muted-foreground truncate">
+									{agent.updatedBy
+										? currentUserEmail && agent.updatedBy === currentUserEmail
+											? t("table.updatedByMe")
+											: agent.updatedBy
+										: "--"}
+								</span>
 							</TableCell>
 							<TableCell className="text-right text-sm">
 								{agent.lastUpdated}
 							</TableCell>
 							<TableCell onClick={(e) => e.stopPropagation()}>
-								{agent.status !== "building" && (
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="size-8"
-												aria-label="Agent actions"
-											>
-												<MoreHorizontal className="size-4" />
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end">
-											<DropdownMenuItem onClick={() => onEdit?.(agent)}>
-												Edit
-											</DropdownMenuItem>
-											<DropdownMenuItem
-												onClick={() => onDelete?.(agent)}
-												className="text-destructive focus:text-destructive"
-											>
-												Delete
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
-								)}
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="size-8"
+											aria-label={t("table.actions.ariaLabel")}
+										>
+											<MoreHorizontal className="size-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										<DropdownMenuItem onClick={() => onEdit?.(agent)}>
+											{t("table.actions.edit")}
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => onDelete?.(agent)}
+											className="text-destructive focus:text-destructive"
+										>
+											{t("table.actions.delete")}
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</TableCell>
 						</TableRow>
 					))}

@@ -1,0 +1,38 @@
+{
+	"required": {
+		"firstName": "El nombre es obligatorio",
+		"lastName": "El apellido es obligatorio",
+		"email": "El correo electrónico es obligatorio",
+		"password": "La contraseña es obligatoria",
+		"organization": "La organización es obligatoria",
+		"url": "La URL es obligatoria",
+		"token": "El token de API es obligatorio",
+		"field": "Este campo es obligatorio",
+		"generic": "{{field}} es obligatorio"
+	},
+	"format": {
+		"email": "Ingresa un correo electrónico válido",
+		"url": "Ingresa una URL válida",
+		"password": "La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales",
+		"invalid": "{{field}} no es válido"
+	},
+	"password": {
+		"minLength": "La contraseña debe tener al menos {{min}} caracteres",
+		"uppercase": "La contraseña debe contener al menos una mayúscula",
+		"lowercase": "La contraseña debe contener al menos una minúscula",
+		"number": "La contraseña debe contener al menos un número",
+		"mismatch": "Las contraseñas no coinciden"
+	},
+	"length": {
+		"tooLong": "{{field}} es demasiado largo",
+		"maxLength": "{{field}} debe tener como máximo {{max}} caracteres",
+		"minLength": "{{field}} debe tener al menos {{min}} caracteres"
+	},
+	"confirm": {
+		"mustConfirmPermanent": "Debes confirmar que esto es permanente",
+		"mustTypeDelete": "Escribe 'delete' para confirmar"
+	},
+	"form": {
+		"checkFields": "Revisa los campos del formulario y corrige los errores"
+	}
+}

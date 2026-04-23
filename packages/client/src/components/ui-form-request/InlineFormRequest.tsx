@@ -50,6 +50,13 @@ function extractFormProps(parsed: UISchema) {
 	};
 }
 
+/** Schema owns its submit flow if any Button has an on.press.action */
+function schemaHasActionButtons(parsed: UISchema): boolean {
+	return Object.values(parsed.elements).some(
+		(el) => el.type === "Button" && el.on?.press?.action,
+	);
+}
+
 export function InlineFormRequest({
 	requestId,
 	uiSchema,
@@ -80,13 +87,16 @@ export function InlineFormRequest({
 	const isFormRoot = rootEl?.type === "Form";
 	const isCompleted = status === "completed";
 
-	const handleSubmit = async () => {
-		if (!submitAction || isCompleted) return;
+	const handleSubmit = async (
+		action: string,
+		dataOverride?: Record<string, string>,
+	) => {
+		if (isCompleted) return;
 
 		setIsSubmitting(true);
 		setError(undefined);
 		try {
-			await onSubmit(requestId, submitAction, formData);
+			await onSubmit(requestId, action, dataOverride || formData);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to submit form");
 			setIsSubmitting(false);
@@ -114,6 +124,13 @@ export function InlineFormRequest({
 				...prev,
 				...(payload.data as Record<string, string>),
 			}));
+		}
+		if (payload.action.startsWith("ui_form_response")) {
+			const merged = {
+				...formData,
+				...(payload.data as Record<string, string>),
+			};
+			handleSubmit(payload.action, merged);
 		}
 	};
 
@@ -148,7 +165,7 @@ export function InlineFormRequest({
 				{error && <div className="text-sm text-destructive">{error}</div>}
 			</CardContent>
 
-			{!isCompleted && submitAction && (
+			{!isCompleted && submitAction && !schemaHasActionButtons(parsed) && (
 				<CardFooter className="flex justify-end gap-2 pt-0">
 					{onCancel && (
 						<Button
@@ -170,7 +187,7 @@ export function InlineFormRequest({
 								| "ghost") || "default"
 						}
 						size="sm"
-						onClick={handleSubmit}
+						onClick={() => handleSubmit(submitAction || "ui_form_response")}
 						disabled={isSubmitting}
 					>
 						{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
-import { StatusAlert } from "@/components/ui/status-alert";
 import type { IngestionRun } from "@/types/dataSource";
-import { credentialErrorI18nKey, isCredentialIngestionError } from "./utils";
+import { errorI18nKey, isCredentialIngestionError } from "./utils";
 
 interface IngestionErrorAlertProps {
 	/** Latest ingestion run with status and error fields */
@@ -48,7 +48,7 @@ export function IngestionErrorAlert({
 		}
 
 		// When error_message is a code, show translated description; otherwise show as-is
-		const i18nKey = credentialErrorI18nKey(latestRun.error_message);
+		const i18nKey = errorI18nKey(latestRun.error_message);
 		const description = i18nKey ? t(i18nKey) : latestRun.error_message;
 
 		return (

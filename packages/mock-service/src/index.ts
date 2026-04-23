@@ -38,8 +38,14 @@ const MOCK_CONFIG = {
 	defaultScenario: process.env.MOCK_SCENARIO || "success",
 	// Response delays in milliseconds
 	responseDelay: parseInt(process.env.MOCK_DELAY || "2000", 10),
-	// Success rate (0-100)
-	successRate: parseInt(process.env.MOCK_SUCCESS_RATE || "90", 10),
+	// Success rate (0-100) — defaults to 100 in deterministic mode
+	successRate: parseInt(
+		process.env.MOCK_SUCCESS_RATE ||
+			(process.env.MOCK_DETERMINISTIC === "true" ? "100" : "90"),
+		10,
+	),
+	// Deterministic mode: no random values, consistent responses
+	deterministic: process.env.MOCK_DETERMINISTIC === "true",
 	// RabbitMQ configuration
 	queueName: process.env.QUEUE_NAME || "chat.responses",
 	rabbitUrl: process.env.RABBITMQ_URL || "amqp://guest:guest@localhost:5672",
@@ -441,7 +447,212 @@ function generateMockResponse(
 	const parts: MessagePart[] = [];
 
 	// Check for test trigger words first
-	if (content.startsWith("test1")) {
+
+	// test-error: Simulate a failed workflow
+	if (content.startsWith("test-error")) {
+		const steps = [
+			"Starting agent",
+			"Requirements Analyst is working...",
+			"Verifying if activity with same name already exists",
+			"Verifying if activity with same name already exists",
+			"Verifying if activity with same name already exists",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: "Activity creation failed because an activity with the same name already exists in this tenant.",
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "error",
+					title: "Activity creation failed",
+					details: {
+						error: "Name already exists",
+						suggestion: "Try a different activity name",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
+	// test-warning: Simulate a workflow with warnings
+	if (content.startsWith("test-warning")) {
+		const steps = [
+			"Starting agent",
+			"Software Developer is working...",
+			"Using generate_python_code...",
+			"Using validate_python_code...",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'DataProcessor' has been created with ID ${activityId}, but code validation found 2 warnings that should be reviewed.`,
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "warning",
+					title: "Activity created with warnings",
+					details: {
+						name: "DataProcessor",
+						id: String(activityId),
+						warnings: "2 validation warnings",
+						suggestion: "Review generated code before deploying",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
+	// test-icons: Demo all icon and color options
+	if (content.startsWith("test-icons")) {
+		const steps = [
+			"[icon:zap] Initializing workflow engine",
+			"[icon:shield,color:green] Validating security credentials",
+			"[icon:database,color:purple] Querying knowledge base",
+			"[icon:globe,color:amber] Calling external API",
+			"[icon:bot,color:primary] AI Agent analyzing results",
+			"[icon:code,color:green] Generating solution code",
+			"[icon:search] Verifying output integrity",
+			"[icon:settings,color:amber] Applying configuration",
+			"[icon:file] Writing activity manifest",
+			"[icon:shield,color:green] Final security scan",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Building Activity..." },
+					turn_complete: false,
+				},
+			});
+		}
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'SecureDataProcessor' created with ID ${activityId}. All security checks passed.`,
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "success",
+					title: "Activity created — all checks passed",
+					details: {
+						name: "SecureDataProcessor",
+						id: String(activityId),
+						steps_completed: steps.length,
+						security: "verified",
+					},
+				},
+			},
+		});
+		return responses;
+	}
+
+	// test-workflow / add / multiply / create activity: Simulate successful workflow
+	if (content.startsWith("test-workflow")) {
+		// Simulate real Actions Platform workflow with step-by-step reasoning
+		// Each reasoning step is a separate response (matches real SSE behavior)
+		const steps = [
+			"Starting agent",
+			"Polling for execution status updates",
+			"Requirements Analyst is working...",
+			"Verifying if activity with same name already exists",
+			"Software Developer is working...",
+			"Using generate_python_code...",
+			"Using validate_python_code...",
+			"Using res_create_resolve_activity_basic...",
+		];
+
+		const responses: MockResponse[] = [];
+		for (const step of steps) {
+			responses.push({
+				message_id: messagePayload.message_id,
+				conversation_id: messagePayload.conversation_id,
+				tenant_id: messagePayload.tenant_id,
+				user_id: messagePayload.user_id,
+				response: "",
+				response_group_id: responseGroupId,
+				metadata: {
+					reasoning: { content: step, state: "done", title: "Thinking..." },
+					turn_complete: false,
+				},
+			});
+		}
+		// Final response with completion card metadata
+		const activityId = Math.floor(Math.random() * 9000) + 1000;
+		responses.push({
+			message_id: messagePayload.message_id,
+			conversation_id: messagePayload.conversation_id,
+			tenant_id: messagePayload.tenant_id,
+			user_id: messagePayload.user_id,
+			response: `Activity 'CustomActivity' has been successfully created with ID ${activityId}. This activity handles your "${messagePayload.customer_message}" request.`,
+			response_group_id: responseGroupId,
+			metadata: {
+				turn_complete: true,
+				completion: {
+					status: "success",
+					title: "Activity created successfully",
+					details: {
+						name: "CustomActivity",
+						id: String(activityId),
+						steps_completed: steps.length,
+					},
+				},
+			},
+		});
+		return responses;
+	} else if (content.startsWith("test1")) {
 		// test1: Normal text message only
 		parts.push({
 			type: "text",
@@ -1617,7 +1828,9 @@ The system is performing well overall but requires attention to the identified s
 	} else {
 		// Default scenario - fall back to original logic
 		const useScenario = scenario || MOCK_CONFIG.defaultScenario;
-		const isSuccess = Math.random() * 100 < MOCK_CONFIG.successRate;
+		const isSuccess = MOCK_CONFIG.deterministic
+			? true
+			: Math.random() * 100 < MOCK_CONFIG.successRate;
 
 		switch (useScenario) {
 			case "success":
@@ -1638,7 +1851,7 @@ I've successfully processed your request: **"${content}"**
 ### Summary
 - **Documents processed**: ${documentCount}
 - **Status**: ✅ Completed successfully
-- **Response time**: ~${Math.floor(Math.random() * 3) + 1} seconds
+- **Response time**: ~${MOCK_CONFIG.deterministic ? 1 : Math.floor(Math.random() * 3) + 1} seconds
 
 ### Key Findings
 1. **System health check** passed
@@ -2003,6 +2216,20 @@ app.get("/health", (_req, res) => {
 	});
 });
 
+// Test reset endpoint — clears all in-memory state
+app.post("/test/reset", (_req, res) => {
+	cancelledSyncConnections.clear();
+	keycloakAdminToken = null;
+	tokenExpiresAt = 0;
+
+	logger.info("Mock service state reset via /test/reset");
+
+	res.json({
+		success: true,
+		message: "Mock service state reset",
+	});
+});
+
 // Mock metadata endpoint (mimics api-server /api/files/:documentId/metadata)
 app.get("/api/files/:documentId/metadata", (req, res) => {
 	const correlationId = generateCorrelationId();
@@ -2218,16 +2445,25 @@ app.post("/api/Webhooks/postEvent/:tenantId", async (req, res) => {
 			const responses = generateMockResponse(messagePayload, undefined);
 
 			if (responses && responses.length > 0) {
-				// Delay before sending response
-				setTimeout(async () => {
-					for (const response of responses) {
+				// Send reasoning steps one at a time with delays (simulates real Platform)
+				const sendResponsesSequentially = async () => {
+					for (let i = 0; i < responses.length; i++) {
+						const response = responses[i];
+						const isReasoning = response.metadata?.type === "reasoning" ||
+							(response.metadata?.reasoning && !response.response);
+						const delay = i === 0
+							? MOCK_CONFIG.responseDelay
+							: isReasoning ? 1500 : 800;
+
+						await new Promise((resolve) => setTimeout(resolve, delay));
 						await publishResponse(response);
 						contextLogger.info(
-							{ responseType: response.metadata?.type },
+							{ responseType: response.metadata?.type, step: i + 1, total: responses.length },
 							"Published mock response to queue",
 						);
 					}
-				}, MOCK_CONFIG.responseDelay);
+				};
+				sendResponsesSequentially();
 			}
 
 			timer.end({ success: true, tenantId });
@@ -3514,6 +3750,110 @@ app.post("/webhook", async (req, res) => {
 				});
 				return;
 			}
+		} else if (
+			payload.source === "rita-chat" &&
+			payload.action === "create_knowledge"
+		) {
+			// Handle create_knowledge webhook — generate mock article and publish to cluster.events queue
+			const knowledgePayload = payload as BaseWebhookPayload & {
+				cluster_id: string;
+				cluster_name: string;
+				generation_id: string;
+				sources: string[];
+			};
+
+			const contextLogger = createContextLogger(webhookLogger, correlationId, {
+				tenantId: knowledgePayload.tenant_id,
+				userId: knowledgePayload.user_id,
+			});
+
+			contextLogger.info(
+				{
+					source: knowledgePayload.source,
+					action: knowledgePayload.action,
+					cluster_name: knowledgePayload.cluster_name,
+					sources: knowledgePayload.sources,
+				},
+				"Received create_knowledge webhook",
+			);
+
+			// Respond immediately, generate async
+			res.status(200).json({
+				success: true,
+				message: "Knowledge generation started",
+				generation_id: knowledgePayload.generation_id,
+			});
+
+			// Simulate generation delay (2-4 seconds) then publish result
+			const delay = 2000 + Math.random() * 2000;
+			setTimeout(async () => {
+				try {
+					const clusterName = knowledgePayload.cluster_name || "General";
+					const kebabName = clusterName
+						.toLowerCase()
+						.replace(/\s+/g, "-")
+						.replace(/[^a-z0-9-]/g, "");
+
+					const mockArticle = `# ${clusterName} Troubleshooting Guide
+
+## Overview
+This guide provides step-by-step instructions for resolving common ${clusterName.toLowerCase()} issues reported by users.
+
+## Common Symptoms
+- Unable to access related resources
+- Intermittent issues or failures
+- Slow performance or timeouts
+- Configuration errors
+
+## Troubleshooting Steps
+
+### 1. Initial Diagnostics
+- Verify the user's environment and access permissions
+- Check for recent changes or deployments
+- Review error logs for relevant timestamps
+
+### 2. Common Resolutions
+- Restart the affected service or application
+- Clear cache and temporary files
+- Verify network connectivity and firewall rules
+- Check for known issues or maintenance windows
+
+### 3. Escalation Path
+If the above steps do not resolve the issue:
+1. Collect diagnostic logs and screenshots
+2. Document the steps already attempted
+3. Escalate to the appropriate team with full context
+
+## Prevention
+- Regular system health checks
+- Proactive monitoring alerts
+- User training on common self-service actions`;
+
+					const rabbitmqService = getRabbitMQService();
+					await rabbitmqService.publishToQueue("cluster.events", {
+						type: "knowledge_generated",
+						tenant_id: knowledgePayload.tenant_id,
+						user_id: knowledgePayload.user_id,
+						cluster_id: knowledgePayload.cluster_id,
+						generation_id: knowledgePayload.generation_id,
+						status: "success",
+						content: mockArticle,
+						filename: `${kebabName}-troubleshooting-guide.md`,
+						format: "markdown",
+					});
+
+					contextLogger.info(
+						{ generationId: knowledgePayload.generation_id },
+						"Published knowledge_generated message to cluster.events queue",
+					);
+				} catch (error) {
+					logError(contextLogger, error as Error, {
+						operation: "create-knowledge-publish",
+					});
+				}
+			}, delay);
+
+			return;
 		} else {
 			const errorLogger = createContextLogger(webhookLogger, correlationId);
 			// Avoid accessing properties on a value narrowed to never by referencing raw body as BaseWebhookPayload

@@ -456,6 +456,17 @@ export class DataSourceStatusConsumer {
 				);
 			}
 
+			// Update connection row with last sync timestamp (mirrors KB sync behavior)
+			if (status === "completed" && connection_id) {
+				await this.dataSourceService.updateDataSourceStatus(
+					connection_id,
+					tenant_id,
+					"idle",
+					"completed",
+					true, // updateLastSyncAt
+				);
+			}
+
 			// Stop sync when tickets are below threshold or credentials are invalid
 			if (
 				(error_message === "tickets_below_threshold" ||
@@ -468,6 +479,7 @@ export class DataSourceStatusConsumer {
 					tenant_id,
 					"idle",
 					"failed",
+					true, // updateLastSyncAt — matches KB sync_failed behavior
 				);
 				messageLogger.info(
 					{ errorMessage: error_message },

@@ -33,9 +33,13 @@ export const ClusterConfigSchema = z
 export const ClusterListQuerySchema = z
 	.object({
 		sort: z
-			.enum(["volume", "automation", "recent"])
+			.enum(["volume", "automation", "recent", "needs_response"])
 			.optional()
 			.openapi({ description: "Sort order", default: "recent" }),
+		sort_dir: z
+			.enum(["asc", "desc"])
+			.optional()
+			.openapi({ description: "Sort direction", default: "desc" }),
 		period: z
 			.enum(["last30", "last90", "last6months", "lastyear"])
 			.optional()
@@ -98,6 +102,14 @@ export const ClusterTicketsQuerySchema = z
 			.string()
 			.optional()
 			.openapi({ description: "Filter by data source" }),
+		priority: z
+			.string()
+			.optional()
+			.openapi({ description: "Filter by ticket priority" }),
+		external_status: z
+			.string()
+			.optional()
+			.openapi({ description: "Filter by external ticket status" }),
 	})
 	.openapi("ClusterTicketsQuery");
 
@@ -203,6 +215,45 @@ export const KbArticleSchema = z
 		updated_at: z.string().datetime(),
 	})
 	.openapi("KbArticle");
+
+// ============================================================================
+// Request Schemas
+// ============================================================================
+
+export const GenerateKnowledgeRequestSchema = z
+	.object({
+		sources: z
+			.array(z.string())
+			.min(1)
+			.openapi({
+				description: "Knowledge sources to use for generation",
+				example: ["historical-tickets", "web-search"],
+			}),
+	})
+	.openapi("GenerateKnowledgeRequest");
+
+export const GenerateKnowledgeResponseSchema = z
+	.object({
+		generation_id: z
+			.string()
+			.uuid()
+			.openapi({ description: "Correlation ID for matching SSE response" }),
+	})
+	.openapi("GenerateKnowledgeResponse");
+
+export const AddKbArticleRequestSchema = z
+	.object({
+		content: z
+			.string()
+			.min(1)
+			.max(5 * 1024 * 1024)
+			.openapi({ description: "Article content (markdown or text)" }),
+		filename: z.string().min(1).max(255).openapi({
+			description: "Article filename",
+			example: "network-troubleshooting-guide.md",
+		}),
+	})
+	.openapi("AddKbArticleRequest");
 
 // ============================================================================
 // Response Schemas

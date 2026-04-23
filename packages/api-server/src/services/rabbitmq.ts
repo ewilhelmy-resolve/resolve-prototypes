@@ -2,10 +2,12 @@ import amqp from "amqplib";
 import { randomUUID } from "crypto";
 import { pool, withOrgContext } from "../config/database.js";
 import { logError, PerformanceTimer, queueLogger } from "../config/logger.js";
+import { AgentEventsConsumer } from "../consumers/AgentEventsConsumer.js";
+import { ClusterEventsConsumer } from "../consumers/ClusterEventsConsumer.js";
 import { DataSourceStatusConsumer } from "../consumers/DataSourceStatusConsumer.js";
 import { DocumentProcessingConsumer } from "../consumers/DocumentProcessingConsumer.js";
 import { WorkflowConsumer } from "../consumers/WorkflowConsumer.js";
-import { getSSEService } from "./sse.js";
+import { sendToConversationParticipants } from "./conversationParticipants.js";
 
 /**
  * Parsed UI form request from message response field
@@ -60,6 +62,8 @@ export class RabbitMQService {
 	private dataSourceStatusConsumer: DataSourceStatusConsumer;
 	private documentProcessingConsumer: DocumentProcessingConsumer;
 	private workflowConsumer: WorkflowConsumer;
+	private agentEventsConsumer: AgentEventsConsumer;
+	private clusterEventsConsumer: ClusterEventsConsumer;
 
 	// Connection resilience state
 	private state: ConnectionState = {
@@ -79,6 +83,8 @@ export class RabbitMQService {
 		this.dataSourceStatusConsumer = new DataSourceStatusConsumer();
 		this.documentProcessingConsumer = new DocumentProcessingConsumer();
 		this.workflowConsumer = new WorkflowConsumer();
+		this.agentEventsConsumer = new AgentEventsConsumer();
+		this.clusterEventsConsumer = new ClusterEventsConsumer();
 
 		// Initialize retry configuration from environment variables
 		this.retryConfig = {
@@ -442,6 +448,11 @@ export class RabbitMQService {
 
 		// Start workflow consumer
 		await this.workflowConsumer.startConsumer(this.channel);
+
+		// Start cluster events consumer
+		await this.clusterEventsConsumer.startConsumer(this.channel);
+
+		await this.agentEventsConsumer.startConsumer(this.channel);
 	}
 
 	private async processMessage(payload: any): Promise<void> {
@@ -506,7 +517,6 @@ export class RabbitMQService {
 		});
 
 		messageLogger.info({ userIdSource: "conversation" }, "Processing message");
-		const sseService = getSSEService();
 
 		// Process message with organization context
 		await withOrgContext(user_id, organization_id, async (client) => {
@@ -575,38 +585,46 @@ export class RabbitMQService {
 				"Database update completed",
 			);
 
-			// Send SSE events to user about both message updates
+			// Send SSE events to owner + all participants
 			try {
-				// Event for user message completion
-				sseService.sendToUser(user_id, organization_id, {
-					type: "message_update",
-					data: {
-						messageId: message_id,
-						status: "completed" as any,
-						responseContent: undefined,
-						errorMessage: undefined,
-						processedAt: new Date().toISOString(),
+				await sendToConversationParticipants(
+					conversation_id,
+					user_id,
+					organization_id,
+					{
+						type: "message_update",
+						data: {
+							messageId: message_id,
+							status: "completed" as any,
+							responseContent: undefined,
+							errorMessage: undefined,
+							processedAt: new Date().toISOString(),
+						},
 					},
-				});
+				);
 
-				// Event for new assistant message with hybrid data
-				sseService.sendToUser(user_id, organization_id, {
-					type: "new_message",
-					data: {
-						messageId: assistantMessageId,
-						conversationId: conversation_id,
-						role: "assistant",
-						message: response,
-						metadata: metadata,
-						response_group_id: response_group_id,
-						userId: user_id,
-						createdAt: messageTimestamp,
+				await sendToConversationParticipants(
+					conversation_id,
+					user_id,
+					organization_id,
+					{
+						type: "new_message",
+						data: {
+							messageId: assistantMessageId,
+							conversationId: conversation_id,
+							role: "assistant",
+							message: response,
+							metadata: metadata,
+							response_group_id: response_group_id,
+							userId: user_id,
+							createdAt: messageTimestamp,
+						},
 					},
-				});
+				);
 
 				messageLogger.info(
 					{ eventType: "message_update_and_new_message" },
-					"SSE events sent to user",
+					"SSE events sent to owner + participants",
 				);
 			} catch (sseError) {
 				messageLogger.warn(
@@ -710,8 +728,6 @@ export class RabbitMQService {
 			client.release();
 		}
 
-		const sseService = getSSEService();
-
 		// Process message with organization context
 		await withOrgContext(user_id, organization_id, async (client) => {
 			// If there's an original user message, mark it completed
@@ -787,40 +803,47 @@ export class RabbitMQService {
 				"UI form request message created",
 			);
 
-			// Send SSE events
+			// Send SSE events to owner + participants
 			try {
-				// Mark original user message completed (if exists)
 				if (message_id) {
-					sseService.sendToUser(user_id, organization_id, {
-						type: "message_update",
-						data: {
-							messageId: message_id,
-							status: "completed" as any,
-							responseContent: undefined,
-							errorMessage: undefined,
-							processedAt: new Date().toISOString(),
+					await sendToConversationParticipants(
+						conversation_id,
+						user_id,
+						organization_id,
+						{
+							type: "message_update",
+							data: {
+								messageId: message_id,
+								status: "completed" as any,
+								responseContent: undefined,
+								errorMessage: undefined,
+								processedAt: new Date().toISOString(),
+							},
 						},
-					});
+					);
 				}
 
-				// Send new_message event with form metadata
-				// Client will detect metadata.type === 'ui_form_request' and handle appropriately
-				sseService.sendToUser(user_id, organization_id, {
-					type: "new_message",
-					data: {
-						messageId: assistantMessageId,
-						conversationId: conversation_id,
-						role: "assistant",
-						message: "", // Empty - UI is in metadata
-						metadata: formMetadata,
-						userId: user_id,
-						createdAt: new Date().toISOString(),
+				await sendToConversationParticipants(
+					conversation_id,
+					user_id,
+					organization_id,
+					{
+						type: "new_message",
+						data: {
+							messageId: assistantMessageId,
+							conversationId: conversation_id,
+							role: "assistant",
+							message: "",
+							metadata: formMetadata,
+							userId: user_id,
+							createdAt: new Date().toISOString(),
+						},
 					},
-				});
+				);
 
 				messageLogger.info(
 					{ eventType: "new_message", interrupt },
-					"SSE event sent for UI form request",
+					"SSE event sent for UI form request to owner + participants",
 				);
 			} catch (sseError) {
 				messageLogger.warn(

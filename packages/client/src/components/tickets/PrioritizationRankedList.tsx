@@ -37,7 +37,7 @@ export function PrioritizationRankedList({
 	const { t } = useTranslation("tickets");
 	const navigate = useNavigate();
 	const phaseV3 = usePhaseGate("tickets", "v3");
-	const { blendedRatePerHour, timeToTake } = useTicketSettingsStore();
+	const { blendedRatePerHour, avgMinutesPerTicket } = useTicketSettingsStore();
 
 	const [sortCol, setSortCol] = useState<SortColumn>(activePreset ?? "costImpact");
 	const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -71,11 +71,11 @@ export function PrioritizationRankedList({
 			rankClustersByRoi(
 				clusters,
 				blendedRatePerHour,
-				timeToTake,
+				avgMinutesPerTicket,
 				roiSortKey,
 				sortDir,
 			),
-		[clusters, blendedRatePerHour, timeToTake, roiSortKey, sortDir],
+		[clusters, blendedRatePerHour, avgMinutesPerTicket, roiSortKey, sortDir],
 	);
 
 	const sorted = useMemo(() => {

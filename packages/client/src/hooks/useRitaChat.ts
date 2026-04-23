@@ -40,7 +40,7 @@ export interface RitaChatState {
 	// Programmatic message sending (for iframe host communication)
 	sendMessageWithContent: (
 		content: string,
-		metadata?: Record<string, string>,
+		metadata?: Record<string, string | boolean>,
 	) => Promise<void>;
 
 	// File upload (for chat messages)

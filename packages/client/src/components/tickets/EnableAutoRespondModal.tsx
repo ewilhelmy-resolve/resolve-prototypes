@@ -1,4 +1,5 @@
 import { Trans, useTranslation } from "react-i18next";
+import { StatusAlert } from "@/components/custom/status-alert";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -8,7 +9,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { StatusAlert } from "@/components/ui/status-alert";
 import { AI_RESPONSE_TYPE } from "@/lib/tickets/utils";
 import { type AIResponseData, AIResponseSection } from "./AIResponseSection";
 

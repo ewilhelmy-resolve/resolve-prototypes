@@ -101,7 +101,7 @@ describe("ConfirmDialog", () => {
 
 			await user.click(screen.getByRole("button", { name: "actions.cancel" }));
 
-			expect(onOpenChange).toHaveBeenCalledWith(false);
+			expect(onOpenChange).toHaveBeenCalledWith(false, expect.anything());
 		});
 
 		it("does not call onConfirm when cancel is clicked", async () => {

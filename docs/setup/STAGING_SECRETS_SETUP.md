@@ -2,6 +2,30 @@
 
 Since GitHub Environments aren't available, this project uses **prefixed repository secrets** for environment separation.
 
+## GitHub Packages Authentication (All Environments)
+
+RITA depends on private packages from `resolve-io/resolve.ui` (e.g., `@resolve-io/tokens`), hosted on GitHub Packages. The default `GITHUB_TOKEN` in Actions is scoped to the current repo only and **cannot** read packages from other private repos in the org.
+
+### `ONBOARDING_GITHUB_TOKEN`
+
+A classic Personal Access Token (PAT) with `read:packages` scope, stored as a repository secret. Used by all CI workflows during `pnpm install`.
+
+**To regenerate** (when the token expires):
+
+1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)**
+2. Generate a new token with `read:packages` scope
+3. Update the secret:
+   ```bash
+   gh secret set ONBOARDING_GITHUB_TOKEN --repo resolve-io/resolve-onboarding
+   ```
+4. Paste the new token when prompted
+
+**How it works**: `.npmrc` maps `@resolve-io` to `npm.pkg.github.com` and uses `${GITHUB_TOKEN}` for auth. CI workflows pass `ONBOARDING_GITHUB_TOKEN` as `GITHUB_TOKEN` env var to `pnpm install`.
+
+**Symptoms of an expired token**: `ERR_PNPM_FETCH_401` or `ERR_PNPM_FETCH_403` on `npm.pkg.github.com` during CI install step.
+
+---
+
 ## Required Repository Secrets
 
 Navigate to **Settings → Secrets and variables → Actions** in your GitHub repository and add these secrets:
@@ -132,6 +156,7 @@ When ready for production, create similar `PRODUCTION_*` prefixed secrets and a 
 
 ## ✅ Quick Checklist
 
+- [ ] `ONBOARDING_GITHUB_TOKEN` set (PAT with `read:packages`)
 - [ ] All `STAGING_VITE_*` secrets added
 - [ ] All `STAGING_*` backend secrets added
 - [ ] `STAGING_DEPLOY_SSH_KEY` configured

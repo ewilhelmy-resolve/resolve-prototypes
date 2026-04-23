@@ -820,6 +820,51 @@
 					"updated_at"
 				]
 			},
+			"GenerateKnowledgeResponse": {
+				"type": "object",
+				"properties": {
+					"generation_id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Correlation ID for matching SSE response"
+					}
+				},
+				"required": ["generation_id"]
+			},
+			"GenerateKnowledgeRequest": {
+				"type": "object",
+				"properties": {
+					"sources": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"minItems": 1,
+						"description": "Knowledge sources to use for generation",
+						"example": ["historical-tickets", "web-search"]
+					}
+				},
+				"required": ["sources"]
+			},
+			"AddKbArticleRequest": {
+				"type": "object",
+				"properties": {
+					"content": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 5242880,
+						"description": "Article content (markdown or text)"
+					},
+					"filename": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 255,
+						"description": "Article filename",
+						"example": "network-troubleshooting-guide.md"
+					}
+				},
+				"required": ["content", "filename"]
+			},
 			"ConversationResponse": {
 				"type": "object",
 				"properties": {
@@ -1656,7 +1701,13 @@
 					},
 					"source": {
 						"type": "string",
-						"enum": ["manual", "confluence", "jira", "sharepoint"],
+						"enum": [
+							"manual",
+							"confluence",
+							"jira",
+							"sharepoint",
+							"ai-generated"
+						],
 						"description": "Source of the file"
 					},
 					"created_at": {
@@ -1882,7 +1933,14 @@
 					},
 					"source": {
 						"type": ["string", "null"],
-						"enum": ["manual", "confluence", "jira", "sharepoint", null],
+						"enum": [
+							"manual",
+							"confluence",
+							"jira",
+							"sharepoint",
+							"ai-generated",
+							null
+						],
 						"description": "Source of the file"
 					},
 					"content_type": {
@@ -1981,6 +2039,10 @@
 					"placeholderText": {
 						"type": "string",
 						"description": "Custom placeholder text from Valkey"
+					},
+					"parentOrigin": {
+						"type": "string",
+						"description": "Host page origin for secure postMessage targetOrigin"
 					},
 					"valkeyPayload": {
 						"type": "object",
@@ -2992,6 +3054,16 @@
 							}
 						}
 					},
+					"429": {
+						"description": "Rate limited - too many signup attempts",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
 					"500": {
 						"description": "Server error",
 						"content": {
@@ -3430,13 +3502,25 @@
 					{
 						"schema": {
 							"type": "string",
-							"enum": ["volume", "automation", "recent"],
+							"enum": ["volume", "automation", "recent", "needs_response"],
 							"default": "recent",
 							"description": "Sort order"
 						},
 						"required": false,
 						"description": "Sort order",
 						"name": "sort",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["asc", "desc"],
+							"default": "desc",
+							"description": "Sort direction"
+						},
+						"required": false,
+						"description": "Sort direction",
+						"name": "sort_dir",
 						"in": "query"
 					},
 					{
@@ -3720,6 +3804,26 @@
 						"description": "Filter by data source",
 						"name": "source",
 						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Filter by ticket priority"
+						},
+						"required": false,
+						"description": "Filter by ticket priority",
+						"name": "priority",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"description": "Filter by external ticket status"
+						},
+						"required": false,
+						"description": "Filter by external ticket status",
+						"name": "external_status",
+						"in": "query"
 					}
 				],
 				"responses": {
@@ -3809,6 +3913,188 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/ClusterKbArticlesResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Cluster not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": ["Clusters"],
+				"summary": "Add knowledge article to cluster",
+				"description": "Persist an AI-generated knowledge article, link it to the cluster, and trigger RAG indexing",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Cluster ID"
+						},
+						"required": true,
+						"description": "Cluster ID",
+						"name": "id",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AddKbArticleRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Article added",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/KbArticle"
+										}
+									},
+									"required": ["data"]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationError"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Cluster not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Server error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/clusters/{id}/generate-knowledge": {
+			"post": {
+				"tags": ["Clusters"],
+				"summary": "Generate knowledge article",
+				"description": "Trigger AI knowledge article generation for a cluster via external platform webhook",
+				"security": [
+					{
+						"bearerAuth": []
+					},
+					{
+						"cookieAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"description": "Cluster ID"
+						},
+						"required": true,
+						"description": "Cluster ID",
+						"name": "id",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/GenerateKnowledgeRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Generation triggered",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/GenerateKnowledgeResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidationError"
 								}
 							}
 						}
@@ -4326,7 +4612,7 @@
 			"post": {
 				"tags": ["Credential Delegations"],
 				"summary": "Create credential delegation",
-				"description": "Create a new credential delegation and send email to IT admin. Rate limited to 10 per org per day.",
+				"description": "Create a new credential delegation and send email to IT admin. Rate limited to 50 per org per day.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -4396,7 +4682,7 @@
 						}
 					},
 					"429": {
-						"description": "Rate limit exceeded (10/day)",
+						"description": "Rate limit exceeded (50/day)",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -6356,8 +6642,7 @@
 			"delete": {
 				"tags": ["Iframe"],
 				"summary": "Delete conversation",
-				"description": "Delete iframe conversation and all messages. Used for 'Clear Chat' feature.",
-				"security": [],
+				"description": "Delete iframe conversation and all messages. Used for 'Clear Chat' feature. Requires session cookie and conversation ownership.",
 				"parameters": [
 					{
 						"schema": {

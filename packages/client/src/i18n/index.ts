@@ -2,6 +2,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
 // Import all namespaces - English
+import agentsEn from "./locales/en/agents.json";
 import authEn from "./locales/en/auth.json";
 import chatEn from "./locales/en/chat.json";
 import commonEn from "./locales/en/common.json";
@@ -16,8 +17,10 @@ import toastEn from "./locales/en/toast.json";
 import validationEn from "./locales/en/validation.json";
 
 // Import namespaces - Spanish (Mexico) - partial, rest fallback to en
+import agentsEsMX from "./locales/es-MX/agents.json";
 import chatEsMX from "./locales/es-MX/chat.json";
 import commonEsMX from "./locales/es-MX/common.json";
+import validationEsMX from "./locales/es-MX/validation.json";
 
 export const defaultNS = "common";
 
@@ -39,6 +42,7 @@ const getSavedLanguage = (): string => {
 
 export const resources = {
 	en: {
+		agents: agentsEn,
 		auth: authEn,
 		chat: chatEn,
 		common: commonEn,
@@ -53,8 +57,10 @@ export const resources = {
 		validation: validationEn,
 	},
 	"es-MX": {
+		agents: agentsEsMX,
 		chat: chatEsMX,
 		common: commonEsMX,
+		validation: validationEsMX,
 	},
 } as const;
 

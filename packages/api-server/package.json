@@ -19,8 +19,10 @@
 		"test:coverage": "vitest run --coverage",
 		"test:watch": "vitest --watch",
 		"migrate": "dotenv -e ../../.env -- tsx src/database/migrate.ts && pnpm run db:codegen",
+		"db:reset": "dotenv -e ../../.env -- tsx src/database/seed/reset.ts",
 		"test:auth": "dotenv -e ../../.env -- tsx src/scripts/test-auth.ts",
 		"tail-logs": "dotenv -e ../../.env -- tsx src/scripts/tail-logs.ts",
+		"bootstrap:agent-developer": "dotenv -e ../../.env -- tsx scripts/bootstrap-agent-rita-developer.ts",
 		"db:codegen": "dotenv -e ../../.env -- kysely-codegen --out-file src/types/database.ts --dialect postgres && biome format --write src/types/database.ts",
 		"docs:generate": "LOG_LEVEL=silent DATABASE_URL=postgresql://x:x@localhost/x tsx scripts/generate-openapi.ts && biome format --write openapi.json",
 		"docs:validate": "LOG_LEVEL=silent DATABASE_URL=postgresql://x:x@localhost/x tsx scripts/validate-openapi.ts"

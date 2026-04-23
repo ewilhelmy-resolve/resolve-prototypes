@@ -24,6 +24,10 @@ env:
   DEPLOY_HOST: ${{ vars.DEV_DEPLOY_HOST || 'ec2-52-45-128-201.compute-1.amazonaws.com' }}
   DEPLOY_USER: ${{ vars.DEV_DEPLOY_USER || 'ec2-user' }}
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   # Validate all required secrets are configured
   validate-secrets:
@@ -109,6 +113,8 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.ONBOARDING_GITHUB_TOKEN }}
 
       - name: Build API Server
         run: pnpm --filter rita-api-server build

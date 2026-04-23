@@ -62,6 +62,7 @@ export interface ClusterDetails {
 	kb_articles_count: number;
 	ticket_count: number;
 	open_count: number;
+	historical_ticket_count: number;
 	created_at: string;
 	updated_at: string;
 }
@@ -114,7 +115,11 @@ export interface PaginationInfo {
 /**
  * Sort options for cluster list
  */
-export type ClusterSortOption = "volume" | "automation" | "recent";
+export type ClusterSortOption =
+	| "volume"
+	| "automation"
+	| "recent"
+	| "needs_response";
 
 /**
  * Period filter for ticket counts
@@ -126,6 +131,7 @@ export type PeriodFilter = "last30" | "last90" | "last6months" | "lastyear";
  */
 export interface ClustersQueryParams {
 	sort?: ClusterSortOption;
+	sort_dir?: "asc" | "desc";
 	period?: PeriodFilter;
 	limit?: number;
 	offset?: number;
@@ -154,6 +160,8 @@ export interface ClusterTicketsQueryParams {
 	sort?: TicketSortOption;
 	sort_dir?: SortDirection;
 	source?: string;
+	priority?: string;
+	external_status?: string;
 }
 
 /**

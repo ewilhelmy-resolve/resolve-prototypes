@@ -4,7 +4,7 @@
  * Tests the modern chat page that:
  * - Syncs URL parameters with conversation store
  * - Handles SSE real-time message updates
- * - Integrates RitaLayout with ChatV1Content
+ * - Integrates RitaLayout with ChatV2Content
  * - Manages conversation state via useRitaChat
  * - Responds to route parameter changes
  */
@@ -30,6 +30,7 @@ vi.mock("../stores/conversationStore", () => ({
 		clearCurrentConversation: vi.fn(),
 		currentConversationId: null,
 		messages: [],
+		chatMessages: [],
 	})),
 }));
 
@@ -83,15 +84,90 @@ vi.mock("../components/layouts/RitaLayout", () => ({
 	),
 }));
 
-vi.mock("../components/chat/ChatV1Content", () => ({
-	default: (props: any) => (
-		<div data-testid="chat-content">
-			<span data-testid="current-conversation-id">
-				{props.currentConversationId || "none"}
+// Mock hooks now called directly in ChatV1Page
+vi.mock("../hooks/useKnowledgeBase", () => ({
+	useKnowledgeBase: vi.fn(() => ({
+		openDocumentSelector: vi.fn(),
+		files: [],
+		documentInputRef: { current: null },
+		handleDocumentUpload: vi.fn(),
+		uploadingFiles: new Map(),
+	})),
+}));
+
+vi.mock("../hooks/api/useProfile", () => ({
+	useProfilePermissions: vi.fn(() => ({
+		isOwnerOrAdmin: () => false,
+	})),
+}));
+
+vi.mock("../hooks/useFeatureFlags", () => ({
+	useFeatureFlag: vi.fn(() => false),
+}));
+
+vi.mock("../hooks/api/useFiles", () => ({
+	useUploadFile: vi.fn(() => ({ mutate: vi.fn() })),
+}));
+
+vi.mock("../hooks/useDragAndDrop", () => ({
+	useDragAndDrop: vi.fn(() => ({ isDragging: false })),
+}));
+
+vi.mock("../hooks/useChatPagination", () => ({
+	useChatPagination: vi.fn(() => ({
+		sentinelRef: { current: null },
+		isLoadingMore: false,
+		hasMore: false,
+		hasPaginationAttempted: false,
+	})),
+}));
+
+vi.mock("../components/chat/ChatV2Content", () => ({
+	ChatV2Content: (props: any) => (
+		<div data-testid="chat-v2-content">
+			<span data-testid="v2-conversation-id">
+				{props.conversationId || "none"}
 			</span>
-			<span data-testid="message-count">{props.messages?.length || 0}</span>
 		</div>
 	),
+}));
+
+vi.mock("../components/chat/AskRitaEmptyState", () => ({
+	AskRitaEmptyState: () => (
+		<div data-testid="ask-rita-empty-state">Empty State</div>
+	),
+}));
+
+vi.mock("../components/chat/ChatInput", () => ({
+	ChatInput: (props: any) => (
+		<div data-testid="chat-input">
+			<span data-testid="input-value">{props.value}</span>
+		</div>
+	),
+}));
+
+vi.mock("../components/ai-elements/conversation", () => ({
+	Conversation: ({ children }: any) => (
+		<div data-testid="conversation">{children}</div>
+	),
+	ConversationContent: ({ children }: any) => (
+		<div data-testid="conversation-content">{children}</div>
+	),
+	ConversationScrollButton: () => (
+		<div data-testid="conversation-scroll-button" />
+	),
+}));
+
+vi.mock("../components/ai-elements/loader", () => ({
+	Loader: () => <div data-testid="loader" />,
+}));
+
+vi.mock("../components/custom/rita-toast", () => ({
+	ritaToast: {
+		success: vi.fn(),
+		error: vi.fn(),
+		warning: vi.fn(),
+	},
 }));
 
 // Test wrapper with router
@@ -130,7 +206,7 @@ describe("ChatV1Page", () => {
 			expect(layout.getAttribute("data-active-page")).toBe("chat");
 		});
 
-		it("renders ChatV1Content within layout", () => {
+		it("renders conversation components within layout", () => {
 			render(
 				<TestWrapper>
 					<ChatV1Page />
@@ -138,22 +214,18 @@ describe("ChatV1Page", () => {
 			);
 
 			expect(screen.getByTestId("layout-content")).toBeInTheDocument();
-			expect(screen.getByTestId("chat-content")).toBeInTheDocument();
+			expect(screen.getByTestId("conversation")).toBeInTheDocument();
+			expect(screen.getByTestId("chat-input")).toBeInTheDocument();
 		});
 
-		it("passes rita chat state to ChatV1Content", () => {
+		it("shows empty state when no conversation selected", () => {
 			render(
 				<TestWrapper>
 					<ChatV1Page />
 				</TestWrapper>,
 			);
 
-			// Verify ChatV1Content receives the state
-			expect(screen.getByTestId("chat-content")).toBeInTheDocument();
-			expect(screen.getByTestId("current-conversation-id").textContent).toBe(
-				"none",
-			);
-			expect(screen.getByTestId("message-count").textContent).toBe("0");
+			expect(screen.getByTestId("ask-rita-empty-state")).toBeInTheDocument();
 		});
 	});
 
@@ -170,6 +242,7 @@ describe("ChatV1Page", () => {
 				clearCurrentConversation: vi.fn(),
 				currentConversationId: null,
 				messages: [],
+				chatMessages: [],
 			} as any);
 
 			const { useRitaChat } = await import("../hooks/useRitaChat");
@@ -236,6 +309,7 @@ describe("ChatV1Page", () => {
 				clearCurrentConversation: vi.fn(),
 				currentConversationId: "conv-123",
 				messages: [],
+				chatMessages: [],
 			} as any);
 
 			const { useRitaChat } = await import("../hooks/useRitaChat");
@@ -302,6 +376,7 @@ describe("ChatV1Page", () => {
 				clearCurrentConversation: vi.fn(),
 				currentConversationId: "conv-123",
 				messages: [],
+				chatMessages: [],
 			} as any);
 
 			const { useRitaChat } = await import("../hooks/useRitaChat");
@@ -373,6 +448,7 @@ describe("ChatV1Page", () => {
 				clearCurrentConversation: vi.fn(),
 				currentConversationId: null,
 				messages: [],
+				chatMessages: [],
 			} as any);
 
 			vi.mocked(useSSEContext).mockReturnValue({
@@ -411,6 +487,7 @@ describe("ChatV1Page", () => {
 				clearCurrentConversation: vi.fn(),
 				currentConversationId: null,
 				messages: [],
+				chatMessages: [],
 			} as any);
 
 			vi.mocked(useSSEContext).mockReturnValue({
@@ -449,6 +526,7 @@ describe("ChatV1Page", () => {
 				clearCurrentConversation: vi.fn(),
 				currentConversationId: null,
 				messages: [],
+				chatMessages: [],
 			} as any);
 
 			vi.mocked(useSSEContext).mockReturnValue({
@@ -510,10 +588,30 @@ describe("ChatV1Page", () => {
 	});
 
 	describe("Component Composition", () => {
-		it("passes all ritaChatState props to ChatV1Content", async () => {
+		it("renders ChatV2Content when conversation has messages", async () => {
 			const { useRitaChat } = await import("../hooks/useRitaChat");
+			const { useConversationStore } = await import(
+				"../stores/conversationStore"
+			);
 
-			const mockState = {
+			vi.mocked(useConversationStore).mockReturnValue({
+				updateMessage: vi.fn(),
+				setCurrentConversation: vi.fn(),
+				clearCurrentConversation: vi.fn(),
+				currentConversationId: "conv-test",
+				messages: [{ id: "msg-1", content: "Hello" }],
+				chatMessages: [
+					{
+						id: "msg-1",
+						role: "user",
+						message: "Hello",
+						isGroup: false,
+						timestamp: new Date(),
+					},
+				],
+			} as any);
+
+			vi.mocked(useRitaChat).mockReturnValue({
 				currentConversationId: "conv-test",
 				conversations: [{ id: "conv-test", title: "Test" }],
 				conversationsLoading: false,
@@ -521,7 +619,7 @@ describe("ChatV1Page", () => {
 				messages: [{ id: "msg-1", content: "Hello" }],
 				messagesLoading: false,
 				isSending: false,
-				searchValue: "test search",
+				searchValue: "",
 				messageValue: "test message",
 				handleNewChat: vi.fn(),
 				handleConversationClick: vi.fn(),
@@ -551,21 +649,21 @@ describe("ChatV1Page", () => {
 				fileInputRef: { current: null },
 				documentInputRef: { current: null },
 				messagesEndRef: { current: null },
-			};
-
-			vi.mocked(useRitaChat).mockReturnValue(mockState as any);
+			} as any);
 
 			render(
-				<TestWrapper>
+				<TestWrapper initialEntries={["/chat/conv-test"]}>
 					<ChatV1Page />
 				</TestWrapper>,
 			);
 
-			// Verify props are passed to ChatV1Content
-			expect(screen.getByTestId("current-conversation-id").textContent).toBe(
+			expect(screen.getByTestId("chat-v2-content")).toBeInTheDocument();
+			expect(screen.getByTestId("v2-conversation-id").textContent).toBe(
 				"conv-test",
 			);
-			expect(screen.getByTestId("message-count").textContent).toBe("1");
+			expect(screen.getByTestId("input-value").textContent).toBe(
+				"test message",
+			);
 		});
 	});
 });
