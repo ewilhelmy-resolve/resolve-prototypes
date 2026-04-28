@@ -33,12 +33,44 @@ export const MOCK_TOOLS: ToolItem[] = [
 		type: "workflow",
 		active: true,
 	},
+	{
+		eid: "tool-lookup-pto-balance",
+		name: "Look Up PTO Balance",
+		description:
+			"Looks up available PTO balance from ADP Workforce given an Employee ID and outputs results as PTO days available.",
+		type: "workflow",
+		active: true,
+	},
+	{
+		eid: "tool-request-new-pto",
+		name: "Request New PTO",
+		description:
+			"Submits a new PTO request to ADP Workforce for a given employee. Requires start date, end date, reason, and Employee ID. Returns a confirmation of the submitted request.",
+		type: "workflow",
+		active: true,
+	},
+	{
+		eid: "tool-reserve-pto-outlook",
+		name: "Reserve PTO in Outlook",
+		description:
+			"Takes requested PTO start and end dates and reason, then creates an OOO event in Outlook flagged as unavailable. Outputs a confirmation that the calendar event has been created for the given user and email.",
+		type: "workflow",
+		active: true,
+	},
 	// IT / laptop
 	{
 		eid: "tool-submit-laptop",
 		name: "Submit temporary Laptop request in ITSM",
 		description:
 			"Creates a temporary laptop loan request in the ITSM system and returns a confirmation number.",
+		type: "workflow",
+		active: true,
+	},
+	{
+		eid: "tool-request-temp-laptop",
+		name: "Request Temporary Laptop",
+		description:
+			"Creates a request in ServiceNow for a temporary laptop for an employee.",
 		type: "workflow",
 		active: true,
 	},
