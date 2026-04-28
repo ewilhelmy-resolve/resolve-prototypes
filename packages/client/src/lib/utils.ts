@@ -16,12 +16,16 @@ export async function copyToClipboard(text: string): Promise<void> {
 
 /**
  * Convert snake_case or kebab-case tool names to Title Case for display.
+ * Words that already contain uppercase letters are preserved (acronyms, camelCase).
  * "get_db_version" → "Get Db Version"
- * "validate-python-code" → "Validate Python Code"
+ * "IT_MSteams_reset_plugin" → "IT MSteams Reset Plugin"
  */
 export function humanizeToolName(name: string): string {
 	return name
 		.split(/[_-]/)
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+		.map((word) => {
+			if (/[A-Z]/.test(word)) return word;
+			return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+		})
 		.join(" ");
 }

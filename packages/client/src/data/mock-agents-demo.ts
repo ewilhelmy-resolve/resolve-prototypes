@@ -103,6 +103,14 @@ export const MOCK_TOOLS: ToolItem[] = [
 		type: "workflow",
 		active: true,
 	},
+	{
+		eid: "tool-reset-outlook-plugin",
+		name: "IT_MSteams_reset_outlook_plugin",
+		description:
+			"Checks for the Teams outlook service on startup and will enable or reinstall depending on whether is found in the correct state. Useful for fixing issues with MS Teams meetings not showing up in new calendar invites.",
+		type: "workflow",
+		active: true,
+	},
 	// Knowledge
 	{
 		eid: "tool-search-kb",
