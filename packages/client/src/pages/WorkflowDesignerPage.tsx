@@ -28,12 +28,15 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { WorkflowCanvas } from "@/components/workflow-designer/WorkflowCanvas";
-import { WorkflowConfigPanel } from "@/components/workflow-designer/WorkflowConfigPanel";
-import { WorkflowConfigPanelV2 } from "@/components/workflow-designer/WorkflowConfigPanelV2";
 import { WorkflowJarvisPanel } from "@/components/workflow-designer/WorkflowJarvisPanel";
+import { WorkflowRightPanel } from "@/components/workflow-designer/WorkflowRightPanel";
 import { WorkflowSkillAutoDetectDialog } from "@/components/workflow-designer/WorkflowSkillAutoDetectDialog";
 import { WorkflowSkillMetadataDialog } from "@/components/workflow-designer/WorkflowSkillMetadataDialog";
 import { WorkflowSkillVariableDialog } from "@/components/workflow-designer/WorkflowSkillVariableDialog";
+import {
+	createDefaultStartNodeState,
+	type StartNodeDetailsState,
+} from "@/components/workflow-designer/WorkflowStartNodeDetails";
 import {
 	DEFAULT_EDGES,
 	DEFAULT_NODES,
@@ -47,7 +50,6 @@ import type {
 	SkillMetadata,
 	WorkflowTab,
 } from "@/components/workflow-designer/workflowDesignerTypes";
-import { useFeatureFlag } from "@/hooks/useFeatureFlags";
 import { toast } from "@/lib/toast";
 
 const DEFAULT_SKILL_METADATA: SkillMetadata = {
@@ -59,31 +61,34 @@ const DEFAULT_SKILL_METADATA: SkillMetadata = {
 };
 
 export default function WorkflowDesignerPage() {
-	const isV2 = useFeatureFlag("ENABLE_WORKFLOW_DESIGNER_V2");
-
 	// Workflow tabs
 	const [tabs, setTabs] = useState<WorkflowTab[]>([
 		{ id: "new-1", name: "New Workflow" },
 	]);
 	const [activeTabId, setActiveTabId] = useState("new-1");
 
-	// Skill metadata per tab
+	// Skill metadata per tab (kept for kebab-menu "Configure as Skill" flow)
 	const [skillMetadataMap, setSkillMetadataMap] = useState<
 		Record<string, SkillMetadata>
 	>({});
 	const [skillDialogVariant, setSkillDialogVariant] = useState<
 		"json" | "variables" | null
 	>(null);
-	const [skillOption, setSkillOption] = useState<"json" | "variables">("json");
+	const [skillOption, _setSkillOption] = useState<"json" | "variables">("json");
 	const [runDialogOpen, setRunDialogOpen] = useState(false);
-	const [workflowDescriptionMap, setWorkflowDescriptionMap] = useState<
+	const [_workflowDescriptionMap, setWorkflowDescriptionMap] = useState<
 		Record<string, string>
 	>({});
-	const [publishedSkills, setPublishedSkills] = useState<
+	const [_publishedSkills, setPublishedSkills] = useState<
 		Record<string, SkillMetadata>
 	>({});
 
-	// React Flow state — start empty for demo
+	// Start node details state per tab
+	const [startNodeDetailsMap, setStartNodeDetailsMap] = useState<
+		Record<string, StartNodeDetailsState>
+	>({});
+
+	// React Flow state
 	const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -131,7 +136,6 @@ export default function WorkflowDesignerPage() {
 				setEdges([]);
 			}
 			setSelectedNodeId(null);
-			// Store template description for the active tab
 			const template = WORKFLOW_TEMPLATES.find((t) => t.id === templateId);
 			if (template) {
 				setWorkflowDescriptionMap((prev) => ({
@@ -165,7 +169,6 @@ export default function WorkflowDesignerPage() {
 			}));
 			setPublishedSkills((prev) => {
 				const next = { ...prev, [activeTabId]: metadata };
-				// Persist for agent builder to pick up
 				try {
 					const existing = JSON.parse(
 						localStorage.getItem("publishedWorkflowSkills") || "[]",
@@ -193,6 +196,32 @@ export default function WorkflowDesignerPage() {
 		},
 		[activeTabId],
 	);
+
+	// Publish from inline start-node details
+	const handlePublishSkillFromStartNode = useCallback(() => {
+		const state = startNodeDetailsMap[activeTabId];
+		if (!state?.skillName.trim()) return;
+		const metadata: SkillMetadata = {
+			name: state.skillName,
+			description: state.skillDescription,
+			toolEid: "",
+			inputsJson:
+				state.parameters.length > 0
+					? JSON.stringify(
+							Object.fromEntries(
+								state.parameters.map((p) => [
+									p.name || "unnamed",
+									{ type: p.type, description: p.description },
+								]),
+							),
+							null,
+							2,
+						)
+					: "",
+			outputsJson: "",
+		};
+		handlePublishSkill(metadata);
+	}, [activeTabId, startNodeDetailsMap, handlePublishSkill]);
 
 	const handleRenameTab = useCallback(
 		(name: string) => {
@@ -224,6 +253,21 @@ export default function WorkflowDesignerPage() {
 			setActiveTabId(remaining[0].id);
 		}
 	};
+
+	// Start node details state for active tab
+	const activeStartNodeState =
+		startNodeDetailsMap[activeTabId] ??
+		createDefaultStartNodeState(tabs.find((t) => t.id === activeTabId)?.name);
+
+	const handleStartNodeStateChange = useCallback(
+		(state: StartNodeDetailsState) => {
+			setStartNodeDetailsMap((prev) => ({
+				...prev,
+				[activeTabId]: state,
+			}));
+		},
+		[activeTabId],
+	);
 
 	return (
 		<RitaLayout activePage="automations">
@@ -370,50 +414,21 @@ export default function WorkflowDesignerPage() {
 						setNodes={setNodes}
 						onNodeSelect={handleNodeSelect}
 					/>
-					{isV2 ? (
-						<div className="flex flex-col shrink-0 h-full overflow-hidden">
-							<div className="h-8 bg-slate-50 border-l border-b border-slate-200 flex items-center px-3 gap-2">
-								<span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
-									Skill Modal
-								</span>
-								<select
-									value={skillOption}
-									onChange={(e) =>
-										setSkillOption(e.target.value as "json" | "variables")
-									}
-									className="text-[11px] h-5 rounded border border-slate-200 bg-white text-slate-600 px-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-									aria-label="Skill configuration option"
-								>
-									<option value="json">Opt 1: JSON Schema</option>
-									<option value="variables">Opt 2: Variable Picker</option>
-								</select>
-							</div>
-							<WorkflowConfigPanelV2
-								selectedNode={selectedNode}
-								onUpdateConfig={handleUpdateConfig}
-								onClose={() => setSelectedNodeId(null)}
-								onSelectStartNode={handleSelectStartNode}
-								nodes={nodes}
-								workflowName={
-									tabs.find((t) => t.id === activeTabId)?.name ?? ""
-								}
-								workflowDescription={workflowDescriptionMap[activeTabId] ?? ""}
-								skillMetadata={
-									skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA
-								}
-								onConfigureSkill={() => setSkillDialogVariant(skillOption)}
-								published={activeTabId in publishedSkills}
-							/>
-						</div>
-					) : (
-						<WorkflowConfigPanel
-							selectedNode={selectedNode}
-							onUpdateConfig={handleUpdateConfig}
-							onClose={() => setSelectedNodeId(null)}
-							onSelectStartNode={handleSelectStartNode}
-							nodes={nodes}
-						/>
-					)}
+					<WorkflowRightPanel
+						key={`right-${activeTabId}`}
+						selectedNode={selectedNode}
+						onUpdateConfig={handleUpdateConfig}
+						onClose={() => setSelectedNodeId(null)}
+						onSelectStartNode={handleSelectStartNode}
+						nodes={nodes}
+						onLoadTemplate={handleLoadTemplate}
+						onRenameTab={handleRenameTab}
+						hasWorkflow={nodes.length > 0}
+						startNodeState={activeStartNodeState}
+						onStartNodeStateChange={handleStartNodeStateChange}
+						onPublishSkill={handlePublishSkillFromStartNode}
+						workflowName={tabs.find((t) => t.id === activeTabId)?.name ?? ""}
+					/>
 				</div>
 			</div>
 			<WorkflowSkillMetadataDialog
@@ -445,7 +460,6 @@ export default function WorkflowDesignerPage() {
 				onOpenChange={setRunDialogOpen}
 				onRun={(variableNames) => {
 					toast.success("Workflow execution started");
-					// Store detected variables so skill config can pre-populate
 					const currentMeta =
 						skillMetadataMap[activeTabId] ?? DEFAULT_SKILL_METADATA;
 					if (variableNames.length > 0) {
@@ -454,7 +468,11 @@ export default function WorkflowDesignerPage() {
 							{ type: string; description: string; activity: string }
 						> = {};
 						for (const name of variableNames) {
-							inputs[name] = { type: "string", description: "", activity: "" };
+							inputs[name] = {
+								type: "string",
+								description: "",
+								activity: "",
+							};
 						}
 						setSkillMetadataMap((prev) => ({
 							...prev,
