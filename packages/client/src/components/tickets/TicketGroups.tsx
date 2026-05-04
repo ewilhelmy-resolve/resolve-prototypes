@@ -89,6 +89,7 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 	const { t } = useTranslation("tickets");
 	const phaseV2 = usePhaseGate("tickets", "v2");
 	const phaseV3 = usePhaseGate("tickets", "v3");
+	const phaseV4 = usePhaseGate("tickets", "v4");
 	const [viewMode, setViewMode] = useState<TopViewMode>("cards");
 	const [activeSort, setActiveSort] = useState<SortOption>("volume");
 	const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
@@ -413,7 +414,9 @@ export default function TicketGroups({ period }: TicketGroupsProps) {
 													? Math.floor(cluster.needs_response_count * 0.3)
 													: undefined
 											}
-											knowledgeStatus={phaseV3 ? cluster.kb_status : undefined}
+											knowledgeStatus={
+												phaseV3 && !phaseV4 ? cluster.kb_status : undefined
+											}
 											mttr={phaseV3 ? "3.2hr" : undefined}
 										/>
 									);

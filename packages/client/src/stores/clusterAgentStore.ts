@@ -25,13 +25,53 @@ export interface AgentRun {
 	feedback?: AgentRunFeedback;
 }
 
+export type EvalTestMethod = "skill-success" | "quality" | "similarity";
+
+export interface EvalCase {
+	id: string;
+	ticketId: string;
+	ticketExternalId?: string;
+	/** The "question" — equivalent to ticket subject */
+	question: string;
+	/** The agent's generated response (markdown-ish summary) */
+	agentResponse: string;
+	testMethod: EvalTestMethod;
+	score: "pass" | "fail";
+	/** Reviewer override after seeing detail */
+	rating: "good" | "bad" | null;
+	/** When score=fail, which skill broke and why (mock copy) */
+	failureReason?: string;
+	/** Per-skill simulated outputs for the detail panel */
+	skillOutputs: {
+		skillId: string;
+		skillName: string;
+		summary: string;
+		ok: boolean;
+	}[];
+}
+
+export interface EvaluationRun {
+	id: string;
+	clusterId: string;
+	agentId: string;
+	name: string;
+	startedAt: string;
+	completedAt?: string;
+	sampleSize: number;
+	testMethod: EvalTestMethod;
+	status: "running" | "completed" | "cancelled";
+	cases: EvalCase[];
+}
+
 interface ClusterAgentState {
 	/** clusterId → attached agentId */
 	bindings: Record<string, string>;
 	/** clusterId → automation enabled */
 	automation: Record<string, boolean>;
-	/** clusterId → run history (newest last) */
+	/** clusterId → ad-hoc dry-run history (newest last) */
 	runs: Record<string, AgentRun[]>;
+	/** clusterId → batch evaluations (newest last) */
+	evaluations: Record<string, EvaluationRun[]>;
 
 	attachAgent: (clusterId: string, agentId: string) => void;
 	detachAgent: (clusterId: string) => void;
@@ -47,6 +87,14 @@ interface ClusterAgentState {
 		runId: string,
 		feedback: AgentRunFeedback,
 	) => void;
+	startEvaluation: (clusterId: string, evaluation: EvaluationRun) => void;
+	completeEvaluation: (clusterId: string, evaluationId: string) => void;
+	rateEvalCase: (
+		clusterId: string,
+		evaluationId: string,
+		caseId: string,
+		rating: "good" | "bad" | null,
+	) => void;
 }
 
 export const useClusterAgentStore = create<ClusterAgentState>()(
@@ -56,6 +104,7 @@ export const useClusterAgentStore = create<ClusterAgentState>()(
 				bindings: {},
 				automation: {},
 				runs: {},
+				evaluations: {},
 
 				attachAgent: (clusterId, agentId) =>
 					set((state) => ({
@@ -92,6 +141,47 @@ export const useClusterAgentStore = create<ClusterAgentState>()(
 							...state.runs,
 							[clusterId]: (state.runs[clusterId] ?? []).map((r) =>
 								r.id === runId ? { ...r, feedback } : r,
+							),
+						},
+					})),
+				startEvaluation: (clusterId, evaluation) =>
+					set((state) => ({
+						evaluations: {
+							...state.evaluations,
+							[clusterId]: [
+								...(state.evaluations[clusterId] ?? []),
+								evaluation,
+							],
+						},
+					})),
+				completeEvaluation: (clusterId, evaluationId) =>
+					set((state) => ({
+						evaluations: {
+							...state.evaluations,
+							[clusterId]: (state.evaluations[clusterId] ?? []).map((ev) =>
+								ev.id === evaluationId
+									? {
+											...ev,
+											status: "completed",
+											completedAt: new Date().toISOString(),
+										}
+									: ev,
+							),
+						},
+					})),
+				rateEvalCase: (clusterId, evaluationId, caseId, rating) =>
+					set((state) => ({
+						evaluations: {
+							...state.evaluations,
+							[clusterId]: (state.evaluations[clusterId] ?? []).map((ev) =>
+								ev.id === evaluationId
+									? {
+											...ev,
+											cases: ev.cases.map((c) =>
+												c.id === caseId ? { ...c, rating } : c,
+											),
+										}
+									: ev,
 							),
 						},
 					})),

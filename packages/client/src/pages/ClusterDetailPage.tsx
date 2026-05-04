@@ -20,8 +20,11 @@ import ReviewAIResponseSheet, {
 import { AgentDryRunSheet } from "@/components/tickets/v4/AgentDryRunSheet";
 import { AgentRunHistory } from "@/components/tickets/v4/AgentRunHistory";
 import { ClusterAgentCard } from "@/components/tickets/v4/ClusterAgentCard";
+import { EvaluationKickoffSheet } from "@/components/tickets/v4/EvaluationKickoffSheet";
+import { EvaluationsTab } from "@/components/tickets/v4/EvaluationsTab";
 import { Button } from "@/components/ui/button";
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	Tooltip,
 	TooltipContent,
@@ -86,6 +89,10 @@ export default function ClusterDetailPage() {
 		title: string;
 	} | null>(null);
 	const [replayRun, setReplayRun] = useState<AgentRun | null>(null);
+	const [evalKickoffOpen, setEvalKickoffOpen] = useState(false);
+	const [activeTab, setActiveTab] = useState<"tickets" | "evaluations">(
+		"tickets",
+	);
 
 	// Presenter mode: observe scripted "open this ticket" directive
 	const scriptedTicket = usePresenterStore((s) => s.scriptedOpenTicket);
@@ -274,7 +281,7 @@ export default function ClusterDetailPage() {
 								<ArrowLeft className="h-4 w-4" />
 							</Button>
 							<h1 className="text-xl font-medium">{title}</h1>
-							{phaseV3 && cluster.kb_status === "GAP" && (
+							{phaseV3 && !phaseV4 && cluster.kb_status === "GAP" && (
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<BookX className="size-4 text-amber-500" />
@@ -343,38 +350,84 @@ export default function ClusterDetailPage() {
 						</StatGroup>
 
 						{/* Table Section */}
-						<ClusterDetailTable
-							key={id}
-							clusterId={id}
-							totalCount={cluster.ticket_count}
-							openCount={cluster.open_count}
-							enableSelect={phaseV3}
-							selectedIds={selectedTicketIds}
-							onSelectionChange={setSelectedTicketIds}
-							onBulkReview={() => {
-								setReviewIndex(0);
-								setReviewSheetOpen(true);
-							}}
-							onRunAgent={
-								phaseV4 && attachedAgent
-									? (ticket) => setDryRunTicket(ticket)
-									: undefined
-							}
-						/>
+						{phaseV4 ? (
+							<Tabs
+								value={activeTab}
+								onValueChange={(v) =>
+									setActiveTab(v as "tickets" | "evaluations")
+								}
+							>
+								<TabsList>
+									<TabsTrigger value="tickets">Tickets</TabsTrigger>
+									<TabsTrigger value="evaluations">Evaluations</TabsTrigger>
+								</TabsList>
+								<TabsContent value="tickets">
+									<ClusterDetailTable
+										key={id}
+										clusterId={id}
+										totalCount={cluster.ticket_count}
+										openCount={cluster.open_count}
+										enableSelect={phaseV3}
+										selectedIds={selectedTicketIds}
+										onSelectionChange={setSelectedTicketIds}
+										onBulkReview={() => {
+											setReviewIndex(0);
+											setReviewSheetOpen(true);
+										}}
+										onRunAgent={
+											attachedAgent
+												? (ticket) => setDryRunTicket(ticket)
+												: undefined
+										}
+									/>
+								</TabsContent>
+								<TabsContent value="evaluations">
+									<EvaluationsTab
+										clusterId={id ?? ""}
+										clusterName={title}
+										agent={attachedAgent}
+									/>
+								</TabsContent>
+							</Tabs>
+						) : (
+							<ClusterDetailTable
+								key={id}
+								clusterId={id}
+								totalCount={cluster.ticket_count}
+								openCount={cluster.open_count}
+								enableSelect={phaseV3}
+								selectedIds={selectedTicketIds}
+								onSelectionChange={setSelectedTicketIds}
+								onBulkReview={() => {
+									setReviewIndex(0);
+									setReviewSheetOpen(true);
+								}}
+							/>
+						)}
 					</div>
 				</div>
 
 				{/* Knowledge Sidebar + Full Autopilot (v3) */}
 				{phaseV3 && (
 					<div className="w-full lg:w-80 lg:shrink-0 lg:border-l flex flex-col gap-0 overflow-y-auto">
-						<ClusterDetailSidebar
-							clusterId={id}
-							clusterName={title}
-							kbArticlesCount={cluster.kb_articles_count}
-							kbStatus={cluster.kb_status}
-						/>
+						{!phaseV4 && (
+							<ClusterDetailSidebar
+								clusterId={id}
+								clusterName={title}
+								kbArticlesCount={cluster.kb_articles_count}
+								kbStatus={cluster.kb_status}
+							/>
+						)}
 						<div className="flex flex-col gap-4 p-4">
-							{phaseV4 && id && <ClusterAgentCard clusterId={id} />}
+							{phaseV4 && id && (
+								<ClusterAgentCard
+									clusterId={id}
+									onEvaluate={() => {
+										setActiveTab("evaluations");
+										setEvalKickoffOpen(true);
+									}}
+								/>
+							)}
 							{phaseV4 && id && attachedAgent && (
 								<AgentRunHistory
 									clusterId={id}
@@ -444,6 +497,17 @@ export default function ClusterDetailPage() {
 					}
 					clusterId={id}
 					readOnlyRun={replayRun}
+				/>
+			)}
+
+			{/* v4: Evaluation kickoff (from agent card "Evaluate" CTA) */}
+			{phaseV4 && id && attachedAgent && (
+				<EvaluationKickoffSheet
+					open={evalKickoffOpen}
+					onOpenChange={setEvalKickoffOpen}
+					clusterId={id}
+					clusterName={title}
+					agent={attachedAgent}
 				/>
 			)}
 
