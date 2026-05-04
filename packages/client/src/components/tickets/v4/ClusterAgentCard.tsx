@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, Zap } from "lucide-react";
+import { Bot, ChevronDown, FlaskConical, Zap } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,10 @@ const EMPTY_RUN_MAP: Record<string, AgentRun[]> = {};
 
 interface ClusterAgentCardProps {
 	clusterId: string;
+	onEvaluate?: () => void;
 }
 
-export function ClusterAgentCard({ clusterId }: ClusterAgentCardProps) {
+export function ClusterAgentCard({ clusterId, onEvaluate }: ClusterAgentCardProps) {
 	const attachedAgentId = useClusterAgentStore(
 		(s) => s.bindings[clusterId] ?? null,
 	);
@@ -182,6 +183,16 @@ export function ClusterAgentCard({ clusterId }: ClusterAgentCardProps) {
 					aria-label="Toggle automation for this cluster"
 				/>
 			</label>
+			{onEvaluate && (
+				<Button
+					size="sm"
+					onClick={onEvaluate}
+					className="w-full mb-2"
+				>
+					<FlaskConical className="size-4" />
+					Evaluate
+				</Button>
+			)}
 			<div className="flex gap-2">
 				<DropdownMenu open={open} onOpenChange={setOpen}>
 					<DropdownMenuTrigger asChild>
