@@ -1,4 +1,4 @@
-import { ThumbsDown, ThumbsUp } from "lucide-react";
+import { Bot, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
+import type { MockAgent } from "@/data/mock-v4-agents";
 import {
 	AI_RESPONSE_TYPE,
 	type AIResponseType,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/tickets/utils";
 import { cn } from "@/lib/utils";
 import { type AIResponseData, AIResponseSection } from "./AIResponseSection";
+import { AgentLiveRun } from "./AgentLiveRun";
 import { FeedbackSection } from "./FeedbackSection";
 import type { ReviewTicket } from "./ReviewAIResponseSheet";
 
@@ -37,6 +39,9 @@ interface ReviewViewProps {
 	onReject: () => void;
 	onSubmitFeedback: (reasons: string[], feedback: string) => void;
 	onCancelFeedback: () => void;
+	/** v4: When provided, renders agent response side-by-side and enables Trust Agent action */
+	agent?: MockAgent | null;
+	onTrustAgent?: () => void;
 }
 
 /**
@@ -64,13 +69,21 @@ export function ReviewView({
 	onReject,
 	onSubmitFeedback,
 	onCancelFeedback,
+	agent,
+	onTrustAgent,
 }: ReviewViewProps) {
 	const { t } = useTranslation("tickets");
 	const progressValue = ((currentIndex + 1) / totalTickets) * 100;
+	const isCompare = !!(agent && onTrustAgent);
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent className="flex flex-col gap-6 sm:max-w-2xl w-full p-8">
+			<SheetContent
+				className={cn(
+					"flex flex-col gap-6 w-full p-8",
+					isCompare ? "sm:max-w-5xl" : "sm:max-w-2xl",
+				)}
+			>
 				<SheetHeader className="p-0">
 					<SheetTitle className="text-lg font-semibold">
 						{t("review.title")}
@@ -127,8 +140,26 @@ export function ReviewView({
 							</div>
 						</div>
 
-						{/* AI Response Section */}
-						<AIResponseSection response={aiResponse} type={aiResponseType} />
+						{/* Response Section(s) */}
+						{isCompare && agent ? (
+							<div className="flex flex-col lg:flex-row gap-4">
+								<AIResponseSection
+									response={aiResponse}
+									type={aiResponseType}
+								/>
+								<AgentLiveRun
+									agent={agent}
+									ticketKey={ticket.id}
+									ticketLabel={ticket.externalId}
+									confidence={Math.max(
+										75,
+										Math.min(96, aiResponse.confidenceScore + 4),
+									)}
+								/>
+							</div>
+						) : (
+							<AIResponseSection response={aiResponse} type={aiResponseType} />
+						)}
 					</div>
 				</div>
 
@@ -157,8 +188,18 @@ export function ReviewView({
 						disabled={showFeedback}
 					>
 						<ThumbsUp className="size-4 text-primary" />
-						{t("review.trustTheBot")}
+						{isCompare ? "Trust AI" : t("review.trustTheBot")}
 					</Button>
+					{isCompare && onTrustAgent && (
+						<Button
+							className="flex-1 gap-2"
+							onClick={onTrustAgent}
+							disabled={showFeedback}
+						>
+							<Bot className="size-4" />
+							Trust Agent
+						</Button>
+					)}
 				</SheetFooter>
 			</SheetContent>
 		</Sheet>

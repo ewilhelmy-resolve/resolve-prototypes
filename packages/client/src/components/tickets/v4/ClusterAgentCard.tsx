@@ -15,12 +15,14 @@ import { useClusterDetails } from "@/hooks/useClusters";
 import { suggestAgentForCluster } from "@/lib/tickets/agent-suggestion";
 import {
 	type AgentRun,
+	type TrustVote,
 	useClusterAgentStore,
 } from "@/stores/clusterAgentStore";
 import { AgentSuggestionCard } from "./AgentSuggestionCard";
 
 const EMPTY_RUNS: AgentRun[] = [];
 const EMPTY_RUN_MAP: Record<string, AgentRun[]> = {};
+const EMPTY_VOTES: TrustVote[] = [];
 
 interface ClusterAgentCardProps {
 	clusterId: string;
@@ -37,6 +39,10 @@ export function ClusterAgentCard({ clusterId, onEvaluate }: ClusterAgentCardProp
 	const runs = useClusterAgentStore((s) => s.runs[clusterId] ?? EMPTY_RUNS);
 	const ratedGood = runs.filter((r) => r.rating === "good").length;
 	const ratedAny = runs.filter((r) => r.rating !== null).length;
+	const trustVotes = useClusterAgentStore(
+		(s) => s.trustVotes[clusterId] ?? EMPTY_VOTES,
+	);
+	const agentVotes = trustVotes.filter((v) => v.choice === "agent").length;
 	const attachAgent = useClusterAgentStore((s) => s.attachAgent);
 	const detachAgent = useClusterAgentStore((s) => s.detachAgent);
 	const setAutomation = useClusterAgentStore((s) => s.setAutomation);
@@ -142,6 +148,15 @@ export function ClusterAgentCard({ clusterId, onEvaluate }: ClusterAgentCardProp
 									<span>/{ratedAny} rated good</span>
 								</>
 							)}
+						</div>
+					)}
+					{trustVotes.length > 0 && (
+						<div className="mt-1 text-[11px] text-muted-foreground">
+							Reviewers picked agent over AI{" "}
+							<span className="font-medium text-foreground">
+								{agentVotes}
+							</span>
+							/{trustVotes.length}
 						</div>
 					)}
 				</div>

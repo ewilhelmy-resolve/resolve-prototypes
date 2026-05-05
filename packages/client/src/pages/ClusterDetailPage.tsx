@@ -89,6 +89,7 @@ export default function ClusterDetailPage() {
 		id ? s.bindings[id] ?? null : null,
 	);
 	const attachedAgent = getMockAgentById(attachedAgentId);
+	const addTrustVote = useClusterAgentStore((s) => s.addTrustVote);
 	const [dryRunTicket, setDryRunTicket] = useState<{
 		id: string;
 		externalId?: string;
@@ -520,7 +521,16 @@ export default function ClusterDetailPage() {
 						currentIndex={reviewIndex}
 						aiResponse={mockAIResponse}
 						onNavigate={setReviewIndex}
-						onApprove={(ticketId) => console.log("Approved:", ticketId)}
+						onApprove={(ticketId) => {
+							if (id) {
+								addTrustVote(id, {
+									id: `vote-${Date.now()}-${ticketId}`,
+									ticketId,
+									choice: "ai",
+									at: new Date().toISOString(),
+								});
+							}
+						}}
 						onReject={(ticketId) => console.log("Rejected:", ticketId)}
 						onKeepReviewing={() => { setReviewIndex(0); }}
 						onReviewComplete={(stats) => {
@@ -531,6 +541,20 @@ export default function ClusterDetailPage() {
 								t("clusterDetail.banners.reviewSuccessDesc", { trusted: stats.trusted, improvement: stats.confidenceImprovement }),
 							);
 						}}
+						agent={phaseV4 ? attachedAgent : null}
+						onTrustAgent={
+							phaseV4 && id
+								? (ticketId, externalId) => {
+										addTrustVote(id, {
+											id: `vote-${Date.now()}-${ticketId}`,
+											ticketId,
+											ticketExternalId: externalId,
+											choice: "agent",
+											at: new Date().toISOString(),
+										});
+									}
+								: undefined
+						}
 					/>
 				</>
 			)}
