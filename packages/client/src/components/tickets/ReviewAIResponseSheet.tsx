@@ -7,6 +7,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
+import type { MockAgent } from "@/data/mock-v4-agents";
 import { AI_RESPONSE_TYPE, type AIResponseType } from "@/lib/tickets/utils";
 import type { AIResponseData } from "./AIResponseSection";
 import { CompletionView } from "./CompletionView";
@@ -64,6 +65,10 @@ interface ReviewAIResponseSheetProps {
 	onKeepReviewing?: () => void;
 	/** Called when review is completed (all tickets reviewed) with final stats */
 	onReviewComplete?: (stats: ReviewStats) => void;
+	/** v4: When provided, side-by-side compare mode is enabled */
+	agent?: MockAgent | null;
+	/** v4: User picked agent over AI for this ticket */
+	onTrustAgent?: (ticketId: string, ticketExternalId?: string) => void;
 }
 
 /**
@@ -94,6 +99,8 @@ export default function ReviewAIResponseSheet({
 	onEnableAutoRespond: _onEnableAutoRespond,
 	onKeepReviewing,
 	onReviewComplete: _onReviewComplete,
+	agent,
+	onTrustAgent,
 }: ReviewAIResponseSheetProps) {
 	const { t } = useTranslation("tickets");
 	const [showFeedback, setShowFeedback] = useState(false);
@@ -214,6 +221,16 @@ export default function ReviewAIResponseSheet({
 		setShowFeedback(false);
 	};
 
+	const handleTrustAgent = () => {
+		const isLastTicket = currentIndex >= tickets.length - 1;
+		onTrustAgent?.(currentTicket.id, currentTicket.externalId);
+		if (!isLastTicket) {
+			onNavigate(currentIndex + 1);
+		} else {
+			setIsCompleted(true);
+		}
+	};
+
 	// Review View
 	return (
 		<ReviewView
@@ -229,6 +246,8 @@ export default function ReviewAIResponseSheet({
 			onReject={handleReject}
 			onSubmitFeedback={handleSubmitFeedback}
 			onCancelFeedback={handleCancelFeedback}
+			agent={agent}
+			onTrustAgent={agent && onTrustAgent ? handleTrustAgent : undefined}
 		/>
 	);
 }

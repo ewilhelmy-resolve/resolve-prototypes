@@ -63,6 +63,15 @@ export interface EvaluationRun {
 	cases: EvalCase[];
 }
 
+/** Reviewer's choice during bulk-review side-by-side: did they trust agent or AI? */
+export interface TrustVote {
+	id: string;
+	ticketId: string;
+	ticketExternalId?: string;
+	choice: "agent" | "ai";
+	at: string;
+}
+
 interface ClusterAgentState {
 	/** clusterId → attached agentId */
 	bindings: Record<string, string>;
@@ -72,6 +81,8 @@ interface ClusterAgentState {
 	runs: Record<string, AgentRun[]>;
 	/** clusterId → batch evaluations (newest last) */
 	evaluations: Record<string, EvaluationRun[]>;
+	/** clusterId → reviewer trust votes from agent-vs-AI side-by-side */
+	trustVotes: Record<string, TrustVote[]>;
 
 	attachAgent: (clusterId: string, agentId: string) => void;
 	detachAgent: (clusterId: string) => void;
@@ -95,6 +106,7 @@ interface ClusterAgentState {
 		caseId: string,
 		rating: "good" | "bad" | null,
 	) => void;
+	addTrustVote: (clusterId: string, vote: TrustVote) => void;
 }
 
 export const useClusterAgentStore = create<ClusterAgentState>()(
@@ -105,6 +117,7 @@ export const useClusterAgentStore = create<ClusterAgentState>()(
 				automation: {},
 				runs: {},
 				evaluations: {},
+				trustVotes: {},
 
 				attachAgent: (clusterId, agentId) =>
 					set((state) => ({
@@ -183,6 +196,16 @@ export const useClusterAgentStore = create<ClusterAgentState>()(
 										}
 									: ev,
 							),
+						},
+					})),
+				addTrustVote: (clusterId, vote) =>
+					set((state) => ({
+						trustVotes: {
+							...state.trustVotes,
+							[clusterId]: [
+								...(state.trustVotes[clusterId] ?? []),
+								vote,
+							],
 						},
 					})),
 			}),
